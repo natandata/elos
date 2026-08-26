@@ -1,0 +1,170 @@
+@import "tailwindcss";
+
+/* Tema neutro (login e área administrativa) */
+:root {
+  --bg: #f6f7fb;
+  --card: #ffffff;
+  --line: #e6e8f0;
+  --ink: #14142b;
+  --muted: #6b7280;
+  --accent: #7c3aed;
+  --accent-ink: #ffffff;
+  --accent-soft: #ede9fe;
+  --accent-strong: #5b21b6;
+}
+
+/* Tema masculino — amarelo + preto, branco de suporte */
+[data-theme="male"] {
+  --bg: #f7f7f5;
+  --card: #ffffff;
+  --line: #e5e5e0;
+  --ink: #101012;
+  --muted: #6b6b70;
+  --accent: #f5c518;
+  --accent-ink: #101012;
+  --accent-soft: #fdf3cd;
+  --accent-strong: #101012;
+}
+
+/* Tema feminino — rosa + branco, neutros de suporte */
+[data-theme="female"] {
+  --bg: #fdf7fa;
+  --card: #ffffff;
+  --line: #f2e2ea;
+  --ink: #2a1122;
+  --muted: #7a6270;
+  --accent: #e8407f;
+  --accent-ink: #ffffff;
+  --accent-soft: #fde6ef;
+  --accent-strong: #b81f5c;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-card: var(--card);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-strong: var(--accent-strong);
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.25s ease;
+}
+
+/* ------------------------------------------------------------- utilitários */
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  box-shadow: 0 1px 2px rgb(20 20 43 / 0.04);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.75rem;
+  padding: 0.7rem 1.1rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: filter 0.15s ease, background-color 0.15s ease, opacity 0.15s ease;
+  cursor: pointer;
+}
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.btn-primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.btn-primary:hover:not(:disabled) {
+  filter: brightness(0.93);
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+.btn-ghost:hover:not(:disabled) {
+  background: var(--bg);
+}
+.btn-soft {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.input {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: var(--card);
+  border-radius: 0.75rem;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.95rem;
+  color: var(--ink);
+  outline: none;
+}
+.input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 0.35rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  border-width: 1px;
+  padding: 0.15rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.82);
+  }
+}
+.live-dot {
+  animation: pulse-dot 1.6s ease-in-out infinite;
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.rise-in {
+  animation: rise-in 0.35s ease both;
+}

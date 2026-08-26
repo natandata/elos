@@ -1,0 +1,147 @@
+import { EmptyState, ErrorState, PageHeader } from "@/components/ui";
+import { createClient } from "@/lib/supabase/server";
+import type { Elo, MissionType, Profile } from "@/lib/types";
+import { ApprovalItem, type PendingReview } from "./ApprovalItem";
+import { MissionComposer, type CriaOption } from "./MissionComposer";
+import { MissionManagerCard, type ManagedMission } from "./MissionManagerCard";
+
+type MissionRow = {
+  id: string;
+  title: string;
+  description: string | null;
+  type: MissionType;
+  xp: number;
+  start_date: string | null;
+  due_date: string | null;
+  created_by: string;
+  elos: { name: string } | null;
+  mission_assignments: { id: string; status: string }[];
+};
+
+type AssignmentRow = {
+  id: string;
+  submitted_at: string | null;
+  profiles: { full_name: string } | null;
+  missions: { title: string; description: string | null; xp: number } | null;
+};
+
+/** Área de missões compartilhada por Admin e Líder. */
+export async function MissionsWorkspace({ profile }: { profile: Profile }) {
+  const supabase = await createClient();
+  const isAdmin = profile.role === "admin";
+
+  const [elosRes, criasRes, missionsRes, pendingRes] = await Promise.all([
+    supabase.from("elos").select("*").order("gender").order("age_range"),
+    isAdmin
+      ? supabase.from("profiles").select("id, full_name, elo_id").eq("role", "cria").order("full_name")
+      : supabase
+          .from("leader_crias")
+          .select("profiles:cria_id(id, full_name, elo_id)")
+          .eq("leader_id", profile.id),
+    supabase
+      .from("missions")
+      .select(
+        "id, title, description, type, xp, start_date, due_date, created_by, elos:elo_id(name), mission_assignments(id, status)",
+      )
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("mission_assignments")
+      .select("id, submitted_at, profiles:cria_id(full_name), missions:mission_id(title, description, xp)")
+      .eq("status", "awaiting_approval")
+      .order("submitted_at", { ascending: true }),
+  ]);
+
+  if (missionsRes.error) return <ErrorState message={missionsRes.error.message} />;
+
+  const elos = (elosRes.data ?? []) as Elo[];
+
+  const crias: CriaOption[] = isAdmin
+    ? ((criasRes.data ?? []) as CriaOption[])
+    : ((criasRes.data ?? []) as unknown as { profiles: CriaOption | null }[])
+        .map((r) => r.profiles)
+        .filter((p): p is CriaOption => Boolean(p));
+
+  const missions: ManagedMission[] = ((missionsRes.data ?? []) as unknown as MissionRow[]).map(
+    (m) => {
+      const a = m.mission_assignments ?? [];
+      return {
+        id: m.id,
+        title: m.title,
+        description: m.description,
+        type: m.type,
+        xp: m.xp,
+        start_date: m.start_date,
+        due_date: m.due_date,
+        eloName: m.elos?.name ?? null,
+        counts: {
+          total: a.length,
+          awaiting: a.filter((x) => x.status === "awaiting_approval").length,
+          approved: a.filter((x) => x.status === "approved").length,
+          rejected: a.filter((x) => x.status === "rejected").length,
+        },
+        canEdit: isAdmin || m.created_by === profile.id,
+      };
+    },
+  );
+
+  const pending: PendingReview[] = ((pendingRes.data ?? []) as unknown as AssignmentRow[]).map(
+    (r) => ({
+      assignmentId: r.id,
+      criaName: r.profiles?.full_name || "Cria",
+      missionTitle: r.missions?.title || "Missão",
+      description: r.missions?.description ?? null,
+      xp: r.missions?.xp ?? 0,
+      submittedAt: r.submitted_at,
+    }),
+  );
+
+  return (
+    <>
+      <PageHeader
+        title="Missões"
+        subtitle={
+          isAdmin
+            ? "Crie, edite e aprove missões de todos os ELOS."
+            : "Crie missões para seus crias e aprove o que eles enviarem."
+        }
+      />
+
+      <MissionComposer
+        elos={elos}
+        crias={crias}
+        canTargetAll={isAdmin}
+        defaultEloId={isAdmin ? null : profile.elo_id}
+      />
+
+      <section className="mb-6">
+        <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">
+          Aguardando aprovação ({pending.length})
+        </h2>
+        {pending.length === 0 ? (
+          <EmptyState>Nenhuma missão aguardando aprovação.</EmptyState>
+        ) : (
+          <div className="space-y-3">
+            {pending.map((item) => (
+              <ApprovalItem key={item.assignmentId} item={item} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section>
+        <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">
+          Missões criadas ({missions.length})
+        </h2>
+        {missions.length === 0 ? (
+          <EmptyState>Nenhuma missão criada ainda.</EmptyState>
+        ) : (
+          <div className="space-y-3">
+            {missions.map((m) => (
+              <MissionManagerCard key={m.id} mission={m} />
+            ))}
+          </div>
+        )}
+      </section>
+    </>
+  );
+}

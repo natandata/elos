@@ -1,0 +1,155 @@
+export type Role = "admin" | "leader" | "cria";
+export type Gender = "male" | "female";
+export type AgeRange = "12-14" | "15-16" | "17";
+export type StatusLevel = "bad" | "ok" | "good";
+export type MissionType = "individual" | "collective";
+export type AssignmentStatus = "pending" | "awaiting_approval" | "approved" | "rejected";
+
+export type Elo = {
+  id: string;
+  name: string;
+  gender: Gender;
+  age_range: AgeRange;
+};
+
+export type Profile = {
+  id: string;
+  full_name: string;
+  age_range: AgeRange | null;
+  gender: Gender | null;
+  role: Role;
+  elo_id: string | null;
+  avatar_url: string | null;
+  xp: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Mission = {
+  id: string;
+  created_by: string;
+  title: string;
+  description: string | null;
+  type: MissionType;
+  xp: number;
+  start_date: string | null;
+  due_date: string | null;
+  elo_id: string | null;
+  created_at: string;
+};
+
+export type MissionAssignment = {
+  id: string;
+  mission_id: string;
+  cria_id: string;
+  status: AssignmentStatus;
+  submitted_at: string | null;
+  approved_at: string | null;
+  approved_by: string | null;
+  rejection_reason: string | null;
+  created_at: string;
+};
+
+export type EloEvent = {
+  id: string;
+  title: string;
+  description: string | null;
+  event_date: string;
+  event_time: string | null;
+  location: string | null;
+  elo_id: string | null;
+};
+
+export type StatusResponse = {
+  id: string;
+  user_id: string;
+  emotional_status: StatusLevel;
+  spiritual_status: StatusLevel;
+  created_at: string;
+};
+
+// ---------------------------------------------------------------- rótulos PT-BR
+
+export const AGE_RANGE_LABEL: Record<AgeRange, string> = {
+  "12-14": "12–14 anos",
+  "15-16": "15–16 anos",
+  "17": "17 anos",
+};
+
+export const GENDER_LABEL: Record<Gender, string> = {
+  male: "Masculino",
+  female: "Feminino",
+};
+
+export const ROLE_LABEL: Record<Role, string> = {
+  admin: "Admin",
+  leader: "Líder",
+  cria: "Cria",
+};
+
+export const STATUS_LABEL: Record<StatusLevel, string> = {
+  bad: "Mal",
+  ok: "Mais ou menos",
+  good: "Bem",
+};
+
+export const STATUS_TONE: Record<StatusLevel, string> = {
+  bad: "bg-red-100 text-red-700 border-red-200",
+  ok: "bg-amber-100 text-amber-800 border-amber-200",
+  good: "bg-emerald-100 text-emerald-700 border-emerald-200",
+};
+
+export const ASSIGNMENT_LABEL: Record<AssignmentStatus, string> = {
+  pending: "Disponível",
+  awaiting_approval: "Aguardando aprovação",
+  approved: "Aprovada",
+  rejected: "Recusada",
+};
+
+export const ASSIGNMENT_TONE: Record<AssignmentStatus, string> = {
+  pending: "bg-slate-100 text-slate-700 border-slate-200",
+  awaiting_approval: "bg-amber-100 text-amber-800 border-amber-200",
+  approved: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  rejected: "bg-red-100 text-red-700 border-red-200",
+};
+
+export const MISSION_TYPE_LABEL: Record<MissionType, string> = {
+  individual: "Individual",
+  collective: "Coletiva",
+};
+
+export function formatDate(value: string | null): string {
+  if (!value) return "—";
+  const [y, m, d] = value.slice(0, 10).split("-");
+  return `${d}/${m}/${y}`;
+}
+
+export function formatDateTime(value: string | null): string {
+  if (!value) return "—";
+  return new Date(value).toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+export function relativeDay(value: string | null): string {
+  if (!value) return "Nunca";
+  const then = new Date(value);
+  const today = new Date();
+  const days = Math.floor(
+    (new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime() -
+      new Date(then.getFullYear(), then.getMonth(), then.getDate()).getTime()) /
+      86_400_000,
+  );
+  if (days <= 0) return "Hoje";
+  if (days === 1) return "Ontem";
+  if (days < 7) return `${days} dias atrás`;
+  return formatDate(value);
+}
+
+export function formatXp(xp: number): string {
+  return xp.toLocaleString("pt-BR");
+}
