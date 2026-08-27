@@ -89,15 +89,11 @@ export function FeedPostCard({
       <div className="relative flex items-center gap-3 p-3">
         <Avatar url={post.authorAvatar} name={post.authorName} size={32} />
         <div className="min-w-0 flex-1">
-          <p className="flex flex-wrap items-center gap-1.5 truncate text-sm font-bold">
-            {post.authorName}
-            {post.authorTag ? (
-              <span className="chip border-[var(--line)] text-[10px] font-semibold text-[var(--muted)]">
-                {post.authorTag}
-              </span>
-            ) : null}
+          <p className="truncate text-sm font-bold">{post.authorName}</p>
+          <p className="truncate text-xs text-[var(--muted)]">
+            {post.authorTag ? `${post.authorTag} · ` : ""}
+            {formatDateTime(post.createdAt)}
           </p>
-          <p className="text-xs text-[var(--muted)]">{formatDateTime(post.createdAt)}</p>
         </div>
 
         {canDeletePost || canEditCaption ? (
