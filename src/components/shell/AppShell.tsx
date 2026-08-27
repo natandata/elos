@@ -6,7 +6,16 @@ import { useState } from "react";
 import { signOut } from "@/lib/actions/session";
 import { Avatar } from "@/components/Avatar";
 
-export type NavItem = { href: string; label: string; icon: string };
+export type NavItem = { href: string; label: string; icon: string; badge?: number };
+
+function NavBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+      {count > 20 ? "+20" : count}
+    </span>
+  );
+}
 
 export function AppShell({
   items,
@@ -116,6 +125,7 @@ export function AppShell({
                 >
                   <span aria-hidden>{item.icon}</span>
                   {item.label}
+                  <NavBadge count={item.badge ?? 0} />
                 </Link>
               </li>
             ))}
@@ -155,8 +165,13 @@ export function AppShell({
                   isActive(item.href) ? "text-[var(--accent-strong)]" : "text-[var(--muted)]"
                 }`}
               >
-                <span className="text-base" aria-hidden>
+                <span className="relative text-base" aria-hidden>
                   {item.icon}
+                  {(item.badge ?? 0) > 0 ? (
+                    <span className="absolute -right-2 -top-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-red-500 px-0.5 text-[8px] font-bold text-white">
+                      {(item.badge ?? 0) > 20 ? "+20" : item.badge}
+                    </span>
+                  ) : null}
                 </span>
                 {item.label}
               </Link>

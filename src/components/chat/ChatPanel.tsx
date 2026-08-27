@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Avatar } from "@/components/Avatar";
 import { formatDateTime } from "@/lib/types";
 import type { ChatMessage } from "@/lib/types";
-import { sendChatMessage } from "@/lib/actions/chat";
+import { markChatRead, sendChatMessage } from "@/lib/actions/chat";
 
 type Participant = {
   id: string;
@@ -64,6 +64,12 @@ export function ChatPanel({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });
   }, [messages.length]);
+
+  // com o chat aberto (inclusive ao chegar mensagem nova via realtime), zera o badge do menu
+  useEffect(() => {
+    if (!readOnly) markChatRead();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [readOnly, messages.length]);
 
   useEffect(() => {
     if (state.ok) formRef.current?.reset();

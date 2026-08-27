@@ -25,6 +25,7 @@ export type Profile = {
   elo_id: string | null;
   avatar_url: string | null;
   xp: number;
+  chat_last_read_at: string | null;
   created_at: string;
   updated_at: string;
 };

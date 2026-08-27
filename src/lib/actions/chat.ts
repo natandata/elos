@@ -48,3 +48,16 @@ export async function sendChatMessage(_prev: Result | null, formData: FormData):
   revalidatePath("/app/chat");
   return { ok: true };
 }
+
+/** Marca o chat do Elo como lido para zerar o badge de mensagens novas no menu. */
+export async function markChatRead(): Promise<void> {
+  const { supabase, profile } = await currentProfile();
+  if (!profile.elo_id) return;
+
+  await supabase
+    .from("profiles")
+    .update({ chat_last_read_at: new Date().toISOString() })
+    .eq("id", profile.id);
+
+  revalidatePath("/app", "layout");
+}
