@@ -102,6 +102,7 @@ export async function toggleFeedLike(_prev: Result | null, formData: FormData): 
       .from("feed_likes")
       .insert({ post_id: postId, user_id: profile.id });
     if (error) return { error: "Não foi possível curtir." };
+    await supabase.rpc("notify_feed_interaction", { p_post_id: postId, p_kind: "like" });
   }
 
   revalidateFeed();
@@ -123,6 +124,7 @@ export async function addFeedComment(_prev: Result | null, formData: FormData): 
     .insert({ post_id: postId, author_id: profile.id, body });
 
   if (error) return { error: "Não foi possível comentar." };
+  await supabase.rpc("notify_feed_interaction", { p_post_id: postId, p_kind: "comment" });
 
   revalidateFeed();
   return { ok: true };

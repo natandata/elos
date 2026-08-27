@@ -5,13 +5,14 @@ import { markAllRead } from "@/lib/actions/notifications";
 import { createClient } from "@/lib/supabase/server";
 import { formatDateTime } from "@/lib/types";
 
-type Category = "status" | "mission" | "agenda" | "user" | "geral";
+type Category = "status" | "mission" | "agenda" | "user" | "feed" | "geral";
 
 const FILTERS: { value: string; label: string; categories: Category[] | null }[] = [
   { value: "", label: "Todas", categories: null },
   { value: "status", label: "Apenas Status", categories: ["status"] },
   { value: "mission", label: "Apenas Missões", categories: ["mission"] },
   { value: "agenda", label: "Apenas Agenda", categories: ["agenda"] },
+  { value: "feed", label: "Apenas Feed", categories: ["feed"] },
 ];
 
 const CATEGORY_LABEL: Record<Category, string> = {
@@ -19,6 +20,7 @@ const CATEGORY_LABEL: Record<Category, string> = {
   mission: "Missões",
   agenda: "Agenda",
   user: "Cadastro",
+  feed: "Feed",
   geral: "Geral",
 };
 
@@ -27,6 +29,7 @@ const CATEGORY_TONE: Record<Category, string> = {
   mission: "border-violet-200 bg-violet-100 text-violet-800",
   agenda: "border-sky-200 bg-sky-100 text-sky-800",
   user: "border-emerald-200 bg-emerald-100 text-emerald-800",
+  feed: "border-pink-200 bg-pink-100 text-pink-800",
   geral: "border-slate-200 bg-slate-100 text-slate-700",
 };
 
