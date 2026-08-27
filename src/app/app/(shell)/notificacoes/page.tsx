@@ -4,6 +4,7 @@ import { requireProfile } from "@/lib/auth";
 import { markAllRead } from "@/lib/actions/notifications";
 import { createClient } from "@/lib/supabase/server";
 import { formatDateTime } from "@/lib/types";
+import { AutoMarkRead } from "./AutoMarkRead";
 
 type Category = "status" | "mission" | "agenda" | "user" | "feed" | "geral";
 
@@ -67,6 +68,7 @@ export default async function NotificacoesPage({
 
   return (
     <>
+      <AutoMarkRead />
       <PageHeader
         title="Notificações"
         subtitle={unread > 0 ? `${unread} não lida(s) neste filtro.` : "Tudo em dia."}
