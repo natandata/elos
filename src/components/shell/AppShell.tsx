@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { signOut } from "@/lib/actions/session";
 import { Avatar } from "@/components/Avatar";
 
@@ -38,15 +38,52 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // fecha o menu lateral do mobile sozinho ao trocar de página
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
 
   const isActive = (href: string) =>
     href === pathname || (href !== "/app" && pathname.startsWith(href + "/"));
+
+  const navList = (onNavigate?: () => void) => (
+    <ul className="space-y-1">
+      {items.map((item) => (
+        <li key={item.href}>
+          <Link
+            href={item.href}
+            onClick={onNavigate}
+            className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
+              isActive(item.href)
+                ? "bg-[var(--accent)] text-[var(--accent-ink)]"
+                : "text-[var(--muted)] hover:bg-[var(--card)] hover:text-[var(--ink)]"
+            }`}
+          >
+            <span aria-hidden>{item.icon}</span>
+            {item.label}
+            <NavBadge count={item.badge ?? 0} />
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
 
   return (
     <div className="min-h-dvh">
       {/* topo */}
       <header className="sticky top-0 z-30 border-b border-[var(--line)] bg-[var(--card)]/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
+          <button
+            type="button"
+            onClick={() => setMenuOpen(true)}
+            className="rounded-lg border border-[var(--line)] px-2.5 py-1.5 text-sm md:hidden"
+            aria-label="Abrir menu"
+          >
+            ☰
+          </button>
+
           <Link href="/app" className="flex items-center gap-2">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--accent)] text-sm font-black text-[var(--accent-ink)]">
               E
@@ -112,27 +149,10 @@ export function AppShell({
             pending ? "pointer-events-none opacity-40 grayscale" : ""
           }`}
         >
-          <ul className="sticky top-20 space-y-1">
-            {items.map((item) => (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
-                    isActive(item.href)
-                      ? "bg-[var(--accent)] text-[var(--accent-ink)]"
-                      : "text-[var(--muted)] hover:bg-[var(--card)] hover:text-[var(--ink)]"
-                  }`}
-                >
-                  <span aria-hidden>{item.icon}</span>
-                  {item.label}
-                  <NavBadge count={item.badge ?? 0} />
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <div className="sticky top-20">{navList()}</div>
         </nav>
 
-        <main className="min-w-0 flex-1 pb-24 md:pb-6">
+        <main className="min-w-0 flex-1">
           {pending ? (
             <div className="mb-5 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-900">
               <p className="font-bold">Conta aguardando aprovação</p>
@@ -150,35 +170,38 @@ export function AppShell({
         </main>
       </div>
 
-      {/* menu inferior (mobile) */}
-      <nav
-        className={`fixed inset-x-0 bottom-0 z-30 border-t border-[var(--line)] bg-[var(--card)] md:hidden ${
-          pending ? "pointer-events-none opacity-40 grayscale" : ""
-        }`}
-      >
-        <ul className="mx-auto flex max-w-6xl">
-          {items.slice(0, 5).map((item) => (
-            <li key={item.href} className="flex-1">
-              <Link
-                href={item.href}
-                className={`flex flex-col items-center gap-0.5 py-2 text-[11px] font-semibold ${
-                  isActive(item.href) ? "text-[var(--accent-strong)]" : "text-[var(--muted)]"
-                }`}
-              >
-                <span className="relative text-base" aria-hidden>
-                  {item.icon}
-                  {(item.badge ?? 0) > 0 ? (
-                    <span className="absolute -right-2 -top-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-red-500 px-0.5 text-[8px] font-bold text-white">
-                      {(item.badge ?? 0) > 20 ? "+20" : item.badge}
-                    </span>
-                  ) : null}
+      {/* menu lateral (mobile) — abre por cima de tudo, com rolagem própria */}
+      {menuOpen ? (
+        <div className="fixed inset-0 z-40 md:hidden">
+          <button
+            type="button"
+            aria-label="Fechar menu"
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setMenuOpen(false)}
+          />
+          <nav className="absolute inset-y-0 left-0 w-72 max-w-[85vw] overflow-y-auto bg-[var(--card)] p-4 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--accent)] text-sm font-black text-[var(--accent-ink)]">
+                  E
                 </span>
-                {item.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
+                <span className="text-lg font-black tracking-tight">ELOS</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setMenuOpen(false)}
+                className="rounded-lg border border-[var(--line)] px-2.5 py-1.5 text-sm"
+                aria-label="Fechar menu"
+              >
+                ✕
+              </button>
+            </div>
+            <div className={pending ? "pointer-events-none opacity-40 grayscale" : ""}>
+              {navList(() => setMenuOpen(false))}
+            </div>
+          </nav>
+        </div>
+      ) : null}
     </div>
   );
 }
