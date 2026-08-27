@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { AGE_RANGE_LABEL, type AgeRange, type Gender } from "@/lib/types";
+import { PasswordField } from "./PasswordField";
 
 type SignupRole = "cria" | "leader";
 
@@ -391,13 +392,10 @@ export function AuthPanel({ next }: { next?: string }) {
           <label className="label" htmlFor="password">
             Senha
           </label>
-          <input
+          <PasswordField
             id="password"
-            type="password"
-            required
-            className="input"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={setPassword}
             autoComplete={mode === "login" ? "current-password" : "new-password"}
           />
         </div>
@@ -452,13 +450,10 @@ export function AuthPanel({ next }: { next?: string }) {
             <label className="label" htmlFor="confirm">
               Confirmar senha
             </label>
-            <input
+            <PasswordField
               id="confirm"
-              type="password"
-              required
-              className="input"
               value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
+              onChange={setConfirm}
               autoComplete="new-password"
             />
           </div>

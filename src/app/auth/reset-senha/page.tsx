@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { PasswordField } from "@/components/auth/PasswordField";
 
 /**
  * Aberta depois de /auth/callback trocar o código de recuperação por uma
@@ -80,13 +81,10 @@ export default function ResetSenhaPage() {
                 <label className="label" htmlFor="password">
                   Nova senha
                 </label>
-                <input
+                <PasswordField
                   id="password"
-                  type="password"
-                  required
-                  className="input"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={setPassword}
                   autoComplete="new-password"
                 />
               </div>
@@ -94,13 +92,10 @@ export default function ResetSenhaPage() {
                 <label className="label" htmlFor="confirm">
                   Confirmar nova senha
                 </label>
-                <input
+                <PasswordField
                   id="confirm"
-                  type="password"
-                  required
-                  className="input"
                   value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
+                  onChange={setConfirm}
                   autoComplete="new-password"
                 />
               </div>
