@@ -39,6 +39,21 @@
   --accent-strong: #b81f5c;
 }
 
+/* Tema do líder — vermelho forte, fixo. Independe do gênero: o líder não é
+   "menino" ou "menina" do Elo, é quem responde por ele, então tem cor própria
+   que não muda por causa do gender do usuário. */
+[data-theme="leader"] {
+  --bg: #fef2f2;
+  --card: #ffffff;
+  --line: #fecaca;
+  --ink: #1c0a0a;
+  --muted: #8a5a58;
+  --accent: #dc2626;
+  --accent-ink: #ffffff;
+  --accent-soft: #fee2e2;
+  --accent-strong: #991b1b;
+}
+
 @theme inline {
   --color-bg: var(--bg);
   --color-card: var(--card);

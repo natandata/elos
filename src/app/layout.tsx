@@ -52,7 +52,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         .eq("id", user.id)
         .maybeSingle();
 
-      if (data && data.role !== "admin" && data.gender) theme = data.gender;
+      // o líder tem cor própria (vermelho), fixa, independente do gênero
+      if (data?.role === "leader") theme = "leader";
+      else if (data && data.role !== "admin" && data.gender) theme = data.gender;
     }
   } catch {
     // Sem Supabase configurado ainda: segue no tema neutro.
