@@ -1,7 +1,13 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { addFeedComment, deleteFeedComment, deleteFeedPost, toggleFeedLike } from "@/lib/actions/feed";
+import { useActionState, useEffect, useState } from "react";
+import {
+  addFeedComment,
+  deleteFeedComment,
+  deleteFeedPost,
+  toggleFeedLike,
+  updateFeedCaption,
+} from "@/lib/actions/feed";
 import { Avatar } from "@/components/Avatar";
 import { Feedback, SubmitBtn } from "@/components/forms";
 import { formatDateTime } from "@/lib/types";
@@ -63,26 +69,81 @@ export function FeedPostCard({
   const [likeState, likeAction] = useActionState(toggleFeedLike, null);
   const [commentState, commentAction] = useActionState(addFeedComment, null);
   const [deleteState, deleteAction] = useActionState(deleteFeedPost, null);
+  const [captionState, captionAction] = useActionState(updateFeedCaption, null);
   const [showComments, setShowComments] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [captionDraft, setCaptionDraft] = useState(post.caption ?? "");
 
   const canDeletePost = isAdmin || post.authorId === currentUserId;
+  const canEditCaption = post.authorId === currentUserId;
+
+  useEffect(() => {
+    if (captionState?.ok) setEditing(false);
+  }, [captionState]);
 
   return (
     <div className="card overflow-hidden p-0">
-      <div className="flex items-center gap-3 p-3">
+      <div className="relative flex items-center gap-3 p-3">
         <Avatar url={post.authorAvatar} name={post.authorName} size={32} />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-bold">{post.authorName}</p>
           <p className="text-xs text-[var(--muted)]">{formatDateTime(post.createdAt)}</p>
         </div>
-        {canDeletePost ? (
-          <form action={deleteAction}>
-            <input type="hidden" name="id" value={post.id} />
-            <input type="hidden" name="image_path" value={post.imagePath} />
-            <SubmitBtn className="btn btn-ghost !py-1 !text-xs text-red-600" pendingLabel="Excluindo…">
-              Excluir
-            </SubmitBtn>
-          </form>
+
+        {canDeletePost || canEditCaption ? (
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setMenuOpen((v) => !v)}
+              aria-label="Mais opções"
+              className="rounded-lg px-2 py-1 text-lg leading-none text-[var(--muted)] hover:bg-[var(--bg)]"
+            >
+              ⋯
+            </button>
+
+            {menuOpen ? (
+              <>
+                <button
+                  type="button"
+                  aria-hidden
+                  tabIndex={-1}
+                  onClick={() => setMenuOpen(false)}
+                  className="fixed inset-0 z-10 cursor-default"
+                />
+                <div className="absolute right-0 top-full z-20 mt-1 w-44 overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--card)] shadow-lg">
+                  {canEditCaption ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCaptionDraft(post.caption ?? "");
+                        setEditing(true);
+                        setMenuOpen(false);
+                      }}
+                      className="block w-full px-3 py-2.5 text-left text-sm hover:bg-[var(--bg)]"
+                    >
+                      Editar legenda
+                    </button>
+                  ) : null}
+                  {canDeletePost ? (
+                    <form
+                      action={deleteAction}
+                      onSubmit={() => setMenuOpen(false)}
+                    >
+                      <input type="hidden" name="id" value={post.id} />
+                      <input type="hidden" name="image_path" value={post.imagePath} />
+                      <button
+                        type="submit"
+                        className="block w-full px-3 py-2.5 text-left text-sm text-red-600 hover:bg-[var(--bg)]"
+                      >
+                        Excluir
+                      </button>
+                    </form>
+                  ) : null}
+                </div>
+              </>
+            ) : null}
+          </div>
         ) : null}
       </div>
 
@@ -96,7 +157,35 @@ export function FeedPostCard({
       )}
 
       <div className="p-3">
-        {post.caption ? <p className="mb-2 text-sm">{post.caption}</p> : null}
+        {editing ? (
+          <form action={captionAction} className="mb-2 space-y-2">
+            <input type="hidden" name="id" value={post.id} />
+            <textarea
+              name="caption"
+              rows={2}
+              maxLength={280}
+              className="input"
+              value={captionDraft}
+              onChange={(e) => setCaptionDraft(e.target.value)}
+              autoFocus
+            />
+            <Feedback state={captionState} />
+            <div className="flex gap-2">
+              <SubmitBtn className="btn btn-primary !py-1.5 !text-xs" pendingLabel="Salvando…">
+                Salvar
+              </SubmitBtn>
+              <button
+                type="button"
+                onClick={() => setEditing(false)}
+                className="btn btn-ghost !py-1.5 !text-xs"
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
+        ) : post.caption ? (
+          <p className="mb-2 text-sm">{post.caption}</p>
+        ) : null}
         <Feedback state={deleteState} />
 
         {canPost ? (

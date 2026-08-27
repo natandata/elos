@@ -46,6 +46,25 @@ export async function createFeedPost(_prev: Result | null, formData: FormData): 
   return { ok: true };
 }
 
+export async function updateFeedCaption(_prev: Result | null, formData: FormData): Promise<Result> {
+  const { supabase, profile } = await currentProfile();
+  const id = String(formData.get("id") ?? "");
+  const caption = String(formData.get("caption") ?? "").trim() || null;
+  if (!id) return { error: "Post inválido." };
+  if (caption && caption.length > 280) return { error: "Legenda muito longa." };
+
+  const { error } = await supabase
+    .from("feed_posts")
+    .update({ caption })
+    .eq("id", id)
+    .eq("author_id", profile.id);
+
+  if (error) return { error: "Não foi possível salvar." };
+
+  revalidateFeed();
+  return { ok: true };
+}
+
 export async function deleteFeedPost(_prev: Result | null, formData: FormData): Promise<Result> {
   const { supabase } = await currentProfile();
   const id = String(formData.get("id") ?? "");
