@@ -52,8 +52,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         .eq("id", user.id)
         .maybeSingle();
 
-      // o líder tem cor própria (vermelho), fixa, independente do gênero
-      if (data?.role === "leader") theme = "leader";
+      // líder homem tem cor própria (vermelho); líder mulher mantém o rosa,
+      // igual às crias — só o líder homem sai do amarelo padrão masculino
+      if (data?.role === "leader" && data.gender === "male") theme = "leader";
       else if (data && data.role !== "admin" && data.gender) theme = data.gender;
     }
   } catch {

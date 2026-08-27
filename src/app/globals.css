@@ -39,9 +39,8 @@
   --accent-strong: #b81f5c;
 }
 
-/* Tema do líder — vermelho forte, fixo. Independe do gênero: o líder não é
-   "menino" ou "menina" do Elo, é quem responde por ele, então tem cor própria
-   que não muda por causa do gender do usuário. */
+/* Tema do líder homem — vermelho forte, fixo, no lugar do amarelo padrão
+   masculino. Líder mulher mantém o tema feminino (rosa), igual às crias. */
 [data-theme="leader"] {
   --bg: #fef2f2;
   --card: #ffffff;
