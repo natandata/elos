@@ -128,7 +128,9 @@ export function AuthPanel({ next }: { next?: string }) {
     if (!lastName.trim()) return setError("Informe seu sobrenome.");
     if (!ageRange) return setError("Selecione sua faixa etária.");
     if (!gender) return setError("Selecione seu gênero.");
-    if (!guardianAck) return setError("Confirme a autorização do responsável para continuar.");
+    // Líder é maior de idade responsável pelo Elo — a autorização é só para cria.
+    if (signupRole === "cria" && !guardianAck)
+      return setError("Confirme a autorização do responsável para continuar.");
     if (password.length < 6) return setError("A senha precisa ter ao menos 6 caracteres.");
     if (password !== confirm) return setError("As senhas não conferem.");
 
@@ -145,7 +147,7 @@ export function AuthPanel({ next }: { next?: string }) {
           age_range: ageRange,
           gender,
           role: signupRole,
-          guardian_ack: "true",
+          guardian_ack: signupRole === "cria" ? "true" : "false",
         },
       },
     });
@@ -462,7 +464,7 @@ export function AuthPanel({ next }: { next?: string }) {
           </div>
         )}
 
-        {mode === "signup" && (
+        {mode === "signup" && signupRole === "cria" && (
           <label className="flex items-start gap-3 rounded-xl border border-[var(--line)] p-3 text-sm">
             <input
               type="checkbox"
