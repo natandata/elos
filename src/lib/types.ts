@@ -107,10 +107,16 @@ export const STATUS_LABEL: Record<StatusLevel, string> = {
 };
 
 export const STATUS_TONE: Record<StatusLevel, string> = {
-  bad: "bg-red-100 text-red-700 border-red-200",
+  // "Mal" precisa saltar aos olhos do líder — os outros dois são só informativos.
+  bad: "border-red-600 bg-red-600 text-white font-bold",
   ok: "bg-amber-100 text-amber-800 border-amber-200",
   good: "bg-emerald-100 text-emerald-700 border-emerald-200",
 };
+
+/** true se alguma das duas respostas de status for "Mal" — sinal de alerta pro líder. */
+export function hasBadStatus(s: { emotional_status: StatusLevel; spiritual_status: StatusLevel } | undefined | null): boolean {
+  return !!s && (s.emotional_status === "bad" || s.spiritual_status === "bad");
+}
 
 export const ASSIGNMENT_LABEL: Record<AssignmentStatus, string> = {
   pending: "Disponível",

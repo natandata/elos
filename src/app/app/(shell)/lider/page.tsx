@@ -7,6 +7,7 @@ import {
   STATUS_TONE,
   formatDate,
   formatXp,
+  hasBadStatus,
   relativeDay,
   type StatusLevel,
 } from "@/lib/types";
@@ -86,12 +87,36 @@ export default async function LiderDashboard() {
 
   const awaiting = awaitingRes.count ?? 0;
 
+  const badCrias = crias.filter((c) => hasBadStatus(byUser.get(c.id)));
+
   return (
     <>
       <PageHeader
         title={`Olá, ${(profile.full_name || "Líder").split(" ")[0]}!`}
         subtitle={`${eloName} · ${crias.length} cria(s) sob sua responsabilidade.`}
       />
+
+      {badCrias.length > 0 ? (
+        <Link
+          href="/app/lider/status-crias"
+          className="mb-4 flex items-center gap-3 rounded-2xl border-2 border-red-700 bg-red-600 px-4 py-3 text-white shadow-lg shadow-red-600/20"
+        >
+          <span className="text-2xl" aria-hidden>
+            🚨
+          </span>
+          <span className="flex-1">
+            <span className="block font-black">
+              {badCrias.length === 1
+                ? `${badCrias[0].full_name || "Um cria"} respondeu "Mal" no status`
+                : `${badCrias.length} crias responderam "Mal" no status`}
+            </span>
+            <span className="block text-sm opacity-90">Toque para ver e agir agora.</span>
+          </span>
+          <span aria-hidden className="text-xl">
+            →
+          </span>
+        </Link>
+      ) : null}
 
       {awaiting > 0 ? (
         <Link
@@ -130,11 +155,23 @@ export default async function LiderDashboard() {
             </p>
           ) : (
             <ul className="space-y-2">
-              {crias.slice(0, 5).map((c) => {
+              {[...crias]
+                .sort((a, b) => Number(hasBadStatus(byUser.get(b.id))) - Number(hasBadStatus(byUser.get(a.id))))
+                .slice(0, 5)
+                .map((c) => {
                 const s = byUser.get(c.id);
+                const bad = hasBadStatus(s);
                 return (
-                  <li key={c.id} className="flex items-center justify-between gap-2 text-sm">
-                    <span className="truncate font-medium">{c.full_name || "Sem nome"}</span>
+                  <li
+                    key={c.id}
+                    className={`flex items-center justify-between gap-2 rounded-xl px-2 py-1.5 text-sm ${
+                      bad ? "bg-red-50 ring-1 ring-red-300" : ""
+                    }`}
+                  >
+                    <span className="truncate font-medium">
+                      {bad ? <span aria-hidden>🚨 </span> : null}
+                      {c.full_name || "Sem nome"}
+                    </span>
                     {s ? (
                       <span className="flex shrink-0 gap-1">
                         <span className={`chip ${STATUS_TONE[s.emotional_status]}`}>

@@ -5,6 +5,7 @@ import {
   STATUS_LABEL,
   STATUS_TONE,
   formatDateTime,
+  hasBadStatus,
   relativeDay,
   type StatusLevel,
 } from "@/lib/types";
@@ -45,6 +46,11 @@ export default async function StatusCriasPage() {
     if (!latest.has(r.user_id)) latest.set(r.user_id, r);
   });
 
+  const badCount = crias.filter((c) => hasBadStatus(latest.get(c.id))).length;
+  const sortedCrias = [...crias].sort(
+    (a, b) => Number(hasBadStatus(latest.get(b.id))) - Number(hasBadStatus(latest.get(a.id))),
+  );
+
   return (
     <>
       <PageHeader
@@ -52,21 +58,41 @@ export default async function StatusCriasPage() {
         subtitle="Como estão emocional e espiritualmente os crias sob sua responsabilidade."
       />
 
+      {badCount > 0 ? (
+        <div className="mb-4 flex items-center gap-3 rounded-2xl border-2 border-red-700 bg-red-600 px-4 py-3 text-white shadow-lg shadow-red-600/20">
+          <span className="text-2xl" aria-hidden>
+            🚨
+          </span>
+          <span className="font-black">
+            {badCount === 1
+              ? "1 cria respondeu \"Mal\" no status — precisa de atenção agora."
+              : `${badCount} crias responderam "Mal" no status — precisam de atenção agora.`}
+          </span>
+        </div>
+      ) : null}
+
       {crias.length === 0 ? (
         <EmptyState>
           Nenhum cria vinculado a você ainda. A administração faz esse vínculo em Usuários.
         </EmptyState>
       ) : (
         <div className="space-y-3">
-          {crias.map((cria) => {
+          {sortedCrias.map((cria) => {
             const current = latest.get(cria.id);
             const past = responses.filter((r) => r.user_id === cria.id).slice(1, 5);
+            const bad = hasBadStatus(current);
 
             return (
-              <Card key={cria.id}>
+              <Card
+                key={cria.id}
+                className={bad ? "border-2 border-red-600 ring-2 ring-red-200" : ""}
+              >
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
-                    <p className="font-bold">{cria.full_name || "Sem nome"}</p>
+                    <p className="font-bold">
+                      {bad ? <span aria-hidden>🚨 </span> : null}
+                      {cria.full_name || "Sem nome"}
+                    </p>
                     <p className="text-xs text-[var(--muted)]">
                       Atualizado {relativeDay(current?.created_at ?? null).toLowerCase()}
                     </p>
