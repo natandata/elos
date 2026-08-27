@@ -26,8 +26,13 @@ export function CompleteProfileForm({
   const [state, action] = useActionState(completeProfile, null);
   const [gender, setGender] = useState<Gender | "">("");
 
+  // Prévia visual enquanto escolhe o gênero. Só mexe no tema quando a pessoa
+  // realmente escolhe algo — antes disso o servidor já deixou "neutral"
+  // certo, e não tem cleanup aqui: desmontar (ao enviar e ser redirecionado
+  // para /app) não deve apagar a cor por cima da que o servidor vai definir
+  // para a conta agora com o gênero salvo.
   useEffect(() => {
-    document.documentElement.dataset.theme = gender || "neutral";
+    if (gender) document.documentElement.dataset.theme = gender;
   }, [gender]);
 
   return (

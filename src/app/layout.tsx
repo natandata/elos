@@ -29,6 +29,10 @@ export const metadata: Metadata = {
   },
 };
 
+// A cor do tema (data-theme) depende de quem está logado — nunca pode virar
+// HTML estático compartilhado entre contas diferentes.
+export const dynamic = "force-dynamic";
+
 export const viewport: Viewport = {
   themeColor: "#7c3aed",
   width: "device-width",

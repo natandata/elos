@@ -32,13 +32,14 @@ export function AuthPanel({ next }: { next?: string }) {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Identidade visual dinâmica: o tema acompanha o gênero escolhido no cadastro.
+  // Prévia visual: enquanto a pessoa escolhe o gênero no cadastro, o tema
+  // acompanha a escolha; fora do cadastro fica neutro. De propósito, SEM
+  // função de cleanup — um cleanup rodaria exatamente quando este componente
+  // desmonta, ou seja, no instante do redirecionamento para /app depois do
+  // login, e apagaria por cima a cor certa que o servidor acabou de definir
+  // para a conta que entrou.
   useEffect(() => {
-    const root = document.documentElement;
-    root.dataset.theme = mode === "signup" && gender ? gender : "neutral";
-    return () => {
-      root.dataset.theme = "neutral";
-    };
+    document.documentElement.dataset.theme = mode === "signup" && gender ? gender : "neutral";
   }, [gender, mode]);
 
   const destination = next && next.startsWith("/") ? next : "/app";

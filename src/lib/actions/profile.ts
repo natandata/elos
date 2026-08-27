@@ -39,6 +39,9 @@ export async function completeProfile(
 
   if (error) return { error: "Não foi possível salvar. Tente novamente." };
 
+  // revalida o layout raiz também: é ele que decide a cor do tema (data-theme
+  // no <html>), e o gênero acabou de mudar agora.
+  revalidatePath("/", "layout");
   revalidatePath("/app", "layout");
   redirect("/app");
 }
