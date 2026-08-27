@@ -140,6 +140,32 @@ export async function resetPassword(_prev: Result | null, formData: FormData): P
   return { ok: true };
 }
 
+/** Aplica a senha sugerida por um usuário que pediu redefinição pela tela de login. */
+export async function applyPasswordResetRequest(_prev: Result | null, formData: FormData): Promise<Result> {
+  const supabase = await adminClient();
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { error: "Pedido inválido." };
+
+  const { error } = await supabase.rpc("admin_apply_password_reset", { p_id: id });
+  if (error) return { error: error.message };
+
+  revalidateAdmin();
+  return { ok: true };
+}
+
+/** Recusa um pedido de redefinição sem aplicar a senha sugerida. */
+export async function dismissPasswordResetRequest(_prev: Result | null, formData: FormData): Promise<Result> {
+  const supabase = await adminClient();
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { error: "Pedido inválido." };
+
+  const { error } = await supabase.rpc("admin_dismiss_password_reset", { p_id: id });
+  if (error) return { error: error.message };
+
+  revalidateAdmin();
+  return { ok: true };
+}
+
 /** Envia uma notificação por e-mail para o endereço cadastrado de um usuário. */
 export async function sendUserEmail(_prev: Result | null, formData: FormData): Promise<Result> {
   const supabase = await adminClient();

@@ -5,6 +5,7 @@ import { AGE_RANGE_LABEL, type AgeRange, type Elo, type Gender, type Role } from
 import { screenLabel } from "@/lib/screenLabels";
 import { NewUserForm } from "./NewUserForm";
 import { PendingLeaderCard } from "./PendingLeaderCard";
+import { PasswordResetRequestCard } from "./PasswordResetRequestCard";
 import { UserEditor } from "./UserEditor";
 import { ExportUsersCsv } from "./ExportUsersCsv";
 
@@ -71,6 +72,19 @@ export default async function UsuariosPage({
 
   const pendentes = users.filter((u) => u.role === "leader" && !u.approved);
 
+  // Independente dos filtros da busca acima — o admin precisa ver todo pedido pendente.
+  const { data: resetRequestsData } = await supabase
+    .from("password_reset_requests")
+    .select("id, suggested_password, created_at, profiles:user_id(id, full_name, avatar_url)")
+    .eq("status", "pending")
+    .order("created_at", { ascending: true });
+  const resetRequests = (resetRequestsData ?? []) as unknown as {
+    id: string;
+    suggested_password: string;
+    created_at: string;
+    profiles: { id: string; full_name: string; avatar_url: string | null } | null;
+  }[];
+
   return (
     <>
       <PageHeader
@@ -83,6 +97,29 @@ export default async function UsuariosPage({
           />
         }
       />
+
+      {resetRequests.length > 0 ? (
+        <section className="mb-4">
+          <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-sky-700">
+            Pedidos de redefinição de senha ({resetRequests.length})
+          </h2>
+          <div className="space-y-2">
+            {resetRequests.map((r) =>
+              r.profiles ? (
+                <PasswordResetRequestCard
+                  key={r.id}
+                  id={r.id}
+                  name={r.profiles.full_name}
+                  email={emailById.get(r.profiles.id) ?? null}
+                  avatarUrl={r.profiles.avatar_url}
+                  suggestedPassword={r.suggested_password}
+                  createdAt={r.created_at}
+                />
+              ) : null,
+            )}
+          </div>
+        </section>
+      ) : null}
 
       {pendentes.length > 0 ? (
         <section className="mb-4">

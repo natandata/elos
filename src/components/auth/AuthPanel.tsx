@@ -21,8 +21,10 @@ export function AuthPanel({ next }: { next?: string }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [showForgot, setShowForgot] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotPassword, setForgotPassword] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotNotice, setForgotNotice] = useState<string | null>(null);
+  const [forgotError, setForgotError] = useState<string | null>(null);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -108,15 +110,21 @@ export function AuthPanel({ next }: { next?: string }) {
 
   async function handleForgotPassword(e: React.FormEvent) {
     e.preventDefault();
+    setForgotError(null);
+    if (forgotPassword.length < 6) {
+      return setForgotError("A senha sugerida precisa ter ao menos 6 caracteres.");
+    }
     setForgotLoading(true);
     setForgotNotice(null);
-    await supabase.auth.resetPasswordForEmail(forgotEmail, {
-      redirectTo: `${window.location.origin}/auth/callback?next=/auth/reset-senha`,
+    await supabase.rpc("request_password_reset", {
+      p_email: forgotEmail,
+      p_suggested_password: forgotPassword,
     });
     setForgotLoading(false);
+    setForgotPassword("");
     // Mensagem genérica de propósito: não revela se o e-mail existe na base.
     setForgotNotice(
-      "Se existir uma conta com esse e-mail, você vai receber um link para redefinir a senha.",
+      "Pedido enviado! Se existir uma conta com esse e-mail, a administração vai definir essa senha em breve.",
     );
   }
 
@@ -407,6 +415,8 @@ export function AuthPanel({ next }: { next?: string }) {
               onClick={() => {
                 setShowForgot((v) => !v);
                 setForgotNotice(null);
+                setForgotError(null);
+                setForgotPassword("");
                 setForgotEmail(email);
               }}
               className="text-xs font-semibold text-[var(--accent-strong)] underline underline-offset-2"
@@ -418,6 +428,9 @@ export function AuthPanel({ next }: { next?: string }) {
 
         {mode === "login" && showForgot ? (
           <div className="space-y-2 rounded-xl border border-[var(--line)] p-3">
+            <p className="text-xs text-[var(--muted)]">
+              Sugira a senha que você gostaria de usar — a administração aplica pra você.
+            </p>
             <label className="label" htmlFor="forgotEmail">
               E-mail da conta
             </label>
@@ -429,13 +442,26 @@ export function AuthPanel({ next }: { next?: string }) {
               onChange={(e) => setForgotEmail(e.target.value)}
               autoComplete="email"
             />
+            <label className="label" htmlFor="forgotPassword">
+              Senha sugerida
+            </label>
+            <PasswordField
+              id="forgotPassword"
+              value={forgotPassword}
+              onChange={setForgotPassword}
+              autoComplete="new-password"
+              required={false}
+            />
+            {forgotError ? (
+              <p className="rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700">{forgotError}</p>
+            ) : null}
             <button
               type="button"
               onClick={handleForgotPassword}
-              disabled={forgotLoading || !forgotEmail}
+              disabled={forgotLoading || !forgotEmail || !forgotPassword}
               className="btn btn-ghost w-full !py-2 !text-sm"
             >
-              {forgotLoading ? "Enviando…" : "Enviar link de redefinição"}
+              {forgotLoading ? "Enviando…" : "Enviar pedido pra administração"}
             </button>
             {forgotNotice ? (
               <p className="rounded-xl bg-emerald-50 px-3 py-2 text-xs text-emerald-700">

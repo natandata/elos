@@ -46,7 +46,8 @@ const ADMIN_FEATURES: Feature[] = [
   { title: "Usuários", items: [
     "Criar, editar e excluir contas",
     "Aprovar líderes pendentes",
-    "Redefinir senha e enviar e-mail",
+    "Redefinir senha manualmente e enviar e-mail",
+    "Aprovar pedidos de redefinição de senha (com a senha que a pessoa sugeriu na tela de login)",
     "Exportar lista em CSV",
     "Ver quem está online agora e em qual tela do app",
   ]},
