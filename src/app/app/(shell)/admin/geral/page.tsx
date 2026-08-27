@@ -160,8 +160,19 @@ export default async function GeralPage() {
   await requireRole("admin");
   const supabase = await createClient();
 
-  const { data, error } = await supabase.rpc("admin_platform_health");
+  const [healthRes, tableSizesRes, storageDetailRes] = await Promise.all([
+    supabase.rpc("admin_platform_health"),
+    supabase.rpc("admin_table_sizes"),
+    supabase.rpc("admin_storage_detail"),
+  ]);
+  const { data, error } = healthRes;
   const health = (data ?? null) as Health | null;
+
+  const tableSizes = (tableSizesRes.data ?? []) as { name: string; bytes: number }[];
+  const storageDetail = (storageDetailRes.data ?? null) as {
+    buckets: { bucket_id: string; count: number; bytes: number }[];
+    by_type: { bucket_id: string; mimetype: string; count: number; bytes: number }[];
+  } | null;
 
   const dbPct = health ? pct(health.db_size_bytes, DB_LIMIT_BYTES) : 0;
   const storagePct = health ? pct(health.storage_bytes, STORAGE_LIMIT_BYTES) : 0;
@@ -225,6 +236,76 @@ export default async function GeralPage() {
                   </div>
                 ))}
               </div>
+            </Card>
+
+            <Card className="md:col-span-2">
+              <details>
+                <summary className="cursor-pointer text-sm font-bold">
+                  O que está ocupando o banco de dados
+                </summary>
+                {tableSizes.length === 0 ? (
+                  <p className="mt-2 text-xs text-[var(--muted)]">Sem dados de tabelas ainda.</p>
+                ) : (
+                  <ul className="mt-3 space-y-1.5">
+                    {tableSizes.slice(0, 12).map((t) => (
+                      <li key={t.name} className="flex items-center justify-between gap-3 text-sm">
+                        <span className="truncate font-mono text-xs text-[var(--muted)]">{t.name}</span>
+                        <span className="shrink-0 font-semibold tabular-nums">{formatBytes(t.bytes)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </details>
+            </Card>
+
+            <Card className="md:col-span-2">
+              <details>
+                <summary className="cursor-pointer text-sm font-bold">
+                  O que está ocupando o armazenamento de arquivos
+                </summary>
+                {!storageDetail || storageDetail.buckets.length === 0 ? (
+                  <p className="mt-2 text-xs text-[var(--muted)]">Sem arquivos ainda.</p>
+                ) : (
+                  <>
+                    <p className="mt-3 text-xs font-bold uppercase tracking-wide text-[var(--muted)]">
+                      Por bucket
+                    </p>
+                    <ul className="mt-1 space-y-1.5">
+                      {storageDetail.buckets.map((b) => (
+                        <li key={b.bucket_id} className="flex items-center justify-between gap-3 text-sm">
+                          <span className="truncate">
+                            {b.bucket_id}{" "}
+                            <span className="text-xs text-[var(--muted)]">
+                              ({b.count.toLocaleString("pt-BR")} arquivo(s))
+                            </span>
+                          </span>
+                          <span className="shrink-0 font-semibold tabular-nums">{formatBytes(b.bytes)}</span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    <p className="mt-4 text-xs font-bold uppercase tracking-wide text-[var(--muted)]">
+                      Por tipo de arquivo
+                    </p>
+                    <ul className="mt-1 space-y-1.5">
+                      {storageDetail.by_type.slice(0, 12).map((t) => (
+                        <li
+                          key={`${t.bucket_id}-${t.mimetype}`}
+                          className="flex items-center justify-between gap-3 text-sm"
+                        >
+                          <span className="truncate">
+                            {t.mimetype}{" "}
+                            <span className="text-xs text-[var(--muted)]">
+                              ({t.bucket_id} · {t.count.toLocaleString("pt-BR")})
+                            </span>
+                          </span>
+                          <span className="shrink-0 font-semibold tabular-nums">{formatBytes(t.bytes)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </details>
             </Card>
 
             <Card className="md:col-span-2">
