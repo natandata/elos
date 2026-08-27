@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Avatar } from "@/components/Avatar";
+import { AvatarCropModal } from "./AvatarCropModal";
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
 
@@ -23,20 +24,25 @@ export function AvatarUploader({
   const [url, setUrl] = useState(currentUrl);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
 
-  async function handleFile(file: File | null) {
+  function handleFile(file: File | null) {
     setError(null);
     if (!file) return;
     if (!file.type.startsWith("image/")) return setError("Escolha um arquivo de imagem.");
     if (file.size > MAX_AVATAR_BYTES) return setError("A imagem precisa ter no máximo 2 MB.");
+    // abre o ajuste de enquadramento antes de subir — evita a foto vir cortada errado
+    setPendingFile(file);
+  }
 
+  async function uploadCropped(blob: Blob) {
+    setPendingFile(null);
     setBusy(true);
-    const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-    const path = `${userId}/avatar.${ext}`;
+    const path = `${userId}/avatar.jpg`;
 
     const { error: uploadError } = await supabase.storage
       .from("avatars")
-      .upload(path, file, { upsert: true, contentType: file.type });
+      .upload(path, blob, { upsert: true, contentType: "image/jpeg" });
 
     if (uploadError) {
       setBusy(false);
@@ -58,6 +64,7 @@ export function AvatarUploader({
     if (saveError) return setError("A imagem subiu, mas não foi possível salvar no perfil.");
 
     setUrl(versioned);
+    if (fileRef.current) fileRef.current.value = "";
     router.refresh();
   }
 
@@ -103,6 +110,17 @@ export function AvatarUploader({
         </div>
         {error ? <p className="mt-2 text-xs text-red-700">{error}</p> : null}
       </div>
+
+      {pendingFile ? (
+        <AvatarCropModal
+          file={pendingFile}
+          onCancel={() => {
+            setPendingFile(null);
+            if (fileRef.current) fileRef.current.value = "";
+          }}
+          onConfirm={uploadCropped}
+        />
+      ) : null}
     </div>
   );
 }
