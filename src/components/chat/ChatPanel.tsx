@@ -32,6 +32,7 @@ export function ChatPanel({
   readOnly?: boolean;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
+  const [onlineIds, setOnlineIds] = useState<Set<string>>(new Set());
   const [state, formAction, pending] = useActionState(sendChatMessage, initialState);
   const formRef = useRef<HTMLFormElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -65,6 +66,41 @@ export function ChatPanel({
     bottomRef.current?.scrollIntoView({ block: "end" });
   }, [messages.length]);
 
+  // Quem do Elo está online agora: mesma janela de 60s usada na tela de
+  // Usuários do admin, consultando a cada 20s (ritmo do heartbeat).
+  useEffect(() => {
+    if (participants.length === 0) return;
+    const supabase = createClient();
+    let cancelled = false;
+
+    async function checkOnline() {
+      const { data } = await supabase
+        .from("user_presence")
+        .select("user_id, last_seen_at")
+        .in(
+          "user_id",
+          participants.map((p) => p.id),
+        );
+      if (cancelled || !data) return;
+      const cutoff = Date.now() - 60_000;
+      setOnlineIds(
+        new Set(
+          data
+            .filter((r) => new Date(r.last_seen_at).getTime() > cutoff)
+            .map((r) => r.user_id),
+        ),
+      );
+    }
+
+    checkOnline();
+    const id = setInterval(checkOnline, 20_000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eloId]);
+
   // com o chat aberto (inclusive ao chegar mensagem nova via realtime), zera o badge do menu
   useEffect(() => {
     if (!readOnly) markChatRead();
@@ -75,6 +111,10 @@ export function ChatPanel({
     if (state.ok) formRef.current?.reset();
   }, [state.ok]);
 
+  const onlineNames = participants
+    .filter((p) => p.id !== currentUserId && onlineIds.has(p.id))
+    .map((p) => p.full_name || "Sem nome");
+
   return (
     <div className="card flex h-[70vh] flex-col overflow-hidden p-0">
       <div className="border-b border-[var(--line)] px-4 py-3">
@@ -82,6 +122,12 @@ export function ChatPanel({
         <p className="text-xs text-[var(--muted)]">
           {readOnly ? "Monitoramento — somente leitura" : "Chat do Elo"}
         </p>
+        {!readOnly && onlineNames.length > 0 ? (
+          <p className="mt-1 flex flex-wrap items-center gap-1 text-xs text-emerald-700">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
+            Online agora: {onlineNames.join(", ")}
+          </p>
+        ) : null}
       </div>
 
       <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
