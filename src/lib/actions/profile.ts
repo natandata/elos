@@ -81,6 +81,30 @@ export async function updateOwnName(
   return { ok: true };
 }
 
+/** Liga/desliga o recebimento de e-mails do ELOS (boas-vindas e resumos). */
+export async function updateEmailOptIn(
+  _prev: { error?: string; ok?: boolean } | null,
+  formData: FormData,
+): Promise<{ error?: string; ok?: boolean }> {
+  const optIn = String(formData.get("email_opt_in") ?? "") === "true";
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/");
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ email_opt_in: optIn })
+    .eq("id", user.id);
+
+  if (error) return { error: "Não foi possível salvar." };
+
+  revalidatePath("/app", "layout");
+  return { ok: true };
+}
+
 /** Revalidação periódica (a cada 15 dias) da autorização do responsável. */
 export async function confirmGuardianAck(
   _prev: { error?: string } | null,

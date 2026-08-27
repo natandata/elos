@@ -12,6 +12,7 @@ import {
 import { NameForm } from "./NameForm";
 import { AvatarUploader } from "./AvatarUploader";
 import { GuardianDetailsForm } from "./GuardianDetailsForm";
+import { EmailPrefsForm } from "./EmailPrefsForm";
 import type { CriaProfileDetails } from "@/lib/types";
 
 export default async function PerfilPage() {
@@ -89,6 +90,10 @@ export default async function PerfilPage() {
           <p className="mt-3 text-xs text-[var(--muted)]">
             Elo e XP são definidos pela administração e pelas missões aprovadas.
           </p>
+
+          <div className="mt-4 border-t border-[var(--line)] pt-4">
+            <EmailPrefsForm optedIn={profile.email_opt_in} />
+          </div>
 
           <form action={signOut} className="mt-4 border-t border-[var(--line)] pt-4">
             <button className="btn btn-ghost w-full !py-2 !text-sm">Sair</button>

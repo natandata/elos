@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/config";
 
-const PUBLIC_PATHS = ["/", "/auth/callback", "/admin-access"];
+const PUBLIC_PATHS = ["/", "/auth/callback", "/auth/reset-senha", "/admin-access"];
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });

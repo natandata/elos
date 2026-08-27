@@ -18,6 +18,10 @@ export function AuthPanel({ next }: { next?: string }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotNotice, setForgotNotice] = useState<string | null>(null);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -101,6 +105,20 @@ export function AuthPanel({ next }: { next?: string }) {
     router.refresh();
   }
 
+  async function handleForgotPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setForgotLoading(true);
+    setForgotNotice(null);
+    await supabase.auth.resetPasswordForEmail(forgotEmail, {
+      redirectTo: `${window.location.origin}/auth/callback?next=/auth/reset-senha`,
+    });
+    setForgotLoading(false);
+    // Mensagem genérica de propósito: não revela se o e-mail existe na base.
+    setForgotNotice(
+      "Se existir uma conta com esse e-mail, você vai receber um link para redefinir a senha.",
+    );
+  }
+
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -119,6 +137,7 @@ export function AuthPanel({ next }: { next?: string }) {
       email,
       password,
       options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
         data: {
           first_name: firstName.trim(),
           last_name: lastName.trim(),
@@ -150,7 +169,9 @@ export function AuthPanel({ next }: { next?: string }) {
 
     if (!data.session) {
       setLoading(false);
-      setNotice("Conta criada. Confirme o e-mail que enviamos para entrar.");
+      setNotice(
+        "Conta criada. Confirme o e-mail que enviamos para entrar (olhe também a caixa de spam).",
+      );
       return;
     }
 
@@ -378,6 +399,51 @@ export function AuthPanel({ next }: { next?: string }) {
             autoComplete={mode === "login" ? "current-password" : "new-password"}
           />
         </div>
+
+        {mode === "login" ? (
+          <div className="text-right">
+            <button
+              type="button"
+              onClick={() => {
+                setShowForgot((v) => !v);
+                setForgotNotice(null);
+                setForgotEmail(email);
+              }}
+              className="text-xs font-semibold text-[var(--accent-strong)] underline underline-offset-2"
+            >
+              Esqueci minha senha
+            </button>
+          </div>
+        ) : null}
+
+        {mode === "login" && showForgot ? (
+          <div className="space-y-2 rounded-xl border border-[var(--line)] p-3">
+            <label className="label" htmlFor="forgotEmail">
+              E-mail da conta
+            </label>
+            <input
+              id="forgotEmail"
+              type="email"
+              className="input"
+              value={forgotEmail}
+              onChange={(e) => setForgotEmail(e.target.value)}
+              autoComplete="email"
+            />
+            <button
+              type="button"
+              onClick={handleForgotPassword}
+              disabled={forgotLoading || !forgotEmail}
+              className="btn btn-ghost w-full !py-2 !text-sm"
+            >
+              {forgotLoading ? "Enviando…" : "Enviar link de redefinição"}
+            </button>
+            {forgotNotice ? (
+              <p className="rounded-xl bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+                {forgotNotice}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
 
         {mode === "signup" && (
           <div>

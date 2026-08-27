@@ -27,6 +27,7 @@ export type Profile = {
   xp: number;
   chat_last_read_at: string | null;
   guardian_ack_at: string | null;
+  email_opt_in: boolean;
   created_at: string;
   updated_at: string;
 };

@@ -67,6 +67,7 @@ const ADMIN_FEATURES: Feature[] = [
   { title: "Auditoria", items: ["Quem trocou role, Elo ou aprovação, e quem excluiu um usuário — e quando"] },
   { title: "Status Equipe", items: ["Acompanhamento emocional/espiritual de todos os líderes"] },
   { title: "Agenda", items: ["Criar eventos para todos os ELOS, um Elo específico, ou só para a liderança"] },
+  { title: "Perfil", items: ["Ligar/desligar e-mails do ELOS (boas-vindas e resumos)"] },
 ];
 
 const LEADER_FEATURES: Feature[] = [
@@ -88,7 +89,10 @@ const LEADER_FEATURES: Feature[] = [
   ]},
   { title: "Chat", items: ["Conversar com todo o Elo (líderes e crias)"] },
   { title: "Agenda", items: ["Ver eventos do Elo e exclusivos de liderança; confirmar presença"] },
-  { title: "Perfil", items: ["Tema vermelho fixo de identidade, foto e dados próprios"] },
+  { title: "Perfil", items: [
+    "Tema vermelho fixo de identidade, foto e dados próprios",
+    "Ligar/desligar e-mails do ELOS (boas-vindas e resumos)",
+  ]},
 ];
 
 const CRIA_FEATURES: Feature[] = [
@@ -101,7 +105,10 @@ const CRIA_FEATURES: Feature[] = [
   ]},
   { title: "Chat", items: ["Conversar com o próprio Elo"] },
   { title: "Agenda", items: ["Ver eventos do Elo e confirmar presença"] },
-  { title: "Perfil", items: ["Nome, foto e ficha opcional (contato de responsável, observações)"] },
+  { title: "Perfil", items: [
+    "Nome, foto e ficha opcional (contato de responsável, observações)",
+    "Ligar/desligar e-mails do ELOS (boas-vindas e resumos)",
+  ]},
 ];
 
 function FeatureColumn({ title, tone, features }: { title: string; tone: string; features: Feature[] }) {
