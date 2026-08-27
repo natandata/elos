@@ -21,12 +21,12 @@ export function PageHeader({
   action?: ReactNode;
 }) {
   return (
-    <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{title}</h1>
-        {subtitle ? <p className="mt-1 text-sm text-[var(--muted)]">{subtitle}</p> : null}
+    <header className="mb-5">
+      <div className="flex items-start justify-between gap-3">
+        <h1 className="min-w-0 text-2xl font-bold tracking-tight sm:text-3xl">{title}</h1>
+        {action ? <div className="shrink-0">{action}</div> : null}
       </div>
-      {action}
+      {subtitle ? <p className="mt-1 text-sm text-[var(--muted)]">{subtitle}</p> : null}
     </header>
   );
 }
