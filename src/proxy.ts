@@ -47,5 +47,10 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  matcher: [
+    // Fora do proxy: estáticos e os arquivos que o PWA precisa servir sem sessão.
+    // Sem isso, /sw.js e /manifest.json seriam redirecionados para o login e a
+    // instalação no celular falharia.
+    "/((?!_next/static|_next/image|favicon.ico|manifest.json|sw.js|offline.html|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|webmanifest)$).*)",
+  ],
 };

@@ -17,6 +17,7 @@ export default async function StatusEquipePage() {
     .from("profiles")
     .select("id, full_name, elos:elo_id(name)")
     .eq("role", "leader")
+    .eq("approved", true)
     .order("full_name");
 
   const leaderList = (leaders ?? []) as unknown as {

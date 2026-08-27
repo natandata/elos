@@ -15,9 +15,13 @@ export type Elo = {
 export type Profile = {
   id: string;
   full_name: string;
+  first_name: string | null;
+  last_name: string | null;
   age_range: AgeRange | null;
   gender: Gender | null;
   role: Role;
+  approved: boolean;
+  show_other_leader_missions: boolean;
   elo_id: string | null;
   avatar_url: string | null;
   xp: number;
@@ -65,6 +69,14 @@ export type StatusResponse = {
   user_id: string;
   emotional_status: StatusLevel;
   spiritual_status: StatusLevel;
+  created_at: string;
+};
+
+export type ChatMessage = {
+  id: string;
+  elo_id: string;
+  sender_id: string;
+  body: string;
   created_at: string;
 };
 

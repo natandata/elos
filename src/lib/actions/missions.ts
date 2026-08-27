@@ -165,6 +165,25 @@ export async function submitAssignment(_prev: Result | null, formData: FormData)
 }
 
 /** Líder/Admin aprova ou recusa. O XP é creditado no banco, uma única vez. */
+/** Cada líder decide se quer ver a lista de missões de outros líderes. */
+export async function toggleLeaderMissionsVisibility(
+  _prev: Result | null,
+  formData: FormData,
+): Promise<Result> {
+  const { supabase, profile } = await currentProfile();
+  const show = String(formData.get("show") ?? "true") === "true";
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ show_other_leader_missions: show })
+    .eq("id", profile.id);
+
+  if (error) return { error: "Não foi possível salvar a preferência." };
+
+  revalidatePath("/app/lider/missoes");
+  return { ok: true };
+}
+
 export async function reviewAssignment(_prev: Result | null, formData: FormData): Promise<Result> {
   const { supabase } = await currentProfile();
   const id = String(formData.get("assignment_id") ?? "");

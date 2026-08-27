@@ -10,6 +10,7 @@ import {
   formatXp,
 } from "@/lib/types";
 import { NameForm } from "./NameForm";
+import { AvatarUploader } from "./AvatarUploader";
 
 export default async function PerfilPage() {
   const { profile } = await requireProfile();
@@ -42,7 +43,19 @@ export default async function PerfilPage() {
       <div className="grid gap-3 md:grid-cols-2">
         <Card>
           <h2 className="mb-3 text-sm font-bold">Seus dados</h2>
-          <NameForm defaultName={profile.full_name} />
+
+          <div className="mb-4">
+            <AvatarUploader
+              userId={profile.id}
+              name={profile.full_name}
+              currentUrl={profile.avatar_url}
+            />
+          </div>
+
+          <NameForm
+            firstName={profile.first_name ?? ""}
+            lastName={profile.last_name ?? ""}
+          />
 
           <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-[var(--line)] pt-4 text-sm">
             <div>

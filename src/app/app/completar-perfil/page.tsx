@@ -16,7 +16,10 @@ export default async function CompleteProfilePage() {
           </p>
         </div>
         <div className="card p-5">
-          <CompleteProfileForm defaultName={profile.full_name} />
+          <CompleteProfileForm
+            firstName={profile.first_name ?? ""}
+            lastName={profile.last_name ?? ""}
+          />
         </div>
       </div>
     </main>

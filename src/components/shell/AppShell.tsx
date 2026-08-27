@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { signOut } from "@/lib/actions/session";
+import { Avatar } from "@/components/Avatar";
 
 export type NavItem = { href: string; label: string; icon: string };
 
@@ -12,14 +13,18 @@ export function AppShell({
   name,
   roleLabel,
   eloName,
+  avatarUrl,
   unread,
+  pending = false,
   children,
 }: {
   items: NavItem[];
   name: string;
   roleLabel: string;
   eloName?: string | null;
+  avatarUrl?: string | null;
   unread: number;
+  pending?: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -27,13 +32,6 @@ export function AppShell({
 
   const isActive = (href: string) =>
     href === pathname || (href !== "/app" && pathname.startsWith(href + "/"));
-
-  const initials = name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase())
-    .join("");
 
   return (
     <div className="min-h-dvh">
@@ -66,9 +64,7 @@ export function AppShell({
               onClick={() => setOpen((v) => !v)}
               className="flex items-center gap-2 rounded-lg border border-[var(--line)] px-2 py-1.5"
             >
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--accent-soft)] text-[11px] font-bold text-[var(--accent-strong)]">
-                {initials || "?"}
-              </span>
+              <Avatar url={avatarUrl} name={name} size={24} />
               <span className="hidden text-sm font-semibold sm:block">{name.split(" ")[0]}</span>
             </button>
           </div>
@@ -77,11 +73,16 @@ export function AppShell({
         {open ? (
           <div className="mx-auto max-w-6xl px-4 pb-3">
             <div className="card p-3 text-sm">
-              <p className="font-semibold">{name}</p>
-              <p className="text-xs text-[var(--muted)]">
-                {roleLabel}
-                {eloName ? ` · ${eloName}` : ""}
-              </p>
+              <div className="flex items-center gap-3">
+                <Avatar url={avatarUrl} name={name} size={40} />
+                <div className="min-w-0">
+                  <p className="truncate font-semibold">{name}</p>
+                  <p className="text-xs text-[var(--muted)]">
+                    {roleLabel}
+                    {eloName ? ` · ${eloName}` : ""}
+                  </p>
+                </div>
+              </div>
               <div className="mt-3 flex gap-2">
                 <Link href="/app/perfil" className="btn btn-ghost flex-1 !py-2 !text-sm">
                   Perfil
@@ -97,7 +98,11 @@ export function AppShell({
 
       <div className="mx-auto flex max-w-6xl gap-6 px-4 py-5">
         {/* menu lateral (desktop) */}
-        <nav className="hidden w-52 shrink-0 md:block">
+        <nav
+          className={`hidden w-52 shrink-0 md:block ${
+            pending ? "pointer-events-none opacity-40 grayscale" : ""
+          }`}
+        >
           <ul className="sticky top-20 space-y-1">
             {items.map((item) => (
               <li key={item.href}>
@@ -117,11 +122,30 @@ export function AppShell({
           </ul>
         </nav>
 
-        <main className="min-w-0 flex-1 pb-24 md:pb-6">{children}</main>
+        <main className="min-w-0 flex-1 pb-24 md:pb-6">
+          {pending ? (
+            <div className="mb-5 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-900">
+              <p className="font-bold">Conta aguardando aprovação</p>
+              <p className="mt-1 text-sm">
+                Sua conta de líder foi criada e já está no ar, mas ainda precisa ser liberada pela
+                administração. Enquanto isso, tudo fica bloqueado — você recebe uma notificação
+                assim que for aprovada.
+              </p>
+            </div>
+          ) : null}
+
+          <div className={pending ? "pointer-events-none select-none opacity-50 grayscale" : ""}>
+            {children}
+          </div>
+        </main>
       </div>
 
       {/* menu inferior (mobile) */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--line)] bg-[var(--card)] md:hidden">
+      <nav
+        className={`fixed inset-x-0 bottom-0 z-30 border-t border-[var(--line)] bg-[var(--card)] md:hidden ${
+          pending ? "pointer-events-none opacity-40 grayscale" : ""
+        }`}
+      >
         <ul className="mx-auto flex max-w-6xl">
           {items.slice(0, 5).map((item) => (
             <li key={item.href} className="flex-1">

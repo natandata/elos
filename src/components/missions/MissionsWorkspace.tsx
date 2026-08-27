@@ -2,6 +2,7 @@ import { EmptyState, ErrorState, PageHeader } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
 import type { Elo, MissionType, Profile } from "@/lib/types";
 import { ApprovalItem, type PendingReview } from "./ApprovalItem";
+import { LeaderMissionsToggle } from "./LeaderMissionsToggle";
 import { MissionComposer, type CriaOption } from "./MissionComposer";
 import { MissionManagerCard, type ManagedMission } from "./MissionManagerCard";
 
@@ -15,6 +16,7 @@ type MissionRow = {
   due_date: string | null;
   created_by: string;
   elos: { name: string } | null;
+  creator: { full_name: string; role: string } | null;
   mission_assignments: { id: string; status: string }[];
 };
 
@@ -24,6 +26,28 @@ type AssignmentRow = {
   profiles: { full_name: string } | null;
   missions: { title: string; description: string | null; xp: number } | null;
 };
+
+function toManagedMission(m: MissionRow, canEdit: boolean, authorName?: string): ManagedMission {
+  const a = m.mission_assignments ?? [];
+  return {
+    id: m.id,
+    title: m.title,
+    description: m.description,
+    type: m.type,
+    xp: m.xp,
+    start_date: m.start_date,
+    due_date: m.due_date,
+    eloName: m.elos?.name ?? null,
+    authorName,
+    counts: {
+      total: a.length,
+      awaiting: a.filter((x) => x.status === "awaiting_approval").length,
+      approved: a.filter((x) => x.status === "approved").length,
+      rejected: a.filter((x) => x.status === "rejected").length,
+    },
+    canEdit,
+  };
+}
 
 /** Área de missões compartilhada por Admin e Líder. */
 export async function MissionsWorkspace({ profile }: { profile: Profile }) {
@@ -41,7 +65,7 @@ export async function MissionsWorkspace({ profile }: { profile: Profile }) {
     supabase
       .from("missions")
       .select(
-        "id, title, description, type, xp, start_date, due_date, created_by, elos:elo_id(name), mission_assignments(id, status)",
+        "id, title, description, type, xp, start_date, due_date, created_by, elos:elo_id(name), creator:created_by(full_name, role), mission_assignments(id, status)",
       )
       .order("created_at", { ascending: false }),
     supabase
@@ -61,27 +85,20 @@ export async function MissionsWorkspace({ profile }: { profile: Profile }) {
         .map((r) => r.profiles)
         .filter((p): p is CriaOption => Boolean(p));
 
-  const missions: ManagedMission[] = ((missionsRes.data ?? []) as unknown as MissionRow[]).map(
-    (m) => {
-      const a = m.mission_assignments ?? [];
-      return {
-        id: m.id,
-        title: m.title,
-        description: m.description,
-        type: m.type,
-        xp: m.xp,
-        start_date: m.start_date,
-        due_date: m.due_date,
-        eloName: m.elos?.name ?? null,
-        counts: {
-          total: a.length,
-          awaiting: a.filter((x) => x.status === "awaiting_approval").length,
-          approved: a.filter((x) => x.status === "approved").length,
-          rejected: a.filter((x) => x.status === "rejected").length,
-        },
-        canEdit: isAdmin || m.created_by === profile.id,
-      };
-    },
+  const allMissions = (missionsRes.data ?? []) as unknown as MissionRow[];
+
+  // Para o líder: as próprias missões ficam separadas das "em curso" criadas
+  // por outros líderes — essa segunda lista é a que pode ser ocultada.
+  const ownRows = isAdmin ? allMissions : allMissions.filter((m) => m.created_by === profile.id);
+  const otherLeaderRows = isAdmin
+    ? []
+    : allMissions.filter((m) => m.created_by !== profile.id && m.creator?.role === "leader");
+
+  const missions = ownRows.map((m) =>
+    toManagedMission(m, isAdmin || m.created_by === profile.id),
+  );
+  const otherMissions = otherLeaderRows.map((m) =>
+    toManagedMission(m, false, m.creator?.full_name || "Outro líder"),
   );
 
   const pending: PendingReview[] = ((pendingRes.data ?? []) as unknown as AssignmentRow[]).map(
@@ -128,9 +145,9 @@ export async function MissionsWorkspace({ profile }: { profile: Profile }) {
         )}
       </section>
 
-      <section>
+      <section className={isAdmin ? "" : "mb-6"}>
         <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">
-          Missões criadas ({missions.length})
+          {isAdmin ? "Missões criadas" : "Minhas missões"} ({missions.length})
         </h2>
         {missions.length === 0 ? (
           <EmptyState>Nenhuma missão criada ainda.</EmptyState>
@@ -142,6 +159,30 @@ export async function MissionsWorkspace({ profile }: { profile: Profile }) {
           </div>
         )}
       </section>
+
+      {!isAdmin ? (
+        <section>
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-bold uppercase tracking-wide text-[var(--muted)]">
+              Missões em curso de outros líderes ({otherMissions.length})
+            </h2>
+            <LeaderMissionsToggle show={profile.show_other_leader_missions} />
+          </div>
+          {!profile.show_other_leader_missions ? (
+            <EmptyState>
+              Visualização desativada. Use o interruptor acima para mostrar de novo.
+            </EmptyState>
+          ) : otherMissions.length === 0 ? (
+            <EmptyState>Nenhuma missão de outros líderes no momento.</EmptyState>
+          ) : (
+            <div className="space-y-3">
+              {otherMissions.map((m) => (
+                <MissionManagerCard key={m.id} mission={m} />
+              ))}
+            </div>
+          )}
+        </section>
+      ) : null}
     </>
   );
 }

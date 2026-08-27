@@ -16,7 +16,13 @@ function SubmitButton() {
   );
 }
 
-export function CompleteProfileForm({ defaultName }: { defaultName: string }) {
+export function CompleteProfileForm({
+  firstName,
+  lastName,
+}: {
+  firstName: string;
+  lastName: string;
+}) {
   const [state, action] = useActionState(completeProfile, null);
   const [gender, setGender] = useState<Gender | "">("");
 
@@ -28,17 +34,31 @@ export function CompleteProfileForm({ defaultName }: { defaultName: string }) {
     <form action={action} className="space-y-3">
       <input type="hidden" name="gender" value={gender} />
 
-      <div>
-        <label className="label" htmlFor="full_name">
-          Nome completo
-        </label>
-        <input
-          id="full_name"
-          name="full_name"
-          className="input"
-          defaultValue={defaultName}
-          required
-        />
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="label" htmlFor="first_name">
+            Nome
+          </label>
+          <input
+            id="first_name"
+            name="first_name"
+            className="input"
+            defaultValue={firstName}
+            required
+          />
+        </div>
+        <div>
+          <label className="label" htmlFor="last_name">
+            Sobrenome
+          </label>
+          <input
+            id="last_name"
+            name="last_name"
+            className="input"
+            defaultValue={lastName}
+            required
+          />
+        </div>
       </div>
 
       <div>

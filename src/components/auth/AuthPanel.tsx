@@ -1,31 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { AGE_RANGE_LABEL, type AgeRange, type Gender } from "@/lib/types";
 
-const AGE_OPTIONS: AgeRange[] = ["12-14", "15-16", "17"];
+type SignupRole = "cria" | "leader";
 
-function GoogleIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden>
-      <path
-        fill="#4285F4"
-        d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5a5.6 5.6 0 0 1-2.4 3.7v3h3.9c2.3-2.1 3.5-5.2 3.5-8.9Z"
-      />
-      <path
-        fill="#34A853"
-        d="M12 24c3.2 0 5.9-1.1 7.9-2.9l-3.9-3c-1.1.7-2.4 1.2-4 1.2-3.1 0-5.7-2.1-6.6-4.9H1.4v3.1A12 12 0 0 0 12 24Z"
-      />
-      <path fill="#FBBC05" d="M5.4 14.4a7.2 7.2 0 0 1 0-4.6V6.7H1.4a12 12 0 0 0 0 10.8l4-3.1Z" />
-      <path
-        fill="#EA4335"
-        d="M12 4.8c1.8 0 3.3.6 4.6 1.8l3.4-3.4A12 12 0 0 0 1.4 6.7l4 3.1C6.3 6.9 8.9 4.8 12 4.8Z"
-      />
-    </svg>
-  );
-}
+const AGE_OPTIONS: AgeRange[] = ["12-14", "15-16", "17"];
+const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
 
 export function AuthPanel({ next }: { next?: string }) {
   const router = useRouter();
@@ -36,12 +19,18 @@ export function AuthPanel({ next }: { next?: string }) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const [fullName, setFullName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [ageRange, setAgeRange] = useState<AgeRange | "">("");
   const [gender, setGender] = useState<Gender | "">("");
+  const [signupRole, setSignupRole] = useState<SignupRole>("cria");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+
+  const [avatar, setAvatar] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   // Identidade visual dinâmica: o tema acompanha o gênero escolhido no cadastro.
   useEffect(() => {
@@ -53,6 +42,44 @@ export function AuthPanel({ next }: { next?: string }) {
   }, [gender, mode]);
 
   const destination = next && next.startsWith("/") ? next : "/app";
+
+  function pickAvatar(file: File | null) {
+    setError(null);
+    if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+
+    if (!file) {
+      setAvatar(null);
+      setAvatarPreview(null);
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      return setError("Escolha um arquivo de imagem.");
+    }
+    if (file.size > MAX_AVATAR_BYTES) {
+      return setError("A imagem precisa ter no máximo 2 MB.");
+    }
+    setAvatar(file);
+    setAvatarPreview(URL.createObjectURL(file));
+  }
+
+  /** Envia a foto e grava o endereço no perfil. Falhar aqui não impede o cadastro. */
+  async function uploadAvatar(userId: string) {
+    if (!avatar) return;
+    const ext = avatar.name.split(".").pop()?.toLowerCase() || "jpg";
+    const path = `${userId}/avatar.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("avatars")
+      .upload(path, avatar, { upsert: true, contentType: avatar.type });
+
+    if (uploadError) return;
+
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("avatars").getPublicUrl(path);
+
+    await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", userId);
+  }
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -73,7 +100,8 @@ export function AuthPanel({ next }: { next?: string }) {
     setError(null);
     setNotice(null);
 
-    if (!fullName.trim()) return setError("Informe seu nome completo.");
+    if (!firstName.trim()) return setError("Informe seu nome.");
+    if (!lastName.trim()) return setError("Informe seu sobrenome.");
     if (!ageRange) return setError("Selecione sua faixa etária.");
     if (!gender) return setError("Selecione seu gênero.");
     if (password.length < 6) return setError("A senha precisa ter ao menos 6 caracteres.");
@@ -83,11 +111,20 @@ export function AuthPanel({ next }: { next?: string }) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: fullName.trim(), age_range: ageRange, gender } },
+      options: {
+        data: {
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+          full_name: `${firstName.trim()} ${lastName.trim()}`,
+          age_range: ageRange,
+          gender,
+          role: signupRole,
+        },
+      },
     });
-    setLoading(false);
 
     if (error) {
+      setLoading(false);
       const code = error.code ?? "";
       if (code === "user_already_exists" || error.message.includes("already registered")) {
         setError("Já existe uma conta com esse e-mail.");
@@ -102,28 +139,21 @@ export function AuthPanel({ next }: { next?: string }) {
       }
       return;
     }
+
     if (!data.session) {
+      setLoading(false);
       setNotice("Conta criada. Confirme o e-mail que enviamos para entrar.");
       return;
     }
+
+    if (data.user) await uploadAvatar(data.user.id);
+
+    setLoading(false);
     router.push("/app");
     router.refresh();
   }
 
-  async function handleGoogle() {
-    setError(null);
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(destination)}`,
-      },
-    });
-    if (error) {
-      setLoading(false);
-      setError("Não foi possível conectar com o Google.");
-    }
-  }
+  const initials = `${firstName[0] ?? ""}${lastName[0] ?? ""}`.toUpperCase();
 
   return (
     <div className="rise-in">
@@ -151,17 +181,79 @@ export function AuthPanel({ next }: { next?: string }) {
       <form onSubmit={mode === "login" ? handleLogin : handleSignup} className="space-y-3">
         {mode === "signup" && (
           <>
-            <div>
-              <label className="label" htmlFor="fullName">
-                Nome completo
-              </label>
+            <div className="flex flex-col items-center gap-2">
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-[var(--line)] bg-[var(--bg)] text-[var(--muted)] transition hover:border-[var(--accent)]"
+                aria-label="Escolher foto de perfil"
+              >
+                {avatarPreview ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={avatarPreview} alt="" className="h-full w-full object-cover" />
+                ) : initials ? (
+                  <span className="text-xl font-bold">{initials}</span>
+                ) : (
+                  <span className="text-2xl">📷</span>
+                )}
+              </button>
               <input
-                id="fullName"
-                className="input"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                autoComplete="name"
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => pickAvatar(e.target.files?.[0] ?? null)}
               />
+              <div className="flex items-center gap-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  className="font-semibold text-[var(--accent-strong)] underline underline-offset-2"
+                >
+                  {avatar ? "Trocar foto" : "Adicionar foto"}
+                </button>
+                {avatar ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      pickAvatar(null);
+                      if (fileRef.current) fileRef.current.value = "";
+                    }}
+                    className="text-[var(--muted)] underline underline-offset-2"
+                  >
+                    remover
+                  </button>
+                ) : (
+                  <span className="text-[var(--muted)]">opcional</span>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="label" htmlFor="firstName">
+                  Nome
+                </label>
+                <input
+                  id="firstName"
+                  className="input"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  autoComplete="given-name"
+                />
+              </div>
+              <div>
+                <label className="label" htmlFor="lastName">
+                  Sobrenome
+                </label>
+                <input
+                  id="lastName"
+                  className="input"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  autoComplete="family-name"
+                />
+              </div>
             </div>
 
             <div>
@@ -181,6 +273,37 @@ export function AuthPanel({ next }: { next?: string }) {
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div>
+              <span className="label">Você entra como</span>
+              <div className="grid grid-cols-2 gap-2">
+                {(
+                  [
+                    ["cria", "Cria"],
+                    ["leader", "Líder"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setSignupRole(value)}
+                    className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition ${
+                      signupRole === value
+                        ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent-strong)]"
+                        : "border-[var(--line)] text-[var(--muted)]"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {signupRole === "leader" ? (
+                <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  Contas de líder passam por aprovação da administração. Você entra normalmente,
+                  mas a conta fica bloqueada até a liberação.
+                </p>
+              ) : null}
             </div>
 
             <div>
@@ -271,16 +394,11 @@ export function AuthPanel({ next }: { next?: string }) {
         </button>
       </form>
 
-      <div className="my-4 flex items-center gap-3 text-xs text-[var(--muted)]">
-        <span className="h-px flex-1 bg-[var(--line)]" />
-        ou
-        <span className="h-px flex-1 bg-[var(--line)]" />
-      </div>
-
-      <button type="button" onClick={handleGoogle} className="btn btn-ghost w-full" disabled={loading}>
-        <GoogleIcon />
-        {mode === "login" ? "Entrar com Google" : "Criar conta com Google"}
-      </button>
+      {mode === "login" ? (
+        <p className="mt-4 text-center text-xs text-[var(--muted)]">
+          Ainda não tem conta? Toque em <strong>Criar conta</strong> acima.
+        </p>
+      ) : null}
     </div>
   );
 }

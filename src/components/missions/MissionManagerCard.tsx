@@ -14,6 +14,8 @@ export type ManagedMission = {
   start_date: string | null;
   due_date: string | null;
   eloName: string | null;
+  /** Nome de quem criou, mostrado quando não é a própria missão do viewer. */
+  authorName?: string;
   counts: { total: number; awaiting: number; approved: number; rejected: number };
   canEdit: boolean;
 };
@@ -30,6 +32,7 @@ export function MissionManagerCard({ mission }: { mission: ManagedMission }) {
         <div className="min-w-0">
           <p className="font-bold">{mission.title}</p>
           <p className="text-xs text-[var(--muted)]">
+            {mission.authorName ? `${mission.authorName} · ` : ""}
             {MISSION_TYPE_LABEL[mission.type]} · {mission.eloName ?? "Todos os ELOS"} · prazo{" "}
             {formatDate(mission.due_date)}
           </p>

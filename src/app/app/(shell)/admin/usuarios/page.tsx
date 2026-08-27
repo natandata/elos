@@ -1,7 +1,9 @@
 import { EmptyState, PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { AGE_RANGE_LABEL, type AgeRange, type Elo, type Role } from "@/lib/types";
+import { AGE_RANGE_LABEL, type AgeRange, type Elo, type Gender, type Role } from "@/lib/types";
+import { NewUserForm } from "./NewUserForm";
+import { PendingLeaderCard } from "./PendingLeaderCard";
 import { UserEditor } from "./UserEditor";
 
 type Search = {
@@ -17,7 +19,7 @@ export default async function UsuariosPage({
 }: {
   searchParams: Promise<Search>;
 }) {
-  await requireRole("admin");
+  const { profile: current } = await requireRole("admin");
   const sp = await searchParams;
   const supabase = await createClient();
 
@@ -26,7 +28,7 @@ export default async function UsuariosPage({
 
   let query = supabase
     .from("profiles")
-    .select("id, full_name, role, gender, age_range, elo_id, xp")
+    .select("id, full_name, first_name, last_name, avatar_url, role, approved, gender, age_range, elo_id, xp")
     .order("full_name");
 
   if (sp.q) query = query.ilike("full_name", `%${sp.q}%`);
@@ -39,25 +41,58 @@ export default async function UsuariosPage({
   const users = (usersData ?? []) as {
     id: string;
     full_name: string;
+    first_name: string | null;
+    last_name: string | null;
+    avatar_url: string | null;
     role: Role;
-    gender: "male" | "female" | null;
+    approved: boolean;
+    gender: Gender | null;
     age_range: AgeRange | null;
     elo_id: string | null;
     xp: number;
   }[];
+
+  const { data: emailRows } = await supabase.rpc("admin_user_emails");
+  const emailById = new Map(
+    ((emailRows ?? []) as { id: string; email: string }[]).map((r) => [r.id, r.email]),
+  );
 
   const { data: links } = await supabase.from("leader_crias").select("leader_id, cria_id");
   const leaderByCria = new Map(
     ((links ?? []) as { leader_id: string; cria_id: string }[]).map((l) => [l.cria_id, l.leader_id]),
   );
 
+  // só líderes já aprovados podem receber crias
   const leaders = users
-    .filter((u) => u.role === "leader")
+    .filter((u) => u.role === "leader" && u.approved)
     .map((u) => ({ id: u.id, full_name: u.full_name }));
+
+  const pendentes = users.filter((u) => u.role === "leader" && !u.approved);
 
   return (
     <>
       <PageHeader title="Usuários" subtitle={`${users.length} usuário(s) encontrados.`} />
+
+      {pendentes.length > 0 ? (
+        <section className="mb-4">
+          <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-amber-700">
+            Líderes aguardando aprovação ({pendentes.length})
+          </h2>
+          <div className="space-y-2">
+            {pendentes.map((u) => (
+              <PendingLeaderCard
+                key={u.id}
+                id={u.id}
+                name={u.full_name}
+                email={emailById.get(u.id) ?? null}
+                avatarUrl={u.avatar_url}
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <NewUserForm />
 
       <form className="card mb-4 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-5">
         <div className="sm:col-span-2">
@@ -116,9 +151,14 @@ export default async function UsuariosPage({
           {users.map((u) => (
             <UserEditor
               key={u.id}
-              user={{ ...u, leader_id: leaderByCria.get(u.id) ?? null }}
+              user={{
+                ...u,
+                leader_id: leaderByCria.get(u.id) ?? null,
+                email: emailById.get(u.id) ?? null,
+              }}
               elos={elos}
               leaders={leaders}
+              isSelf={u.id === current.id}
             />
           ))}
         </div>
