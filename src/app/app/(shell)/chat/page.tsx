@@ -33,7 +33,10 @@ export default async function ChatPage() {
 
   return (
     <>
-      <PageHeader title="Chat" subtitle={`Converse com o seu Elo — ${elo?.name ?? ""}`} />
+      <PageHeader
+        title="Chat"
+        subtitle={`Converse com o seu Elo — ${elo?.name ?? ""} · mensagens somem depois de 24h`}
+      />
       <ChatPanel
         eloId={profile.elo_id}
         eloName={elo?.name ?? "Elo"}
