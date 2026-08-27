@@ -94,6 +94,16 @@ export function AppShell({
           </Link>
 
           <div className="ml-auto flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="rounded-lg border border-[var(--line)] px-2.5 py-1.5 text-sm text-[var(--muted)] md:hidden"
+              aria-label="Recarregar página"
+              title="Recarregar página"
+            >
+              ⟳
+            </button>
+
             <Link
               href="/app/notificacoes"
               className="relative rounded-lg border border-[var(--line)] px-2.5 py-1.5 text-sm"
