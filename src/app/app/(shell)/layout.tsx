@@ -6,6 +6,7 @@ import { ROLE_LABEL } from "@/lib/types";
 
 const NAV: Record<string, NavItem[]> = {
   admin: [
+    { href: "/app/admin/geral", label: "Geral", icon: "🧭" },
     { href: "/app/admin", label: "Dashboard", icon: "📊" },
     { href: "/app/admin/status-equipe", label: "Status Equipe", icon: "💛" },
     { href: "/app/admin/usuarios", label: "Usuários", icon: "👥" },
