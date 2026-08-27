@@ -53,7 +53,8 @@ const GUARDIAN_ACK_DAYS = 15;
 
 /** Autorização do responsável: pedida no cadastro, revalidada a cada 15 dias. */
 export function needsGuardianAck(profile: Profile): boolean {
-  if (profile.role === "admin") return false;
+  // Só cria tem responsável — líder é maior de idade responsável pelo Elo.
+  if (profile.role !== "cria") return false;
   if (!profile.guardian_ack_at) return true;
 
   const cutoff = Date.now() - GUARDIAN_ACK_DAYS * 24 * 60 * 60 * 1000;
