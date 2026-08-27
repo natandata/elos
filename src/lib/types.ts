@@ -63,6 +63,7 @@ export type EloEvent = {
   event_time: string | null;
   location: string | null;
   elo_id: string | null;
+  leaders_only: boolean;
 };
 
 export type StatusResponse = {

@@ -225,13 +225,19 @@ export async function saveEvent(_prev: Result | null, formData: FormData): Promi
   if (!title) return { error: "Informe o nome do evento." };
   if (!eventDate) return { error: "Informe a data." };
 
+  // "Liderança" é um valor especial no mesmo seletor de Elo: não é um Elo de
+  // verdade, só marca o evento como exclusivo para líderes (e admin).
+  const eloField = String(formData.get("elo_id") ?? "");
+  const leadersOnly = eloField === "leaders";
+
   const payload = {
     title,
     description: String(formData.get("description") ?? "").trim() || null,
     event_date: eventDate,
     event_time: String(formData.get("event_time") ?? "") || null,
     location: String(formData.get("location") ?? "").trim() || null,
-    elo_id: String(formData.get("elo_id") ?? "") || null,
+    elo_id: leadersOnly ? null : eloField || null,
+    leaders_only: leadersOnly,
   };
 
   const {
