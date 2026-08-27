@@ -72,6 +72,9 @@ const ADMIN_FEATURES: Feature[] = [
   { title: "Status Equipe", items: ["Acompanhamento emocional/espiritual de todos os líderes"] },
   { title: "Status Crias", items: ["Acompanhamento emocional/espiritual de todos os crias, de qualquer Elo"] },
   { title: "Agenda", items: ["Criar eventos para todos os ELOS, um Elo específico, ou só para a liderança"] },
+  { title: "Feed", items: [
+    "Moderar (excluir qualquer foto ou comentário) a qualquer momento — não posta nem interage",
+  ]},
   { title: "Perfil", items: ["Ligar/desligar e-mails do ELOS (boas-vindas e resumos)"] },
 ];
 
@@ -98,6 +101,10 @@ const LEADER_FEATURES: Feature[] = [
   ]},
   { title: "Chat", items: ["Conversar com todo o Elo (líderes e crias)"] },
   { title: "Agenda", items: ["Ver eventos do Elo e exclusivos de liderança; confirmar presença"] },
+  { title: "Feed", items: [
+    "Postar fotos vistas por todo mundo da plataforma (não só o próprio Elo)",
+    "Curtir e comentar; a foto some pra sempre depois de 24h",
+  ]},
   { title: "Perfil", items: [
     "Tema vermelho fixo de identidade, foto e dados próprios",
     "Ligar/desligar e-mails do ELOS (boas-vindas e resumos)",
@@ -116,6 +123,10 @@ const CRIA_FEATURES: Feature[] = [
   ]},
   { title: "Chat", items: ["Conversar com o próprio Elo"] },
   { title: "Agenda", items: ["Ver eventos do Elo e confirmar presença"] },
+  { title: "Feed", items: [
+    "Postar fotos vistas por todo mundo da plataforma (não só o próprio Elo)",
+    "Curtir e comentar; a foto some pra sempre depois de 24h",
+  ]},
   { title: "Perfil", items: [
     "Nome, foto e ficha opcional (contato de responsável, observações)",
     "Ligar/desligar e-mails do ELOS (boas-vindas e resumos)",
