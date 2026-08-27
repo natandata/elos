@@ -56,6 +56,7 @@ const ADMIN_FEATURES: Feature[] = [
   { title: "Missões", items: [
     "Criar, editar e aprovar missões de qualquer Elo",
     "Duplicar qualquer missão como modelo",
+    "Agendar: missão só fica visível pros crias a partir da data marcada",
   ]},
   { title: "Monitorar Chat", items: ["Ler (somente leitura) o chat de qualquer Elo"] },
   { title: "Relatório", items: [
@@ -78,6 +79,7 @@ const LEADER_FEATURES: Feature[] = [
     "Criar missões individuais ou coletivas (meta do Elo)",
     "Aprovar ou recusar o que os crias enviarem",
     "Duplicar missão como modelo",
+    "Agendar: missão só fica visível pros crias a partir da data marcada",
   ]},
   { title: "Status Crias", items: [
     "Ver histórico e gráfico de tendência de cada cria",
