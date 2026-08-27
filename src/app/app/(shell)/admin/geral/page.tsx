@@ -56,8 +56,10 @@ const ADMIN_FEATURES: Feature[] = [
   ]},
   { title: "Missões", items: [
     "Criar, editar e aprovar missões de qualquer Elo",
+    "Criar Missões da Liderança — atribuídas direto a líderes escolhidos, dão XP igual às dos crias",
     "Duplicar qualquer missão como modelo",
     "Agendar: missão só fica visível pros crias a partir da data marcada",
+    "Máximo de 25 XP por missão",
   ]},
   { title: "Monitorar Chat", items: ["Ler (somente leitura) o chat de qualquer Elo"] },
   { title: "Relatório", items: [
@@ -73,7 +75,10 @@ const ADMIN_FEATURES: Feature[] = [
 ];
 
 const LEADER_FEATURES: Feature[] = [
-  { title: "Início", items: ["Dashboard do Elo: XP médio, ranking, missões e alerta imediato de \"Mal\""] },
+  { title: "Início", items: [
+    "Dashboard do Elo: XP médio, ranking, missões e alerta imediato de \"Mal\"",
+    "Acumula o próprio XP e sobe de nível (barra animada), como os crias",
+  ]},
   { title: "Meu Elo", items: [
     "Ranking dos crias do próprio Elo",
     "Ranking entre líderes (missões criadas, XP, conclusões)",
@@ -81,6 +86,7 @@ const LEADER_FEATURES: Feature[] = [
   { title: "Missões", items: [
     "Criar missões individuais ou coletivas (meta do Elo)",
     "Aprovar ou recusar o que os crias enviarem",
+    "Completar Missões da Liderança que o admin atribuir e ganhar XP",
     "Duplicar missão como modelo",
     "Agendar: missão só fica visível pros crias a partir da data marcada",
   ]},
@@ -98,7 +104,9 @@ const LEADER_FEATURES: Feature[] = [
 ];
 
 const CRIA_FEATURES: Feature[] = [
-  { title: "Início", items: ["XP, posição no ranking, missões disponíveis e próximos eventos"] },
+  { title: "Início", items: [
+    "XP com barra de nível animada, posição no ranking, missões disponíveis e próximos eventos",
+  ]},
   { title: "Meu Elo", items: ["Ranking do time por XP"] },
   { title: "Missões", items: ["Ver disponíveis e enviar para aprovação do líder"] },
   { title: "Status diário", items: [

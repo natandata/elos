@@ -1,9 +1,19 @@
 import { EmptyState, ErrorState, PageHeader } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
-import type { Elo, MissionType, Profile } from "@/lib/types";
+import { SubmitMissionButton } from "@/components/missions/SubmitMissionButton";
+import {
+  ASSIGNMENT_LABEL,
+  ASSIGNMENT_TONE,
+  formatDate,
+  formatDateTime,
+  type AssignmentStatus,
+  type Elo,
+  type MissionType,
+  type Profile,
+} from "@/lib/types";
 import { ApprovalItem, type PendingReview } from "./ApprovalItem";
 import { LeaderMissionsToggle } from "./LeaderMissionsToggle";
-import { MissionComposer, type CriaOption } from "./MissionComposer";
+import { MissionComposer, type CriaOption, type LeaderOption } from "./MissionComposer";
 import { MissionManagerCard, type ManagedMission } from "./MissionManagerCard";
 
 type MissionRow = {
@@ -17,9 +27,19 @@ type MissionRow = {
   publish_at: string | null;
   created_at: string;
   created_by: string;
+  audience: "crias" | "leaders";
   elos: { name: string } | null;
   creator: { full_name: string; role: string } | null;
   mission_assignments: { id: string; status: string }[];
+};
+
+type LeadershipAssignmentRow = {
+  id: string;
+  status: AssignmentStatus;
+  submitted_at: string | null;
+  approved_at: string | null;
+  rejection_reason: string | null;
+  missions: { title: string; description: string | null; xp: number; due_date: string | null } | null;
 };
 
 type AssignmentRow = {
@@ -42,6 +62,7 @@ function toManagedMission(m: MissionRow, canEdit: boolean, authorName?: string):
     publish_at: m.publish_at,
     created_at: m.created_at,
     eloName: m.elos?.name ?? null,
+    audience: m.audience,
     authorName,
     counts: {
       total: a.length,
@@ -58,7 +79,7 @@ export async function MissionsWorkspace({ profile }: { profile: Profile }) {
   const supabase = await createClient();
   const isAdmin = profile.role === "admin";
 
-  const [elosRes, criasRes, missionsRes, pendingRes] = await Promise.all([
+  const [elosRes, criasRes, leadersRes, missionsRes, pendingRes, myLeadershipRes] = await Promise.all([
     supabase.from("elos").select("*").order("gender").order("age_range"),
     isAdmin
       ? supabase.from("profiles").select("id, full_name, elo_id").eq("role", "cria").order("full_name")
@@ -66,10 +87,18 @@ export async function MissionsWorkspace({ profile }: { profile: Profile }) {
           .from("leader_crias")
           .select("profiles:cria_id(id, full_name, elo_id)")
           .eq("leader_id", profile.id),
+    isAdmin
+      ? supabase
+          .from("profiles")
+          .select("id, full_name")
+          .eq("role", "leader")
+          .eq("approved", true)
+          .order("full_name")
+      : Promise.resolve({ data: [] }),
     supabase
       .from("missions")
       .select(
-        "id, title, description, type, xp, start_date, due_date, publish_at, created_at, created_by, elos:elo_id(name), creator:created_by(full_name, role), mission_assignments(id, status)",
+        "id, title, description, type, xp, start_date, due_date, publish_at, created_at, created_by, audience, elos:elo_id(name), creator:created_by(full_name, role), mission_assignments(id, status)",
       )
       .order("created_at", { ascending: false }),
     supabase
@@ -77,6 +106,14 @@ export async function MissionsWorkspace({ profile }: { profile: Profile }) {
       .select("id, submitted_at, profiles:cria_id(full_name), missions:mission_id(title, description, xp)")
       .eq("status", "awaiting_approval")
       .order("submitted_at", { ascending: true }),
+    // Missões da Liderança atribuídas a mim (só faz sentido pra líder — admin não é "cria_id" de nada)
+    !isAdmin
+      ? supabase
+          .from("mission_assignments")
+          .select("id, status, submitted_at, approved_at, rejection_reason, missions:mission_id(title, description, xp, due_date)")
+          .eq("cria_id", profile.id)
+          .order("created_at", { ascending: false })
+      : Promise.resolve({ data: [] }),
   ]);
 
   if (missionsRes.error) return <ErrorState message={missionsRes.error.message} />;
@@ -88,6 +125,9 @@ export async function MissionsWorkspace({ profile }: { profile: Profile }) {
     : ((criasRes.data ?? []) as unknown as { profiles: CriaOption | null }[])
         .map((r) => r.profiles)
         .filter((p): p is CriaOption => Boolean(p));
+
+  const leaders: LeaderOption[] = (leadersRes.data ?? []) as LeaderOption[];
+  const myLeadership = (myLeadershipRes.data ?? []) as unknown as LeadershipAssignmentRow[];
 
   const allMissions = (missionsRes.data ?? []) as unknown as MissionRow[];
 
@@ -130,9 +170,61 @@ export async function MissionsWorkspace({ profile }: { profile: Profile }) {
       <MissionComposer
         elos={elos}
         crias={crias}
+        leaders={isAdmin ? leaders : undefined}
         canTargetAll={isAdmin}
         defaultEloId={isAdmin ? null : profile.elo_id}
       />
+
+      {!isAdmin && myLeadership.length > 0 ? (
+        <section className="mb-6">
+          <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">
+            Missões da Liderança pra você ({myLeadership.length})
+          </h2>
+          <div className="space-y-3">
+            {myLeadership.map((a) => (
+              <div key={a.id} className="card p-4">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-bold">{a.missions?.title ?? "Missão"}</p>
+                    <p className="text-xs text-[var(--muted)]">
+                      prazo {formatDate(a.missions?.due_date ?? null)}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <span className="chip bg-[var(--accent-soft)] text-[var(--accent-strong)]">
+                      {a.missions?.xp ?? 0} XP
+                    </span>
+                    <span className={`chip ${ASSIGNMENT_TONE[a.status]}`}>
+                      {ASSIGNMENT_LABEL[a.status]}
+                    </span>
+                  </div>
+                </div>
+                {a.missions?.description ? (
+                  <p className="mt-2 text-sm text-[var(--muted)]">{a.missions.description}</p>
+                ) : null}
+                {a.status === "rejected" && a.rejection_reason ? (
+                  <p className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
+                    Recusada: {a.rejection_reason}
+                  </p>
+                ) : null}
+                {a.status === "awaiting_approval" ? (
+                  <p className="mt-2 text-xs text-[var(--muted)]">
+                    Enviada em {formatDateTime(a.submitted_at)}. Aguardando avaliação da administração.
+                  </p>
+                ) : null}
+                {a.status === "approved" ? (
+                  <p className="mt-2 text-xs text-emerald-700">
+                    Aprovada em {formatDateTime(a.approved_at)} · +{a.missions?.xp ?? 0} XP
+                  </p>
+                ) : null}
+                {a.status === "pending" || a.status === "rejected" ? (
+                  <SubmitMissionButton assignmentId={a.id} />
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section className="mb-6">
         <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">

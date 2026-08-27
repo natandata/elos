@@ -6,23 +6,28 @@ import { Feedback, SubmitBtn } from "@/components/forms";
 import type { Elo, MissionType } from "@/lib/types";
 
 export type CriaOption = { id: string; full_name: string; elo_id: string | null };
+export type LeaderOption = { id: string; full_name: string };
 
 export function MissionComposer({
   elos,
   crias,
+  leaders,
   canTargetAll,
   defaultEloId,
 }: {
   elos: Elo[];
   crias: CriaOption[];
+  /** Só admin cria "Missões da Liderança" — passe undefined pra líder. */
+  leaders?: LeaderOption[];
   canTargetAll: boolean;
   defaultEloId?: string | null;
 }) {
   const [state, action] = useActionState(createMission, null);
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<MissionType>("individual");
-  const [target, setTarget] = useState<"crias" | "elo" | "all">("crias");
+  const [target, setTarget] = useState<"crias" | "elo" | "all" | "leaders">("crias");
   const [eloId, setEloId] = useState(defaultEloId ?? "");
+  const isLeadershipMission = target === "leaders";
 
   const visibleCrias = useMemo(
     () => (eloId ? crias.filter((c) => c.elo_id === eloId) : crias),
@@ -35,7 +40,9 @@ export function MissionComposer({
         <div>
           <p className="font-bold">Nova missão</p>
           <p className="text-xs text-[var(--muted)]">
-            Individual para um cria ou coletiva (meta do Elo) para o Elo inteiro.
+            {isLeadershipMission
+              ? "Missão da Liderança — atribuída direto a líderes escolhidos."
+              : "Individual para um cria ou coletiva (meta do Elo) para o Elo inteiro."}
           </p>
         </div>
         <button type="button" className="btn btn-primary !py-2 !text-sm" onClick={() => setOpen(!open)}>
@@ -45,9 +52,9 @@ export function MissionComposer({
 
       {open ? (
         <form action={action} className="mt-4 space-y-4 border-t border-[var(--line)] pt-4">
-          <input type="hidden" name="type" value={type} />
+          <input type="hidden" name="type" value={isLeadershipMission ? "individual" : type} />
           <input type="hidden" name="target" value={target} />
-          <input type="hidden" name="elo_id" value={eloId} />
+          <input type="hidden" name="elo_id" value={isLeadershipMission ? "" : eloId} />
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="sm:col-span-2">
@@ -73,13 +80,16 @@ export function MissionComposer({
                 name="xp"
                 type="number"
                 min={0}
+                max={25}
                 step={5}
-                defaultValue={50}
+                defaultValue={25}
                 className="input"
                 required
               />
+              <p className="mt-1 text-xs text-[var(--muted)]">Máximo 25 XP por missão.</p>
             </div>
 
+            {isLeadershipMission ? null : (
             <div>
               <span className="label">Tipo</span>
               <div className="grid grid-cols-2 gap-2">
@@ -102,6 +112,7 @@ export function MissionComposer({
                 ))}
               </div>
             </div>
+            )}
 
             <div>
               <label className="label" htmlFor="start_date">
@@ -137,12 +148,16 @@ export function MissionComposer({
                   ["crias", "Escolher crias"],
                   ["elo", "Elo inteiro"],
                   ...(canTargetAll ? ([["all", "Todos os crias"]] as const) : []),
+                  ...(leaders ? ([["leaders", "Líderes (Missão da Liderança)"]] as const) : []),
                 ] as const
               ).map(([value, label]) => (
                 <button
                   key={value}
                   type="button"
-                  onClick={() => setTarget(value)}
+                  onClick={() => {
+                    setTarget(value);
+                    if (value === "leaders") setType("individual");
+                  }}
                   className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
                     target === value
                       ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent-strong)]"
@@ -154,7 +169,7 @@ export function MissionComposer({
               ))}
             </div>
 
-            {target !== "all" ? (
+            {target !== "all" && target !== "leaders" ? (
               <div className="mb-3">
                 <label className="label" htmlFor="elo_select">
                   Elo
@@ -184,6 +199,21 @@ export function MissionComposer({
                     <label key={c.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm">
                       <input type="checkbox" name="cria_ids" value={c.id} className="h-4 w-4" />
                       {c.full_name || "Sem nome"}
+                    </label>
+                  ))}
+                </div>
+              )
+            ) : null}
+
+            {target === "leaders" ? (
+              !leaders || leaders.length === 0 ? (
+                <p className="text-sm text-[var(--muted)]">Nenhum líder disponível.</p>
+              ) : (
+                <div className="max-h-56 space-y-1 overflow-y-auto rounded-xl border border-[var(--line)] p-2">
+                  {leaders.map((l) => (
+                    <label key={l.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm">
+                      <input type="checkbox" name="leader_ids" value={l.id} className="h-4 w-4" />
+                      {l.full_name || "Sem nome"}
                     </label>
                   ))}
                 </div>

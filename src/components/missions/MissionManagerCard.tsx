@@ -16,6 +16,7 @@ export type ManagedMission = {
   publish_at: string | null;
   created_at: string;
   eloName: string | null;
+  audience: "crias" | "leaders";
   /** Nome de quem criou, mostrado quando não é a própria missão do viewer. */
   authorName?: string;
   counts: { total: number; awaiting: number; approved: number; rejected: number };
@@ -40,7 +41,12 @@ export function MissionManagerCard({ mission }: { mission: ManagedMission }) {
     <div className="card p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="font-bold">{mission.title}</p>
+          <p className="flex items-center gap-2 font-bold">
+            {mission.title}
+            {mission.audience === "leaders" ? (
+              <span className="chip border-red-200 bg-red-100 text-red-700">Liderança</span>
+            ) : null}
+          </p>
           <p className="text-xs text-[var(--muted)]">
             {mission.authorName ? `${mission.authorName} · ` : ""}
             {MISSION_TYPE_LABEL[mission.type]} · {mission.eloName ?? "Todos os ELOS"} · prazo{" "}
@@ -148,7 +154,7 @@ export function MissionManagerCard({ mission }: { mission: ManagedMission }) {
           </div>
           <div>
             <label className="label">XP</label>
-            <input name="xp" type="number" min={0} className="input" defaultValue={mission.xp} />
+            <input name="xp" type="number" min={0} max={25} className="input" defaultValue={mission.xp} />
           </div>
           <div>
             <label className="label">Prazo</label>

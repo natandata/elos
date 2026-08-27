@@ -203,3 +203,18 @@ export function relativeDay(value: string | null): string {
 export function formatXp(xp: number): string {
   return xp.toLocaleString("pt-BR");
 }
+
+// ---------------------------------------------------------------- nível/XP
+
+/** XP necessário pra completar um nível. Todo mundo (líder e cria) começa no nível 0. */
+export const XP_PER_LEVEL = 100;
+
+/** XP máximo que uma única missão pode conceder. */
+export const MAX_MISSION_XP = 25;
+
+export function levelFromXp(xp: number): { level: number; progress: number; pct: number } {
+  const safeXp = Math.max(0, xp);
+  const level = Math.floor(safeXp / XP_PER_LEVEL);
+  const progress = safeXp % XP_PER_LEVEL;
+  return { level, progress, pct: (progress / XP_PER_LEVEL) * 100 };
+}

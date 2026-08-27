@@ -3,6 +3,7 @@ import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { CriaCareMeetingCard } from "@/components/care/CriaCareMeetingCard";
+import { XpBar } from "@/components/XpBar";
 import { formatDate, formatXp, type CareMeeting } from "@/lib/types";
 
 export default async function CriaDashboard() {
@@ -71,7 +72,10 @@ export default async function CriaDashboard() {
         <div className="rounded-2xl bg-[var(--accent)] p-5 text-[var(--accent-ink)] sm:col-span-2">
           <p className="text-xs font-bold uppercase tracking-wide opacity-80">Seu XP</p>
           <p className="mt-1 text-4xl font-black tabular-nums">{formatXp(profile.xp)}</p>
-          <p className="mt-1 text-sm font-semibold opacity-90">
+          <div className="mt-3">
+            <XpBar xp={profile.xp} tone="onAccent" />
+          </div>
+          <p className="mt-2 text-sm font-semibold opacity-90">
             {position > 0 ? `#${position} no seu Elo` : "Sem posição ainda"}
           </p>
         </div>

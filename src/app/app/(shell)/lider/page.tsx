@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Card, EmptyState, PageHeader, StatCard } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { XpBar } from "@/components/XpBar";
 import {
   STATUS_LABEL,
   STATUS_TONE,
@@ -139,6 +140,14 @@ export default async function LiderDashboard() {
           <span aria-hidden>→</span>
         </Link>
       ) : null}
+
+      <section className="mb-4 rounded-2xl bg-[var(--accent)] p-5 text-[var(--accent-ink)]">
+        <p className="text-xs font-bold uppercase tracking-wide opacity-80">Seu XP de liderança</p>
+        <p className="mt-1 text-4xl font-black tabular-nums">{formatXp(profile.xp)}</p>
+        <div className="mt-3 max-w-sm">
+          <XpBar xp={profile.xp} tone="onAccent" />
+        </div>
+      </section>
 
       <section className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Crias" value={crias.length} />

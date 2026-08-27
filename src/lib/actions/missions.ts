@@ -51,9 +51,17 @@ export async function createMission(_prev: Result | null, formData: FormData): P
   const target = String(formData.get("target") ?? "crias");
   const eloId = String(formData.get("elo_id") ?? "") || profile.elo_id;
   const criaIds = formData.getAll("cria_ids").map(String).filter(Boolean);
+  const leaderIds = formData.getAll("leader_ids").map(String).filter(Boolean);
 
   if (!title) return { error: "Informe o título da missão." };
   if (!Number.isFinite(xp) || xp < 0) return { error: "XP inválido." };
+  if (xp > 25) return { error: "O máximo de XP por missão é 25." };
+  if (target === "leaders" && profile.role !== "admin") {
+    return { error: "Só a administração cria Missões da Liderança." };
+  }
+  if (target === "leaders" && leaderIds.length === 0) {
+    return { error: "Selecione ao menos um líder." };
+  }
   if (target === "crias" && criaIds.length === 0) {
     return { error: "Selecione ao menos um participante." };
   }
@@ -70,7 +78,8 @@ export async function createMission(_prev: Result | null, formData: FormData): P
       start_date: startDate,
       due_date: dueDate,
       publish_at: publishAt ? new Date(publishAt).toISOString() : null,
-      elo_id: target === "all" ? null : eloId,
+      elo_id: target === "all" || target === "leaders" ? null : eloId,
+      audience: target === "leaders" ? "leaders" : "crias",
     })
     .select("id")
     .single();
@@ -78,7 +87,7 @@ export async function createMission(_prev: Result | null, formData: FormData): P
   if (error || !mission) return { error: "Não foi possível criar a missão." };
 
   // resolve os participantes
-  let participants: string[] = criaIds;
+  let participants: string[] = target === "leaders" ? [] : criaIds;
 
   if (target === "elo" || target === "all") {
     let query = supabase.from("profiles").select("id").eq("role", "cria");
@@ -87,8 +96,18 @@ export async function createMission(_prev: Result | null, formData: FormData): P
     participants = (rows ?? []).map((r) => r.id as string);
   }
 
-  // o líder só distribui para os próprios crias
-  if (profile.role === "leader") {
+  if (target === "leaders") {
+    const { data: rows } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("role", "leader")
+      .eq("approved", true)
+      .in("id", leaderIds);
+    participants = (rows ?? []).map((r) => r.id as string);
+  }
+
+  // o líder só distribui para os próprios crias (não se aplica a Missão da Liderança, admin-only)
+  if (profile.role === "leader" && target !== "leaders") {
     const { data: mine } = await supabase
       .from("leader_crias")
       .select("cria_id")
@@ -123,6 +142,7 @@ export async function updateMission(_prev: Result | null, formData: FormData): P
 
   if (!id || !title) return { error: "Dados incompletos." };
   if (!Number.isFinite(xp) || xp < 0) return { error: "XP inválido." };
+  if (xp > 25) return { error: "O máximo de XP por missão é 25." };
 
   const publishAt = String(formData.get("publish_at") ?? "") || null;
 
@@ -168,7 +188,7 @@ export async function duplicateMission(_prev: Result | null, formData: FormData)
 
   const { data: original } = await supabase
     .from("missions")
-    .select("title, description, type, xp, elo_id, created_by, mission_assignments(cria_id)")
+    .select("title, description, type, xp, elo_id, created_by, audience, mission_assignments(cria_id)")
     .eq("id", id)
     .maybeSingle<{
       title: string;
@@ -177,6 +197,7 @@ export async function duplicateMission(_prev: Result | null, formData: FormData)
       xp: number;
       elo_id: string | null;
       created_by: string;
+      audience: string;
       mission_assignments: { cria_id: string }[];
     }>();
 
@@ -194,6 +215,7 @@ export async function duplicateMission(_prev: Result | null, formData: FormData)
       type: original.type,
       xp: original.xp,
       elo_id: original.elo_id,
+      audience: original.audience,
     })
     .select("id")
     .single();
