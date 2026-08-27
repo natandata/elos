@@ -203,26 +203,10 @@ export async function approveLeader(_prev: Result | null, formData: FormData): P
 }
 
 /** Define (ou troca) o líder responsável por um cria. */
-export async function setLeader(_prev: Result | null, formData: FormData): Promise<Result> {
-  const supabase = await adminClient();
-  const criaId = String(formData.get("cria_id") ?? "");
-  const leaderId = String(formData.get("leader_id") ?? "");
-
-  if (!criaId) return { error: "Cria inválido." };
-
-  const { error: delError } = await supabase.from("leader_crias").delete().eq("cria_id", criaId);
-  if (delError) return { error: "Não foi possível atualizar o vínculo." };
-
-  if (leaderId) {
-    const { error } = await supabase
-      .from("leader_crias")
-      .insert({ leader_id: leaderId, cria_id: criaId });
-    if (error) return { error: "Não foi possível vincular ao líder." };
-  }
-
-  revalidateAdmin();
-  return { ok: true };
-}
+// A responsabilidade do líder sobre os crias segue o Elo automaticamente
+// (triggers no banco — ver migrations 0020/0021). Não existe mais atribuição
+// manual de "líder responsável" avulsa: trocar o Elo do líder ou do cria já
+// resolve o vínculo sozinho, nos dois sentidos.
 
 // ---------------------------------------------------------------- eventos
 

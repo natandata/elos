@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { deleteUser, resetPassword, setLeader, updateUser } from "@/lib/actions/admin";
+import { deleteUser, resetPassword, updateUser } from "@/lib/actions/admin";
 import { SendEmailForm } from "./SendEmailForm";
 import { Feedback, SubmitBtn } from "@/components/forms";
 import { Avatar } from "@/components/Avatar";
@@ -28,25 +28,21 @@ type Row = {
   age_range: AgeRange | null;
   elo_id: string | null;
   xp: number;
-  leader_id: string | null;
   email: string | null;
 };
 
 export function UserEditor({
   user,
   elos,
-  leaders,
   isSelf,
 }: {
   user: Row;
   elos: Elo[];
-  leaders: { id: string; full_name: string }[];
   isSelf: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [userState, userAction] = useActionState(updateUser, null);
-  const [leaderState, leaderAction] = useActionState(setLeader, null);
   const [deleteState, deleteAction] = useActionState(deleteUser, null);
   const [passwordState, passwordAction] = useActionState(resetPassword, null);
 
@@ -165,7 +161,15 @@ export function UserEditor({
                 <p className="mt-1 text-xs text-[var(--muted)]">
                   Selecione o gênero para ver os ELOS correspondentes.
                 </p>
-              ) : null}
+              ) : (
+                <p className="mt-1 text-xs text-[var(--muted)]">
+                  {user.role === "leader"
+                    ? "Ao trocar o Elo, a responsabilidade sobre os crias troca junto — automaticamente."
+                    : user.role === "cria"
+                      ? "O líder responsável é sempre quem lidera este Elo — automático, não dá pra escolher outro."
+                      : null}
+                </p>
+              )}
             </div>
 
             <div className="sm:col-span-3">
@@ -173,23 +177,6 @@ export function UserEditor({
               <SubmitBtn className="btn btn-primary mt-2 !py-2 !text-sm">Salvar dados</SubmitBtn>
             </div>
           </form>
-
-          {user.role === "cria" ? (
-            <form action={leaderAction} className="border-t border-[var(--line)] pt-4">
-              <input type="hidden" name="cria_id" value={user.id} />
-              <label className="label">Líder responsável</label>
-              <select name="leader_id" className="input" defaultValue={user.leader_id ?? ""}>
-                <option value="">Sem líder</option>
-                {leaders.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.full_name || "Sem nome"}
-                  </option>
-                ))}
-              </select>
-              <Feedback state={leaderState} />
-              <SubmitBtn className="btn btn-soft mt-2 !py-2 !text-sm">Salvar líder</SubmitBtn>
-            </form>
-          ) : null}
 
           <form action={passwordAction} className="border-t border-[var(--line)] pt-4">
             <input type="hidden" name="id" value={user.id} />

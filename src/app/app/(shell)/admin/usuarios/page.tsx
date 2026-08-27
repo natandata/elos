@@ -57,16 +57,6 @@ export default async function UsuariosPage({
     ((emailRows ?? []) as { id: string; email: string }[]).map((r) => [r.id, r.email]),
   );
 
-  const { data: links } = await supabase.from("leader_crias").select("leader_id, cria_id");
-  const leaderByCria = new Map(
-    ((links ?? []) as { leader_id: string; cria_id: string }[]).map((l) => [l.cria_id, l.leader_id]),
-  );
-
-  // só líderes já aprovados podem receber crias
-  const leaders = users
-    .filter((u) => u.role === "leader" && u.approved)
-    .map((u) => ({ id: u.id, full_name: u.full_name }));
-
   const pendentes = users.filter((u) => u.role === "leader" && !u.approved);
 
   return (
@@ -153,11 +143,9 @@ export default async function UsuariosPage({
               key={u.id}
               user={{
                 ...u,
-                leader_id: leaderByCria.get(u.id) ?? null,
                 email: emailById.get(u.id) ?? null,
               }}
               elos={elos}
-              leaders={leaders}
               isSelf={u.id === current.id}
             />
           ))}

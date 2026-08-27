@@ -39,8 +39,12 @@ export function AuthPanel({ next }: { next?: string }) {
   // login, e apagaria por cima a cor certa que o servidor acabou de definir
   // para a conta que entrou.
   useEffect(() => {
-    document.documentElement.dataset.theme = mode === "signup" && gender ? gender : "neutral";
-  }, [gender, mode]);
+    if (mode !== "signup" || !gender) {
+      document.documentElement.dataset.theme = "neutral";
+      return;
+    }
+    document.documentElement.dataset.theme = signupRole === "leader" && gender === "male" ? "leader" : gender;
+  }, [gender, mode, signupRole]);
 
   const destination = next && next.startsWith("/") ? next : "/app";
 
@@ -258,25 +262,6 @@ export function AuthPanel({ next }: { next?: string }) {
             </div>
 
             <div>
-              <label className="label" htmlFor="ageRange">
-                Idade
-              </label>
-              <select
-                id="ageRange"
-                className="input"
-                value={ageRange}
-                onChange={(e) => setAgeRange(e.target.value as AgeRange)}
-              >
-                <option value="">Selecione</option>
-                {AGE_OPTIONS.map((a) => (
-                  <option key={a} value={a}>
-                    {AGE_RANGE_LABEL[a]}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
               <span className="label">Você entra como</span>
               <div className="grid grid-cols-2 gap-2">
                 {(
@@ -325,11 +310,36 @@ export function AuthPanel({ next }: { next?: string }) {
                   </button>
                 ))}
               </div>
-              {gender ? (
+            </div>
+
+            <div>
+              <label className="label" htmlFor="ageRange">
+                {signupRole === "leader" ? "Elo que você vai liderar" : "Idade"}
+              </label>
+              <select
+                id="ageRange"
+                className="input"
+                value={ageRange}
+                onChange={(e) => setAgeRange(e.target.value as AgeRange)}
+              >
+                <option value="">Selecione</option>
+                {AGE_OPTIONS.map((a) => (
+                  <option key={a} value={a}>
+                    {signupRole === "leader" && gender
+                      ? `Elo ${gender === "male" ? "Masculino" : "Feminino"} ${AGE_RANGE_LABEL[a].replace(" anos", "")}`
+                      : AGE_RANGE_LABEL[a]}
+                  </option>
+                ))}
+              </select>
+              {gender && ageRange ? (
                 <p className="mt-2 text-xs text-[var(--muted)]">
-                  {ageRange
-                    ? `Você entrará no Elo ${gender === "male" ? "Masculino" : "Feminino"} ${AGE_RANGE_LABEL[ageRange].replace(" anos", "")}.`
-                    : "Selecione a idade para ver seu Elo."}
+                  {signupRole === "leader"
+                    ? `Você vai liderar o Elo ${gender === "male" ? "Masculino" : "Feminino"} ${AGE_RANGE_LABEL[ageRange].replace(" anos", "")} — os crias desse Elo passam a ser sua responsabilidade automaticamente.`
+                    : `Você entrará no Elo ${gender === "male" ? "Masculino" : "Feminino"} ${AGE_RANGE_LABEL[ageRange].replace(" anos", "")}.`}
+                </p>
+              ) : !gender ? (
+                <p className="mt-2 text-xs text-[var(--muted)]">
+                  Selecione o gênero para ver as opções de Elo.
                 </p>
               ) : null}
             </div>
