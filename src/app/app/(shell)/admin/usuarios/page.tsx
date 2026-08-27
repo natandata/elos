@@ -2,6 +2,7 @@ import { EmptyState, PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { AGE_RANGE_LABEL, type AgeRange, type Elo, type Gender, type Role } from "@/lib/types";
+import { screenLabel } from "@/lib/screenLabels";
 import { NewUserForm } from "./NewUserForm";
 import { PendingLeaderCard } from "./PendingLeaderCard";
 import { UserEditor } from "./UserEditor";
@@ -56,6 +57,16 @@ export default async function UsuariosPage({
   const { data: emailRows } = await supabase.rpc("admin_user_emails");
   const emailById = new Map(
     ((emailRows ?? []) as { id: string; email: string }[]).map((r) => [r.id, r.email]),
+  );
+
+  const { data: presenceRows } = await supabase
+    .from("user_presence")
+    .select("user_id, path, last_seen_at");
+  const presenceById = new Map(
+    ((presenceRows ?? []) as { user_id: string; path: string; last_seen_at: string }[]).map((r) => [
+      r.user_id,
+      r,
+    ]),
   );
 
   const pendentes = users.filter((u) => u.role === "leader" && !u.approved);
@@ -160,6 +171,12 @@ export default async function UsuariosPage({
                 ...u,
                 email: emailById.get(u.id) ?? null,
               }}
+              presence={(() => {
+                const p = presenceById.get(u.id);
+                if (!p) return null;
+                const online = Date.now() - new Date(p.last_seen_at).getTime() < 60_000;
+                return { online, screen: screenLabel(p.path) };
+              })()}
               elos={elos}
               isSelf={u.id === current.id}
             />

@@ -48,6 +48,7 @@ const ADMIN_FEATURES: Feature[] = [
     "Aprovar líderes pendentes",
     "Redefinir senha e enviar e-mail",
     "Exportar lista em CSV",
+    "Ver quem está online agora e em qual tela do app",
   ]},
   { title: "ELOS", items: [
     "Ver estrutura, ranking e XP de cada Elo",

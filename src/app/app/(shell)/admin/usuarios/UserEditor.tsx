@@ -31,14 +31,18 @@ type Row = {
   email: string | null;
 };
 
+type Presence = { online: boolean; screen: string } | null;
+
 export function UserEditor({
   user,
   elos,
   isSelf,
+  presence,
 }: {
   user: Row;
   elos: Elo[];
   isSelf: boolean;
+  presence?: Presence;
 }) {
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -66,6 +70,20 @@ export function UserEditor({
                 Aguardando aprovação
               </span>
             ) : null}
+            {presence?.online ? (
+              <span
+                className="chip inline-flex items-center gap-1 border-emerald-200 bg-emerald-100 text-emerald-800"
+                title={`Online em: ${presence.screen}`}
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
+                Online · {presence.screen}
+              </span>
+            ) : (
+              <span className="chip inline-flex items-center gap-1 border-slate-200 bg-slate-100 text-slate-500">
+                <span className="h-1.5 w-1.5 rounded-full bg-slate-400" aria-hidden />
+                Offline
+              </span>
+            )}
           </p>
           <p className="truncate text-xs text-[var(--muted)]">
             {user.email ?? "sem e-mail"} · {ROLE_LABEL[user.role]}

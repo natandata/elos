@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { signOut } from "@/lib/actions/session";
 import { Avatar } from "@/components/Avatar";
+import { PresenceHeartbeat } from "./PresenceHeartbeat";
 
 export type NavItem = { href: string; label: string; icon: string; badge?: number };
 
@@ -72,6 +73,7 @@ export function AppShell({
 
   return (
     <div className="min-h-dvh">
+      <PresenceHeartbeat />
       {/* topo */}
       <header className="sticky top-0 z-30 border-b border-[var(--line)] bg-[var(--card)]/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
