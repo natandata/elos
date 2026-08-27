@@ -15,18 +15,28 @@ import {
 } from "@/lib/types";
 
 export default async function StatusCriasPage() {
-  const { profile } = await requireRole("leader");
+  const { profile } = await requireRole("leader", "admin");
   const supabase = await createClient();
+  const isAdmin = profile.role === "admin";
 
-  const { data: links } = await supabase
-    .from("leader_crias")
-    .select("profiles:cria_id(id, full_name)")
-    .eq("leader_id", profile.id);
+  // Líder só vê os crias sob sua responsabilidade (leader_crias); admin vê
+  // todo mundo, de todos os ELOS.
+  const criasQuery = isAdmin
+    ? supabase.from("profiles").select("id, full_name").eq("role", "cria")
+    : supabase
+        .from("leader_crias")
+        .select("profiles:cria_id(id, full_name)")
+        .eq("leader_id", profile.id);
+  const { data: links } = await criasQuery;
 
-  const crias = ((links ?? []) as unknown as { profiles: { id: string; full_name: string } | null }[])
-    .map((r) => r.profiles)
-    .filter((p): p is { id: string; full_name: string } => Boolean(p))
-    .sort((a, b) => a.full_name.localeCompare(b.full_name));
+  const crias = isAdmin
+    ? ((links ?? []) as { id: string; full_name: string }[]).sort((a, b) =>
+        a.full_name.localeCompare(b.full_name),
+      )
+    : ((links ?? []) as unknown as { profiles: { id: string; full_name: string } | null }[])
+        .map((r) => r.profiles)
+        .filter((p): p is { id: string; full_name: string } => Boolean(p))
+        .sort((a, b) => a.full_name.localeCompare(b.full_name));
 
   const ids = crias.length ? crias.map((c) => c.id) : ["00000000-0000-0000-0000-000000000000"];
 
@@ -91,7 +101,11 @@ export default async function StatusCriasPage() {
     <>
       <PageHeader
         title="Status Crias"
-        subtitle="Como estão emocional e espiritualmente os crias sob sua responsabilidade."
+        subtitle={
+          isAdmin
+            ? "Como estão emocional e espiritualmente todos os crias da plataforma."
+            : "Como estão emocional e espiritualmente os crias sob sua responsabilidade."
+        }
       />
 
       {badCount > 0 ? (
@@ -109,7 +123,9 @@ export default async function StatusCriasPage() {
 
       {crias.length === 0 ? (
         <EmptyState>
-          Nenhum cria vinculado a você ainda. A administração faz esse vínculo em Usuários.
+          {isAdmin
+            ? "Nenhum cria cadastrado ainda."
+            : "Nenhum cria vinculado a você ainda. A administração faz esse vínculo em Usuários."}
         </EmptyState>
       ) : (
         <div className="space-y-3">

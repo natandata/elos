@@ -67,6 +67,7 @@ const ADMIN_FEATURES: Feature[] = [
   ]},
   { title: "Auditoria", items: ["Quem trocou role, Elo ou aprovação, e quem excluiu um usuário — e quando"] },
   { title: "Status Equipe", items: ["Acompanhamento emocional/espiritual de todos os líderes"] },
+  { title: "Status Crias", items: ["Acompanhamento emocional/espiritual de todos os crias, de qualquer Elo"] },
   { title: "Agenda", items: ["Criar eventos para todos os ELOS, um Elo específico, ou só para a liderança"] },
   { title: "Perfil", items: ["Ligar/desligar e-mails do ELOS (boas-vindas e resumos)"] },
 ];
