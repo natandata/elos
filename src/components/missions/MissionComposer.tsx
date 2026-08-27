@@ -25,9 +25,11 @@ export function MissionComposer({
   const [state, action] = useActionState(createMission, null);
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<MissionType>("individual");
-  const [target, setTarget] = useState<"crias" | "elo" | "all" | "leaders">("crias");
+  const [target, setTarget] = useState<"crias" | "elo" | "all" | "leaders" | "general">("crias");
   const [eloId, setEloId] = useState(defaultEloId ?? "");
   const isLeadershipMission = target === "leaders";
+  const isGeneralMission = target === "general";
+  const hidesParticipantPickers = isLeadershipMission || isGeneralMission;
 
   const visibleCrias = useMemo(
     () => (eloId ? crias.filter((c) => c.elo_id === eloId) : crias),
@@ -42,7 +44,9 @@ export function MissionComposer({
           <p className="text-xs text-[var(--muted)]">
             {isLeadershipMission
               ? "Missão da Liderança — atribuída direto a líderes escolhidos."
-              : "Individual para um cria ou coletiva (meta do Elo) para o Elo inteiro."}
+              : isGeneralMission
+                ? "Missão Geral — atribuída a todos os líderes e crias da plataforma."
+                : "Individual para um cria ou coletiva (meta do Elo) para o Elo inteiro."}
           </p>
         </div>
         <button type="button" className="btn btn-primary !py-2 !text-sm" onClick={() => setOpen(!open)}>
@@ -52,9 +56,9 @@ export function MissionComposer({
 
       {open ? (
         <form action={action} className="mt-4 space-y-4 border-t border-[var(--line)] pt-4">
-          <input type="hidden" name="type" value={isLeadershipMission ? "individual" : type} />
+          <input type="hidden" name="type" value={hidesParticipantPickers ? "individual" : type} />
           <input type="hidden" name="target" value={target} />
-          <input type="hidden" name="elo_id" value={isLeadershipMission ? "" : eloId} />
+          <input type="hidden" name="elo_id" value={hidesParticipantPickers ? "" : eloId} />
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="sm:col-span-2">
@@ -89,7 +93,7 @@ export function MissionComposer({
               <p className="mt-1 text-xs text-[var(--muted)]">Máximo 25 XP por missão.</p>
             </div>
 
-            {isLeadershipMission ? null : (
+            {hidesParticipantPickers ? null : (
             <div>
               <span className="label">Tipo</span>
               <div className="grid grid-cols-2 gap-2">
@@ -149,6 +153,7 @@ export function MissionComposer({
                   ["elo", "Elo inteiro"],
                   ...(canTargetAll ? ([["all", "Todos os crias"]] as const) : []),
                   ...(leaders ? ([["leaders", "Líderes (Missão da Liderança)"]] as const) : []),
+                  ...(leaders ? ([["general", "Todo mundo (Missão Geral)"]] as const) : []),
                 ] as const
               ).map(([value, label]) => (
                 <button
@@ -156,7 +161,7 @@ export function MissionComposer({
                   type="button"
                   onClick={() => {
                     setTarget(value);
-                    if (value === "leaders") setType("individual");
+                    if (value === "leaders" || value === "general") setType("individual");
                   }}
                   className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
                     target === value
@@ -169,7 +174,7 @@ export function MissionComposer({
               ))}
             </div>
 
-            {target !== "all" && target !== "leaders" ? (
+            {target !== "all" && target !== "leaders" && target !== "general" ? (
               <div className="mb-3">
                 <label className="label" htmlFor="elo_select">
                   Elo
@@ -218,6 +223,12 @@ export function MissionComposer({
                   ))}
                 </div>
               )
+            ) : null}
+
+            {isGeneralMission ? (
+              <p className="rounded-xl border border-[var(--line)] p-3 text-sm text-[var(--muted)]">
+                Vai pra todo mundo: todos os líderes aprovados e todos os crias da plataforma.
+              </p>
             ) : null}
           </div>
 

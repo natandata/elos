@@ -16,7 +16,7 @@ export type ManagedMission = {
   publish_at: string | null;
   created_at: string;
   eloName: string | null;
-  audience: "crias" | "leaders";
+  audience: "crias" | "leaders" | "general";
   /** Nome de quem criou, mostrado quando não é a própria missão do viewer. */
   authorName?: string;
   counts: { total: number; awaiting: number; approved: number; rejected: number };
@@ -45,6 +45,9 @@ export function MissionManagerCard({ mission }: { mission: ManagedMission }) {
             {mission.title}
             {mission.audience === "leaders" ? (
               <span className="chip border-red-200 bg-red-100 text-red-700">Liderança</span>
+            ) : null}
+            {mission.audience === "general" ? (
+              <span className="chip border-indigo-200 bg-indigo-100 text-indigo-700">Geral</span>
             ) : null}
           </p>
           <p className="text-xs text-[var(--muted)]">

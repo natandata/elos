@@ -27,7 +27,7 @@ type MissionRow = {
   publish_at: string | null;
   created_at: string;
   created_by: string;
-  audience: "crias" | "leaders";
+  audience: "crias" | "leaders" | "general";
   elos: { name: string } | null;
   creator: { full_name: string; role: string } | null;
   mission_assignments: { id: string; status: string }[];

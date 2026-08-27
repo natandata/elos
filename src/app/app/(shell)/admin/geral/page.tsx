@@ -58,6 +58,7 @@ const ADMIN_FEATURES: Feature[] = [
   { title: "Missões", items: [
     "Criar, editar e aprovar missões de qualquer Elo",
     "Criar Missões da Liderança — atribuídas direto a líderes escolhidos, dão XP igual às dos crias",
+    "Criar Missão Geral — vai pra todos os líderes e crias da plataforma de uma vez",
     "Duplicar qualquer missão como modelo",
     "Agendar: missão só fica visível pros crias a partir da data marcada",
     "Máximo de 25 XP por missão",

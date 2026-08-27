@@ -59,6 +59,9 @@ export async function createMission(_prev: Result | null, formData: FormData): P
   if (target === "leaders" && profile.role !== "admin") {
     return { error: "Só a administração cria Missões da Liderança." };
   }
+  if (target === "general" && profile.role !== "admin") {
+    return { error: "Só a administração cria Missões Gerais." };
+  }
   if (target === "leaders" && leaderIds.length === 0) {
     return { error: "Selecione ao menos um líder." };
   }
@@ -78,8 +81,8 @@ export async function createMission(_prev: Result | null, formData: FormData): P
       start_date: startDate,
       due_date: dueDate,
       publish_at: publishAt ? new Date(publishAt).toISOString() : null,
-      elo_id: target === "all" || target === "leaders" ? null : eloId,
-      audience: target === "leaders" ? "leaders" : "crias",
+      elo_id: target === "all" || target === "leaders" || target === "general" ? null : eloId,
+      audience: target === "leaders" ? "leaders" : target === "general" ? "general" : "crias",
     })
     .select("id")
     .single();
@@ -87,7 +90,7 @@ export async function createMission(_prev: Result | null, formData: FormData): P
   if (error || !mission) return { error: "Não foi possível criar a missão." };
 
   // resolve os participantes
-  let participants: string[] = target === "leaders" ? [] : criaIds;
+  let participants: string[] = target === "leaders" || target === "general" ? [] : criaIds;
 
   if (target === "elo" || target === "all") {
     let query = supabase.from("profiles").select("id").eq("role", "cria");
@@ -106,8 +109,18 @@ export async function createMission(_prev: Result | null, formData: FormData): P
     participants = (rows ?? []).map((r) => r.id as string);
   }
 
-  // o líder só distribui para os próprios crias (não se aplica a Missão da Liderança, admin-only)
-  if (profile.role === "leader" && target !== "leaders") {
+  if (target === "general") {
+    // todo mundo da plataforma, tirando o próprio admin que criou
+    const { data: rows } = await supabase
+      .from("profiles")
+      .select("id")
+      .or("role.eq.cria,and(role.eq.leader,approved.eq.true)")
+      .neq("id", profile.id);
+    participants = (rows ?? []).map((r) => r.id as string);
+  }
+
+  // o líder só distribui para os próprios crias (não se aplica a Missão da Liderança/Geral, admin-only)
+  if (profile.role === "leader" && target !== "leaders" && target !== "general") {
     const { data: mine } = await supabase
       .from("leader_crias")
       .select("cria_id")
