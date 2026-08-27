@@ -150,7 +150,12 @@ export default async function UsuariosPage({
         <div className="space-y-3">
           {users.map((u) => (
             <UserEditor
-              key={u.id}
+              // Depois de salvar, a página revalida mas o componente não
+              // remonta sozinho — os campos usam defaultValue/useState, que
+              // só refletem o valor inicial. Incluindo role/gender/age/elo na
+              // key, qualquer mudança persistida força um remount e o
+              // formulário passa a mostrar o dado real, não o antigo.
+              key={`${u.id}-${u.role}-${u.gender}-${u.age_range}-${u.elo_id}-${u.approved}`}
               user={{
                 ...u,
                 email: emailById.get(u.id) ?? null,
