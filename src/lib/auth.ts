@@ -33,19 +33,18 @@ export function homeFor(role: Role): string {
   return "/app/cria";
 }
 
-/** Pesquisa de status: exigida uma vez por dia para líderes e crias. */
+/** Pesquisa de status: exigida a cada 24h corridas para líderes e crias (não é por dia de calendário). */
 export async function needsStatusCheck(profile: Profile): Promise<boolean> {
   if (profile.role === "admin") return false;
 
   const supabase = await createClient();
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
   const { count } = await supabase
     .from("status_responses")
     .select("id", { count: "exact", head: true })
     .eq("user_id", profile.id)
-    .gte("created_at", startOfDay.toISOString());
+    .gte("created_at", cutoff.toISOString());
 
   return (count ?? 0) === 0;
 }
