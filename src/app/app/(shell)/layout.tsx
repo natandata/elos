@@ -19,14 +19,14 @@ const NAV: Record<string, NavItem[]> = {
     { href: "/app/lider/status-crias", label: "Status Crias", icon: "💛" },
     { href: "/app/lider/missoes", label: "Missões", icon: "🎯" },
     { href: "/app/chat", label: "Chat", icon: "💬" },
-    { href: "/app/ranking", label: "Ranking", icon: "🏆" },
+    { href: "/app/ranking", label: "Meu Elo", icon: "🏆" },
     { href: "/app/agenda", label: "Agenda", icon: "📅" },
   ],
   cria: [
     { href: "/app/cria", label: "Início", icon: "🏠" },
     { href: "/app/cria/missoes", label: "Missões", icon: "🎯" },
     { href: "/app/chat", label: "Chat", icon: "💬" },
-    { href: "/app/ranking", label: "Ranking", icon: "🏆" },
+    { href: "/app/ranking", label: "Meu Elo", icon: "🏆" },
     { href: "/app/agenda", label: "Agenda", icon: "📅" },
   ],
 };
