@@ -25,6 +25,7 @@ export function CompleteProfileForm({
 }) {
   const [state, action] = useActionState(completeProfile, null);
   const [gender, setGender] = useState<Gender | "">("");
+  const [guardianAck, setGuardianAck] = useState(false);
 
   // Prévia visual enquanto escolhe o gênero. Só mexe no tema quando a pessoa
   // realmente escolhe algo — antes disso o servidor já deixou "neutral"
@@ -99,6 +100,18 @@ export function CompleteProfileForm({
           ))}
         </div>
       </div>
+
+      <label className="flex items-start gap-3 rounded-xl border border-[var(--line)] p-3 text-sm">
+        <input
+          type="checkbox"
+          checked={guardianAck}
+          onChange={(e) => setGuardianAck(e.target.checked)}
+          className="mt-0.5 h-4 w-4 shrink-0"
+          required
+        />
+        <span>Meu responsável autorizou o meu acesso a esta plataforma.</span>
+      </label>
+      <input type="hidden" name="guardian_ack" value={guardianAck ? "true" : "false"} />
 
       {state?.error ? (
         <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{state.error}</p>

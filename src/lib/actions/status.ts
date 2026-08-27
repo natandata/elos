@@ -7,10 +7,12 @@ import type { StatusLevel } from "@/lib/types";
 
 const LEVELS: StatusLevel[] = ["bad", "ok", "good"];
 
+type SubmitStatusResult = { error?: string; ok?: boolean; bad?: boolean; statusResponseId?: string };
+
 export async function submitStatus(
-  _prev: { error?: string } | null,
+  _prev: SubmitStatusResult | null,
   formData: FormData,
-): Promise<{ error?: string }> {
+): Promise<SubmitStatusResult> {
   const emotional = String(formData.get("emotional") ?? "") as StatusLevel;
   const spiritual = String(formData.get("spiritual") ?? "") as StatusLevel;
 
@@ -24,14 +26,23 @@ export async function submitStatus(
   } = await supabase.auth.getUser();
   if (!user) redirect("/");
 
-  const { error } = await supabase.from("status_responses").insert({
-    user_id: user.id,
-    emotional_status: emotional,
-    spiritual_status: spiritual,
-  });
+  const { data, error } = await supabase
+    .from("status_responses")
+    .insert({
+      user_id: user.id,
+      emotional_status: emotional,
+      spiritual_status: spiritual,
+    })
+    .select("id")
+    .single();
 
-  if (error) return { error: "Não foi possível salvar sua resposta. Tente novamente." };
+  if (error || !data) return { error: "Não foi possível salvar sua resposta. Tente novamente." };
 
   revalidatePath("/app", "layout");
-  redirect("/app");
+
+  const bad = emotional === "bad" || spiritual === "bad";
+  if (!bad) redirect("/app");
+
+  // se "Mal" em alguma pergunta, fica na tela pra oferecer marcar uma conversa
+  return { ok: true, bad: true, statusResponseId: data.id };
 }

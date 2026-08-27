@@ -20,11 +20,13 @@ export async function completeProfile(
   const lastName = String(formData.get("last_name") ?? "").trim();
   const ageRange = String(formData.get("age_range") ?? "") as AgeRange;
   const gender = String(formData.get("gender") ?? "") as Gender;
+  const guardianAck = String(formData.get("guardian_ack") ?? "") === "true";
 
   if (!firstName) return { error: "Informe seu nome." };
   if (!lastName) return { error: "Informe seu sobrenome." };
   if (!AGES.includes(ageRange)) return { error: "Selecione sua faixa etária." };
   if (!GENDERS.includes(gender)) return { error: "Selecione seu gênero." };
+  if (!guardianAck) return { error: "Confirme a autorização do responsável para continuar." };
 
   const supabase = await createClient();
   const {
@@ -34,7 +36,13 @@ export async function completeProfile(
 
   const { error } = await supabase
     .from("profiles")
-    .update({ first_name: firstName, last_name: lastName, age_range: ageRange, gender })
+    .update({
+      first_name: firstName,
+      last_name: lastName,
+      age_range: ageRange,
+      gender,
+      guardian_ack_at: new Date().toISOString(),
+    })
     .eq("id", user.id);
 
   if (error) return { error: "Não foi possível salvar. Tente novamente." };
@@ -71,4 +79,29 @@ export async function updateOwnName(
 
   revalidatePath("/app", "layout");
   return { ok: true };
+}
+
+/** Revalidação periódica (a cada 15 dias) da autorização do responsável. */
+export async function confirmGuardianAck(
+  _prev: { error?: string } | null,
+  formData: FormData,
+): Promise<{ error?: string }> {
+  const ack = String(formData.get("guardian_ack") ?? "") === "true";
+  if (!ack) return { error: "Confirme a autorização do responsável para continuar." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/");
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ guardian_ack_at: new Date().toISOString() })
+    .eq("id", user.id);
+
+  if (error) return { error: "Não foi possível salvar. Tente novamente." };
+
+  revalidatePath("/app", "layout");
+  redirect("/app");
 }

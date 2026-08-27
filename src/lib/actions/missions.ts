@@ -151,6 +151,65 @@ export async function deleteMission(_prev: Result | null, formData: FormData): P
   return { ok: true };
 }
 
+/**
+ * Toda missão criada já serve de "template": duplicar cria uma missão nova
+ * com o mesmo título/descrição/XP/tipo/Elo e os mesmos participantes,
+ * pronta pra só ajustar as datas.
+ */
+export async function duplicateMission(_prev: Result | null, formData: FormData): Promise<Result> {
+  const { supabase, profile } = await currentProfile();
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { error: "Missão inválida." };
+
+  const { data: original } = await supabase
+    .from("missions")
+    .select("title, description, type, xp, elo_id, created_by, mission_assignments(cria_id)")
+    .eq("id", id)
+    .maybeSingle<{
+      title: string;
+      description: string | null;
+      type: string;
+      xp: number;
+      elo_id: string | null;
+      created_by: string;
+      mission_assignments: { cria_id: string }[];
+    }>();
+
+  if (!original) return { error: "Missão original não encontrada." };
+  if (!(profile.role === "admin" || original.created_by === profile.id)) {
+    return { error: "Sem permissão para duplicar esta missão." };
+  }
+
+  const { data: copy, error } = await supabase
+    .from("missions")
+    .insert({
+      created_by: profile.id,
+      title: original.title,
+      description: original.description,
+      type: original.type,
+      xp: original.xp,
+      elo_id: original.elo_id,
+    })
+    .select("id")
+    .single();
+
+  if (error || !copy) return { error: "Não foi possível duplicar a missão." };
+
+  const participants = original.mission_assignments.map((a) => a.cria_id);
+  if (participants.length > 0) {
+    const { error: assignError } = await supabase
+      .from("mission_assignments")
+      .insert(participants.map((cria_id) => ({ mission_id: copy.id, cria_id })));
+    if (assignError) {
+      await supabase.from("missions").delete().eq("id", copy.id);
+      return { error: "Não foi possível atribuir a missão duplicada." };
+    }
+  }
+
+  revalidateMissions();
+  return { ok: true };
+}
+
 /** Cria envia a missão para aprovação (XP só depois da aprovação). */
 export async function submitAssignment(_prev: Result | null, formData: FormData): Promise<Result> {
   const { supabase } = await currentProfile();

@@ -26,7 +26,35 @@ export type Profile = {
   avatar_url: string | null;
   xp: number;
   chat_last_read_at: string | null;
+  guardian_ack_at: string | null;
   created_at: string;
+  updated_at: string;
+};
+
+export type CareMeetingStatus = "pending_leader" | "pending_cria" | "confirmed" | "cancelled";
+export type CareMeetingModality = "online" | "presencial";
+
+export type CareMeeting = {
+  id: string;
+  cria_id: string;
+  elo_id: string | null;
+  status_response_id: string | null;
+  modality: CareMeetingModality;
+  proposed_date: string;
+  proposed_time: string | null;
+  note: string | null;
+  status: CareMeetingStatus;
+  proposed_by: "cria" | "leader";
+  created_at: string;
+  updated_at: string;
+};
+
+export type CriaProfileDetails = {
+  id: string;
+  guardian_name: string | null;
+  guardian_phone: string | null;
+  guardian_relationship: string | null;
+  notes: string | null;
   updated_at: string;
 };
 

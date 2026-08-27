@@ -1,12 +1,16 @@
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { StatusHistoryChart } from "@/components/StatusHistoryChart";
+import { LeaderCareControls } from "@/components/care/LeaderCareControls";
 import {
   STATUS_LABEL,
   STATUS_TONE,
   formatDateTime,
   hasBadStatus,
   relativeDay,
+  type CareMeeting,
+  type CriaProfileDetails,
   type StatusLevel,
 } from "@/lib/types";
 
@@ -26,14 +30,23 @@ export default async function StatusCriasPage() {
 
   const ids = crias.length ? crias.map((c) => c.id) : ["00000000-0000-0000-0000-000000000000"];
 
-  const { data: history } = await supabase
-    .from("status_responses")
-    .select("id, user_id, emotional_status, spiritual_status, created_at")
-    .in("user_id", ids)
-    .order("created_at", { ascending: false })
-    .limit(300);
+  const [historyRes, followUpsRes, meetingsRes, detailsRes] = await Promise.all([
+    supabase
+      .from("status_responses")
+      .select("id, user_id, emotional_status, spiritual_status, created_at")
+      .in("user_id", ids)
+      .order("created_at", { ascending: false })
+      .limit(300),
+    supabase.from("status_follow_ups").select("status_response_id, note"),
+    supabase
+      .from("care_meetings")
+      .select("*")
+      .in("cria_id", ids)
+      .order("created_at", { ascending: false }),
+    supabase.from("cria_profile_details").select("*").in("id", ids),
+  ]);
 
-  const responses = (history ?? []) as {
+  const responses = (historyRes.data ?? []) as {
     id: string;
     user_id: string;
     emotional_status: StatusLevel;
@@ -46,7 +59,30 @@ export default async function StatusCriasPage() {
     if (!latest.has(r.user_id)) latest.set(r.user_id, r);
   });
 
-  const badCount = crias.filter((c) => hasBadStatus(latest.get(c.id))).length;
+  const followUpByResponse = new Map(
+    ((followUpsRes.data ?? []) as { status_response_id: string; note: string }[]).map((f) => [
+      f.status_response_id,
+      f.note,
+    ]),
+  );
+
+  const meetings = (meetingsRes.data ?? []) as CareMeeting[];
+  const pendingMeetingByCria = new Map<string, CareMeeting>();
+  meetings
+    .filter((m) => m.status === "pending_leader")
+    .forEach((m) => {
+      if (!pendingMeetingByCria.has(m.cria_id)) pendingMeetingByCria.set(m.cria_id, m);
+    });
+
+  const detailsByCria = new Map(
+    ((detailsRes.data ?? []) as CriaProfileDetails[]).map((d) => [d.id, d]),
+  );
+
+  const isUnresolvedBad = (criaId: string) => {
+    const s = latest.get(criaId);
+    return hasBadStatus(s) && !followUpByResponse.has(s!.id);
+  };
+  const badCount = crias.filter((c) => isUnresolvedBad(c.id)).length;
   const sortedCrias = [...crias].sort(
     (a, b) => Number(hasBadStatus(latest.get(b.id))) - Number(hasBadStatus(latest.get(a.id))),
   );
@@ -79,8 +115,10 @@ export default async function StatusCriasPage() {
         <div className="space-y-3">
           {sortedCrias.map((cria) => {
             const current = latest.get(cria.id);
-            const past = responses.filter((r) => r.user_id === cria.id).slice(1, 5);
+            const chartHistory = responses.filter((r) => r.user_id === cria.id).slice(0, 12);
+            const past = chartHistory.slice(1, 5);
             const bad = hasBadStatus(current);
+            const details = detailsByCria.get(cria.id);
 
             return (
               <Card
@@ -115,6 +153,10 @@ export default async function StatusCriasPage() {
                   </div>
                 </div>
 
+                {chartHistory.length >= 2 ? (
+                  <StatusHistoryChart history={chartHistory} />
+                ) : null}
+
                 {past.length > 0 ? (
                   <details className="mt-3">
                     <summary className="cursor-pointer text-xs font-semibold text-[var(--muted)]">
@@ -130,6 +172,28 @@ export default async function StatusCriasPage() {
                       ))}
                     </ul>
                   </details>
+                ) : null}
+
+                {details && (details.guardian_name || details.guardian_phone || details.notes) ? (
+                  <details className="mt-2">
+                    <summary className="cursor-pointer text-xs font-semibold text-[var(--muted)]">
+                      Ficha do cria
+                    </summary>
+                    <div className="mt-2 space-y-1 text-xs text-[var(--muted)]">
+                      {details.guardian_name ? <p>Responsável: {details.guardian_name}</p> : null}
+                      {details.guardian_phone ? <p>Telefone: {details.guardian_phone}</p> : null}
+                      {details.guardian_relationship ? <p>Parentesco: {details.guardian_relationship}</p> : null}
+                      {details.notes ? <p>Observações: {details.notes}</p> : null}
+                    </div>
+                  </details>
+                ) : null}
+
+                {bad && current ? (
+                  <LeaderCareControls
+                    statusResponseId={current.id}
+                    alreadyResolvedNote={followUpByResponse.get(current.id) ?? null}
+                    pendingMeeting={pendingMeetingByCria.get(cria.id) ?? null}
+                  />
                 ) : null}
               </Card>
             );

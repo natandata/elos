@@ -2,13 +2,14 @@ import Link from "next/link";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { formatDate, formatXp } from "@/lib/types";
+import { CriaCareMeetingCard } from "@/components/care/CriaCareMeetingCard";
+import { formatDate, formatXp, type CareMeeting } from "@/lib/types";
 
 export default async function CriaDashboard() {
   const { profile } = await requireRole("cria");
   const supabase = await createClient();
 
-  const [eloRes, rankingRes, pendingRes, awaitingRes, approvedRes, eventsRes] = await Promise.all([
+  const [eloRes, rankingRes, pendingRes, awaitingRes, approvedRes, eventsRes, meetingsRes] = await Promise.all([
     profile.elo_id
       ? supabase.from("elos").select("name").eq("id", profile.elo_id).maybeSingle()
       : Promise.resolve({ data: null }),
@@ -41,15 +42,30 @@ export default async function CriaDashboard() {
       .gte("event_date", new Date().toISOString().slice(0, 10))
       .order("event_date")
       .limit(3),
+    supabase
+      .from("care_meetings")
+      .select("*")
+      .eq("cria_id", profile.id)
+      .in("status", ["pending_leader", "pending_cria", "confirmed"])
+      .order("created_at", { ascending: false }),
   ]);
 
   const ranking = (rankingRes.data ?? []) as { id: string; full_name: string; xp: number }[];
   const position = ranking.findIndex((r) => r.id === profile.id) + 1;
   const eloName = (eloRes.data as { name: string } | null)?.name ?? "Sem Elo";
+  const meetings = (meetingsRes.data ?? []) as CareMeeting[];
 
   return (
     <>
       <PageHeader title={`Olá, ${(profile.full_name || "Cria").split(" ")[0]}!`} subtitle={eloName} />
+
+      {meetings.length > 0 ? (
+        <section className="mb-5 space-y-2">
+          {meetings.map((m) => (
+            <CriaCareMeetingCard key={m.id} meeting={m} />
+          ))}
+        </section>
+      ) : null}
 
       <section className="mb-5 grid gap-3 sm:grid-cols-3">
         <div className="rounded-2xl bg-[var(--accent)] p-5 text-[var(--accent-ink)] sm:col-span-2">

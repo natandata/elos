@@ -3,18 +3,20 @@ import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, type Elo, type EloEvent } from "@/lib/types";
 import { EventAdminControls, EventComposer } from "./EventManager";
+import { EventCheckIn } from "./EventCheckIn";
 
 export default async function AgendaPage() {
   const { profile } = await requireProfile();
   const supabase = await createClient();
   const isAdmin = profile.role === "admin";
 
-  const [elosRes, eventsRes] = await Promise.all([
+  const [elosRes, eventsRes, attendanceRes] = await Promise.all([
     supabase.from("elos").select("*").order("gender").order("age_range"),
     supabase
       .from("events")
       .select("id, title, description, event_date, event_time, location, elo_id, leaders_only")
       .order("event_date"),
+    supabase.from("event_attendance").select("event_id, user_id"),
   ]);
 
   if (eventsRes.error) return <ErrorState message={eventsRes.error.message} />;
@@ -22,6 +24,13 @@ export default async function AgendaPage() {
   const elos = (elosRes.data ?? []) as Elo[];
   const eloName = new Map(elos.map((e) => [e.id, e.name]));
   const all = (eventsRes.data ?? []) as EloEvent[];
+
+  const attendance = (attendanceRes.data ?? []) as { event_id: string; user_id: string }[];
+  const myCheckIns = new Set(
+    attendance.filter((a) => a.user_id === profile.id).map((a) => a.event_id),
+  );
+  const countByEvent = new Map<string, number>();
+  attendance.forEach((a) => countByEvent.set(a.event_id, (countByEvent.get(a.event_id) ?? 0) + 1));
 
   const today = new Date().toISOString().slice(0, 10);
   const upcoming = all.filter((e) => e.event_date >= today);
@@ -55,6 +64,11 @@ export default async function AgendaPage() {
       {event.description ? (
         <p className="mt-2 text-sm text-[var(--muted)]">{event.description}</p>
       ) : null}
+      <EventCheckIn
+        eventId={event.id}
+        checkedIn={myCheckIns.has(event.id)}
+        count={profile.role !== "cria" ? countByEvent.get(event.id) ?? 0 : undefined}
+      />
       {isAdmin ? <EventAdminControls event={event} elos={elos} /> : null}
     </Card>
   );

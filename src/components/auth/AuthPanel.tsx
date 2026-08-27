@@ -24,6 +24,7 @@ export function AuthPanel({ next }: { next?: string }) {
   const [ageRange, setAgeRange] = useState<AgeRange | "">("");
   const [gender, setGender] = useState<Gender | "">("");
   const [signupRole, setSignupRole] = useState<SignupRole>("cria");
+  const [guardianAck, setGuardianAck] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -109,6 +110,7 @@ export function AuthPanel({ next }: { next?: string }) {
     if (!lastName.trim()) return setError("Informe seu sobrenome.");
     if (!ageRange) return setError("Selecione sua faixa etária.");
     if (!gender) return setError("Selecione seu gênero.");
+    if (!guardianAck) return setError("Confirme a autorização do responsável para continuar.");
     if (password.length < 6) return setError("A senha precisa ter ao menos 6 caracteres.");
     if (password !== confirm) return setError("As senhas não conferem.");
 
@@ -124,6 +126,7 @@ export function AuthPanel({ next }: { next?: string }) {
           age_range: ageRange,
           gender,
           role: signupRole,
+          guardian_ack: "true",
         },
       },
     });
@@ -391,6 +394,19 @@ export function AuthPanel({ next }: { next?: string }) {
               autoComplete="new-password"
             />
           </div>
+        )}
+
+        {mode === "signup" && (
+          <label className="flex items-start gap-3 rounded-xl border border-[var(--line)] p-3 text-sm">
+            <input
+              type="checkbox"
+              checked={guardianAck}
+              onChange={(e) => setGuardianAck(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0"
+              required
+            />
+            <span>Meu responsável autorizou o meu acesso a esta plataforma.</span>
+          </label>
         )}
 
         {error ? (

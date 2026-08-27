@@ -11,12 +11,14 @@ import {
 } from "@/lib/types";
 import { NameForm } from "./NameForm";
 import { AvatarUploader } from "./AvatarUploader";
+import { GuardianDetailsForm } from "./GuardianDetailsForm";
+import type { CriaProfileDetails } from "@/lib/types";
 
 export default async function PerfilPage() {
   const { profile } = await requireProfile();
   const supabase = await createClient();
 
-  const [eloRes, txRes] = await Promise.all([
+  const [eloRes, txRes, detailsRes] = await Promise.all([
     profile.elo_id
       ? supabase.from("elos").select("name").eq("id", profile.elo_id).maybeSingle()
       : Promise.resolve({ data: null }),
@@ -26,9 +28,13 @@ export default async function PerfilPage() {
       .eq("user_id", profile.id)
       .order("created_at", { ascending: false })
       .limit(20),
+    profile.role === "cria"
+      ? supabase.from("cria_profile_details").select("*").eq("id", profile.id).maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
 
   const eloName = (eloRes.data as { name: string } | null)?.name ?? "Sem Elo";
+  const guardianDetails = detailsRes.data as CriaProfileDetails | null;
   const txs = (txRes.data ?? []) as unknown as {
     id: string;
     amount: number;
@@ -114,6 +120,16 @@ export default async function PerfilPage() {
           )}
         </Card>
       </div>
+
+      {profile.role === "cria" ? (
+        <Card className="mt-3">
+          <h2 className="mb-1 text-sm font-bold">Ficha (opcional)</h2>
+          <p className="mb-3 text-xs text-[var(--muted)]">
+            Só você, seu(s) líder(es) e a administração veem isso — útil em caso de emergência.
+          </p>
+          <GuardianDetailsForm details={guardianDetails} />
+        </Card>
+      ) : null}
     </>
   );
 }

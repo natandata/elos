@@ -31,7 +31,7 @@ export default async function LiderDashboard() {
   const criaIds = crias.map((c) => c.id);
   const idFilter = criaIds.length ? criaIds : ["00000000-0000-0000-0000-000000000000"];
 
-  const [eloRes, rankRes, statusRes, awaitingRes, approvedRes, activeRes, eventsRes] =
+  const [eloRes, rankRes, statusRes, followUpsRes, awaitingRes, approvedRes, activeRes, eventsRes] =
     await Promise.all([
       profile.elo_id
         ? supabase.from("elos").select("name").eq("id", profile.elo_id).maybeSingle()
@@ -39,8 +39,9 @@ export default async function LiderDashboard() {
       supabase.rpc("elo_rankings"),
       supabase
         .from("v_latest_status")
-        .select("user_id, emotional_status, spiritual_status, created_at")
+        .select("id, user_id, emotional_status, spiritual_status, created_at")
         .in("user_id", idFilter),
+      supabase.from("status_follow_ups").select("status_response_id"),
       supabase
         .from("mission_assignments")
         .select("id", { count: "exact", head: true })
@@ -74,6 +75,7 @@ export default async function LiderDashboard() {
   const myRank = ranking.find((r) => r.elo_id === profile.elo_id);
 
   const statuses = (statusRes.data ?? []) as {
+    id: string;
     user_id: string;
     emotional_status: StatusLevel;
     spiritual_status: StatusLevel;
@@ -81,13 +83,21 @@ export default async function LiderDashboard() {
   }[];
   const byUser = new Map(statuses.map((s) => [s.user_id, s]));
 
+  const resolvedIds = new Set(
+    ((followUpsRes.data ?? []) as { status_response_id: string }[]).map((f) => f.status_response_id),
+  );
+
   const avgXp = crias.length
     ? Math.round(crias.reduce((sum, c) => sum + c.xp, 0) / crias.length)
     : 0;
 
   const awaiting = awaitingRes.count ?? 0;
 
-  const badCrias = crias.filter((c) => hasBadStatus(byUser.get(c.id)));
+  // só entra no alerta quem está "Mal" e ainda não teve um "o que foi feito" registrado
+  const badCrias = crias.filter((c) => {
+    const s = byUser.get(c.id);
+    return hasBadStatus(s) && !resolvedIds.has(s!.id);
+  });
 
   return (
     <>

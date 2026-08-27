@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { AppShell, type NavItem } from "@/components/shell/AppShell";
-import { needsStatusCheck, requireProfile } from "@/lib/auth";
+import { needsGuardianAck, needsStatusCheck, requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { ROLE_LABEL } from "@/lib/types";
 
@@ -12,6 +12,8 @@ const NAV: Record<string, NavItem[]> = {
     { href: "/app/admin/elos", label: "ELOS", icon: "🔗" },
     { href: "/app/admin/missoes", label: "Missões", icon: "🎯" },
     { href: "/app/admin/monitorar-chat", label: "Monitorar Chat", icon: "🛰️" },
+    { href: "/app/admin/relatorio", label: "Relatório", icon: "📈" },
+    { href: "/app/admin/auditoria", label: "Auditoria", icon: "🗂️" },
     { href: "/app/agenda", label: "Agenda", icon: "📅" },
   ],
   leader: [
@@ -38,6 +40,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (profile.role !== "admin" && (!profile.gender || !profile.age_range)) {
     redirect("/app/completar-perfil");
   }
+
+  // Autorização do responsável: pedida no cadastro, revalidada a cada 15 dias.
+  if (needsGuardianAck(profile)) redirect("/app/responsavel");
 
   // Líder pendente não exerce nada ainda: a conta abre em modo bloqueado.
   const pending = profile.role === "leader" && !profile.approved;

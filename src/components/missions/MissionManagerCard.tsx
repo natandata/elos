@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { deleteMission, updateMission } from "@/lib/actions/missions";
+import { deleteMission, duplicateMission, updateMission } from "@/lib/actions/missions";
 import { Feedback, SubmitBtn } from "@/components/forms";
 import { MISSION_TYPE_LABEL, formatDate, type MissionType } from "@/lib/types";
 
@@ -25,6 +25,7 @@ export function MissionManagerCard({ mission }: { mission: ManagedMission }) {
   const [confirming, setConfirming] = useState(false);
   const [updateState, updateAction] = useActionState(updateMission, null);
   const [deleteState, deleteAction] = useActionState(deleteMission, null);
+  const [duplicateState, duplicateAction] = useActionState(duplicateMission, null);
 
   return (
     <div className="card p-4">
@@ -67,24 +68,33 @@ export function MissionManagerCard({ mission }: { mission: ManagedMission }) {
         ) : null}
       </div>
 
-      {mission.canEdit ? (
-        <div className="mt-3 flex gap-2">
-          <button
-            type="button"
-            className="btn btn-ghost !py-2 !text-sm"
-            onClick={() => setEditing(!editing)}
-          >
-            {editing ? "Fechar" : "Editar"}
-          </button>
-          <button
-            type="button"
-            className="btn btn-ghost !py-2 !text-sm text-red-600"
-            onClick={() => setConfirming(!confirming)}
-          >
-            Excluir
-          </button>
-        </div>
-      ) : null}
+      <div className="mt-3 flex flex-wrap gap-2">
+        {mission.canEdit ? (
+          <>
+            <button
+              type="button"
+              className="btn btn-ghost !py-2 !text-sm"
+              onClick={() => setEditing(!editing)}
+            >
+              {editing ? "Fechar" : "Editar"}
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost !py-2 !text-sm text-red-600"
+              onClick={() => setConfirming(!confirming)}
+            >
+              Excluir
+            </button>
+          </>
+        ) : null}
+        <form action={duplicateAction}>
+          <input type="hidden" name="id" value={mission.id} />
+          <SubmitBtn className="btn btn-ghost !py-2 !text-sm" pendingLabel="Duplicando…">
+            Usar como modelo
+          </SubmitBtn>
+        </form>
+      </div>
+      <Feedback state={duplicateState} />
 
       {confirming ? (
         <form action={deleteAction} className="mt-3 rounded-xl bg-red-50 p-3">

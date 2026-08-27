@@ -208,6 +208,27 @@ export async function approveLeader(_prev: Result | null, formData: FormData): P
 // manual de "líder responsável" avulsa: trocar o Elo do líder ou do cria já
 // resolve o vínculo sozinho, nos dois sentidos.
 
+/** Check-in de presença: qualquer pessoa confirma a própria presença num evento que vê. */
+export async function checkInToEvent(_prev: Result | null, formData: FormData): Promise<Result> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/");
+
+  const eventId = String(formData.get("event_id") ?? "");
+  if (!eventId) return { error: "Evento inválido." };
+
+  const { error } = await supabase
+    .from("event_attendance")
+    .upsert({ event_id: eventId, user_id: user.id }, { onConflict: "event_id,user_id" });
+
+  if (error) return { error: "Não foi possível confirmar presença." };
+
+  revalidatePath("/app/agenda");
+  return { ok: true };
+}
+
 // ---------------------------------------------------------------- eventos
 
 function revalidateAgenda() {

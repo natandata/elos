@@ -48,3 +48,14 @@ export async function needsStatusCheck(profile: Profile): Promise<boolean> {
 
   return (count ?? 0) === 0;
 }
+
+const GUARDIAN_ACK_DAYS = 15;
+
+/** Autorização do responsável: pedida no cadastro, revalidada a cada 15 dias. */
+export function needsGuardianAck(profile: Profile): boolean {
+  if (profile.role === "admin") return false;
+  if (!profile.guardian_ack_at) return true;
+
+  const cutoff = Date.now() - GUARDIAN_ACK_DAYS * 24 * 60 * 60 * 1000;
+  return new Date(profile.guardian_ack_at).getTime() < cutoff;
+}

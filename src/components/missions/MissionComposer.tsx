@@ -35,7 +35,7 @@ export function MissionComposer({
         <div>
           <p className="font-bold">Nova missão</p>
           <p className="text-xs text-[var(--muted)]">
-            Individual para um cria ou coletiva para um Elo inteiro.
+            Individual para um cria ou coletiva (meta do Elo) para o Elo inteiro.
           </p>
         </div>
         <button type="button" className="btn btn-primary !py-2 !text-sm" onClick={() => setOpen(!open)}>

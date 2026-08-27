@@ -5,6 +5,7 @@ import { AGE_RANGE_LABEL, type AgeRange, type Elo, type Gender, type Role } from
 import { NewUserForm } from "./NewUserForm";
 import { PendingLeaderCard } from "./PendingLeaderCard";
 import { UserEditor } from "./UserEditor";
+import { ExportUsersCsv } from "./ExportUsersCsv";
 
 type Search = {
   q?: string;
@@ -61,7 +62,16 @@ export default async function UsuariosPage({
 
   return (
     <>
-      <PageHeader title="Usuários" subtitle={`${users.length} usuário(s) encontrados.`} />
+      <PageHeader
+        title="Usuários"
+        subtitle={`${users.length} usuário(s) encontrados.`}
+        action={
+          <ExportUsersCsv
+            users={users.map((u) => ({ ...u, email: emailById.get(u.id) ?? null }))}
+            eloName={new Map(elos.map((e) => [e.id, e.name]))}
+          />
+        }
+      />
 
       {pendentes.length > 0 ? (
         <section className="mb-4">
