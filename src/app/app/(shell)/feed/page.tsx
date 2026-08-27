@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { FeedComposer } from "@/components/feed/FeedComposer";
 import { FeedPostCard, type FeedPost } from "@/components/feed/FeedPostCard";
+import { ROLE_LABEL, type Role } from "@/lib/types";
 
 type PostRow = {
   id: string;
@@ -12,12 +13,14 @@ type PostRow = {
   author_id: string;
 };
 
+type AuthorRow = { id: string; full_name: string; avatar_url: string | null; role: Role; elo_id: string | null };
+
 export default async function FeedPage() {
   const { profile } = await requireRole("admin", "leader", "cria");
   const supabase = await createClient();
   const isAdmin = profile.role === "admin";
 
-  const [postsRes, likesRes, commentsRes] = await Promise.all([
+  const [postsRes, likesRes, commentsRes, elosRes] = await Promise.all([
     supabase
       .from("feed_posts")
       .select("id, image_path, caption, created_at, author_id")
@@ -27,6 +30,9 @@ export default async function FeedPage() {
       .from("feed_comments")
       .select("id, post_id, author_id, body, created_at")
       .order("created_at", { ascending: true }),
+    // elos é público pra qualquer autenticado (não é por Elo), então dá pra
+    // resolver o nome do Elo de qualquer autor, mesmo de fora do meu Elo.
+    supabase.from("elos").select("id, name"),
   ]);
 
   const posts = (postsRes.data ?? []) as PostRow[];
@@ -38,22 +44,28 @@ export default async function FeedPage() {
     body: string;
     created_at: string;
   }[];
+  const eloNameById = new Map(
+    ((elosRes.data ?? []) as { id: string; name: string }[]).map((e) => [e.id, e.name]),
+  );
 
-  // Nome/avatar via RPC dedicada — o Feed é global (todo Elo vê todo mundo),
-  // mas a leitura direta de profiles ainda é restrita por Elo. Sem isso, o
-  // join cairia em null pra quem não é do mesmo Elo do autor (virava
-  // "Alguém" pra uns e o nome certo pra outros, dependendo de quem olhava).
+  // Nome/avatar/papel/Elo via RPC dedicada — o Feed é global (todo mundo vê
+  // fotos de qualquer Elo), mas a leitura direta de profiles ainda é
+  // restrita por Elo. Sem isso, o join cairia em null pra quem não é do
+  // mesmo Elo do autor ("Alguém" pra uns, nome certo pra outros).
   const authorIds = Array.from(
     new Set([...posts.map((p) => p.author_id), ...comments.map((c) => c.author_id)]),
   );
   const { data: authorsData } = authorIds.length
     ? await supabase.rpc("feed_author_names", { p_ids: authorIds })
-    : { data: [] as { id: string; full_name: string; avatar_url: string | null }[] };
-  const authorById = new Map(
-    ((authorsData ?? []) as { id: string; full_name: string; avatar_url: string | null }[]).map(
-      (a) => [a.id, a],
-    ),
-  );
+    : { data: [] as AuthorRow[] };
+  const authorById = new Map(((authorsData ?? []) as AuthorRow[]).map((a) => [a.id, a]));
+
+  function authorTag(id: string): string | null {
+    const a = authorById.get(id);
+    if (!a || a.role === "admin") return null;
+    const eloName = a.elo_id ? eloNameById.get(a.elo_id) : null;
+    return `${ROLE_LABEL[a.role]}${eloName ? ` · ${eloName}` : ""}`;
+  }
 
   // URLs assinadas de curta duração — só geradas pra posts ainda visíveis (RLS já garante isso).
   const signedUrls = await Promise.all(
@@ -74,6 +86,7 @@ export default async function FeedPage() {
       authorId: p.author_id,
       authorName: author?.full_name || "Sem nome",
       authorAvatar: author?.avatar_url ?? null,
+      authorTag: authorTag(p.author_id),
       likeCount: likes.filter((l) => l.post_id === p.id).length,
       likedByMe: likes.some((l) => l.post_id === p.id && l.user_id === profile.id),
       comments: comments
