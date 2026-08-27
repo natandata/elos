@@ -14,6 +14,8 @@ type MissionRow = {
   xp: number;
   start_date: string | null;
   due_date: string | null;
+  publish_at: string | null;
+  created_at: string;
   created_by: string;
   elos: { name: string } | null;
   creator: { full_name: string; role: string } | null;
@@ -37,6 +39,8 @@ function toManagedMission(m: MissionRow, canEdit: boolean, authorName?: string):
     xp: m.xp,
     start_date: m.start_date,
     due_date: m.due_date,
+    publish_at: m.publish_at,
+    created_at: m.created_at,
     eloName: m.elos?.name ?? null,
     authorName,
     counts: {
@@ -65,7 +69,7 @@ export async function MissionsWorkspace({ profile }: { profile: Profile }) {
     supabase
       .from("missions")
       .select(
-        "id, title, description, type, xp, start_date, due_date, created_by, elos:elo_id(name), creator:created_by(full_name, role), mission_assignments(id, status)",
+        "id, title, description, type, xp, start_date, due_date, publish_at, created_at, created_by, elos:elo_id(name), creator:created_by(full_name, role), mission_assignments(id, status)",
       )
       .order("created_at", { ascending: false }),
     supabase

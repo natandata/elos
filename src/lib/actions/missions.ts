@@ -47,6 +47,7 @@ export async function createMission(_prev: Result | null, formData: FormData): P
   const xp = Number(formData.get("xp") ?? 0);
   const startDate = String(formData.get("start_date") ?? "") || null;
   const dueDate = String(formData.get("due_date") ?? "") || null;
+  const publishAt = String(formData.get("publish_at") ?? "") || null;
   const target = String(formData.get("target") ?? "crias");
   const eloId = String(formData.get("elo_id") ?? "") || profile.elo_id;
   const criaIds = formData.getAll("cria_ids").map(String).filter(Boolean);
@@ -68,6 +69,7 @@ export async function createMission(_prev: Result | null, formData: FormData): P
       xp,
       start_date: startDate,
       due_date: dueDate,
+      publish_at: publishAt ? new Date(publishAt).toISOString() : null,
       elo_id: target === "all" ? null : eloId,
     })
     .select("id")
@@ -122,6 +124,8 @@ export async function updateMission(_prev: Result | null, formData: FormData): P
   if (!id || !title) return { error: "Dados incompletos." };
   if (!Number.isFinite(xp) || xp < 0) return { error: "XP inválido." };
 
+  const publishAt = String(formData.get("publish_at") ?? "") || null;
+
   const { error } = await supabase
     .from("missions")
     .update({
@@ -130,6 +134,7 @@ export async function updateMission(_prev: Result | null, formData: FormData): P
       xp,
       start_date: String(formData.get("start_date") ?? "") || null,
       due_date: String(formData.get("due_date") ?? "") || null,
+      publish_at: publishAt ? new Date(publishAt).toISOString() : null,
     })
     .eq("id", id);
 

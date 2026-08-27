@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { deleteMission, duplicateMission, updateMission } from "@/lib/actions/missions";
 import { Feedback, SubmitBtn } from "@/components/forms";
-import { MISSION_TYPE_LABEL, formatDate, type MissionType } from "@/lib/types";
+import { MISSION_TYPE_LABEL, formatDate, formatDateTime, type MissionType } from "@/lib/types";
 
 export type ManagedMission = {
   id: string;
@@ -13,12 +13,21 @@ export type ManagedMission = {
   xp: number;
   start_date: string | null;
   due_date: string | null;
+  publish_at: string | null;
+  created_at: string;
   eloName: string | null;
   /** Nome de quem criou, mostrado quando não é a própria missão do viewer. */
   authorName?: string;
   counts: { total: number; awaiting: number; approved: number; rejected: number };
   canEdit: boolean;
 };
+
+function toDatetimeLocal(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 export function MissionManagerCard({ mission }: { mission: ManagedMission }) {
   const [editing, setEditing] = useState(false);
@@ -37,6 +46,9 @@ export function MissionManagerCard({ mission }: { mission: ManagedMission }) {
             {MISSION_TYPE_LABEL[mission.type]} · {mission.eloName ?? "Todos os ELOS"} · prazo{" "}
             {formatDate(mission.due_date)}
           </p>
+          <p className="mt-0.5 text-xs text-[var(--muted)]">
+            Criada em {formatDateTime(mission.created_at)}
+          </p>
         </div>
         <span className="chip bg-[var(--accent-soft)] text-[var(--accent-strong)]">
           {mission.xp} XP
@@ -48,6 +60,11 @@ export function MissionManagerCard({ mission }: { mission: ManagedMission }) {
       ) : null}
 
       <div className="mt-3 flex flex-wrap gap-1.5 text-xs">
+        {mission.publish_at && new Date(mission.publish_at) > new Date() ? (
+          <span className="chip border-violet-200 bg-violet-100 text-violet-700">
+            🕓 Agendada para {formatDateTime(mission.publish_at)}
+          </span>
+        ) : null}
         <span className="chip border-[var(--line)] text-[var(--muted)]">
           {mission.counts.total} participante(s)
         </span>
@@ -143,6 +160,18 @@ export function MissionManagerCard({ mission }: { mission: ManagedMission }) {
             />
           </div>
           <input type="hidden" name="start_date" value={mission.start_date ?? ""} />
+          <div className="sm:col-span-2">
+            <label className="label">Agendar (opcional)</label>
+            <input
+              name="publish_at"
+              type="datetime-local"
+              className="input"
+              defaultValue={toDatetimeLocal(mission.publish_at)}
+            />
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              Deixe em branco para os crias verem na hora.
+            </p>
+          </div>
           <div className="sm:col-span-2">
             <Feedback state={updateState} />
             <SubmitBtn className="btn btn-primary mt-2 !py-2 !text-sm">Salvar</SubmitBtn>

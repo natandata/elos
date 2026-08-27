@@ -116,6 +116,17 @@ export function MissionComposer({
               </label>
               <input id="due_date" name="due_date" type="date" className="input" />
             </div>
+
+            <div className="sm:col-span-2">
+              <label className="label" htmlFor="publish_at">
+                Agendar (opcional)
+              </label>
+              <input id="publish_at" name="publish_at" type="datetime-local" className="input" />
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                Deixe em branco para os crias verem na hora. Preenchendo, só líderes/admin veem
+                até essa data — os crias só enxergam a missão a partir daí.
+              </p>
+            </div>
           </div>
 
           <div>

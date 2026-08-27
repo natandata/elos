@@ -68,6 +68,7 @@ export type Mission = {
   start_date: string | null;
   due_date: string | null;
   elo_id: string | null;
+  publish_at: string | null;
   created_at: string;
 };
 
