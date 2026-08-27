@@ -73,9 +73,11 @@ export default async function FeedPage() {
 
   return (
     <>
-      <PageHeader title="Feed" subtitle="Fotos do ELOS — cada uma some depois de 24h." />
-
-      {!isAdmin ? <FeedComposer userId={profile.id} /> : null}
+      <PageHeader
+        title="Feed"
+        subtitle="Fotos do ELOS — cada uma some depois de 24h."
+        action={!isAdmin ? <FeedComposer userId={profile.id} /> : undefined}
+      />
 
       {feed.length === 0 ? (
         <EmptyState>Nenhuma foto no feed nas últimas 24h.</EmptyState>
