@@ -7,7 +7,15 @@ import { signOut } from "@/lib/actions/session";
 import { Avatar } from "@/components/Avatar";
 import { PresenceHeartbeat } from "./PresenceHeartbeat";
 
-export type NavItem = { href: string; label: string; icon: string; badge?: number };
+export type NavItem = {
+  /** Ausente quando o item é só um agrupador sem página própria (ex.: "Status Geral"). */
+  href?: string;
+  label: string;
+  icon: string;
+  badge?: number;
+  /** Itens agrupados dentro deste (menu do admin): aparecem recolhidos por padrão. */
+  children?: NavItem[];
+};
 
 function NavBadge({ count }: { count: number }) {
   if (count <= 0) return null;
@@ -40,34 +48,112 @@ export function AppShell({
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   // fecha o menu lateral do mobile sozinho ao trocar de página
   useEffect(() => {
     setMenuOpen(false);
   }, [pathname]);
 
-  const isActive = (href: string) =>
-    href === pathname || (href !== "/app" && pathname.startsWith(href + "/"));
+  const isActive = (href?: string) =>
+    !!href && (href === pathname || (href !== "/app" && pathname.startsWith(href + "/")));
 
   const navList = (onNavigate?: () => void) => (
     <ul className="space-y-1">
-      {items.map((item) => (
-        <li key={item.href}>
-          <Link
-            href={item.href}
-            onClick={onNavigate}
-            className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
-              isActive(item.href)
-                ? "bg-[var(--accent)] text-[var(--accent-ink)]"
-                : "text-[var(--muted)] hover:bg-[var(--card)] hover:text-[var(--ink)]"
-            }`}
-          >
+      {items.map((item) => {
+        const hasChildren = !!item.children?.length;
+        const groupKey = item.href ?? item.label;
+        const childActive = hasChildren && item.children!.some((c) => isActive(c.href));
+        const isExpanded = expanded[groupKey] ?? childActive;
+
+        if (!hasChildren) {
+          return (
+            <li key={groupKey}>
+              <Link
+                href={item.href!}
+                onClick={onNavigate}
+                className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
+                  isActive(item.href)
+                    ? "bg-[var(--accent)] text-[var(--accent-ink)]"
+                    : "text-[var(--muted)] hover:bg-[var(--card)] hover:text-[var(--ink)]"
+                }`}
+              >
+                <span aria-hidden>{item.icon}</span>
+                {item.label}
+                <NavBadge count={item.badge ?? 0} />
+              </Link>
+            </li>
+          );
+        }
+
+        // Item com filhos: se tiver página própria, o rótulo também é link
+        // (a seta só recolhe/expande); sem página própria, o rótulo é só o
+        // botão de expandir (ex.: "Status Geral", que não existe como página).
+        const label = (
+          <span className="flex flex-1 items-center gap-2.5 px-3 py-2.5">
             <span aria-hidden>{item.icon}</span>
             {item.label}
-            <NavBadge count={item.badge ?? 0} />
-          </Link>
-        </li>
-      ))}
+          </span>
+        );
+
+        return (
+          <li key={groupKey}>
+            <div
+              className={`flex items-center gap-1 rounded-xl text-sm font-semibold transition ${
+                isActive(item.href) && !childActive
+                  ? "bg-[var(--accent)] text-[var(--accent-ink)]"
+                  : "text-[var(--muted)] hover:bg-[var(--card)] hover:text-[var(--ink)]"
+              }`}
+            >
+              {item.href ? (
+                <Link href={item.href} onClick={onNavigate} className="flex flex-1">
+                  {label}
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setExpanded((prev) => ({ ...prev, [groupKey]: !isExpanded }))}
+                  className="flex flex-1 text-left"
+                >
+                  {label}
+                </button>
+              )}
+              <button
+                type="button"
+                aria-label={isExpanded ? `Recolher ${item.label}` : `Expandir ${item.label}`}
+                onClick={() => setExpanded((prev) => ({ ...prev, [groupKey]: !isExpanded }))}
+                className="px-2.5 py-2.5"
+              >
+                <span aria-hidden className={`inline-block transition-transform ${isExpanded ? "rotate-90" : ""}`}>
+                  ›
+                </span>
+              </button>
+            </div>
+
+            {isExpanded ? (
+              <ul className="mt-1 space-y-1 border-l border-[var(--line)] pl-3">
+                {item.children!.map((child) => (
+                  <li key={child.href}>
+                    <Link
+                      href={child.href!}
+                      onClick={onNavigate}
+                      className={`flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold transition ${
+                        isActive(child.href)
+                          ? "bg-[var(--accent)] text-[var(--accent-ink)]"
+                          : "text-[var(--muted)] hover:bg-[var(--card)] hover:text-[var(--ink)]"
+                      }`}
+                    >
+                      <span aria-hidden>{child.icon}</span>
+                      {child.label}
+                      <NavBadge count={child.badge ?? 0} />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </li>
+        );
+      })}
     </ul>
   );
 

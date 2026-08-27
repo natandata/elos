@@ -6,16 +6,34 @@ import { ROLE_LABEL } from "@/lib/types";
 
 const NAV: Record<string, NavItem[]> = {
   admin: [
-    { href: "/app/admin/geral", label: "Geral", icon: "🧭" },
     { href: "/app/admin", label: "Dashboard", icon: "📊" },
-    { href: "/app/admin/status-equipe", label: "Status Equipe", icon: "💛" },
-    { href: "/app/lider/status-crias", label: "Status Crias", icon: "🧒" },
-    { href: "/app/admin/usuarios", label: "Usuários", icon: "👥" },
-    { href: "/app/admin/elos", label: "ELOS", icon: "🔗" },
-    { href: "/app/admin/missoes", label: "Missões", icon: "🎯" },
-    { href: "/app/admin/monitorar-chat", label: "Monitorar Chat", icon: "🛰️" },
-    { href: "/app/admin/relatorio", label: "Relatório", icon: "📈" },
-    { href: "/app/admin/auditoria", label: "Auditoria", icon: "🗂️" },
+    {
+      label: "Status Geral",
+      icon: "💛",
+      children: [
+        { href: "/app/admin/status-equipe", label: "Status Equipe", icon: "💛" },
+        { href: "/app/lider/status-crias", label: "Status Crias", icon: "🧒" },
+      ],
+    },
+    {
+      href: "/app/admin/elos",
+      label: "ELOS",
+      icon: "🔗",
+      children: [
+        { href: "/app/admin/usuarios", label: "Usuários", icon: "👥" },
+        { href: "/app/admin/missoes", label: "Missões", icon: "🎯" },
+        { href: "/app/admin/monitorar-chat", label: "Monitorar Chat", icon: "🛰️" },
+      ],
+    },
+    {
+      href: "/app/admin/relatorio",
+      label: "Relatório",
+      icon: "📈",
+      children: [
+        { href: "/app/admin/geral", label: "Geral", icon: "🧭" },
+        { href: "/app/admin/auditoria", label: "Auditoria", icon: "🗂️" },
+      ],
+    },
     { href: "/app/agenda", label: "Agenda", icon: "📅" },
     { href: "/app/feed", label: "Feed", icon: "📸" },
   ],
