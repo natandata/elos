@@ -9,34 +9,52 @@ import {
   formatDateTime,
   hasBadStatus,
   relativeDay,
+  type AgeRange,
   type CareMeeting,
   type CriaProfileDetails,
+  type Gender,
   type StatusLevel,
 } from "@/lib/types";
 
-export default async function StatusCriasPage() {
+type Search = { elo?: string; status?: string };
+
+export default async function StatusCriasPage({
+  searchParams,
+}: {
+  searchParams: Promise<Search>;
+}) {
   const { profile } = await requireRole("leader", "admin");
   const supabase = await createClient();
   const isAdmin = profile.role === "admin";
+  const sp = await searchParams;
 
   // Líder só vê os crias sob sua responsabilidade (leader_crias); admin vê
-  // todo mundo, de todos os ELOS.
+  // todo mundo, de todos os ELOS — com filtro por Elo e por nível de status.
   const criasQuery = isAdmin
-    ? supabase.from("profiles").select("id, full_name").eq("role", "cria")
+    ? supabase.from("profiles").select("id, full_name, elo_id").eq("role", "cria")
     : supabase
         .from("leader_crias")
-        .select("profiles:cria_id(id, full_name)")
+        .select("profiles:cria_id(id, full_name, elo_id)")
         .eq("leader_id", profile.id);
-  const { data: links } = await criasQuery;
+  const [{ data: links }, elosRes] = await Promise.all([
+    criasQuery,
+    isAdmin
+      ? supabase.from("elos").select("id, name, gender, age_range").order("gender").order("age_range")
+      : Promise.resolve({ data: [] }),
+  ]);
 
-  const crias = isAdmin
-    ? ((links ?? []) as { id: string; full_name: string }[]).sort((a, b) =>
+  const elos = (elosRes.data ?? []) as { id: string; name: string; gender: Gender; age_range: AgeRange }[];
+
+  let crias = isAdmin
+    ? ((links ?? []) as { id: string; full_name: string; elo_id: string | null }[]).sort((a, b) =>
         a.full_name.localeCompare(b.full_name),
       )
-    : ((links ?? []) as unknown as { profiles: { id: string; full_name: string } | null }[])
+    : ((links ?? []) as unknown as { profiles: { id: string; full_name: string; elo_id: string | null } | null }[])
         .map((r) => r.profiles)
-        .filter((p): p is { id: string; full_name: string } => Boolean(p))
+        .filter((p): p is { id: string; full_name: string; elo_id: string | null } => Boolean(p))
         .sort((a, b) => a.full_name.localeCompare(b.full_name));
+
+  if (isAdmin && sp.elo) crias = crias.filter((c) => c.elo_id === sp.elo);
 
   const ids = crias.length ? crias.map((c) => c.id) : ["00000000-0000-0000-0000-000000000000"];
 
@@ -68,6 +86,14 @@ export default async function StatusCriasPage() {
   responses.forEach((r) => {
     if (!latest.has(r.user_id)) latest.set(r.user_id, r);
   });
+
+  if (isAdmin && sp.status) {
+    crias = crias.filter((c) => {
+      const s = latest.get(c.id);
+      if (sp.status === "none") return !s;
+      return s?.emotional_status === sp.status || s?.spiritual_status === sp.status;
+    });
+  }
 
   const followUpByResponse = new Map(
     ((followUpsRes.data ?? []) as { status_response_id: string; note: string }[]).map((f) => [
@@ -107,6 +133,39 @@ export default async function StatusCriasPage() {
             : "Como estão emocional e espiritualmente os crias sob sua responsabilidade."
         }
       />
+
+      {isAdmin ? (
+        <form className="mb-4 grid gap-3 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-3 sm:grid-cols-3">
+          <div>
+            <label className="label" htmlFor="elo">
+              Elo
+            </label>
+            <select id="elo" name="elo" className="input" defaultValue={sp.elo ?? ""}>
+              <option value="">Todos os ELOS</option>
+              {elos.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label" htmlFor="status">
+              Status (emocional ou espiritual)
+            </label>
+            <select id="status" name="status" className="input" defaultValue={sp.status ?? ""}>
+              <option value="">Todos</option>
+              <option value="bad">Mal</option>
+              <option value="ok">Mais ou menos</option>
+              <option value="good">Bem</option>
+              <option value="none">Sem resposta ainda</option>
+            </select>
+          </div>
+          <div className="flex items-end">
+            <button className="btn btn-primary w-full !py-2 !text-sm">Filtrar</button>
+          </div>
+        </form>
+      ) : null}
 
       {badCount > 0 ? (
         <div className="mb-4 flex items-center gap-3 rounded-2xl border-2 border-red-700 bg-red-600 px-4 py-3 text-white shadow-lg shadow-red-600/20">

@@ -71,7 +71,10 @@ const ADMIN_FEATURES: Feature[] = [
   ]},
   { title: "Auditoria", items: ["Quem trocou role, Elo ou aprovação, e quem excluiu um usuário — e quando"] },
   { title: "Status Equipe", items: ["Acompanhamento emocional/espiritual de todos os líderes"] },
-  { title: "Status Crias", items: ["Acompanhamento emocional/espiritual de todos os crias, de qualquer Elo"] },
+  { title: "Status Crias", items: [
+    "Acompanhamento emocional/espiritual de todos os crias, de qualquer Elo",
+    "Filtrar por Elo e por nível de status (Mal/Mais ou menos/Bem/sem resposta)",
+  ]},
   { title: "Agenda", items: ["Criar eventos para todos os ELOS, um Elo específico, ou só para a liderança"] },
   { title: "Feed", items: [
     "Moderar (excluir qualquer foto ou comentário) a qualquer momento — não posta nem interage",
