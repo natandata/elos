@@ -78,10 +78,10 @@ export default async function ElosPage() {
               </dl>
 
               <Link
-                href={`/app/admin/usuarios?elo=${elo.id}`}
+                href={`/app/admin/elos/${elo.id}`}
                 className="btn btn-ghost mt-4 w-full !py-2 !text-sm"
               >
-                Ver participantes
+                Abrir o Elo
               </Link>
             </Card>
           ))}
