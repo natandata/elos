@@ -29,9 +29,41 @@ export type Profile = {
   chat_last_read_at: string | null;
   guardian_ack_at: string | null;
   email_opt_in: boolean;
+  status_streak: number;
+  status_streak_date: string | null;
+  last_login_bonus_on: string | null;
   created_at: string;
   updated_at: string;
 };
+
+export type Achievement = {
+  key: string;
+  title: string;
+  description: string;
+  icon: string;
+};
+
+/** Níveis por XP acumulado — puramente de exibição, sem afetar nenhuma regra de negócio. */
+export const XP_LEVELS: { min: number; title: string }[] = [
+  { min: 0, title: "Aprendiz" },
+  { min: 50, title: "Discípulo" },
+  { min: 150, title: "Servo" },
+  { min: 300, title: "Mentor" },
+  { min: 600, title: "Referência" },
+];
+
+export function levelForXp(xp: number): { title: string; next: number | null } {
+  let current = XP_LEVELS[0];
+  let next: number | null = null;
+  for (let i = 0; i < XP_LEVELS.length; i++) {
+    if (xp >= XP_LEVELS[i].min) current = XP_LEVELS[i];
+    else {
+      next = XP_LEVELS[i].min;
+      break;
+    }
+  }
+  return { title: current.title, next };
+}
 
 export type CareMeetingStatus = "pending_leader" | "pending_cria" | "confirmed" | "cancelled";
 export type CareMeetingModality = "online" | "presencial";

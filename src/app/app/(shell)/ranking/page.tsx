@@ -26,7 +26,7 @@ export default async function MeuEloPage() {
   const supabase = await createClient();
   const isLeader = profile.role === "leader";
 
-  const [eloRes, leadersRes, criasRes, rankingRes, leaderRankRes] = await Promise.all([
+  const [eloRes, leadersRes, criasRes, rankingRes, leaderRankRes, weeklyRes] = await Promise.all([
     profile.elo_id
       ? supabase.from("elos").select("name").eq("id", profile.elo_id).maybeSingle()
       : Promise.resolve({ data: null }),
@@ -49,6 +49,9 @@ export default async function MeuEloPage() {
       : Promise.resolve({ data: [] }),
     supabase.rpc("elo_rankings"),
     isLeader ? supabase.rpc("leader_rankings") : Promise.resolve({ data: [] }),
+    profile.elo_id
+      ? supabase.rpc("weekly_xp_ranking", { p_elo_id: profile.elo_id })
+      : Promise.resolve({ data: [] }),
   ]);
 
   const eloName = (eloRes.data as { name: string } | null)?.name ?? "Sem Elo";
@@ -64,6 +67,12 @@ export default async function MeuEloPage() {
     xp: number;
   }[];
   const top1 = crias[0] ?? null;
+  const weekly = (weeklyRes.data ?? []) as {
+    user_id: string;
+    full_name: string;
+    avatar_url: string | null;
+    weekly_xp: number;
+  }[];
   const elos = (rankingRes.data ?? []) as {
     elo_id: string;
     elo_name: string;
@@ -87,6 +96,46 @@ export default async function MeuEloPage() {
         b.missions_completed - a.missions_completed ||
         a.leader_name.localeCompare(b.leader_name),
     );
+
+  const weeklyRanking = (
+    <section>
+      <h2 className="mb-1 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">
+        Ranking semanal do Elo
+      </h2>
+      <p className="mb-2 text-xs text-[var(--muted)]">
+        Reseta toda semana — nova chance de disputar o topo mesmo quem começou atrás no geral.
+      </p>
+      {weekly.filter((w) => w.weekly_xp > 0).length === 0 ? (
+        <EmptyState>Ninguém pontuou nesta semana ainda.</EmptyState>
+      ) : (
+        <Card className="!p-2">
+          <ol>
+            {weekly
+              .filter((w) => w.weekly_xp > 0)
+              .map((w, i) => (
+                <li
+                  key={w.user_id}
+                  className={`flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 ${
+                    w.user_id === profile.id
+                      ? "bg-[var(--accent-soft)] font-bold text-[var(--accent-strong)]"
+                      : ""
+                  }`}
+                >
+                  <span className="flex min-w-0 items-center gap-3">
+                    <span className="w-6 shrink-0 text-sm font-bold tabular-nums text-[var(--muted)]">
+                      {i + 1}º
+                    </span>
+                    <Avatar url={w.avatar_url} name={w.full_name} size={28} />
+                    <span className="truncate">{w.full_name || "Sem nome"}</span>
+                  </span>
+                  <span className="shrink-0 tabular-nums">{formatXp(w.weekly_xp)} XP</span>
+                </li>
+              ))}
+          </ol>
+        </Card>
+      )}
+    </section>
+  );
 
   const criasRanking = (
     <section>
@@ -302,11 +351,13 @@ export default async function MeuEloPage() {
           </Card>
 
           <div className="mb-6">{leadersRanking}</div>
+          <div className="mb-6">{weeklyRanking}</div>
           <div className="mb-6">{criasRanking}</div>
           {elosRanking}
         </>
       ) : (
         <>
+          <div className="mb-6">{weeklyRanking}</div>
           <div className="mb-6">{criasRanking}</div>
           {elosRanking}
         </>

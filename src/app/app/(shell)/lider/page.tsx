@@ -3,6 +3,7 @@ import { Card, EmptyState, PageHeader, StatCard } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { XpBar } from "@/components/XpBar";
+import { HojeNoElos } from "@/components/HojeNoElos";
 import {
   STATUS_LABEL,
   STATUS_TONE,
@@ -32,8 +33,19 @@ export default async function LiderDashboard() {
   const criaIds = crias.map((c) => c.id);
   const idFilter = criaIds.length ? criaIds : ["00000000-0000-0000-0000-000000000000"];
 
-  const [eloRes, rankRes, statusRes, followUpsRes, awaitingRes, approvedRes, activeRes, eventsRes] =
-    await Promise.all([
+  const [
+    eloRes,
+    rankRes,
+    statusRes,
+    followUpsRes,
+    awaitingRes,
+    approvedRes,
+    activeRes,
+    eventsRes,
+    presenceRes,
+    feedTodayRes,
+    dueTodayRes,
+  ] = await Promise.all([
       profile.elo_id
         ? supabase.from("elos").select("name").eq("id", profile.elo_id).maybeSingle()
         : Promise.resolve({ data: null }),
@@ -64,6 +76,16 @@ export default async function LiderDashboard() {
         .gte("event_date", new Date().toISOString().slice(0, 10))
         .order("event_date")
         .limit(3),
+      supabase.from("user_presence").select("last_seen_at").eq("user_id", profile.id).maybeSingle(),
+      supabase
+        .from("feed_posts")
+        .select("id", { count: "exact", head: true })
+        .gte("created_at", new Date(Date.now() - 24 * 3_600_000).toISOString()),
+      supabase
+        .from("mission_assignments")
+        .select("id, missions:mission_id(due_date)")
+        .in("status", ["pending", "rejected"])
+        .in("cria_id", idFilter),
     ]);
 
   const eloName = (eloRes.data as { name: string } | null)?.name ?? "Sem Elo";
@@ -100,11 +122,26 @@ export default async function LiderDashboard() {
     return hasBadStatus(s) && !resolvedIds.has(s!.id);
   });
 
+  const lastSeenAt = (presenceRes.data as { last_seen_at: string } | null)?.last_seen_at ?? null;
+  const daysSinceLastVisit = lastSeenAt
+    ? Math.floor((Date.now() - new Date(lastSeenAt).getTime()) / 86_400_000)
+    : null;
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const missionsDueToday = (
+    (dueTodayRes.data ?? []) as unknown as { missions: { due_date: string | null } | null }[]
+  ).filter((r) => r.missions?.due_date === todayStr).length;
+
   return (
     <>
       <PageHeader
         title={`Olá, ${(profile.full_name || "Líder").split(" ")[0]}!`}
         subtitle={`${eloName} · ${crias.length} cria(s) sob sua responsabilidade.`}
+      />
+
+      <HojeNoElos
+        daysSinceLastVisit={daysSinceLastVisit}
+        feedPostsToday={feedTodayRes.count ?? 0}
+        missionsDueToday={missionsDueToday}
       />
 
       {badCrias.length > 0 ? (

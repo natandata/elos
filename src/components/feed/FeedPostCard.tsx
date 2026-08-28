@@ -8,6 +8,7 @@ import {
   toggleFeedLike,
   updateFeedCaption,
 } from "@/lib/actions/feed";
+import { toggleFeedPin } from "@/lib/actions/engagement";
 import { Avatar } from "@/components/Avatar";
 import { Feedback, SubmitBtn } from "@/components/forms";
 import { formatDateTime } from "@/lib/types";
@@ -33,10 +34,15 @@ export type FeedPost = {
   authorAvatar: string | null;
   /** "Líder · Elo Masculino 17" ou null (ex.: admin, que não posta). */
   authorTag: string | null;
-  likeCount: number;
-  likedByMe: boolean;
+  reactionCounts: { kind: string; count: number }[];
+  myReaction: string | null;
+  pinned: boolean;
+  canPin: boolean;
   comments: FeedComment[];
 };
+
+const REACTION_EMOJI: Record<string, string> = { like: "👍", pray: "🙏", fire: "🔥", clap: "👏" };
+const REACTION_ORDER = ["like", "pray", "fire", "clap"];
 
 function FeedCommentRow({ comment, canDelete }: { comment: FeedComment; canDelete: boolean }) {
   const [state, action] = useActionState(deleteFeedComment, null);
@@ -74,6 +80,7 @@ export function FeedPostCard({
   const [commentState, commentAction] = useActionState(addFeedComment, null);
   const [deleteState, deleteAction] = useActionState(deleteFeedPost, null);
   const [captionState, captionAction] = useActionState(updateFeedCaption, null);
+  const [pinState, pinAction] = useActionState(toggleFeedPin, null);
   const [showComments, setShowComments] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -87,7 +94,12 @@ export function FeedPostCard({
   }, [captionState]);
 
   return (
-    <div className="card overflow-hidden p-0">
+    <div className={`card overflow-hidden p-0 ${post.pinned ? "ring-2 ring-[var(--accent)]" : ""}`}>
+      {post.pinned ? (
+        <div className="bg-[var(--accent-soft)] px-3 py-1.5 text-xs font-bold text-[var(--accent-strong)]">
+          📌 Destaque da semana
+        </div>
+      ) : null}
       <div className="relative flex items-center gap-3 p-3">
         <Avatar url={post.authorAvatar} name={post.authorName} size={40} />
         <div className="min-w-0 flex-1">
@@ -99,7 +111,7 @@ export function FeedPostCard({
           ) : null}
         </div>
 
-        {canDeletePost || canEditCaption ? (
+        {canDeletePost || canEditCaption || post.canPin ? (
           <div className="relative">
             <button
               type="button"
@@ -132,6 +144,17 @@ export function FeedPostCard({
                     >
                       Editar legenda
                     </button>
+                  ) : null}
+                  {post.canPin ? (
+                    <form action={pinAction} onSubmit={() => setMenuOpen(false)}>
+                      <input type="hidden" name="post_id" value={post.id} />
+                      <button
+                        type="submit"
+                        className="block w-full px-3 py-2.5 text-left text-sm hover:bg-[var(--bg)]"
+                      >
+                        {post.pinned ? "Remover destaque" : "Destacar da semana"}
+                      </button>
+                    </form>
                   ) : null}
                   {canDeletePost ? (
                     <form
@@ -195,21 +218,36 @@ export function FeedPostCard({
           <p className="mb-2.5 text-[15px] leading-relaxed">{post.caption}</p>
         ) : null}
         <Feedback state={deleteState} />
+        <Feedback state={pinState} />
 
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center">
             {canPost ? (
-              <form action={likeAction} className="inline-block">
-                <input type="hidden" name="post_id" value={post.id} />
-                <button
-                  type="submit"
-                  className={`-ml-1 rounded-full px-2 py-1 text-base font-bold transition active:scale-95 ${post.likedByMe ? "text-red-600" : "text-[var(--muted)]"}`}
-                >
-                  {post.likedByMe ? "❤️" : "🤍"} {post.likeCount > 0 ? post.likeCount : ""}
-                </button>
-              </form>
-            ) : post.likeCount > 0 ? (
-              <span className="text-sm text-[var(--muted)]">❤️ {post.likeCount}</span>
+              <>
+                {REACTION_ORDER.map((kind) => (
+                  <form key={kind} action={likeAction} className="inline-block">
+                    <input type="hidden" name="post_id" value={post.id} />
+                    <input type="hidden" name="kind" value={kind} />
+                    <button
+                      type="submit"
+                      className={`-ml-1 rounded-full px-1.5 py-1 text-base transition active:scale-95 ${post.myReaction === kind ? "opacity-100" : "opacity-40 grayscale"}`}
+                      title={REACTION_EMOJI[kind]}
+                    >
+                      {REACTION_EMOJI[kind]}
+                    </button>
+                  </form>
+                ))}
+                {post.reactionCounts.length > 0 ? (
+                  <span className="ml-1 text-xs text-[var(--muted)]">
+                    {post.reactionCounts.reduce((sum, r) => sum + r.count, 0)}
+                  </span>
+                ) : null}
+              </>
+            ) : post.reactionCounts.length > 0 ? (
+              <span className="text-sm text-[var(--muted)]">
+                {post.reactionCounts.map((r) => REACTION_EMOJI[r.kind]).join(" ")}{" "}
+                {post.reactionCounts.reduce((sum, r) => sum + r.count, 0)}
+              </span>
             ) : null}
             <Feedback state={likeState} />
 

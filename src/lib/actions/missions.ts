@@ -301,12 +301,22 @@ export async function reviewAssignment(_prev: Result | null, formData: FormData)
 
   if (!id) return { error: "Missão inválida." };
 
+  const { data: assignment } = await supabase
+    .from("mission_assignments")
+    .select("cria_id")
+    .eq("id", id)
+    .maybeSingle<{ cria_id: string }>();
+
   const { error } = await supabase.rpc("review_assignment", {
     p_assignment: id,
     p_approve: approve,
     p_reason: reason,
   });
   if (error) return { error: error.message };
+
+  if (approve && assignment?.cria_id) {
+    await supabase.rpc("check_and_grant_achievements", { p_user: assignment.cria_id });
+  }
 
   revalidateMissions();
   revalidatePath("/app/ranking");

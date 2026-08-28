@@ -44,6 +44,7 @@ export async function createFeedPost(_prev: Result | null, formData: FormData): 
   if (error) return { error: "Não foi possível publicar." };
 
   revalidateFeed();
+  await supabase.rpc("check_and_grant_achievements", { p_user: profile.id });
 
   const { data: targets } = await supabase.rpc("feed_push_targets", { p_exclude: profile.id });
   await sendPushToUsers(
@@ -88,28 +89,42 @@ export async function deleteFeedPost(_prev: Result | null, formData: FormData): 
   return { ok: true };
 }
 
-/** Curtir/descurtir num único botão: insere se não curtiu, remove se já curtiu. */
+const REACTION_KINDS = ["like", "pray", "fire", "clap"];
+
+/**
+ * Reação rápida (👍🙏🔥👏): clicar na mesma reação remove; clicar numa
+ * diferente troca; se não tinha nenhuma, cria. Substituiu o antigo "curtir"
+ * único — mais fácil de interagir sem precisar digitar um comentário.
+ */
 export async function toggleFeedLike(_prev: Result | null, formData: FormData): Promise<Result> {
   const { supabase, profile } = await currentProfile();
   if (profile.role === "admin") return { error: "Admin não interage no feed." };
 
   const postId = String(formData.get("post_id") ?? "");
+  const kind = String(formData.get("kind") ?? "like");
   if (!postId) return { error: "Post inválido." };
+  if (!REACTION_KINDS.includes(kind)) return { error: "Reação inválida." };
 
   const { data: existing } = await supabase
     .from("feed_likes")
-    .select("post_id")
+    .select("kind")
     .eq("post_id", postId)
     .eq("user_id", profile.id)
     .maybeSingle();
 
-  if (existing) {
+  if (existing?.kind === kind) {
     await supabase.from("feed_likes").delete().eq("post_id", postId).eq("user_id", profile.id);
+  } else if (existing) {
+    await supabase
+      .from("feed_likes")
+      .update({ kind })
+      .eq("post_id", postId)
+      .eq("user_id", profile.id);
   } else {
     const { error } = await supabase
       .from("feed_likes")
-      .insert({ post_id: postId, user_id: profile.id });
-    if (error) return { error: "Não foi possível curtir." };
+      .insert({ post_id: postId, user_id: profile.id, kind });
+    if (error) return { error: "Não foi possível reagir." };
     await supabase.rpc("notify_feed_interaction", { p_post_id: postId, p_kind: "like" });
   }
 

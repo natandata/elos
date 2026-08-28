@@ -5,12 +5,15 @@ import { FeedComposer } from "@/components/feed/FeedComposer";
 import { FeedPostCard, type FeedPost } from "@/components/feed/FeedPostCard";
 import { ROLE_LABEL, type Role } from "@/lib/types";
 
+const REACTION_KINDS = ["like", "pray", "fire", "clap"];
+
 type PostRow = {
   id: string;
   image_path: string;
   caption: string | null;
   created_at: string;
   author_id: string;
+  pinned_at: string | null;
 };
 
 type AuthorRow = {
@@ -30,9 +33,10 @@ export default async function FeedPage() {
   const [postsRes, likesRes, commentsRes, elosRes] = await Promise.all([
     supabase
       .from("feed_posts")
-      .select("id, image_path, caption, created_at, author_id")
+      .select("id, image_path, caption, created_at, author_id, pinned_at")
+      .order("pinned_at", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false }),
-    supabase.from("feed_likes").select("post_id, user_id"),
+    supabase.from("feed_likes").select("post_id, user_id, kind"),
     supabase
       .from("feed_comments")
       .select("id, post_id, author_id, body, created_at")
@@ -43,7 +47,7 @@ export default async function FeedPage() {
   ]);
 
   const posts = (postsRes.data ?? []) as PostRow[];
-  const likes = (likesRes.data ?? []) as { post_id: string; user_id: string }[];
+  const likes = (likesRes.data ?? []) as { post_id: string; user_id: string; kind: string }[];
   const comments = (commentsRes.data ?? []) as {
     id: string;
     post_id: string;
@@ -95,8 +99,15 @@ export default async function FeedPage() {
       authorUsername: author?.username ?? null,
       authorAvatar: author?.avatar_url ?? null,
       authorTag: authorTag(p.author_id),
-      likeCount: likes.filter((l) => l.post_id === p.id).length,
-      likedByMe: likes.some((l) => l.post_id === p.id && l.user_id === profile.id),
+      reactionCounts: REACTION_KINDS.map((kind) => ({
+        kind,
+        count: likes.filter((l) => l.post_id === p.id && l.kind === kind).length,
+      })).filter((r) => r.count > 0),
+      myReaction: likes.find((l) => l.post_id === p.id && l.user_id === profile.id)?.kind ?? null,
+      pinned: p.pinned_at !== null,
+      canPin:
+        isAdmin ||
+        (profile.role === "leader" && author?.elo_id != null && author.elo_id === profile.elo_id),
       comments: comments
         .filter((c) => c.post_id === p.id)
         .map((c) => ({

@@ -4,13 +4,25 @@ import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { CriaCareMeetingCard } from "@/components/care/CriaCareMeetingCard";
 import { XpBar } from "@/components/XpBar";
+import { HojeNoElos } from "@/components/HojeNoElos";
 import { formatDate, formatXp, type CareMeeting } from "@/lib/types";
 
 export default async function CriaDashboard() {
   const { profile } = await requireRole("cria");
   const supabase = await createClient();
 
-  const [eloRes, rankingRes, pendingRes, awaitingRes, approvedRes, eventsRes, meetingsRes] = await Promise.all([
+  const [
+    eloRes,
+    rankingRes,
+    pendingRes,
+    awaitingRes,
+    approvedRes,
+    eventsRes,
+    meetingsRes,
+    presenceRes,
+    feedTodayRes,
+    dueTodayRes,
+  ] = await Promise.all([
     profile.elo_id
       ? supabase.from("elos").select("name").eq("id", profile.elo_id).maybeSingle()
       : Promise.resolve({ data: null }),
@@ -49,6 +61,16 @@ export default async function CriaDashboard() {
       .eq("cria_id", profile.id)
       .in("status", ["pending_leader", "pending_cria", "confirmed"])
       .order("created_at", { ascending: false }),
+    supabase.from("user_presence").select("last_seen_at").eq("user_id", profile.id).maybeSingle(),
+    supabase
+      .from("feed_posts")
+      .select("id", { count: "exact", head: true })
+      .gte("created_at", new Date(Date.now() - 24 * 3_600_000).toISOString()),
+    supabase
+      .from("mission_assignments")
+      .select("id, missions:mission_id(due_date)")
+      .eq("cria_id", profile.id)
+      .in("status", ["pending", "rejected"]),
   ]);
 
   const ranking = (rankingRes.data ?? []) as { id: string; full_name: string; xp: number }[];
@@ -56,9 +78,24 @@ export default async function CriaDashboard() {
   const eloName = (eloRes.data as { name: string } | null)?.name ?? "Sem Elo";
   const meetings = (meetingsRes.data ?? []) as CareMeeting[];
 
+  const lastSeenAt = (presenceRes.data as { last_seen_at: string } | null)?.last_seen_at ?? null;
+  const daysSinceLastVisit = lastSeenAt
+    ? Math.floor((Date.now() - new Date(lastSeenAt).getTime()) / 86_400_000)
+    : null;
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const missionsDueToday = (
+    (dueTodayRes.data ?? []) as unknown as { missions: { due_date: string | null } | null }[]
+  ).filter((r) => r.missions?.due_date === todayStr).length;
+
   return (
     <>
       <PageHeader title={`Olá, ${(profile.full_name || "Cria").split(" ")[0]}!`} subtitle={eloName} />
+
+      <HojeNoElos
+        daysSinceLastVisit={daysSinceLastVisit}
+        feedPostsToday={feedTodayRes.count ?? 0}
+        missionsDueToday={missionsDueToday}
+      />
 
       {meetings.length > 0 ? (
         <section className="mb-5 space-y-2">

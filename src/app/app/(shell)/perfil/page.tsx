@@ -8,6 +8,7 @@ import {
   ROLE_LABEL,
   formatDateTime,
   formatXp,
+  levelForXp,
 } from "@/lib/types";
 import { NameForm } from "./NameForm";
 import { UsernameForm } from "./UsernameForm";
@@ -15,13 +16,15 @@ import { AvatarUploader } from "./AvatarUploader";
 import { GuardianDetailsForm } from "./GuardianDetailsForm";
 import { EmailPrefsForm } from "./EmailPrefsForm";
 import { PushToggleCard } from "@/components/push/PushControl";
-import type { CriaProfileDetails } from "@/lib/types";
+import { AchievementsList } from "./AchievementsList";
+import { StatusSparkline } from "./StatusSparkline";
+import type { Achievement, CriaProfileDetails } from "@/lib/types";
 
 export default async function PerfilPage() {
   const { profile } = await requireProfile();
   const supabase = await createClient();
 
-  const [eloRes, txRes, detailsRes] = await Promise.all([
+  const [eloRes, txRes, detailsRes, achievementsRes, earnedRes, statusRes] = await Promise.all([
     profile.elo_id
       ? supabase.from("elos").select("name").eq("id", profile.elo_id).maybeSingle()
       : Promise.resolve({ data: null }),
@@ -34,6 +37,16 @@ export default async function PerfilPage() {
     profile.role === "cria"
       ? supabase.from("cria_profile_details").select("*").eq("id", profile.id).maybeSingle()
       : Promise.resolve({ data: null }),
+    supabase.from("achievements").select("*"),
+    supabase.from("user_achievements").select("achievement_key").eq("user_id", profile.id),
+    profile.role === "cria"
+      ? supabase
+          .from("status_responses")
+          .select("emotional_status, spiritual_status, created_at")
+          .eq("user_id", profile.id)
+          .order("created_at", { ascending: false })
+          .limit(14)
+      : Promise.resolve({ data: [] }),
   ]);
 
   const eloName = (eloRes.data as { name: string } | null)?.name ?? "Sem Elo";
@@ -44,6 +57,16 @@ export default async function PerfilPage() {
     created_at: string;
     missions: { title: string } | null;
   }[];
+  const achievements = (achievementsRes.data ?? []) as Achievement[];
+  const earnedKeys = new Set(
+    ((earnedRes.data ?? []) as { achievement_key: string }[]).map((r) => r.achievement_key),
+  );
+  const statusPoints = (statusRes.data ?? []) as {
+    emotional_status: string;
+    spiritual_status: string;
+    created_at: string;
+  }[];
+  const level = levelForXp(profile.xp);
 
   return (
     <>
@@ -89,8 +112,23 @@ export default async function PerfilPage() {
             </div>
             <div>
               <dt className="text-xs text-[var(--muted)]">XP</dt>
-              <dd className="font-semibold tabular-nums">{formatXp(profile.xp)}</dd>
+              <dd className="font-semibold tabular-nums">
+                {formatXp(profile.xp)}
+                {profile.role === "cria" ? (
+                  <span className="ml-1 text-xs font-normal text-[var(--muted)]">
+                    · {level.title}
+                  </span>
+                ) : null}
+              </dd>
             </div>
+            {profile.role !== "admin" ? (
+              <div>
+                <dt className="text-xs text-[var(--muted)]">Streak do status</dt>
+                <dd className="font-semibold tabular-nums">
+                  {profile.status_streak > 0 ? `🔥 ${profile.status_streak} dias` : "—"}
+                </dd>
+              </div>
+            ) : null}
           </dl>
 
           <p className="mt-3 text-xs text-[var(--muted)]">
@@ -135,6 +173,20 @@ export default async function PerfilPage() {
           )}
         </Card>
       </div>
+
+      {profile.role !== "admin" ? (
+        <Card className="mt-3">
+          <h2 className="mb-3 text-sm font-bold">Conquistas</h2>
+          <AchievementsList achievements={achievements} earnedKeys={earnedKeys} />
+        </Card>
+      ) : null}
+
+      {profile.role === "cria" ? (
+        <Card className="mt-3">
+          <h2 className="mb-3 text-sm font-bold">Seu humor recente</h2>
+          <StatusSparkline points={statusPoints} />
+        </Card>
+      ) : null}
 
       {profile.role === "cria" ? (
         <Card className="mt-3">

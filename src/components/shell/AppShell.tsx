@@ -8,6 +8,7 @@ import { Avatar } from "@/components/Avatar";
 import { PresenceHeartbeat } from "./PresenceHeartbeat";
 import { ThemeModeToggle } from "@/components/ThemeModeToggle";
 import { PushPermissionBanner } from "@/components/push/PushControl";
+import { DailyLoginBonus } from "@/components/push/DailyLoginBonus";
 
 export type NavItem = {
   /** Ausente quando o item é só um agrupador sem página própria (ex.: "Status Geral"). */
@@ -159,6 +160,7 @@ export function AppShell({
   return (
     <div className="min-h-dvh">
       <PresenceHeartbeat />
+      <DailyLoginBonus />
       {/* topo */}
       <header className="sticky top-0 z-30 border-b border-[var(--line)] bg-[var(--card)]/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">

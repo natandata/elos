@@ -38,6 +38,9 @@ export async function submitStatus(
 
   if (error || !data) return { error: "Não foi possível salvar sua resposta. Tente novamente." };
 
+  // streak de dias seguidos respondendo — some quando pula um dia
+  await supabase.rpc("record_status_streak");
+
   revalidatePath("/app", "layout");
 
   const bad = emotional === "bad" || spiritual === "bad";
