@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AuthPanel } from "@/components/auth/AuthPanel";
 import { LiveCounters } from "@/components/auth/LiveCounters";
+import { ThemeModeToggle } from "@/components/ThemeModeToggle";
 
 export default async function LoginPage({
   searchParams,
@@ -10,7 +11,10 @@ export default async function LoginPage({
   const { next } = await searchParams;
 
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center bg-white px-4 py-10">
+    <main className="relative flex min-h-dvh flex-col items-center justify-center bg-[var(--bg)] px-4 py-10">
+      <div className="absolute right-4 top-4">
+        <ThemeModeToggle />
+      </div>
       <div className="w-full max-w-sm">
         <div className="mb-6 text-center">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--accent)] text-2xl font-black text-[var(--accent-ink)]">
@@ -25,7 +29,7 @@ export default async function LoginPage({
           </div>
         </div>
 
-        <div className="rounded-2xl border border-[var(--line)] bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5 shadow-sm">
           <AuthPanel next={next} />
         </div>
 

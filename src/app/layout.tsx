@@ -67,6 +67,19 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang="pt-BR" data-theme={theme}>
+      <head>
+        {/* Aplica claro/escuro antes da primeira pintura — sem isso, a tela
+            pisca no tema errado por uma fração de segundo a cada carga. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{
+              var m = localStorage.getItem('elos-theme-mode');
+              if (!m) m = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+              document.documentElement.dataset.mode = m;
+            }catch(e){}})();`,
+          }}
+        />
+      </head>
       <body className="min-h-dvh antialiased">
         {children}
         <ServiceWorkerRegistrar />

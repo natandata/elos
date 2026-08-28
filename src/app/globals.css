@@ -53,6 +53,17 @@
   --accent-strong: #991b1b;
 }
 
+/* Modo escuro — independente do data-theme (que só cuida da cor de
+   identidade de cada acesso). Superfícies ficam escuras pros quatro temas;
+   a cor de destaque (--accent e derivadas) não muda, de propósito. */
+[data-mode="dark"] {
+  --bg: #121214;
+  --card: #1c1c1f;
+  --line: #2e2e33;
+  --ink: #f2f2f5;
+  --muted: #9a9aa2;
+}
+
 @theme inline {
   --color-bg: var(--bg);
   --color-card: var(--card);

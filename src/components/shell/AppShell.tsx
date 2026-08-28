@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { signOut } from "@/lib/actions/session";
 import { Avatar } from "@/components/Avatar";
 import { PresenceHeartbeat } from "./PresenceHeartbeat";
+import { ThemeModeToggle } from "@/components/ThemeModeToggle";
 
 export type NavItem = {
   /** Ausente quando o item é só um agrupador sem página própria (ex.: "Status Geral"). */
@@ -180,6 +181,8 @@ export function AppShell({
           </Link>
 
           <div className="ml-auto flex items-center gap-2">
+            <ThemeModeToggle />
+
             <button
               type="button"
               onClick={() => window.location.reload()}
