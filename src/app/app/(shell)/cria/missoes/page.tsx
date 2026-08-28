@@ -24,6 +24,7 @@ type Row = {
     xp: number;
     type: MissionType;
     due_date: string | null;
+    creator: { role: string } | null;
   } | null;
 };
 
@@ -40,7 +41,7 @@ export default async function CriaMissoesPage() {
   const { data, error } = await supabase
     .from("mission_assignments")
     .select(
-      "id, status, submitted_at, approved_at, rejection_reason, missions:mission_id(title, description, xp, type, due_date)",
+      "id, status, submitted_at, approved_at, rejection_reason, missions:mission_id(title, description, xp, type, due_date, creator:created_by(role))",
     )
     .eq("cria_id", profile.id)
     .order("created_at", { ascending: false });
@@ -71,6 +72,11 @@ export default async function CriaMissoesPage() {
                     <Card key={row.id}>
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div className="min-w-0">
+                          {row.missions?.creator?.role === "admin" ? (
+                            <span className="chip mb-1 bg-red-50 font-extrabold uppercase tracking-wide text-red-700">
+                              Missão do Admin
+                            </span>
+                          ) : null}
                           <p className="font-bold">{row.missions?.title ?? "Missão"}</p>
                           <p className="text-xs text-[var(--muted)]">
                             {row.missions ? MISSION_TYPE_LABEL[row.missions.type] : ""} · prazo{" "}

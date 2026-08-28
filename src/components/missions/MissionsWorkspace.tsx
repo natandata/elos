@@ -185,6 +185,9 @@ export async function MissionsWorkspace({ profile }: { profile: Profile }) {
               <div key={a.id} className="card p-4">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
+                    <span className="chip mb-1 bg-red-50 font-extrabold uppercase tracking-wide text-red-700">
+                      Missão do Admin
+                    </span>
                     <p className="font-bold">{a.missions?.title ?? "Missão"}</p>
                     <p className="text-xs text-[var(--muted)]">
                       prazo {formatDate(a.missions?.due_date ?? null)}
