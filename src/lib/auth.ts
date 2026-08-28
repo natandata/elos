@@ -33,12 +33,34 @@ export function homeFor(role: Role): string {
   return "/app/cria";
 }
 
-/** Pesquisa de status: exigida a cada 24h corridas para líderes e crias (não é por dia de calendário). */
+// Brasília é UTC-3 o ano inteiro desde 2019 (sem horário de verão) — dá pra
+// fixar o deslocamento sem precisar de biblioteca de fuso horário.
+const BRASILIA_UTC_OFFSET_HOURS = 3;
+
+/**
+ * Início do "dia" da pesquisa de status: 04:00 no horário de Brasília. Antes
+ * desse horário, ainda conta como o dia anterior (alguém acordado às 2h da
+ * manhã não deveria já cair no dia seguinte).
+ */
+function statusDayCutoffUTC(): Date {
+  const brasiliaNow = new Date(Date.now() - BRASILIA_UTC_OFFSET_HOURS * 3_600_000);
+  const y = brasiliaNow.getUTCFullYear();
+  const m = brasiliaNow.getUTCMonth();
+  const d = brasiliaNow.getUTCDate() - (brasiliaNow.getUTCHours() < 4 ? 1 : 0);
+  const cutoffBrasiliaMs = Date.UTC(y, m, d, 4, 0, 0);
+  return new Date(cutoffBrasiliaMs + BRASILIA_UTC_OFFSET_HOURS * 3_600_000);
+}
+
+/**
+ * Pesquisa de status: reaparece no primeiro login de cada dia, sempre a
+ * partir das 04:00 (horário de Brasília) — não é mais uma janela rolante de
+ * 24h desde a última resposta.
+ */
 export async function needsStatusCheck(profile: Profile): Promise<boolean> {
   if (profile.role === "admin") return false;
 
   const supabase = await createClient();
-  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const cutoff = statusDayCutoffUTC();
 
   const { count } = await supabase
     .from("status_responses")
