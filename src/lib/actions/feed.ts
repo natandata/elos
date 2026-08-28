@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { sendPushToUsers } from "@/lib/push-server";
 
 type Result = { error?: string; ok?: boolean };
 
@@ -43,6 +44,13 @@ export async function createFeedPost(_prev: Result | null, formData: FormData): 
   if (error) return { error: "Não foi possível publicar." };
 
   revalidateFeed();
+
+  const { data: targets } = await supabase.rpc("feed_push_targets", { p_exclude: profile.id });
+  await sendPushToUsers(
+    ((targets ?? []) as { id: string }[]).map((t) => t.id),
+    { title: "Novo post no Feed", body: "Alguém postou uma foto agora — some em 24h.", url: "/app/feed" },
+  );
+
   return { ok: true };
 }
 

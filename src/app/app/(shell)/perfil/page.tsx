@@ -14,6 +14,7 @@ import { UsernameForm } from "./UsernameForm";
 import { AvatarUploader } from "./AvatarUploader";
 import { GuardianDetailsForm } from "./GuardianDetailsForm";
 import { EmailPrefsForm } from "./EmailPrefsForm";
+import { PushToggleCard } from "@/components/push/PushControl";
 import type { CriaProfileDetails } from "@/lib/types";
 
 export default async function PerfilPage() {
@@ -98,6 +99,10 @@ export default async function PerfilPage() {
 
           <div className="mt-4 border-t border-[var(--line)] pt-4">
             <EmailPrefsForm optedIn={profile.email_opt_in} />
+          </div>
+
+          <div className="mt-4 border-t border-[var(--line)] pt-4">
+            <PushToggleCard />
           </div>
 
           <form action={signOut} className="mt-4 border-t border-[var(--line)] pt-4">

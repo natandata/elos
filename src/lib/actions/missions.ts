@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { sendPushToUsers } from "@/lib/push-server";
 import type { MissionType } from "@/lib/types";
 
 type Result = { error?: string; ok?: boolean };
@@ -144,6 +145,15 @@ export async function createMission(_prev: Result | null, formData: FormData): P
   }
 
   revalidateMissions();
+
+  if (profile.role === "admin") {
+    await sendPushToUsers(participants, {
+      title: "Missão do Admin",
+      body: title,
+      url: "/app",
+    });
+  }
+
   return { ok: true };
 }
 

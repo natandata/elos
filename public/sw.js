@@ -76,3 +76,38 @@ self.addEventListener("fetch", (event) => {
 
   // Todo o resto (dados, Server Actions, RSC) passa direto, sem cache.
 });
+
+/**
+ * Notificações push (Web Push). O payload chega em JSON: { title, body, url }.
+ * Aparece mesmo com o app fechado — é isso que diferencia do sino interno.
+ */
+self.addEventListener("push", (event) => {
+  let data = { title: "ELOS", body: "Você tem uma novidade." };
+  try {
+    if (event.data) data = { ...data, ...event.data.json() };
+  } catch {
+    // payload não veio em JSON — mantém o texto genérico.
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      data: { url: data.url || "/app" },
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || "/app";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      for (const client of clients) {
+        if (client.url.includes(url) && "focus" in client) return client.focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(url);
+    }),
+  );
+});

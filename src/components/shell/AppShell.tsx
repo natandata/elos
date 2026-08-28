@@ -7,6 +7,7 @@ import { signOut } from "@/lib/actions/session";
 import { Avatar } from "@/components/Avatar";
 import { PresenceHeartbeat } from "./PresenceHeartbeat";
 import { ThemeModeToggle } from "@/components/ThemeModeToggle";
+import { PushPermissionBanner } from "@/components/push/PushControl";
 
 export type NavItem = {
   /** Ausente quando o item é só um agrupador sem página própria (ex.: "Status Geral"). */
@@ -263,6 +264,7 @@ export function AppShell({
           ) : null}
 
           <div className={pending ? "pointer-events-none select-none opacity-50 grayscale" : ""}>
+            {!pending ? <PushPermissionBanner /> : null}
             {children}
           </div>
         </main>
