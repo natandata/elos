@@ -81,6 +81,42 @@ export async function updateOwnName(
   return { ok: true };
 }
 
+const USERNAME_RE = /^[a-z0-9._]{3,20}$/;
+
+/** Define/edita o @handle na tela de perfil (não existe no cadastro). */
+export async function updateOwnUsername(
+  _prev: { error?: string; ok?: boolean } | null,
+  formData: FormData,
+): Promise<{ error?: string; ok?: boolean }> {
+  const raw = String(formData.get("username") ?? "").trim().toLowerCase();
+
+  if (!raw) return { error: "Informe um @." };
+  if (!USERNAME_RE.test(raw)) {
+    return {
+      error: "Use de 3 a 20 caracteres: letras minúsculas, números, ponto ou underline.",
+    };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/");
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ username: raw })
+    .eq("id", user.id);
+
+  if (error) {
+    if (error.code === "23505") return { error: "Esse @ já está em uso. Escolha outro." };
+    return { error: "Não foi possível salvar." };
+  }
+
+  revalidatePath("/app", "layout");
+  return { ok: true };
+}
+
 /** Liga/desliga o recebimento de e-mails do ELOS (boas-vindas e resumos). */
 export async function updateEmailOptIn(
   _prev: { error?: string; ok?: boolean } | null,

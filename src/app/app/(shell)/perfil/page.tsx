@@ -10,6 +10,7 @@ import {
   formatXp,
 } from "@/lib/types";
 import { NameForm } from "./NameForm";
+import { UsernameForm } from "./UsernameForm";
 import { AvatarUploader } from "./AvatarUploader";
 import { GuardianDetailsForm } from "./GuardianDetailsForm";
 import { EmailPrefsForm } from "./EmailPrefsForm";
@@ -63,6 +64,10 @@ export default async function PerfilPage() {
             firstName={profile.first_name ?? ""}
             lastName={profile.last_name ?? ""}
           />
+
+          <div className="mt-4 border-t border-[var(--line)] pt-4">
+            <UsernameForm username={profile.username} />
+          </div>
 
           <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-[var(--line)] pt-4 text-sm">
             <div>

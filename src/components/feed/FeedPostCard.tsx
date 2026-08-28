@@ -28,6 +28,8 @@ export type FeedPost = {
   createdAt: string;
   authorId: string;
   authorName: string;
+  /** @handle definido no perfil — null se o autor ainda não criou um. */
+  authorUsername: string | null;
   authorAvatar: string | null;
   /** "Líder · Elo Masculino 17" ou null (ex.: admin, que não posta). */
   authorTag: string | null;
@@ -89,11 +91,12 @@ export function FeedPostCard({
       <div className="relative flex items-center gap-3 p-3">
         <Avatar url={post.authorAvatar} name={post.authorName} size={40} />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-bold">{post.authorName}</p>
-          <p className="truncate text-xs text-[var(--muted)]">
-            {post.authorTag ? `${post.authorTag} · ` : ""}
-            {formatDateTime(post.createdAt)}
+          <p className="truncate text-sm font-bold">
+            {post.authorUsername ? `@${post.authorUsername}` : post.authorName}
           </p>
+          {post.authorTag ? (
+            <p className="truncate text-xs text-[var(--muted)]">{post.authorTag}</p>
+          ) : null}
         </div>
 
         {canDeletePost || canEditCaption ? (
@@ -193,31 +196,39 @@ export function FeedPostCard({
         ) : null}
         <Feedback state={deleteState} />
 
-        {canPost ? (
-          <form action={likeAction} className="inline-block">
-            <input type="hidden" name="post_id" value={post.id} />
-            <button
-              type="submit"
-              className={`-ml-1 rounded-full px-2 py-1 text-base font-bold transition active:scale-95 ${post.likedByMe ? "text-red-600" : "text-[var(--muted)]"}`}
-            >
-              {post.likedByMe ? "❤️" : "🤍"} {post.likeCount > 0 ? post.likeCount : ""}
-            </button>
-          </form>
-        ) : post.likeCount > 0 ? (
-          <span className="text-sm text-[var(--muted)]">❤️ {post.likeCount}</span>
-        ) : null}
-        <Feedback state={likeState} />
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center">
+            {canPost ? (
+              <form action={likeAction} className="inline-block">
+                <input type="hidden" name="post_id" value={post.id} />
+                <button
+                  type="submit"
+                  className={`-ml-1 rounded-full px-2 py-1 text-base font-bold transition active:scale-95 ${post.likedByMe ? "text-red-600" : "text-[var(--muted)]"}`}
+                >
+                  {post.likedByMe ? "❤️" : "🤍"} {post.likeCount > 0 ? post.likeCount : ""}
+                </button>
+              </form>
+            ) : post.likeCount > 0 ? (
+              <span className="text-sm text-[var(--muted)]">❤️ {post.likeCount}</span>
+            ) : null}
+            <Feedback state={likeState} />
 
-        <button
-          type="button"
-          onClick={() => setShowComments((v) => !v)}
-          className="ml-1 rounded-full px-2 py-1 text-base font-bold text-[var(--muted)] transition active:scale-95"
-        >
-          💬{" "}
-          <span className="text-sm">
-            {post.comments.length > 0 ? post.comments.length : "Comentar"}
+            <button
+              type="button"
+              onClick={() => setShowComments((v) => !v)}
+              className="ml-1 rounded-full px-2 py-1 text-base font-bold text-[var(--muted)] transition active:scale-95"
+            >
+              💬{" "}
+              <span className="text-sm">
+                {post.comments.length > 0 ? post.comments.length : "Comentar"}
+              </span>
+            </button>
+          </div>
+
+          <span className="shrink-0 text-xs text-[var(--muted)]">
+            {formatDateTime(post.createdAt)}
           </span>
-        </button>
+        </div>
 
         {showComments ? (
           <div className="mt-3 space-y-2 border-t border-[var(--line)] pt-3">

@@ -13,7 +13,14 @@ type PostRow = {
   author_id: string;
 };
 
-type AuthorRow = { id: string; full_name: string; avatar_url: string | null; role: Role; elo_id: string | null };
+type AuthorRow = {
+  id: string;
+  full_name: string;
+  username: string | null;
+  avatar_url: string | null;
+  role: Role;
+  elo_id: string | null;
+};
 
 export default async function FeedPage() {
   const { profile } = await requireRole("admin", "leader", "cria");
@@ -85,6 +92,7 @@ export default async function FeedPage() {
       createdAt: p.created_at,
       authorId: p.author_id,
       authorName: author?.full_name || "Sem nome",
+      authorUsername: author?.username ?? null,
       authorAvatar: author?.avatar_url ?? null,
       authorTag: authorTag(p.author_id),
       likeCount: likes.filter((l) => l.post_id === p.id).length,
