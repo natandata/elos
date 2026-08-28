@@ -1,7 +1,18 @@
 import type { Metadata, Viewport } from "next";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { createClient } from "@/lib/supabase/server";
 import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
+
+// Auto-hospedada pelo Next (sem requisição externa em runtime, sem piscar
+// fonte). Geométrica e arredondada — mais "jovem" que a system font, sem
+// perder legibilidade em tela pequena.
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-app",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "ELOS",
@@ -66,7 +77,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   }
 
   return (
-    <html lang="pt-BR" data-theme={theme}>
+    <html lang="pt-BR" data-theme={theme} className={jakarta.variable}>
       <head>
         {/* Aplica claro/escuro antes da primeira pintura — sem isso, a tela
             pisca no tema errado por uma fração de segundo a cada carga. */}

@@ -87,7 +87,7 @@ export function FeedPostCard({
   return (
     <div className="card overflow-hidden p-0">
       <div className="relative flex items-center gap-3 p-3">
-        <Avatar url={post.authorAvatar} name={post.authorName} size={32} />
+        <Avatar url={post.authorAvatar} name={post.authorName} size={40} />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-bold">{post.authorName}</p>
           <p className="truncate text-xs text-[var(--muted)]">
@@ -189,7 +189,7 @@ export function FeedPostCard({
             </div>
           </form>
         ) : post.caption ? (
-          <p className="mb-2 text-sm">{post.caption}</p>
+          <p className="mb-2.5 text-[15px] leading-relaxed">{post.caption}</p>
         ) : null}
         <Feedback state={deleteState} />
 
@@ -198,7 +198,7 @@ export function FeedPostCard({
             <input type="hidden" name="post_id" value={post.id} />
             <button
               type="submit"
-              className={`text-sm font-semibold ${post.likedByMe ? "text-red-600" : "text-[var(--muted)]"}`}
+              className={`-ml-1 rounded-full px-2 py-1 text-base font-bold transition active:scale-95 ${post.likedByMe ? "text-red-600" : "text-[var(--muted)]"}`}
             >
               {post.likedByMe ? "❤️" : "🤍"} {post.likeCount > 0 ? post.likeCount : ""}
             </button>
@@ -211,9 +211,12 @@ export function FeedPostCard({
         <button
           type="button"
           onClick={() => setShowComments((v) => !v)}
-          className="ml-3 text-sm font-semibold text-[var(--muted)]"
+          className="ml-1 rounded-full px-2 py-1 text-base font-bold text-[var(--muted)] transition active:scale-95"
         >
-          💬 {post.comments.length > 0 ? post.comments.length : "Comentar"}
+          💬{" "}
+          <span className="text-sm">
+            {post.comments.length > 0 ? post.comments.length : "Comentar"}
+          </span>
         </button>
 
         {showComments ? (
