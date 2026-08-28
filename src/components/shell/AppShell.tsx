@@ -91,7 +91,6 @@ export function AppShell({
         // botão de expandir (ex.: "Status Geral", que não existe como página).
         const label = (
           <span className="flex flex-1 items-center gap-2.5 px-3 py-2.5">
-            <span aria-hidden>{item.icon}</span>
             {item.label}
           </span>
         );
