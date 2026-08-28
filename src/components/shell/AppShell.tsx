@@ -79,7 +79,6 @@ export function AppShell({
                     : "text-[var(--muted)] hover:bg-[var(--card)] hover:text-[var(--ink)]"
                 }`}
               >
-                <span aria-hidden>{item.icon}</span>
                 {item.label}
                 <NavBadge count={item.badge ?? 0} />
               </Link>
@@ -144,7 +143,6 @@ export function AppShell({
                           : "text-[var(--muted)] hover:bg-[var(--card)] hover:text-[var(--ink)]"
                       }`}
                     >
-                      <span aria-hidden>{child.icon}</span>
                       {child.label}
                       <NavBadge count={child.badge ?? 0} />
                     </Link>
