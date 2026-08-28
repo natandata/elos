@@ -221,32 +221,39 @@ export function FeedPostCard({
         <Feedback state={pinState} />
 
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center">
+          <div className="flex flex-wrap items-center gap-1.5">
             {canPost ? (
-              <>
-                {REACTION_ORDER.map((kind) => (
+              REACTION_ORDER.map((kind) => {
+                const count = post.reactionCounts.find((r) => r.kind === kind)?.count ?? 0;
+                const active = post.myReaction === kind;
+                return (
                   <form key={kind} action={likeAction} className="inline-block">
                     <input type="hidden" name="post_id" value={post.id} />
                     <input type="hidden" name="kind" value={kind} />
                     <button
                       type="submit"
-                      className={`-ml-1 rounded-full px-1.5 py-1 text-base transition active:scale-95 ${post.myReaction === kind ? "opacity-100" : "opacity-40 grayscale"}`}
+                      className={`flex items-center gap-1 rounded-full border px-2.5 py-1.5 text-base leading-none shadow-sm transition active:scale-90 ${
+                        active
+                          ? "border-[var(--accent)] bg-[var(--accent-soft)]"
+                          : "border-[var(--line)] bg-[var(--bg)] hover:border-[var(--accent)]"
+                      }`}
                       title={REACTION_EMOJI[kind]}
                     >
-                      {REACTION_EMOJI[kind]}
+                      <span>{REACTION_EMOJI[kind]}</span>
+                      {count > 0 ? (
+                        <span
+                          className={`text-xs font-bold tabular-nums ${active ? "text-[var(--accent-strong)]" : "text-[var(--muted)]"}`}
+                        >
+                          {count}
+                        </span>
+                      ) : null}
                     </button>
                   </form>
-                ))}
-                {post.reactionCounts.length > 0 ? (
-                  <span className="ml-1 text-xs text-[var(--muted)]">
-                    {post.reactionCounts.reduce((sum, r) => sum + r.count, 0)}
-                  </span>
-                ) : null}
-              </>
+                );
+              })
             ) : post.reactionCounts.length > 0 ? (
-              <span className="text-sm text-[var(--muted)]">
-                {post.reactionCounts.map((r) => REACTION_EMOJI[r.kind]).join(" ")}{" "}
-                {post.reactionCounts.reduce((sum, r) => sum + r.count, 0)}
+              <span className="flex items-center gap-1.5 rounded-full border border-[var(--line)] bg-[var(--bg)] px-2.5 py-1.5 text-sm text-[var(--muted)]">
+                {post.reactionCounts.map((r) => `${REACTION_EMOJI[r.kind]} ${r.count}`).join("  ")}
               </span>
             ) : null}
             <Feedback state={likeState} />
@@ -254,10 +261,10 @@ export function FeedPostCard({
             <button
               type="button"
               onClick={() => setShowComments((v) => !v)}
-              className="ml-1 rounded-full px-2 py-1 text-base font-bold text-[var(--muted)] transition active:scale-95"
+              className="flex items-center gap-1 rounded-full border border-[var(--line)] bg-[var(--bg)] px-2.5 py-1.5 text-base leading-none shadow-sm transition active:scale-90 hover:border-[var(--accent)]"
             >
               💬{" "}
-              <span className="text-sm">
+              <span className="text-xs font-bold text-[var(--muted)]">
                 {post.comments.length > 0 ? post.comments.length : "Comentar"}
               </span>
             </button>
