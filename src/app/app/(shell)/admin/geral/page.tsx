@@ -1,6 +1,5 @@
 import { Bar, Card, PageHeader } from "@/components/ui";
 import { CleanupOrphansButton } from "./CleanupOrphansButton";
-import { LoginBackgroundManager } from "./LoginBackgroundManager";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -166,12 +165,11 @@ export default async function GeralPage() {
   await requireRole("admin");
   const supabase = await createClient();
 
-  const [healthRes, tableSizesRes, storageDetailRes, trendRes, loginBgRes] = await Promise.all([
+  const [healthRes, tableSizesRes, storageDetailRes, trendRes] = await Promise.all([
     supabase.rpc("admin_platform_health"),
     supabase.rpc("admin_table_sizes"),
     supabase.rpc("admin_storage_detail"),
     supabase.rpc("admin_usage_trend"),
-    supabase.from("login_background_images").select("id, image_path").order("position"),
   ]);
   const { data, error } = healthRes;
   const health = (data ?? null) as Health | null;
@@ -190,13 +188,6 @@ export default async function GeralPage() {
     notifications: number;
     est_weekly_egress: number;
   }[];
-
-  const loginBgRows = (loginBgRes.data ?? []) as { id: string; image_path: string }[];
-  const loginBgItems = loginBgRows.map((r) => ({
-    id: r.id,
-    imagePath: r.image_path,
-    imageUrl: supabase.storage.from("login_bg").getPublicUrl(r.image_path).data.publicUrl,
-  }));
 
   const dbPct = health ? pct(health.db_size_bytes, DB_LIMIT_BYTES) : 0;
   const storagePct = health ? pct(health.storage_bytes, STORAGE_LIMIT_BYTES) : 0;
@@ -252,7 +243,6 @@ export default async function GeralPage() {
                 Arquivos órfãos são limpos automaticamente todo dia às 4h.
               </p>
               <CleanupOrphansButton />
-              <LoginBackgroundManager items={loginBgItems} />
             </Card>
 
             <Card className="md:col-span-2">
