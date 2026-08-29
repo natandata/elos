@@ -65,6 +65,8 @@ export const config = {
     // Fora do proxy: estáticos e os arquivos que o PWA precisa servir sem sessão.
     // Sem isso, /sw.js e /manifest.json seriam redirecionados para o login e a
     // instalação no celular falharia.
-    "/((?!_next/static|_next/image|favicon.ico|manifest.json|sw.js|offline.html|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|webmanifest)$).*)",
+    // /api/cron/* fica fora: são rotinas agendadas, sem sessão de usuário —
+    // elas se autenticam sozinhas pelo CRON_SECRET.
+    "/((?!_next/static|_next/image|favicon.ico|manifest.json|sw.js|offline.html|api/cron|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|webmanifest)$).*)",
   ],
 };
