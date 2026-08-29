@@ -5,20 +5,40 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { createFeedPost } from "@/lib/actions/feed";
+import { createStoryPost } from "@/lib/actions/stories";
 import { addGalleryPost } from "@/lib/actions/gallery";
 import { Feedback, SubmitBtn } from "@/components/forms";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 
-type Destination = "explorar" | "feed" | null;
+type Destination = "explorar" | "story" | "feed" | null;
 
-/** Botão discreto "+" que deixa escolher entre postar no Explorar (24h) ou no Feed (galeria fixa do perfil). */
+const BUCKET_BY_DESTINATION: Record<Exclude<Destination, null>, string> = {
+  explorar: "feed",
+  story: "stories",
+  feed: "profile_gallery",
+};
+
+const TITLE_BY_DESTINATION: Record<Exclude<Destination, null>, string> = {
+  explorar: "Postar no Explorar",
+  story: "Postar Story",
+  feed: "Adicionar ao Feed",
+};
+
+const HINT_BY_DESTINATION: Record<Exclude<Destination, null>, string> = {
+  explorar: "A foto some pra todo mundo depois de 24h.",
+  story: "Some em 24h — visto pelo seu Elo, ou por quem achar você pelo Explorar.",
+  feed: "Fica fixa no seu perfil até você remover.",
+};
+
+/** Botão discreto "+" que deixa escolher o destino: Explorar, Story ou Feed (galeria fixa do perfil). */
 export function FeedComposer({ userId, galleryFull = false }: { userId: string; galleryFull?: boolean }) {
   const router = useRouter();
   const supabase = createClient();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [explorarState, explorarAction] = useActionState(createFeedPost, null);
+  const [storyState, storyAction] = useActionState(createStoryPost, null);
   const [galleryState, galleryAction] = useActionState(addGalleryPost, null);
   const [open, setOpen] = useState(false);
   const [destination, setDestination] = useState<Destination>(null);
@@ -28,7 +48,12 @@ export function FeedComposer({ userId, galleryFull = false }: { userId: string; 
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  const state = destination === "feed" ? galleryState : explorarState;
+  const actionByDestination = {
+    explorar: explorarAction,
+    story: storyAction,
+    feed: galleryAction,
+  } as const;
+  const state = destination ? { explorar: explorarState, story: storyState, feed: galleryState }[destination] : null;
 
   function reset() {
     setDestination(null);
@@ -58,7 +83,7 @@ export function FeedComposer({ userId, galleryFull = false }: { userId: string; 
     setUploading(true);
     const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
     const path = `${userId}/${crypto.randomUUID()}.${ext}`;
-    const bucket = destination === "feed" ? "profile_gallery" : "feed";
+    const bucket = BUCKET_BY_DESTINATION[destination];
 
     const { error } = await supabase.storage.from(bucket).upload(path, file, { contentType: file.type });
 
@@ -70,12 +95,12 @@ export function FeedComposer({ userId, galleryFull = false }: { userId: string; 
   }
 
   useEffect(() => {
-    if (explorarState?.ok || galleryState?.ok) {
+    if (explorarState?.ok || storyState?.ok || galleryState?.ok) {
       closeModal();
       router.refresh();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [explorarState, galleryState]);
+  }, [explorarState, storyState, galleryState]);
 
   return (
     <>
@@ -93,9 +118,7 @@ export function FeedComposer({ userId, galleryFull = false }: { userId: string; 
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="card w-full max-w-sm p-4">
             <div className="mb-3 flex items-center justify-between">
-              <p className="font-bold">
-                {destination === "feed" ? "Adicionar ao Feed" : destination === "explorar" ? "Postar no Explorar" : "Postar"}
-              </p>
+              <p className="font-bold">{destination ? TITLE_BY_DESTINATION[destination] : "Postar"}</p>
               <button type="button" onClick={closeModal} className="text-[var(--muted)]">
                 ✕
               </button>
@@ -110,6 +133,14 @@ export function FeedComposer({ userId, galleryFull = false }: { userId: string; 
                 >
                   <p className="font-bold">Explorar</p>
                   <p className="text-xs text-[var(--muted)]">Visto por todo mundo — some em 24h.</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDestination("story")}
+                  className="w-full rounded-xl border border-[var(--line)] p-3 text-left hover:border-[var(--accent)]"
+                >
+                  <p className="font-bold">Story</p>
+                  <p className="text-xs text-[var(--muted)]">Visto pelo seu Elo na bolinha do Início — some em 24h.</p>
                 </button>
                 {galleryFull ? (
                   <div className="w-full rounded-xl border border-[var(--line)] p-3 text-left opacity-60">
@@ -134,11 +165,7 @@ export function FeedComposer({ userId, galleryFull = false }: { userId: string; 
               </div>
             ) : (
               <>
-                <p className="mb-3 text-xs text-[var(--muted)]">
-                  {destination === "feed"
-                    ? "Fica fixa no seu perfil até você remover."
-                    : "A foto some pra todo mundo depois de 24h."}
-                </p>
+                <p className="mb-3 text-xs text-[var(--muted)]">{HINT_BY_DESTINATION[destination]}</p>
 
                 <input
                   ref={fileRef}
@@ -165,10 +192,7 @@ export function FeedComposer({ userId, galleryFull = false }: { userId: string; 
                 {uploadError ? <p className="mb-2 text-xs text-red-700">{uploadError}</p> : null}
 
                 {imagePath ? (
-                  <form
-                    action={destination === "feed" ? galleryAction : explorarAction}
-                    className="space-y-2"
-                  >
+                  <form action={actionByDestination[destination]} className="space-y-2">
                     <input type="hidden" name="image_path" value={imagePath} />
                     <textarea
                       name="caption"

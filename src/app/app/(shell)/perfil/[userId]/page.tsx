@@ -37,7 +37,7 @@ export default async function VisitProfilePage({
       .eq("user_id", userId)
       .order("created_at", { ascending: false }),
     supabase
-      .from("feed_posts")
+      .from("story_posts")
       .select("id, image_path, caption, created_at")
       .eq("author_id", userId)
       .order("created_at", { ascending: true }),
@@ -68,7 +68,7 @@ export default async function VisitProfilePage({
     created_at: string;
   }[];
   const storySignedUrls = await Promise.all(
-    storyRows.map((s) => supabase.storage.from("feed").createSignedUrl(s.image_path, 3600)),
+    storyRows.map((s) => supabase.storage.from("stories").createSignedUrl(s.image_path, 3600)),
   );
   const stories = storyRows.map((s, i) => ({
     id: s.id,

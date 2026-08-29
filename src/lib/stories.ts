@@ -25,7 +25,7 @@ export async function getEloStoriesTray(
   if (memberList.length === 0) return [];
 
   const { data: posts } = await supabase
-    .from("feed_posts")
+    .from("story_posts")
     .select("id, image_path, caption, created_at, author_id")
     .in(
       "author_id",
@@ -43,7 +43,7 @@ export async function getEloStoriesTray(
   if (rows.length === 0) return [];
 
   const signedUrls = await Promise.all(
-    rows.map((r) => supabase.storage.from("feed").createSignedUrl(r.image_path, 3600)),
+    rows.map((r) => supabase.storage.from("stories").createSignedUrl(r.image_path, 3600)),
   );
 
   const byAuthor = new Map<string, StoryItem[]>();
