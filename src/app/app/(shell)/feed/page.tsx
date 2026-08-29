@@ -2,6 +2,7 @@ import { EmptyState, PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { FeedComposer } from "@/components/feed/FeedComposer";
+import { ProfileSearch } from "@/components/feed/ProfileSearch";
 import { FeedPostCard, type FeedPost } from "@/components/feed/FeedPostCard";
 import { ROLE_LABEL, type Role } from "@/lib/types";
 
@@ -138,6 +139,8 @@ export default async function FeedPage() {
           ) : undefined
         }
       />
+
+      <ProfileSearch />
 
       {feed.length === 0 ? (
         <EmptyState>Nenhuma foto no feed nas últimas 24h.</EmptyState>
