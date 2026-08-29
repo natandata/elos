@@ -117,6 +117,33 @@ export async function updateOwnUsername(
   return { ok: true };
 }
 
+const BIO_MAX = 150;
+
+/** Bio do perfil (estilo Instagram), até 150 caracteres. */
+export async function updateOwnBio(
+  _prev: { error?: string; ok?: boolean } | null,
+  formData: FormData,
+): Promise<{ error?: string; ok?: boolean }> {
+  const bio = String(formData.get("bio") ?? "").trim();
+  if (bio.length > BIO_MAX) return { error: `Máximo de ${BIO_MAX} caracteres.` };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/");
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ bio: bio || null })
+    .eq("id", user.id);
+
+  if (error) return { error: "Não foi possível salvar." };
+
+  revalidatePath("/app", "layout");
+  return { ok: true };
+}
+
 /** Liga/desliga o recebimento de e-mails do ELOS (boas-vindas e resumos). */
 export async function updateEmailOptIn(
   _prev: { error?: string; ok?: boolean } | null,

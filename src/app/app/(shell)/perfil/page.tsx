@@ -12,6 +12,7 @@ import {
 } from "@/lib/types";
 import { NameForm } from "./NameForm";
 import { UsernameForm } from "./UsernameForm";
+import { BioForm } from "./BioForm";
 import { AvatarUploader } from "./AvatarUploader";
 import { GuardianDetailsForm } from "./GuardianDetailsForm";
 import { EmailPrefsForm } from "./EmailPrefsForm";
@@ -114,6 +115,10 @@ export default async function PerfilPage() {
 
           <div className="mt-4 border-t border-[var(--line)] pt-4">
             <UsernameForm username={profile.username} />
+          </div>
+
+          <div className="mt-4 border-t border-[var(--line)] pt-4">
+            <BioForm bio={profile.bio} />
           </div>
 
           <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-[var(--line)] pt-4 text-sm">

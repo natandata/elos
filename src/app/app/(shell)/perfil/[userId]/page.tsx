@@ -16,6 +16,7 @@ type ProfileCard = {
   elo_id: string | null;
   xp: number;
   status_streak: number;
+  bio: string | null;
 };
 
 export default async function VisitProfilePage({
@@ -99,6 +100,10 @@ export default async function VisitProfilePage({
             ) : null}
           </div>
         </div>
+
+        {card.bio ? (
+          <p className="mt-3 whitespace-pre-line text-sm text-[var(--ink)]">{card.bio}</p>
+        ) : null}
 
         {card.role !== "admin" ? (
           <div className="mt-4 grid grid-cols-3 gap-2 border-t border-[var(--line)] pt-4 text-center">

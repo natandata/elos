@@ -18,6 +18,7 @@ export type Profile = {
   first_name: string | null;
   last_name: string | null;
   username: string | null;
+  bio: string | null;
   age_range: AgeRange | null;
   gender: Gender | null;
   role: Role;

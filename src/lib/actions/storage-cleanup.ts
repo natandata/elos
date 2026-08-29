@@ -15,11 +15,17 @@ type OrphanRow = { bucket_id: string; name: string };
  * demais só os próprios arquivos. Roda "de carona" depois de postar, então
  * o acervo se limpa sozinho conforme as pessoas usam o app.
  */
-export async function sweepOrphanFiles(): Promise<{ removed: number }> {
+export async function sweepOrphanFiles(): Promise<{
+  removed: number;
+  found: number;
+  error?: string;
+}> {
   const supabase = await createClient();
-  const { data } = await supabase.rpc("orphan_storage_paths");
+  const { data, error: rpcError } = await supabase.rpc("orphan_storage_paths");
+  if (rpcError) return { removed: 0, found: 0, error: rpcError.message };
+
   const orphans = (data ?? []) as OrphanRow[];
-  if (orphans.length === 0) return { removed: 0 };
+  if (orphans.length === 0) return { removed: 0, found: 0 };
 
   const byBucket = new Map<string, string[]>();
   for (const o of orphans) {
@@ -27,9 +33,14 @@ export async function sweepOrphanFiles(): Promise<{ removed: number }> {
   }
 
   let removed = 0;
+  let firstError: string | undefined;
   for (const [bucket, paths] of byBucket) {
-    const { error } = await supabase.storage.from(bucket).remove(paths);
-    if (!error) removed += paths.length;
+    // `remove` devolve a lista do que REALMENTE saiu — não dá pra assumir
+    // que tudo foi apagado só porque não veio erro (foi o que mascarou a
+    // falha antes: dizia "nenhum órfão" quando na verdade não removeu nada).
+    const { data: deleted, error } = await supabase.storage.from(bucket).remove(paths);
+    if (error) firstError = firstError ?? error.message;
+    removed += deleted?.length ?? 0;
   }
-  return { removed };
+  return { removed, found: orphans.length, error: firstError };
 }

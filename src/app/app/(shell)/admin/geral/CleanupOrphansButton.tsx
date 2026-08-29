@@ -14,12 +14,12 @@ export function CleanupOrphansButton() {
     setBusy(true);
     setResult(null);
     try {
-      const { removed } = await sweepOrphanFiles();
-      setResult(
-        removed === 0
-          ? "Nenhum arquivo órfão encontrado."
-          : `${removed} arquivo(s) removido(s).`,
-      );
+      const { removed, found, error } = await sweepOrphanFiles();
+      if (error) setResult(`Falhou: ${error}`);
+      else if (found === 0) setResult("Nenhum arquivo órfão encontrado.");
+      else if (removed < found)
+        setResult(`${removed} de ${found} removido(s) — o restante não pôde ser apagado.`);
+      else setResult(`${removed} arquivo(s) removido(s).`);
       router.refresh();
     } catch {
       setResult("Não foi possível concluir a limpeza.");
