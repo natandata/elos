@@ -6,6 +6,10 @@ import { createClient } from "@/lib/supabase/client";
 import { addLoginBgImage, deleteLoginBgImage } from "@/lib/actions/login-bg";
 import { Feedback } from "@/components/forms";
 import { compressImage } from "@/lib/imageCompress";
+import { ImageEditorModal } from "@/components/ImageEditorModal";
+
+/** Mesma proporção das miniaturas exibidas aqui e no corredor animado. */
+const ASPECT = 18 / 25;
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_IMAGES = 12;
@@ -40,14 +44,22 @@ export function LoginBackgroundManager({ items }: { items: LoginBgItem[] }) {
   const [uploading, setUploading] = useState(false);
   const [imagePath, setImagePath] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [editingFile, setEditingFile] = useState<File | null>(null);
 
   const full = items.length >= MAX_IMAGES;
 
-  async function handleFile(file: File | null) {
+  function handlePick(file: File | null) {
     setError(null);
     if (!file) return;
     if (!file.type.startsWith("image/")) return setError("Escolha um arquivo de imagem.");
     if (file.size > MAX_BYTES) return setError("A imagem precisa ter no máximo 5 MB.");
+    if (file.type === "image/gif") return handleFile(file); // GIF não passa pelo editor (perderia a animação)
+    setEditingFile(file);
+  }
+
+  async function handleFile(file: File | null) {
+    setError(null);
+    if (!file) return;
 
     setUploading(true);
     const upload = await compressImage(file);
@@ -112,7 +124,10 @@ export function LoginBackgroundManager({ items }: { items: LoginBgItem[] }) {
         type="file"
         accept="image/*"
         className="hidden"
-        onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
+        onChange={(e) => {
+          handlePick(e.target.files?.[0] ?? null);
+          e.target.value = "";
+        }}
       />
       <form ref={formRef} action={action} className="hidden">
         <input type="hidden" name="image_path" value={imagePath} />
@@ -124,6 +139,19 @@ export function LoginBackgroundManager({ items }: { items: LoginBgItem[] }) {
         <p className="mt-2 text-xs text-[var(--muted)]">
           Limite atingido — remova uma foto pra adicionar outra.
         </p>
+      ) : null}
+
+      {editingFile ? (
+        <ImageEditorModal
+          file={editingFile}
+          aspect={ASPECT}
+          onCancel={() => setEditingFile(null)}
+          onApply={(blob) => {
+            const name = editingFile.name.replace(/\.[^.]+$/, "") + ".jpg";
+            setEditingFile(null);
+            handleFile(new File([blob], name, { type: "image/jpeg" }));
+          }}
+        />
       ) : null}
     </div>
   );
