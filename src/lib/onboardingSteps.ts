@@ -20,12 +20,6 @@ export const CRIA_TOUR: TourStep[] = [
     body: "Cada missão aprovada e cada dia respondendo o status rendem XP. Suba de nível e apareça no ranking do seu Elo.",
   },
   {
-    path: "/app/cria",
-    selector: "h1",
-    title: "Status do dia",
-    body: 'Todo dia, depois das 4h da manhã, o app pergunta como você está emocional e espiritualmente. Se marcar "Mal", dá pra pedir uma conversa com seu líder.',
-  },
-  {
     path: "/app/cria/missoes",
     selector: "h1",
     title: "Missões",
