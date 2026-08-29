@@ -303,7 +303,7 @@ export function FeedPostCard({
                   placeholder="Escreva um comentário…"
                   autoComplete="off"
                   required
-                  className="flex-1 rounded-xl border border-[var(--line)] bg-[var(--card)] px-3 py-1.5 text-sm outline-none focus:border-[var(--accent)]"
+                  className="w-full min-w-0 flex-1 rounded-xl border border-[var(--line)] bg-[var(--card)] px-3 py-1.5 outline-none focus:border-[var(--accent)]"
                 />
                 <SubmitBtn className="btn !py-1.5 !text-xs" pendingLabel="Enviando…">
                   Enviar

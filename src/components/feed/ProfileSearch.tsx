@@ -78,7 +78,7 @@ export function ProfileSearch() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Nome ou @usuário"
-              className="input flex-1"
+              className="input min-w-0 flex-1"
             />
             <button type="button" onClick={close} className="text-sm text-[var(--muted)]">
               Cancelar

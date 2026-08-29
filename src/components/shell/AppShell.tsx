@@ -185,30 +185,34 @@ export function AppShell({
       ) : null}
       {/* topo */}
       <header className="sticky top-0 z-30 border-b border-[var(--line)] bg-[var(--card)]/95 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
+        {/* gap e paddings menores no mobile: com 4 botões à direita, o grupo
+            vazava a tela em aparelhos estreitos (320px) e cortava o avatar */}
+        <div className="mx-auto flex max-w-6xl items-center gap-2 px-3 py-3 sm:gap-3 sm:px-4">
           <button
             type="button"
             onClick={() => setMenuOpen(true)}
-            className="rounded-lg border border-[var(--line)] px-2.5 py-1.5 text-sm md:hidden"
+            className="shrink-0 rounded-lg border border-[var(--line)] px-2 py-1.5 text-sm md:hidden"
             aria-label="Abrir menu"
           >
             ☰
           </button>
 
-          <Link href="/app" className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--accent)] text-sm font-black text-[var(--accent-ink)]">
+          <Link href="/app" className="flex min-w-0 items-center gap-2">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--accent)] text-sm font-black text-[var(--accent-ink)]">
               E
             </span>
-            <span className="text-lg font-black tracking-tight">ELOS</span>
+            <span className="hidden truncate text-lg font-black tracking-tight min-[360px]:block">
+              ELOS
+            </span>
           </Link>
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
             <ThemeModeToggle />
 
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="rounded-lg border border-[var(--line)] px-2.5 py-1.5 text-sm text-[var(--muted)] md:hidden"
+              className="rounded-lg border border-[var(--line)] px-2 py-1.5 text-sm text-[var(--muted)] md:hidden"
               aria-label="Recarregar página"
               title="Recarregar página"
             >
@@ -217,7 +221,7 @@ export function AppShell({
 
             <Link
               href="/app/notificacoes"
-              className="relative rounded-lg border border-[var(--line)] px-2.5 py-1.5 text-sm"
+              className="relative rounded-lg border border-[var(--line)] px-2 py-1.5 text-sm"
               aria-label="Notificações"
             >
               🔔

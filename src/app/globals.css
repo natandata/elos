@@ -176,7 +176,7 @@ h1 {
   background: var(--card);
   border-radius: var(--r-control);
   padding: 0.75rem 1rem;
-  font-size: 0.95rem;
+  font-size: 1rem; /* 16px — ver a regra de zoom do iOS mais abaixo */
   color: var(--ink);
   outline: none;
 }
@@ -184,6 +184,18 @@ h1 {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
 }
+/* iOS/Safari dá zoom na página sozinho ao focar um campo com fonte menor
+   que 16px — e NÃO desfaz depois. A pessoa fica presa numa visão ampliada,
+   com o conteúdo cortado nas bordas e a tela arrastando de lado. Era essa a
+   causa da tela "sambando", não excesso de largura. 16px é o mínimo que o
+   Safari aceita sem ampliar. `!important` porque precisa vencer utilitários
+   como `text-sm` aplicados direto no campo. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+textarea,
+select {
+  font-size: 16px !important;
+}
+
 .label {
   display: block;
   font-size: 0.8rem;
