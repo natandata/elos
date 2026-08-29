@@ -3,8 +3,7 @@ import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { FeedComposer } from "@/components/feed/FeedComposer";
 import { ProfileSearch } from "@/components/feed/ProfileSearch";
-import { type FeedPost } from "@/components/feed/FeedPostCard";
-import { FeedGrid } from "@/components/feed/FeedGrid";
+import { FeedPostCard, type FeedPost } from "@/components/feed/FeedPostCard";
 import { ROLE_LABEL, type Role } from "@/lib/types";
 
 const REACTION_KINDS = ["like", "pray", "fire", "clap"];
@@ -146,12 +145,17 @@ export default async function FeedPage() {
       {feed.length === 0 ? (
         <EmptyState>Nenhuma foto no Explorar ainda.</EmptyState>
       ) : (
-        <FeedGrid
-          posts={feed}
-          currentUserId={profile.id}
-          isAdmin={isAdmin}
-          canPost={canInteract}
-        />
+        <div className="space-y-4">
+          {feed.map((post) => (
+            <FeedPostCard
+              key={post.id}
+              post={post}
+              currentUserId={profile.id}
+              isAdmin={isAdmin}
+              canPost={canInteract}
+            />
+          ))}
+        </div>
       )}
     </>
   );
