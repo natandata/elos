@@ -19,13 +19,14 @@ import { PushToggleCard } from "@/components/push/PushControl";
 import { ReplayTourButton } from "./ReplayTourButton";
 import { AchievementsList } from "./AchievementsList";
 import { StatusSparkline } from "./StatusSparkline";
+import { GalleryManager } from "./GalleryManager";
 import type { Achievement, CriaProfileDetails } from "@/lib/types";
 
 export default async function PerfilPage() {
   const { profile } = await requireProfile();
   const supabase = await createClient();
 
-  const [eloRes, txRes, detailsRes, achievementsRes, earnedRes, statusRes] = await Promise.all([
+  const [eloRes, txRes, detailsRes, achievementsRes, earnedRes, statusRes, galleryRes] = await Promise.all([
     profile.elo_id
       ? supabase.from("elos").select("name").eq("id", profile.elo_id).maybeSingle()
       : Promise.resolve({ data: null }),
@@ -48,6 +49,13 @@ export default async function PerfilPage() {
           .order("created_at", { ascending: false })
           .limit(14)
       : Promise.resolve({ data: [] }),
+    profile.role !== "admin"
+      ? supabase
+          .from("profile_gallery_posts")
+          .select("id, image_path, caption")
+          .eq("user_id", profile.id)
+          .order("created_at", { ascending: false })
+      : Promise.resolve({ data: [] }),
   ]);
 
   const eloName = (eloRes.data as { name: string } | null)?.name ?? "Sem Elo";
@@ -68,6 +76,17 @@ export default async function PerfilPage() {
     created_at: string;
   }[];
   const level = levelForXp(profile.xp);
+
+  const galleryRows = (galleryRes.data ?? []) as { id: string; image_path: string; caption: string | null }[];
+  const gallerySignedUrls = await Promise.all(
+    galleryRows.map((g) => supabase.storage.from("profile_gallery").createSignedUrl(g.image_path, 3600)),
+  );
+  const galleryItems = galleryRows.map((g, i) => ({
+    id: g.id,
+    imagePath: g.image_path,
+    imageUrl: gallerySignedUrls[i].data?.signedUrl ?? null,
+    caption: g.caption,
+  }));
 
   return (
     <>
@@ -180,6 +199,12 @@ export default async function PerfilPage() {
           )}
         </Card>
       </div>
+
+      {profile.role !== "admin" ? (
+        <Card className="mt-3">
+          <GalleryManager userId={profile.id} items={galleryItems} />
+        </Card>
+      ) : null}
 
       {profile.role !== "admin" ? (
         <Card className="mt-3">

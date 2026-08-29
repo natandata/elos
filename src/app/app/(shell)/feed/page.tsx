@@ -30,7 +30,7 @@ export default async function FeedPage() {
   const supabase = await createClient();
   const isAdmin = profile.role === "admin";
 
-  const [postsRes, likesRes, commentsRes, elosRes] = await Promise.all([
+  const [postsRes, likesRes, commentsRes, elosRes, galleryCountRes] = await Promise.all([
     supabase
       .from("feed_posts")
       .select("id, image_path, caption, created_at, author_id, pinned_at")
@@ -44,6 +44,12 @@ export default async function FeedPage() {
     // elos é público pra qualquer autenticado (não é por Elo), então dá pra
     // resolver o nome do Elo de qualquer autor, mesmo de fora do meu Elo.
     supabase.from("elos").select("id, name"),
+    isAdmin
+      ? Promise.resolve({ count: 0 })
+      : supabase
+          .from("profile_gallery_posts")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", profile.id),
   ]);
 
   const posts = (postsRes.data ?? []) as PostRow[];
@@ -123,9 +129,13 @@ export default async function FeedPage() {
   return (
     <>
       <PageHeader
-        title="Feed"
+        title="Explorar"
         subtitle="Fotos do ELOS — cada uma some depois de 24h."
-        action={!isAdmin ? <FeedComposer userId={profile.id} /> : undefined}
+        action={
+          !isAdmin ? (
+            <FeedComposer userId={profile.id} galleryFull={(galleryCountRes.count ?? 0) >= 3} />
+          ) : undefined
+        }
       />
 
       {feed.length === 0 ? (

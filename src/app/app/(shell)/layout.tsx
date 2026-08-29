@@ -35,7 +35,7 @@ const NAV: Record<string, NavItem[]> = {
       ],
     },
     { href: "/app/agenda", label: "Agenda", icon: "📅" },
-    { href: "/app/feed", label: "Feed", icon: "📸" },
+    { href: "/app/feed", label: "Explorar", icon: "📸" },
   ],
   leader: [
     { href: "/app/lider", label: "Início", icon: "🏠" },
@@ -43,7 +43,7 @@ const NAV: Record<string, NavItem[]> = {
     { href: "/app/lider/missoes", label: "Missões", icon: "🎯" },
     { href: "/app/agenda", label: "Agenda", icon: "📅" },
     { href: "/app/chat", label: "Chat", icon: "💬" },
-    { href: "/app/feed", label: "Feed", icon: "📸" },
+    { href: "/app/feed", label: "Explorar", icon: "📸" },
     { href: "/app/lider/status-crias", label: "Status Crias", icon: "💛" },
   ],
   cria: [
@@ -52,7 +52,7 @@ const NAV: Record<string, NavItem[]> = {
     { href: "/app/cria/missoes", label: "Missões", icon: "🎯" },
     { href: "/app/agenda", label: "Agenda", icon: "📅" },
     { href: "/app/chat", label: "Chat", icon: "💬" },
-    { href: "/app/feed", label: "Feed", icon: "📸" },
+    { href: "/app/feed", label: "Explorar", icon: "📸" },
   ],
 };
 

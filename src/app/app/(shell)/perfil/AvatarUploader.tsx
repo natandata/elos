@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Avatar } from "@/components/Avatar";
+import { AvatarLightbox } from "@/components/AvatarLightbox";
 import { AvatarCropModal } from "./AvatarCropModal";
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
@@ -79,7 +79,7 @@ export function AvatarUploader({
 
   return (
     <div className="flex items-center gap-4">
-      <Avatar url={url} name={name} size={64} />
+      <AvatarLightbox url={url} name={name} size={64} />
       <div className="min-w-0">
         <input
           ref={fileRef}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import Link from "next/link";
 import {
   addFeedComment,
   deleteFeedComment,
@@ -101,15 +102,17 @@ export function FeedPostCard({
         </div>
       ) : null}
       <div className="relative flex items-center gap-3 p-3">
-        <Avatar url={post.authorAvatar} name={post.authorName} size={40} />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-bold">
-            {post.authorUsername ? `@${post.authorUsername}` : post.authorName}
-          </p>
-          {post.authorTag ? (
-            <p className="truncate text-xs text-[var(--muted)]">{post.authorTag}</p>
-          ) : null}
-        </div>
+        <Link href={`/app/perfil/${post.authorId}`} className="flex min-w-0 flex-1 items-center gap-3">
+          <Avatar url={post.authorAvatar} name={post.authorName} size={40} />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-bold">
+              {post.authorUsername ? `@${post.authorUsername}` : post.authorName}
+            </p>
+            {post.authorTag ? (
+              <p className="truncate text-xs text-[var(--muted)]">{post.authorTag}</p>
+            ) : null}
+          </div>
+        </Link>
 
         {canDeletePost || canEditCaption || post.canPin ? (
           <div className="relative">

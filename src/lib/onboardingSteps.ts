@@ -34,7 +34,7 @@ export const CRIA_TOUR: TourStep[] = [
   {
     path: "/app/feed",
     selector: "[data-tour='feed-composer']",
-    title: "Feed",
+    title: "Explorar",
     body: "Poste fotos vistas por todo mundo da plataforma — cada uma some depois de 24h. Reaja e comente nas dos outros.",
   },
   {
@@ -78,7 +78,7 @@ export const LEADER_TOUR: TourStep[] = [
   {
     path: "/app/feed",
     selector: "[data-tour='feed-composer']",
-    title: "Feed",
+    title: "Explorar",
     body: "Poste fotos vistas por toda a plataforma, e destaque o melhor post da semana do seu Elo pelo menu ⋯ de qualquer post.",
   },
   {

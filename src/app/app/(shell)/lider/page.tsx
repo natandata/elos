@@ -4,6 +4,8 @@ import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { XpBar } from "@/components/XpBar";
 import { HojeNoElos } from "@/components/HojeNoElos";
+import { StoriesTray } from "@/components/profile/StoriesTray";
+import { getEloStoriesTray } from "@/lib/stories";
 import {
   STATUS_LABEL,
   STATUS_TONE,
@@ -122,6 +124,7 @@ export default async function LiderDashboard() {
     return hasBadStatus(s) && !resolvedIds.has(s!.id);
   });
 
+  const storiesTray = await getEloStoriesTray(supabase, profile.elo_id);
   const lastSeenAt = (presenceRes.data as { last_seen_at: string } | null)?.last_seen_at ?? null;
   const daysSinceLastVisit = lastSeenAt
     ? Math.floor((Date.now() - new Date(lastSeenAt).getTime()) / 86_400_000)
@@ -137,6 +140,8 @@ export default async function LiderDashboard() {
         title={`Olá, ${(profile.full_name || "Líder").split(" ")[0]}!`}
         subtitle={`${eloName} · ${crias.length} cria(s) sob sua responsabilidade.`}
       />
+
+      <StoriesTray entries={storiesTray} myUserId={profile.id} />
 
       <HojeNoElos
         daysSinceLastVisit={daysSinceLastVisit}

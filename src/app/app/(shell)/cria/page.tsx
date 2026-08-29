@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { CriaCareMeetingCard } from "@/components/care/CriaCareMeetingCard";
 import { XpBar } from "@/components/XpBar";
 import { HojeNoElos } from "@/components/HojeNoElos";
+import { StoriesTray } from "@/components/profile/StoriesTray";
+import { getEloStoriesTray } from "@/lib/stories";
 import { formatDate, formatXp, type CareMeeting } from "@/lib/types";
 
 export default async function CriaDashboard() {
@@ -77,6 +79,7 @@ export default async function CriaDashboard() {
   const position = ranking.findIndex((r) => r.id === profile.id) + 1;
   const eloName = (eloRes.data as { name: string } | null)?.name ?? "Sem Elo";
   const meetings = (meetingsRes.data ?? []) as CareMeeting[];
+  const storiesTray = await getEloStoriesTray(supabase, profile.elo_id);
 
   const lastSeenAt = (presenceRes.data as { last_seen_at: string } | null)?.last_seen_at ?? null;
   const daysSinceLastVisit = lastSeenAt
@@ -90,6 +93,8 @@ export default async function CriaDashboard() {
   return (
     <>
       <PageHeader title={`Olá, ${(profile.full_name || "Cria").split(" ")[0]}!`} subtitle={eloName} />
+
+      <StoriesTray entries={storiesTray} myUserId={profile.id} />
 
       <HojeNoElos
         daysSinceLastVisit={daysSinceLastVisit}
