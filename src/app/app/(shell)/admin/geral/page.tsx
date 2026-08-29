@@ -165,10 +165,11 @@ export default async function GeralPage() {
   await requireRole("admin");
   const supabase = await createClient();
 
-  const [healthRes, tableSizesRes, storageDetailRes] = await Promise.all([
+  const [healthRes, tableSizesRes, storageDetailRes, trendRes] = await Promise.all([
     supabase.rpc("admin_platform_health"),
     supabase.rpc("admin_table_sizes"),
     supabase.rpc("admin_storage_detail"),
+    supabase.rpc("admin_usage_trend"),
   ]);
   const { data, error } = healthRes;
   const health = (data ?? null) as Health | null;
@@ -178,6 +179,15 @@ export default async function GeralPage() {
     buckets: { bucket_id: string; count: number; bytes: number }[];
     by_type: { bucket_id: string; mimetype: string; count: number; bytes: number }[];
   } | null;
+
+  const trend = (trendRes.data ?? []) as {
+    taken_on: string;
+    db_bytes: number;
+    storage_bytes: number;
+    users: number;
+    notifications: number;
+    est_weekly_egress: number;
+  }[];
 
   const dbPct = health ? pct(health.db_size_bytes, DB_LIMIT_BYTES) : 0;
   const storagePct = health ? pct(health.storage_bytes, STORAGE_LIMIT_BYTES) : 0;
@@ -229,7 +239,56 @@ export default async function GeralPage() {
                 <Bar value={health.storage_bytes} total={STORAGE_LIMIT_BYTES} />
               </div>
               <p className="mt-1 text-xs text-[var(--muted)]">{storagePct}% usado</p>
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                Arquivos órfãos são limpos automaticamente todo dia às 4h.
+              </p>
               <CleanupOrphansButton />
+            </Card>
+
+            <Card className="md:col-span-2">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-bold">Consumo semana a semana</p>
+                <span className="text-xs text-[var(--muted)]">medido toda segunda</span>
+              </div>
+              {trend.length === 0 ? (
+                <p className="mt-2 text-xs text-[var(--muted)]">
+                  Primeira medição ainda não foi registrada.
+                </p>
+              ) : (
+                <div className="mt-3 overflow-x-auto">
+                  <table className="w-full min-w-[420px] text-sm">
+                    <thead>
+                      <tr className="text-left text-xs text-[var(--muted)]">
+                        <th className="pb-1 font-semibold">Data</th>
+                        <th className="pb-1 font-semibold">Usuários</th>
+                        <th className="pb-1 font-semibold">Banco</th>
+                        <th className="pb-1 font-semibold">Arquivos</th>
+                        <th className="pb-1 font-semibold">Tráfego/sem. (est.)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {trend.map((s) => (
+                        <tr key={s.taken_on} className="border-t border-[var(--line)]">
+                          <td className="py-1.5 tabular-nums">
+                            {s.taken_on.slice(8, 10)}/{s.taken_on.slice(5, 7)}
+                          </td>
+                          <td className="py-1.5 tabular-nums">{s.users}</td>
+                          <td className="py-1.5 tabular-nums">{formatBytes(s.db_bytes)}</td>
+                          <td className="py-1.5 tabular-nums">{formatBytes(s.storage_bytes)}</td>
+                          <td className="py-1.5 tabular-nums">
+                            {formatBytes(s.est_weekly_egress)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <p className="mt-2 text-xs text-[var(--muted)]">
+                O tráfego é uma <strong>estimativa</strong> (peso das fotos ativas × usuários),
+                útil pra comparar semanas. O número oficial fica no painel do Supabase — o limite
+                do plano Free é 5 GB por mês.
+              </p>
             </Card>
 
             <Card className="md:col-span-2">
