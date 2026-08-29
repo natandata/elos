@@ -13,6 +13,7 @@ import {
 import { NameForm } from "./NameForm";
 import { UsernameForm } from "./UsernameForm";
 import { BioForm } from "./BioForm";
+import { stableSignedUrls } from "@/lib/signedUrls";
 import { AvatarUploader } from "./AvatarUploader";
 import { GuardianDetailsForm } from "./GuardianDetailsForm";
 import { EmailPrefsForm } from "./EmailPrefsForm";
@@ -82,13 +83,15 @@ export default async function PerfilPage() {
   const level = levelForXp(profile.xp);
 
   const galleryRows = (galleryRes.data ?? []) as { id: string; image_path: string; caption: string | null }[];
-  const gallerySignedUrls = await Promise.all(
-    galleryRows.map((g) => supabase.storage.from("profile_gallery").createSignedUrl(g.image_path, 3600)),
+  const galleryUrls = await stableSignedUrls(
+    supabase,
+    "profile_gallery",
+    galleryRows.map((g) => g.image_path),
   );
-  const galleryItems = galleryRows.map((g, i) => ({
+  const galleryItems = galleryRows.map((g) => ({
     id: g.id,
     imagePath: g.image_path,
-    imageUrl: gallerySignedUrls[i].data?.signedUrl ?? null,
+    imageUrl: galleryUrls.get(g.image_path) ?? null,
     caption: g.caption,
   }));
 

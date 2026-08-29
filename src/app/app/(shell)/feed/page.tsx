@@ -5,6 +5,7 @@ import { FeedComposer } from "@/components/feed/FeedComposer";
 import { ProfileSearch } from "@/components/feed/ProfileSearch";
 import { FeedPostCard, type FeedPost } from "@/components/feed/FeedPostCard";
 import { ROLE_LABEL, type Role } from "@/lib/types";
+import { stableSignedUrls } from "@/lib/signedUrls";
 
 const REACTION_KINDS = ["like", "pray", "fire", "clap"];
 
@@ -86,13 +87,9 @@ export default async function FeedPage() {
     return `${ROLE_LABEL[a.role]}${eloName ? ` · ${eloName}` : ""}`;
   }
 
-  // URLs assinadas de curta duração — só geradas pra posts ainda visíveis (RLS já garante isso).
-  const signedUrls = await Promise.all(
-    posts.map((p) => supabase.storage.from("feed").createSignedUrl(p.image_path, 3600)),
-  );
-  const urlByPath = new Map(
-    posts.map((p, i) => [p.image_path, signedUrls[i].data?.signedUrl ?? null]),
-  );
+  // URLs estáveis por 6h: a mesma URL entre visitas deixa o navegador
+  // reaproveitar a imagem do cache em vez de rebaixar tudo toda vez.
+  const urlByPath = await stableSignedUrls(supabase, "feed", posts.map((p) => p.image_path));
 
   const feed: FeedPost[] = posts.map((p) => {
     const author = authorById.get(p.author_id);

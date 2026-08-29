@@ -6,6 +6,7 @@ import { AvatarLightbox } from "@/components/AvatarLightbox";
 import { ImageLightbox } from "@/components/ImageLightbox";
 import { ROLE_LABEL, formatXp, levelForXp, type Role } from "@/lib/types";
 import { ProfileStoryRing } from "@/components/profile/ProfileStoryRing";
+import { stableSignedUrls } from "@/lib/signedUrls";
 
 type ProfileCard = {
   id: string;
@@ -54,12 +55,14 @@ export default async function VisitProfilePage({
   const eloName = (eloRes?.data as { name: string } | null)?.name ?? null;
 
   const galleryRows = (galleryRes.data ?? []) as { id: string; image_path: string; caption: string | null }[];
-  const gallerySignedUrls = await Promise.all(
-    galleryRows.map((g) => supabase.storage.from("profile_gallery").createSignedUrl(g.image_path, 3600)),
+  const galleryUrls = await stableSignedUrls(
+    supabase,
+    "profile_gallery",
+    galleryRows.map((g) => g.image_path),
   );
-  const galleryItems = galleryRows.map((g, i) => ({
+  const galleryItems = galleryRows.map((g) => ({
     id: g.id,
-    imageUrl: gallerySignedUrls[i].data?.signedUrl ?? null,
+    imageUrl: galleryUrls.get(g.image_path) ?? null,
     caption: g.caption,
   }));
 
@@ -69,12 +72,10 @@ export default async function VisitProfilePage({
     caption: string | null;
     created_at: string;
   }[];
-  const storySignedUrls = await Promise.all(
-    storyRows.map((s) => supabase.storage.from("stories").createSignedUrl(s.image_path, 3600)),
-  );
-  const stories = storyRows.map((s, i) => ({
+  const storyUrls = await stableSignedUrls(supabase, "stories", storyRows.map((s) => s.image_path));
+  const stories = storyRows.map((s) => ({
     id: s.id,
-    imageUrl: storySignedUrls[i].data?.signedUrl ?? null,
+    imageUrl: storyUrls.get(s.image_path) ?? null,
     caption: s.caption,
     createdAt: s.created_at,
   }));

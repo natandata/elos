@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { StoryItem } from "@/components/profile/StoryViewer";
+import { stableSignedUrls } from "@/lib/signedUrls";
 
 export type StoryTrayEntry = {
   userId: string;
@@ -42,16 +43,14 @@ export async function getEloStoriesTray(
   }[];
   if (rows.length === 0) return [];
 
-  const signedUrls = await Promise.all(
-    rows.map((r) => supabase.storage.from("stories").createSignedUrl(r.image_path, 3600)),
-  );
+  const urlByPath = await stableSignedUrls(supabase, "stories", rows.map((r) => r.image_path));
 
   const byAuthor = new Map<string, StoryItem[]>();
-  rows.forEach((r, i) => {
+  rows.forEach((r) => {
     const list = byAuthor.get(r.author_id) ?? [];
     list.push({
       id: r.id,
-      imageUrl: signedUrls[i].data?.signedUrl ?? null,
+      imageUrl: urlByPath.get(r.image_path) ?? null,
       caption: r.caption,
       createdAt: r.created_at,
       imagePath: r.image_path,
