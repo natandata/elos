@@ -210,7 +210,10 @@ export function formatDate(value: string | null): string {
 
 export function formatDateTime(value: string | null): string {
   if (!value) return "—";
+  // Server roda em UTC (Vercel) — sem fixar o fuso, a hora sai errada pra
+  // quem está no Brasil (aparecia ~3h adiantada).
   return new Date(value).toLocaleString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -221,8 +224,11 @@ export function formatDateTime(value: string | null): string {
 
 export function relativeDay(value: string | null): string {
   if (!value) return "Nunca";
-  const then = new Date(value);
-  const today = new Date();
+  // Mesmo truque do horário: desloca pro fuso de Brasília antes de extrair
+  // ano/mês/dia, já que o server (Vercel) roda em UTC.
+  const BR_OFFSET_MS = 3 * 3_600_000;
+  const then = new Date(new Date(value).getTime() - BR_OFFSET_MS);
+  const today = new Date(Date.now() - BR_OFFSET_MS);
   const days = Math.floor(
     (new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime() -
       new Date(then.getFullYear(), then.getMonth(), then.getDate()).getTime()) /
