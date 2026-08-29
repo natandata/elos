@@ -3,7 +3,8 @@ import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { FeedComposer } from "@/components/feed/FeedComposer";
 import { ProfileSearch } from "@/components/feed/ProfileSearch";
-import { FeedPostCard, type FeedPost } from "@/components/feed/FeedPostCard";
+import { type FeedPost } from "@/components/feed/FeedPostCard";
+import { FeedGrid } from "@/components/feed/FeedGrid";
 import { ROLE_LABEL, type Role } from "@/lib/types";
 
 const REACTION_KINDS = ["like", "pray", "fire", "clap"];
@@ -132,7 +133,7 @@ export default async function FeedPage() {
     <>
       <PageHeader
         title="Explorar"
-        subtitle="Fotos do ELOS — cada uma some depois de 24h."
+        subtitle="As 9 fotos mais recentes do ELOS."
         action={
           canInteract ? (
             <FeedComposer userId={profile.id} galleryFull={(galleryCountRes.count ?? 0) >= 3} />
@@ -143,19 +144,14 @@ export default async function FeedPage() {
       <ProfileSearch />
 
       {feed.length === 0 ? (
-        <EmptyState>Nenhuma foto no feed nas últimas 24h.</EmptyState>
+        <EmptyState>Nenhuma foto no Explorar ainda.</EmptyState>
       ) : (
-        <div className="space-y-4">
-          {feed.map((post) => (
-            <FeedPostCard
-              key={post.id}
-              post={post}
-              currentUserId={profile.id}
-              isAdmin={isAdmin}
-              canPost={canInteract}
-            />
-          ))}
-        </div>
+        <FeedGrid
+          posts={feed}
+          currentUserId={profile.id}
+          isAdmin={isAdmin}
+          canPost={canInteract}
+        />
       )}
     </>
   );

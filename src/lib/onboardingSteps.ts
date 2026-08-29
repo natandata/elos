@@ -35,7 +35,7 @@ export const CRIA_TOUR: TourStep[] = [
     path: "/app/feed",
     selector: "[data-tour='feed-composer']",
     title: "Explorar",
-    body: "Poste fotos vistas por todo mundo da plataforma — cada uma some depois de 24h. Reaja e comente nas dos outros.",
+    body: "Poste fotos vistas por todo mundo da plataforma. Só as 9 mais recentes ficam no Explorar — a cada foto nova, a mais antiga sai. Reaja e comente nas dos outros.",
   },
   {
     path: "/app/perfil",

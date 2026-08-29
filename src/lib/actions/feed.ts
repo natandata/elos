@@ -37,11 +37,23 @@ export async function createFeedPost(_prev: Result | null, formData: FormData): 
   const caption = String(formData.get("caption") ?? "").trim() || null;
   if (!imagePath) return { error: "Envie uma foto." };
 
+  // paths antes de inserir: o que sumir dessa lista depois é a foto que
+  // saiu do Explorar pra abrir vaga (o trigger mantém só as 9 mais recentes)
+  const { data: before } = await supabase.from("feed_posts").select("image_path");
+
   const { error } = await supabase
     .from("feed_posts")
     .insert({ author_id: profile.id, image_path: imagePath, caption });
 
   if (error) return { error: "Não foi possível publicar." };
+
+  // O Storage não aceita delete por SQL, então a limpeza do arquivo é aqui.
+  const { data: after } = await supabase.from("feed_posts").select("image_path");
+  const stillThere = new Set(((after ?? []) as { image_path: string }[]).map((p) => p.image_path));
+  const dropped = ((before ?? []) as { image_path: string }[])
+    .map((p) => p.image_path)
+    .filter((p) => !stillThere.has(p));
+  if (dropped.length > 0) await supabase.storage.from("feed").remove(dropped);
 
   revalidateFeed();
   await supabase.rpc("check_and_grant_achievements", { p_user: profile.id });
@@ -49,7 +61,7 @@ export async function createFeedPost(_prev: Result | null, formData: FormData): 
   const { data: targets } = await supabase.rpc("feed_push_targets", { p_exclude: profile.id });
   await sendPushToUsers(
     ((targets ?? []) as { id: string }[]).map((t) => t.id),
-    { title: "Novo post no Feed", body: "Alguém postou uma foto agora — some em 24h.", url: "/app/feed" },
+    { title: "Novo post no Explorar", body: "Alguém acabou de postar uma foto.", url: "/app/feed" },
   );
 
   return { ok: true };
