@@ -1,4 +1,4 @@
-export type Role = "admin" | "leader" | "cria";
+export type Role = "admin" | "leader" | "cria" | "guardian";
 export type Gender = "male" | "female";
 export type AgeRange = "12-14" | "15-16" | "17";
 export type StatusLevel = "bad" | "ok" | "good";
@@ -163,6 +163,7 @@ export const ROLE_LABEL: Record<Role, string> = {
   admin: "Admin",
   leader: "Líder",
   cria: "Cria",
+  guardian: "Responsável",
 };
 
 export const STATUS_LABEL: Record<StatusLevel, string> = {

@@ -10,6 +10,8 @@ const AGES: AgeRange[] = ["12-14", "15-16", "17"];
 export function NewUserForm() {
   const [state, action] = useActionState(createUser, null);
   const [open, setOpen] = useState(false);
+  const [role, setRole] = useState<Role>("cria");
+  const isGuardian = role === "guardian";
 
   return (
     <div className="card mb-4 p-4">
@@ -68,36 +70,17 @@ export function NewUserForm() {
           </div>
 
           <div>
-            <label className="label" htmlFor="new_gender">
-              Gênero
-            </label>
-            <select id="new_gender" name="gender" className="input" defaultValue="" required>
-              <option value="">Selecione</option>
-              <option value="male">Masculino</option>
-              <option value="female">Feminino</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="label" htmlFor="new_age">
-              Faixa etária
-            </label>
-            <select id="new_age" name="age_range" className="input" defaultValue="" required>
-              <option value="">Selecione</option>
-              {AGES.map((a) => (
-                <option key={a} value={a}>
-                  {AGE_RANGE_LABEL[a]}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
             <label className="label" htmlFor="new_role">
               Perfil
             </label>
-            <select id="new_role" name="role" className="input" defaultValue="cria">
-              {(["cria", "leader", "admin"] as Role[]).map((r) => (
+            <select
+              id="new_role"
+              name="role"
+              className="input"
+              value={role}
+              onChange={(e) => setRole(e.target.value as Role)}
+            >
+              {(["cria", "leader", "admin", "guardian"] as Role[]).map((r) => (
                 <option key={r} value={r}>
                   {ROLE_LABEL[r]}
                 </option>
@@ -105,9 +88,40 @@ export function NewUserForm() {
             </select>
           </div>
 
+          {!isGuardian ? (
+            <>
+              <div>
+                <label className="label" htmlFor="new_gender">
+                  Gênero
+                </label>
+                <select id="new_gender" name="gender" className="input" defaultValue="" required>
+                  <option value="">Selecione</option>
+                  <option value="male">Masculino</option>
+                  <option value="female">Feminino</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="label" htmlFor="new_age">
+                  Faixa etária
+                </label>
+                <select id="new_age" name="age_range" className="input" defaultValue="" required>
+                  <option value="">Selecione</option>
+                  {AGES.map((a) => (
+                    <option key={a} value={a}>
+                      {AGE_RANGE_LABEL[a]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          ) : null}
+
           <p className="text-xs text-[var(--muted)] sm:col-span-2">
-            O Elo é definido automaticamente pelo gênero e pela faixa etária. Anote a senha inicial:
-            ela não fica visível depois.
+            {isGuardian
+              ? "Responsável tem acesso só-leitura: Explorar, Ranking Geral de Crias e Agenda."
+              : "O Elo é definido automaticamente pelo gênero e pela faixa etária."}{" "}
+            Anote a senha inicial: ela não fica visível depois.
           </p>
 
           <div className="sm:col-span-2">

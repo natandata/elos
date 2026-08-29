@@ -43,6 +43,20 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Responsável (pai/mãe): acesso só-leitura, restrito a Explorar, Ranking
+  // Geral de Crias e Agenda — reforçado aqui (não só escondendo do menu),
+  // pra digitar a URL na mão não adiantar nada.
+  if (user && path.startsWith("/app")) {
+    const GUARDIAN_ALLOWED = ["/app", "/app/feed", "/app/ranking-crias", "/app/agenda", "/app/perfil", "/app/notificacoes"];
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+    if (profile?.role === "guardian" && !GUARDIAN_ALLOWED.some((p) => path === p || path.startsWith(p + "/"))) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/app/feed";
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
+  }
+
   return response;
 }
 

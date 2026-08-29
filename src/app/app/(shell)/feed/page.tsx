@@ -26,9 +26,10 @@ type AuthorRow = {
 };
 
 export default async function FeedPage() {
-  const { profile } = await requireRole("admin", "leader", "cria");
+  const { profile } = await requireRole("admin", "leader", "cria", "guardian");
   const supabase = await createClient();
   const isAdmin = profile.role === "admin";
+  const canInteract = profile.role === "leader" || profile.role === "cria";
 
   const [postsRes, likesRes, commentsRes, elosRes, galleryCountRes] = await Promise.all([
     supabase
@@ -44,12 +45,12 @@ export default async function FeedPage() {
     // elos é público pra qualquer autenticado (não é por Elo), então dá pra
     // resolver o nome do Elo de qualquer autor, mesmo de fora do meu Elo.
     supabase.from("elos").select("id, name"),
-    isAdmin
-      ? Promise.resolve({ count: 0 })
-      : supabase
+    canInteract
+      ? supabase
           .from("profile_gallery_posts")
           .select("id", { count: "exact", head: true })
-          .eq("user_id", profile.id),
+          .eq("user_id", profile.id)
+      : Promise.resolve({ count: 0 }),
   ]);
 
   const posts = (postsRes.data ?? []) as PostRow[];
@@ -132,7 +133,7 @@ export default async function FeedPage() {
         title="Explorar"
         subtitle="Fotos do ELOS — cada uma some depois de 24h."
         action={
-          !isAdmin ? (
+          canInteract ? (
             <FeedComposer userId={profile.id} galleryFull={(galleryCountRes.count ?? 0) >= 3} />
           ) : undefined
         }
@@ -148,7 +149,7 @@ export default async function FeedPage() {
               post={post}
               currentUserId={profile.id}
               isAdmin={isAdmin}
-              canPost={!isAdmin}
+              canPost={canInteract}
             />
           ))}
         </div>

@@ -41,3 +41,42 @@ export async function createStoryPost(_prev: Result | null, formData: FormData):
   revalidatePath("/app", "layout");
   return { ok: true };
 }
+
+export async function updateStoryCaption(_prev: Result | null, formData: FormData): Promise<Result> {
+  const { supabase, profile } = await currentProfile();
+  const id = String(formData.get("id") ?? "");
+  const caption = String(formData.get("caption") ?? "").trim() || null;
+  if (!id) return { error: "Story inválido." };
+  if (caption && caption.length > 280) return { error: "Legenda muito longa." };
+
+  const { error } = await supabase
+    .from("story_posts")
+    .update({ caption })
+    .eq("id", id)
+    .eq("author_id", profile.id);
+
+  if (error) return { error: "Não foi possível salvar." };
+
+  revalidatePath("/app", "layout");
+  return { ok: true };
+}
+
+export async function deleteStoryPost(_prev: Result | null, formData: FormData): Promise<Result> {
+  const { supabase, profile } = await currentProfile();
+  const id = String(formData.get("id") ?? "");
+  const imagePath = String(formData.get("image_path") ?? "");
+  if (!id) return { error: "Story inválido." };
+
+  const { error } = await supabase
+    .from("story_posts")
+    .delete()
+    .eq("id", id)
+    .eq(profile.role === "admin" ? "id" : "author_id", profile.role === "admin" ? id : profile.id);
+
+  if (error) return { error: "Não foi possível excluir." };
+
+  if (imagePath) await supabase.storage.from("stories").remove([imagePath]);
+
+  revalidatePath("/app", "layout");
+  return { ok: true };
+}

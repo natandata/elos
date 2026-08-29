@@ -49,7 +49,7 @@ export function AppShell({
   avatarUrl?: string | null;
   unread: number;
   pending?: boolean;
-  role?: "admin" | "leader" | "cria";
+  role?: "admin" | "leader" | "cria" | "guardian";
   showOnboarding?: boolean;
   children: React.ReactNode;
 }) {

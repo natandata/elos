@@ -54,13 +54,23 @@ const NAV: Record<string, NavItem[]> = {
     { href: "/app/chat", label: "Chat", icon: "💬" },
     { href: "/app/feed", label: "Explorar", icon: "📸" },
   ],
+  guardian: [
+    { href: "/app/feed", label: "Explorar", icon: "📸" },
+    { href: "/app/ranking-crias", label: "Ranking Geral de Crias", icon: "🏆" },
+    { href: "/app/agenda", label: "Agenda", icon: "📅" },
+  ],
 };
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { profile } = await requireProfile();
 
   // Google Auth não traz gênero/idade: completa o cadastro antes de seguir.
-  if (profile.role !== "admin" && (!profile.gender || !profile.age_range)) {
+  // Responsável nunca tem gênero/idade/Elo — não se aplica a ele.
+  if (
+    profile.role !== "admin" &&
+    profile.role !== "guardian" &&
+    (!profile.gender || !profile.age_range)
+  ) {
     redirect("/app/completar-perfil");
   }
 

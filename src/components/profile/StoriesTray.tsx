@@ -37,7 +37,12 @@ export function StoriesTray({ entries, myUserId }: { entries: StoryTrayEntry[]; 
       ))}
 
       {active ? (
-        <StoryViewer stories={active.stories} authorName={active.name} onClose={() => setOpenIndex(null)} />
+        <StoryViewer
+          stories={active.stories}
+          authorName={active.name}
+          canManage={active.userId === myUserId}
+          onClose={() => setOpenIndex(null)}
+        />
       ) : null}
     </div>
   );

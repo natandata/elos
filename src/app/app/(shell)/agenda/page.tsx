@@ -64,11 +64,17 @@ export default async function AgendaPage() {
       {event.description ? (
         <p className="mt-2 text-sm text-[var(--muted)]">{event.description}</p>
       ) : null}
-      <EventCheckIn
-        eventId={event.id}
-        checkedIn={myCheckIns.has(event.id)}
-        count={profile.role !== "cria" ? countByEvent.get(event.id) ?? 0 : undefined}
-      />
+      {profile.role !== "guardian" ? (
+        <EventCheckIn
+          eventId={event.id}
+          checkedIn={myCheckIns.has(event.id)}
+          count={profile.role !== "cria" ? countByEvent.get(event.id) ?? 0 : undefined}
+        />
+      ) : countByEvent.get(event.id) ? (
+        <p className="mt-2 text-xs text-[var(--muted)]">
+          {countByEvent.get(event.id)} confirmado(s)
+        </p>
+      ) : null}
       {isAdmin ? <EventAdminControls event={event} elos={elos} /> : null}
     </Card>
   );

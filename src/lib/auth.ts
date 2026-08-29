@@ -30,6 +30,7 @@ export async function requireRole(...roles: Role[]): Promise<{ profile: Profile 
 export function homeFor(role: Role): string {
   if (role === "admin") return "/app/admin";
   if (role === "leader") return "/app/lider";
+  if (role === "guardian") return "/app/feed";
   return "/app/cria";
 }
 
@@ -57,7 +58,7 @@ function statusDayCutoffUTC(): Date {
  * 24h desde a última resposta.
  */
 export async function needsStatusCheck(profile: Profile): Promise<boolean> {
-  if (profile.role === "admin") return false;
+  if (profile.role === "admin" || profile.role === "guardian") return false;
 
   const supabase = await createClient();
   const cutoff = statusDayCutoffUTC();

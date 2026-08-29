@@ -8,7 +8,7 @@ import type { AgeRange, Gender, Role } from "@/lib/types";
 
 type Result = { error?: string; ok?: boolean };
 
-const ROLES: Role[] = ["admin", "leader", "cria"];
+const ROLES: Role[] = ["admin", "leader", "cria", "guardian"];
 const AGES: AgeRange[] = ["12-14", "15-16", "17"];
 const GENDERS: Gender[] = ["male", "female"];
 
@@ -89,9 +89,12 @@ export async function createUser(_prev: Result | null, formData: FormData): Prom
   if (!lastName) return { error: "Informe o sobrenome." };
   if (!email) return { error: "Informe o e-mail." };
   if (password.length < 6) return { error: "A senha precisa ter ao menos 6 caracteres." };
-  if (!GENDERS.includes(gender)) return { error: "Selecione o gênero." };
-  if (!AGES.includes(ageRange)) return { error: "Selecione a faixa etária." };
   if (!ROLES.includes(role)) return { error: "Perfil inválido." };
+  // responsável não tem gênero/faixa etária/Elo
+  if (role !== "guardian") {
+    if (!GENDERS.includes(gender)) return { error: "Selecione o gênero." };
+    if (!AGES.includes(ageRange)) return { error: "Selecione a faixa etária." };
+  }
 
   const { error } = await supabase.rpc("admin_create_user", {
     p_email: email,

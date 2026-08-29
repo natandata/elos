@@ -54,6 +54,7 @@ export async function getEloStoriesTray(
       imageUrl: signedUrls[i].data?.signedUrl ?? null,
       caption: r.caption,
       createdAt: r.created_at,
+      imagePath: r.image_path,
     });
     byAuthor.set(r.author_id, list);
   });

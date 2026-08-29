@@ -25,6 +25,9 @@ import type { Achievement, CriaProfileDetails } from "@/lib/types";
 export default async function PerfilPage() {
   const { profile } = await requireProfile();
   const supabase = await createClient();
+  // responsável não pontua, não posta e não tem streak — só admin/responsável
+  // ficam de fora da parte "de jogo" do perfil.
+  const gamified = profile.role === "leader" || profile.role === "cria";
 
   const [eloRes, txRes, detailsRes, achievementsRes, earnedRes, statusRes, galleryRes] = await Promise.all([
     profile.elo_id
@@ -49,7 +52,7 @@ export default async function PerfilPage() {
           .order("created_at", { ascending: false })
           .limit(14)
       : Promise.resolve({ data: [] }),
-    profile.role !== "admin"
+    gamified
       ? supabase
           .from("profile_gallery_posts")
           .select("id, image_path, caption")
@@ -141,7 +144,7 @@ export default async function PerfilPage() {
                 ) : null}
               </dd>
             </div>
-            {profile.role !== "admin" ? (
+            {gamified ? (
               <div>
                 <dt className="text-xs text-[var(--muted)]">Streak do status</dt>
                 <dd className="font-semibold tabular-nums">
@@ -163,7 +166,7 @@ export default async function PerfilPage() {
             <PushToggleCard />
           </div>
 
-          {profile.role !== "admin" ? (
+          {gamified ? (
             <div className="mt-4 border-t border-[var(--line)] pt-4">
               <ReplayTourButton />
             </div>
@@ -200,13 +203,13 @@ export default async function PerfilPage() {
         </Card>
       </div>
 
-      {profile.role !== "admin" ? (
+      {gamified ? (
         <Card className="mt-3">
           <GalleryManager userId={profile.id} items={galleryItems} />
         </Card>
       ) : null}
 
-      {profile.role !== "admin" ? (
+      {gamified ? (
         <Card className="mt-3">
           <h2 className="mb-3 text-sm font-bold">Conquistas</h2>
           <AchievementsList achievements={achievements} earnedKeys={earnedKeys} />
