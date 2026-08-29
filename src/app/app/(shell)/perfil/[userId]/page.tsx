@@ -3,6 +3,7 @@ import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { AvatarLightbox } from "@/components/AvatarLightbox";
+import { ImageLightbox } from "@/components/ImageLightbox";
 import { ROLE_LABEL, formatXp, levelForXp, type Role } from "@/lib/types";
 import { ProfileStoryRing } from "@/components/profile/ProfileStoryRing";
 
@@ -127,10 +128,12 @@ export default async function VisitProfilePage({
           <div className="grid grid-cols-3 gap-2">
             {galleryItems.map((g) => (
               <div key={g.id} className="aspect-square overflow-hidden rounded-xl bg-[var(--bg)]">
-                {g.imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={g.imageUrl} alt="" className="h-full w-full object-cover" />
-                ) : null}
+                <ImageLightbox url={g.imageUrl}>
+                  {g.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={g.imageUrl} alt="" className="h-full w-full object-cover" />
+                  ) : null}
+                </ImageLightbox>
               </div>
             ))}
           </div>

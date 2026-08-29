@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { addGalleryPost, deleteGalleryPost } from "@/lib/actions/gallery";
 import { Feedback } from "@/components/forms";
+import { ImageLightbox } from "@/components/ImageLightbox";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 
@@ -95,10 +96,12 @@ export function GalleryManager({
       <div className="grid grid-cols-3 gap-2">
         {items.map((item) => (
           <div key={item.id} className="relative aspect-square overflow-hidden rounded-xl bg-[var(--bg)]">
-            {item.imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={item.imageUrl} alt="" className="h-full w-full object-cover" />
-            ) : null}
+            <ImageLightbox url={item.imageUrl}>
+              {item.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={item.imageUrl} alt="" className="h-full w-full object-cover" />
+              ) : null}
+            </ImageLightbox>
             <DeleteButton id={item.id} imagePath={item.imagePath} />
           </div>
         ))}
