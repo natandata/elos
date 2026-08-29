@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { addGalleryPost, deleteGalleryPost } from "@/lib/actions/gallery";
 import { Feedback } from "@/components/forms";
 import { ImageLightbox } from "@/components/ImageLightbox";
+import { compressImage } from "@/lib/imageCompress";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 
@@ -54,12 +55,13 @@ export function GalleryManager({
     if (file.size > MAX_BYTES) return setError("A imagem precisa ter no máximo 5 MB.");
 
     setUploading(true);
-    const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+    const upload = await compressImage(file);
+    const ext = upload.name.split(".").pop()?.toLowerCase() || "jpg";
     const path = `${userId}/${crypto.randomUUID()}.${ext}`;
 
     const { error: uploadError } = await supabase.storage
       .from("profile_gallery")
-      .upload(path, file, { contentType: file.type });
+      .upload(path, upload, { contentType: upload.type });
 
     setUploading(false);
     if (uploadError) return setError("Não foi possível enviar a imagem. Tente de novo.");
@@ -99,7 +101,7 @@ export function GalleryManager({
             <ImageLightbox url={item.imageUrl}>
               {item.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={item.imageUrl} alt="" className="h-full w-full object-cover" />
+                <img src={item.imageUrl} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
               ) : null}
             </ImageLightbox>
             <DeleteButton id={item.id} imagePath={item.imagePath} />

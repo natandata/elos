@@ -132,7 +132,7 @@ export default async function FeedPage() {
     <>
       <PageHeader
         title="Explorar"
-        subtitle="As 9 fotos mais recentes do ELOS."
+        subtitle="Fotos do ELOS — cada uma some depois de 24h."
         action={
           canInteract ? (
             <FeedComposer userId={profile.id} galleryFull={(galleryCountRes.count ?? 0) >= 3} />
@@ -143,7 +143,7 @@ export default async function FeedPage() {
       <ProfileSearch />
 
       {feed.length === 0 ? (
-        <EmptyState>Nenhuma foto no Explorar ainda.</EmptyState>
+        <EmptyState>Nenhuma foto no Explorar nas últimas 24h.</EmptyState>
       ) : (
         <div className="space-y-4">
           {feed.map((post) => (

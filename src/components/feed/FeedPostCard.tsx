@@ -183,7 +183,13 @@ export function FeedPostCard({
 
       {post.imageUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={post.imageUrl} alt="" className="max-h-[480px] w-full object-cover" />
+        <img
+          src={post.imageUrl}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          className="max-h-[480px] w-full object-cover"
+        />
       ) : (
         <div className="flex h-40 items-center justify-center bg-[var(--bg)] text-xs text-[var(--muted)]">
           Foto indisponível

@@ -8,6 +8,7 @@ import { createFeedPost } from "@/lib/actions/feed";
 import { createStoryPost } from "@/lib/actions/stories";
 import { addGalleryPost } from "@/lib/actions/gallery";
 import { Feedback, SubmitBtn } from "@/components/forms";
+import { compressImage } from "@/lib/imageCompress";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 
@@ -26,7 +27,7 @@ const TITLE_BY_DESTINATION: Record<Exclude<Destination, null>, string> = {
 };
 
 const HINT_BY_DESTINATION: Record<Exclude<Destination, null>, string> = {
-  explorar: "Fica no Explorar até ser empurrada pra fora por fotos mais novas (só as 9 últimas ficam).",
+  explorar: "A foto some pra todo mundo depois de 24h.",
   story: "Some em 24h — visto pelo seu Elo, ou por quem achar você pelo Explorar.",
   feed: "Fica fixa no seu perfil até você remover.",
 };
@@ -81,11 +82,16 @@ export function FeedComposer({ userId, galleryFull = false }: { userId: string; 
     if (file.size > MAX_BYTES) return setUploadError("A imagem precisa ter no máximo 5 MB.");
 
     setUploading(true);
-    const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+    // reduz antes de subir: a foto da câmera tem ~2–5 MB e aparece em
+    // ~400px na tela — subir o original torra a cota de tráfego
+    const upload = await compressImage(file);
+    const ext = upload.name.split(".").pop()?.toLowerCase() || "jpg";
     const path = `${userId}/${crypto.randomUUID()}.${ext}`;
     const bucket = BUCKET_BY_DESTINATION[destination];
 
-    const { error } = await supabase.storage.from(bucket).upload(path, file, { contentType: file.type });
+    const { error } = await supabase.storage
+      .from(bucket)
+      .upload(path, upload, { contentType: upload.type });
 
     setUploading(false);
     if (error) return setUploadError("Não foi possível enviar a imagem. Tente de novo.");
@@ -132,7 +138,7 @@ export function FeedComposer({ userId, galleryFull = false }: { userId: string; 
                   className="w-full rounded-xl border border-[var(--line)] p-3 text-left hover:border-[var(--accent)]"
                 >
                   <p className="font-bold">Explorar</p>
-                  <p className="text-xs text-[var(--muted)]">Visto por todo mundo — só as 9 fotos mais recentes ficam.</p>
+                  <p className="text-xs text-[var(--muted)]">Visto por todo mundo — some em 24h.</p>
                 </button>
                 <button
                   type="button"

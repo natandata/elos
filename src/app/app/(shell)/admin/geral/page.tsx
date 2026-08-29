@@ -108,7 +108,7 @@ const LEADER_FEATURES: Feature[] = [
   { title: "Agenda", items: ["Ver eventos do Elo e exclusivos de liderança; confirmar presença"] },
   { title: "Feed", items: [
     "Postar fotos vistas por todo mundo da plataforma (não só o próprio Elo)",
-    "Reagir e comentar; só as 9 fotos mais recentes ficam no Explorar",
+    "Reagir e comentar; a foto some pra sempre depois de 24h",
   ]},
   { title: "Perfil", items: [
     "Tema vermelho fixo de identidade, foto e dados próprios",
@@ -130,7 +130,7 @@ const CRIA_FEATURES: Feature[] = [
   { title: "Agenda", items: ["Ver eventos do Elo e confirmar presença"] },
   { title: "Feed", items: [
     "Postar fotos vistas por todo mundo da plataforma (não só o próprio Elo)",
-    "Reagir e comentar; só as 9 fotos mais recentes ficam no Explorar",
+    "Reagir e comentar; a foto some pra sempre depois de 24h",
   ]},
   { title: "Perfil", items: [
     "Nome, foto e ficha opcional (contato de responsável, observações)",

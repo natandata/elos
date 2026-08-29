@@ -24,7 +24,7 @@ export function HojeNoElos({
       <ul className="space-y-1 text-sm text-[var(--muted)]">
         <li>
           📸 <strong className="text-[var(--ink)]">{feedPostsToday}</strong>{" "}
-          {feedPostsToday === 1 ? "foto nova" : "fotos novas"} no Explorar
+          {feedPostsToday === 1 ? "foto nova" : "fotos novas"} no Explorar nas últimas 24h
         </li>
         <li>
           🎯 <strong className="text-[var(--ink)]">{missionsDueToday}</strong>{" "}
