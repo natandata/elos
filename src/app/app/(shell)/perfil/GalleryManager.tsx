@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { addGalleryPost, deleteGalleryPost } from "@/lib/actions/gallery";
@@ -38,11 +38,11 @@ export function GalleryManager({
   const router = useRouter();
   const supabase = createClient();
   const fileRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const [state, action] = useActionState(addGalleryPost, null);
   const [uploading, setUploading] = useState(false);
   const [imagePath, setImagePath] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const formRef = useRef<HTMLFormElement>(null);
 
   const full = items.length >= 3;
 
@@ -64,13 +64,26 @@ export function GalleryManager({
     if (uploadError) return setError("Não foi possível enviar a imagem. Tente de novo.");
 
     setImagePath(path);
-    // envia o form assim que o input hidden atualizar
-    requestAnimationFrame(() => formRef.current?.requestSubmit());
   }
 
-  if (state?.ok) {
-    router.refresh();
-  }
+  // Só envia o form escondido DEPOIS que o input hidden já reflete o novo
+  // image_path (senão o submit ia com o valor antigo, ou vazio).
+  useEffect(() => {
+    if (imagePath) formRef.current?.requestSubmit();
+  }, [imagePath]);
+
+  // Roda uma única vez por resultado — sem isso, "state" continua "ok"
+  // pra sempre e o efeito reenviaria o mesmo formulário a cada nova
+  // renderização (foi o que causava a foto duplicada).
+  useEffect(() => {
+    if (!state) return;
+    if (state.ok) {
+      setImagePath("");
+      if (fileRef.current) fileRef.current.value = "";
+      router.refresh();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
 
   return (
     <div>
