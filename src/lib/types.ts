@@ -32,6 +32,7 @@ export type Profile = {
   status_streak: number;
   status_streak_date: string | null;
   last_login_bonus_on: string | null;
+  onboarding_completed_at: string | null;
   created_at: string;
   updated_at: string;
 };

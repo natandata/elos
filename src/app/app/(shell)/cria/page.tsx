@@ -106,7 +106,10 @@ export default async function CriaDashboard() {
       ) : null}
 
       <section className="mb-5 grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl bg-[var(--accent)] p-5 text-[var(--accent-ink)] sm:col-span-2">
+        <div
+          data-tour="xp-card"
+          className="rounded-2xl bg-[var(--accent)] p-5 text-[var(--accent-ink)] sm:col-span-2"
+        >
           <p className="text-xs font-bold uppercase tracking-wide opacity-80">Seu XP</p>
           <p className="mt-1 text-4xl font-black tabular-nums">{formatXp(profile.xp)}</p>
           <div className="mt-3">

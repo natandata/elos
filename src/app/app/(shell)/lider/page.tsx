@@ -178,7 +178,7 @@ export default async function LiderDashboard() {
         </Link>
       ) : null}
 
-      <section className="mb-4 rounded-2xl bg-[var(--accent)] p-5 text-[var(--accent-ink)]">
+      <section data-tour="xp-card" className="mb-4 rounded-2xl bg-[var(--accent)] p-5 text-[var(--accent-ink)]">
         <p className="text-xs font-bold uppercase tracking-wide opacity-80">Seu XP de liderança</p>
         <p className="mt-1 text-4xl font-black tabular-nums">{formatXp(profile.xp)}</p>
         <div className="mt-3 max-w-sm">

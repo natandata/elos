@@ -16,6 +16,7 @@ import { AvatarUploader } from "./AvatarUploader";
 import { GuardianDetailsForm } from "./GuardianDetailsForm";
 import { EmailPrefsForm } from "./EmailPrefsForm";
 import { PushToggleCard } from "@/components/push/PushControl";
+import { ReplayTourButton } from "./ReplayTourButton";
 import { AchievementsList } from "./AchievementsList";
 import { StatusSparkline } from "./StatusSparkline";
 import type { Achievement, CriaProfileDetails } from "@/lib/types";
@@ -142,6 +143,12 @@ export default async function PerfilPage() {
           <div className="mt-4 border-t border-[var(--line)] pt-4">
             <PushToggleCard />
           </div>
+
+          {profile.role !== "admin" ? (
+            <div className="mt-4 border-t border-[var(--line)] pt-4">
+              <ReplayTourButton />
+            </div>
+          ) : null}
 
           <form action={signOut} className="mt-4 border-t border-[var(--line)] pt-4">
             <button className="btn btn-ghost w-full !py-2 !text-sm">Sair</button>

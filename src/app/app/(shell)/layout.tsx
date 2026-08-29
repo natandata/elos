@@ -109,6 +109,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       avatarUrl={profile.avatar_url}
       unread={unreadRes.count ?? 0}
       pending={pending}
+      role={profile.role}
+      showOnboarding={!profile.onboarding_completed_at}
     >
       {children}
     </AppShell>

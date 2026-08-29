@@ -9,6 +9,7 @@ import { PresenceHeartbeat } from "./PresenceHeartbeat";
 import { ThemeModeToggle } from "@/components/ThemeModeToggle";
 import { PushPermissionBanner } from "@/components/push/PushControl";
 import { DailyLoginBonus } from "@/components/push/DailyLoginBonus";
+import { OnboardingTour } from "@/components/onboarding/OnboardingTour";
 
 export type NavItem = {
   /** Ausente quando o item é só um agrupador sem página própria (ex.: "Status Geral"). */
@@ -37,6 +38,8 @@ export function AppShell({
   avatarUrl,
   unread,
   pending = false,
+  role,
+  showOnboarding = false,
   children,
 }: {
   items: NavItem[];
@@ -46,6 +49,8 @@ export function AppShell({
   avatarUrl?: string | null;
   unread: number;
   pending?: boolean;
+  role?: "admin" | "leader" | "cria";
+  showOnboarding?: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -161,6 +166,9 @@ export function AppShell({
     <div className="min-h-dvh">
       <PresenceHeartbeat />
       <DailyLoginBonus />
+      {!pending && (role === "leader" || role === "cria") ? (
+        <OnboardingTour role={role} startOpen={showOnboarding} />
+      ) : null}
       {/* topo */}
       <header className="sticky top-0 z-30 border-b border-[var(--line)] bg-[var(--card)]/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
