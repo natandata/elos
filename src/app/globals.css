@@ -94,14 +94,15 @@ html,
 body {
   background: var(--bg);
   color: var(--ink);
-  /* a página nunca deve rolar de lado — qualquer elemento que vaze na
-     largura fica cortado aqui em vez de arrastar a tela inteira (e o
-     cabeçalho fixo junto) pro lado. overflow-x:hidden sozinho não bastou
-     no Safari/iOS (o gesto de arrastar ainda "sambava" mesmo com o
-     conteúdo cortado) — touch-action trava o gesto horizontal também. */
-  overflow-x: hidden;
-  touch-action: pan-y;
-  overscroll-behavior-x: none;
+  /* A página não deve rolar de lado: se algum elemento vazar na largura,
+     ele é recortado aqui em vez de arrastar a tela inteira (e o cabeçalho
+     fixo junto).
+     `clip` em vez de `hidden`: hidden cria um container de rolagem, o que
+     atrapalha elementos fixos e o comportamento de zoom no iOS.
+     NÃO usar `touch-action`/`overscroll-behavior` aqui: isso trava também
+     o arrasto legítimo de quem deu pinch-zoom, prendendo a pessoa numa
+     visão cortada sem conseguir alcançar o outro lado da tela. */
+  overflow-x: clip;
 }
 
 body {

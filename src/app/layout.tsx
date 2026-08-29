@@ -92,13 +92,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             // antes do overflow-x:hidden entrar — força de volta pro início
             // a cada carregamento, senão a tela fica cortada de um lado.
             try{
-              window.scrollTo(0, window.scrollY);
-              document.documentElement.scrollLeft = 0;
-              document.body.scrollLeft = 0;
-              window.addEventListener('pageshow', function(){
+              var resetX = function(){
+                // não mexe se a pessoa deu pinch-zoom (o deslocamento é dela)
+                if ((window.visualViewport && window.visualViewport.scale > 1.01)) return;
                 document.documentElement.scrollLeft = 0;
                 document.body.scrollLeft = 0;
-              });
+              };
+              resetX();
+              window.addEventListener('pageshow', resetX);
             }catch(e){}
             })();`,
           }}

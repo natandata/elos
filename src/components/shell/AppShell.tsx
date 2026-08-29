@@ -70,7 +70,9 @@ export function AppShell({
   // o documento, então o script de reset do <head> só roda no 1º carregamento.
   // Aqui ele roda de novo a cada navegação — corta a possibilidade pela raiz.
   useEffect(() => {
-    window.scrollTo(0, window.scrollY);
+    // Se a pessoa deu pinch-zoom, o deslocamento lateral é intencional —
+    // resetar aqui a prenderia numa visão cortada.
+    if ((window.visualViewport?.scale ?? 1) > 1.01) return;
     document.documentElement.scrollLeft = 0;
     document.body.scrollLeft = 0;
   }, [pathname]);
