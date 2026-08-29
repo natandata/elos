@@ -100,17 +100,17 @@ export default async function VisitProfilePage({
         </div>
 
         {card.role !== "admin" ? (
-          <div className="mt-4 grid grid-cols-3 gap-3 border-t border-[var(--line)] pt-4 text-center">
-            <div>
-              <p className="text-lg font-black tabular-nums">{formatXp(card.xp)}</p>
+          <div className="mt-4 grid grid-cols-3 gap-2 border-t border-[var(--line)] pt-4 text-center">
+            <div className="min-w-0">
+              <p className="truncate text-lg font-black tabular-nums">{formatXp(card.xp)}</p>
               <p className="text-xs text-[var(--muted)]">XP</p>
             </div>
-            <div>
-              <p className="text-lg font-black tabular-nums">{level.title}</p>
+            <div className="min-w-0">
+              <p className="truncate text-base font-black">{level.title}</p>
               <p className="text-xs text-[var(--muted)]">Nível</p>
             </div>
-            <div>
-              <p className="text-lg font-black tabular-nums">
+            <div className="min-w-0">
+              <p className="truncate text-lg font-black tabular-nums">
                 {card.status_streak > 0 ? `🔥 ${card.status_streak}` : "—"}
               </p>
               <p className="text-xs text-[var(--muted)]">Streak</p>

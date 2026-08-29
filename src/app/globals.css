@@ -94,6 +94,10 @@ html,
 body {
   background: var(--bg);
   color: var(--ink);
+  /* a página nunca deve rolar de lado — qualquer elemento que vaze na
+     largura fica cortado aqui em vez de arrastar a tela inteira (e o
+     cabeçalho fixo junto) pro lado. */
+  overflow-x: hidden;
 }
 
 body {
