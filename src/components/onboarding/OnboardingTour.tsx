@@ -37,6 +37,20 @@ export function OnboardingTour({
     return () => window.removeEventListener(REPLAY_TOUR_EVENT, onReplay);
   }, []);
 
+  // Trava a rolagem da página enquanto o tour está aberto — sem isso, o
+  // usuário rola por baixo do overlay e o recorte desalinha do elemento real.
+  useEffect(() => {
+    if (!open) return;
+    const prevBody = document.body.style.overflow;
+    const prevHtml = document.documentElement.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prevBody;
+      document.documentElement.style.overflow = prevHtml;
+    };
+  }, [open]);
+
   const step = steps[stepIndex];
 
   // Navega pra rota do passo (se precisar) e localiza o elemento a destacar.
@@ -182,6 +196,13 @@ export function OnboardingTour({
       <div
         className="fixed right-0 z-[60] bg-black/60"
         style={{ top: highlight.top, height: highlight.height, left: highlight.left + highlight.width }}
+      />
+      {/* transparente, só pra impedir rolagem por dentro do recorte (o "buraco" no overlay) */}
+      <div
+        className="fixed z-[61] touch-none"
+        style={{ top: highlight.top, left: highlight.left, width: highlight.width, height: highlight.height }}
+        onWheel={(e) => e.preventDefault()}
+        onTouchMove={(e) => e.preventDefault()}
       />
       <div
         className="pointer-events-none fixed z-[65] rounded-2xl border-2 border-[var(--accent)]"
