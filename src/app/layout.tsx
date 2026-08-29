@@ -87,7 +87,20 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               var m = localStorage.getItem('elos-theme-mode');
               if (!m) m = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
               document.documentElement.dataset.mode = m;
-            }catch(e){}})();`,
+            }catch(e){}
+            // Safari/PWA às vezes preserva uma rolagem horizontal "presa" de
+            // antes do overflow-x:hidden entrar — força de volta pro início
+            // a cada carregamento, senão a tela fica cortada de um lado.
+            try{
+              window.scrollTo(0, window.scrollY);
+              document.documentElement.scrollLeft = 0;
+              document.body.scrollLeft = 0;
+              window.addEventListener('pageshow', function(){
+                document.documentElement.scrollLeft = 0;
+                document.body.scrollLeft = 0;
+              });
+            }catch(e){}
+            })();`,
           }}
         />
       </head>
