@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { sendPushToUsers } from "@/lib/push-server";
@@ -146,11 +147,15 @@ export async function createMission(_prev: Result | null, formData: FormData): P
 
   revalidateMissions();
 
+  // Missão Geral vai pra plataforma inteira: esperar dezenas de envios de
+  // push travaria o botão "Criar". Sai do caminho da resposta.
   if (profile.role === "admin") {
-    await sendPushToUsers(participants, {
-      title: "Missão do Admin",
-      body: title,
-      url: "/app",
+    after(async () => {
+      await sendPushToUsers(participants, {
+        title: "Missão do Admin",
+        body: title,
+        url: "/app",
+      });
     });
   }
 

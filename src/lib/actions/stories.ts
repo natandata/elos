@@ -3,7 +3,6 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { sweepOrphanFiles } from "@/lib/actions/storage-cleanup";
 
 type Result = { error?: string; ok?: boolean };
 
@@ -44,7 +43,6 @@ export async function createStoryPost(_prev: Result | null, formData: FormData):
   }
 
   revalidatePath("/app", "layout");
-  await sweepOrphanFiles();
   return { ok: true };
 }
 
