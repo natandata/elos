@@ -63,6 +63,18 @@ export function AppShell({
     setMenuOpen(false);
   }, [pathname]);
 
+  // Alguma tela em algum momento fica alguns pixels mais larga que a viewport
+  // (uma foto, um nome comprido, o navegador restaurando um scroll antigo) —
+  // isso destrava um scroll horizontal que, sem o overflow-x:hidden global,
+  // sobraria pra sempre porque a troca de página no app (SPA) não recarrega
+  // o documento, então o script de reset do <head> só roda no 1º carregamento.
+  // Aqui ele roda de novo a cada navegação — corta a possibilidade pela raiz.
+  useEffect(() => {
+    window.scrollTo(0, window.scrollY);
+    document.documentElement.scrollLeft = 0;
+    document.body.scrollLeft = 0;
+  }, [pathname]);
+
   const isActive = (href?: string) =>
     !!href && (href === pathname || (href !== "/app" && pathname.startsWith(href + "/")));
 
