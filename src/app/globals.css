@@ -96,8 +96,12 @@ body {
   color: var(--ink);
   /* a página nunca deve rolar de lado — qualquer elemento que vaze na
      largura fica cortado aqui em vez de arrastar a tela inteira (e o
-     cabeçalho fixo junto) pro lado. */
+     cabeçalho fixo junto) pro lado. overflow-x:hidden sozinho não bastou
+     no Safari/iOS (o gesto de arrastar ainda "sambava" mesmo com o
+     conteúdo cortado) — touch-action trava o gesto horizontal também. */
   overflow-x: hidden;
+  touch-action: pan-y;
+  overscroll-behavior-x: none;
 }
 
 body {
