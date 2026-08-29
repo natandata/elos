@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { sweepOrphanFiles } from "@/lib/actions/storage-cleanup";
 
 type Result = { error?: string; ok?: boolean };
 
@@ -37,10 +38,13 @@ export async function addGalleryPost(_prev: Result | null, formData: FormData): 
     .insert({ user_id: profile.id, image_path: imagePath, caption });
 
   if (error) {
+    // o arquivo já subiu: sem registro ele viraria lixo invisível no Storage
+    await supabase.storage.from("profile_gallery").remove([imagePath]);
     return { error: error.message.includes("galeria já tem") ? error.message : "Não foi possível adicionar." };
   }
 
   revalidatePath("/app/perfil");
+  await sweepOrphanFiles();
   return { ok: true };
 }
 

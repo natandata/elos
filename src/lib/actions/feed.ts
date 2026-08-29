@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { sendPushToUsers } from "@/lib/push-server";
+import { sweepOrphanFiles } from "@/lib/actions/storage-cleanup";
 
 type Result = { error?: string; ok?: boolean };
 
@@ -45,7 +46,11 @@ export async function createFeedPost(_prev: Result | null, formData: FormData): 
     .from("feed_posts")
     .insert({ author_id: profile.id, image_path: imagePath, caption });
 
-  if (error) return { error: "Não foi possível publicar." };
+  if (error) {
+    // o arquivo já subiu: sem registro ele viraria lixo invisível no Storage
+    await supabase.storage.from("feed").remove([imagePath]);
+    return { error: "Não foi possível publicar." };
+  }
 
   // O Storage não aceita delete por SQL, então a limpeza do arquivo é aqui.
   const { data: after } = await supabase.from("feed_posts").select("image_path");
@@ -54,6 +59,7 @@ export async function createFeedPost(_prev: Result | null, formData: FormData): 
     .map((p) => p.image_path)
     .filter((p) => !stillThere.has(p));
   if (dropped.length > 0) await supabase.storage.from("feed").remove(dropped);
+  await sweepOrphanFiles();
 
   revalidateFeed();
   await supabase.rpc("check_and_grant_achievements", { p_user: profile.id });

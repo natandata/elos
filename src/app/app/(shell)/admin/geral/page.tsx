@@ -1,4 +1,5 @@
 import { Bar, Card, PageHeader } from "@/components/ui";
+import { CleanupOrphansButton } from "./CleanupOrphansButton";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -228,6 +229,7 @@ export default async function GeralPage() {
                 <Bar value={health.storage_bytes} total={STORAGE_LIMIT_BYTES} />
               </div>
               <p className="mt-1 text-xs text-[var(--muted)]">{storagePct}% usado</p>
+              <CleanupOrphansButton />
             </Card>
 
             <Card className="md:col-span-2">

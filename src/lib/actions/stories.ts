@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { sweepOrphanFiles } from "@/lib/actions/storage-cleanup";
 
 type Result = { error?: string; ok?: boolean };
 
@@ -36,9 +37,14 @@ export async function createStoryPost(_prev: Result | null, formData: FormData):
     .from("story_posts")
     .insert({ author_id: profile.id, image_path: imagePath, caption });
 
-  if (error) return { error: "Não foi possível publicar." };
+  if (error) {
+    // o arquivo já subiu: sem registro ele viraria lixo invisível no Storage
+    await supabase.storage.from("stories").remove([imagePath]);
+    return { error: "Não foi possível publicar." };
+  }
 
   revalidatePath("/app", "layout");
+  await sweepOrphanFiles();
   return { ok: true };
 }
 
