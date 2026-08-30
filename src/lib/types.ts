@@ -185,6 +185,11 @@ export function hasBadStatus(s: { emotional_status: StatusLevel; spiritual_statu
   return !!s && (s.emotional_status === "bad" || s.spiritual_status === "bad");
 }
 
+/** true se alguma das duas respostas for diferente de "Bem" — inclui "Mal" e "Mais ou menos". */
+export function hasConcerningStatus(s: { emotional_status: StatusLevel; spiritual_status: StatusLevel } | undefined | null): boolean {
+  return !!s && (s.emotional_status !== "good" || s.spiritual_status !== "good");
+}
+
 export const ASSIGNMENT_LABEL: Record<AssignmentStatus, string> = {
   pending: "Disponível",
   awaiting_approval: "Aguardando aprovação",

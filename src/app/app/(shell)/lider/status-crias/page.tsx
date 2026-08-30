@@ -8,6 +8,7 @@ import {
   STATUS_TONE,
   formatDateTime,
   hasBadStatus,
+  hasConcerningStatus,
   relativeDay,
   type AgeRange,
   type CareMeeting,
@@ -119,8 +120,15 @@ export default async function StatusCriasPage({
     return hasBadStatus(s) && !followUpByResponse.has(s!.id);
   };
   const badCount = crias.filter((c) => isUnresolvedBad(c.id)).length;
+  // "ok" (mais ou menos) também precisa aparecer pro líder, só que sem o alarme
+  // vermelho reservado pro "Mal" — badCount continua contando só o urgente.
+  const concerningCount = crias.filter(
+    (c) => hasConcerningStatus(latest.get(c.id)) && !hasBadStatus(latest.get(c.id)),
+  ).length;
   const sortedCrias = [...crias].sort(
-    (a, b) => Number(hasBadStatus(latest.get(b.id))) - Number(hasBadStatus(latest.get(a.id))),
+    (a, b) =>
+      Number(hasConcerningStatus(latest.get(b.id))) - Number(hasConcerningStatus(latest.get(a.id))) ||
+      Number(hasBadStatus(latest.get(b.id))) - Number(hasBadStatus(latest.get(a.id))),
   );
 
   return (
@@ -180,6 +188,19 @@ export default async function StatusCriasPage({
         </div>
       ) : null}
 
+      {concerningCount > 0 ? (
+        <div className="mb-4 flex items-center gap-3 rounded-2xl border-2 border-amber-400 bg-amber-50 px-4 py-3 text-amber-900">
+          <span className="text-2xl" aria-hidden>
+            ⚠️
+          </span>
+          <span className="font-bold">
+            {concerningCount === 1
+              ? "1 cria respondeu \"Mais ou menos\" no status — vale dar uma olhada."
+              : `${concerningCount} crias responderam "Mais ou menos" no status — vale dar uma olhada.`}
+          </span>
+        </div>
+      ) : null}
+
       {crias.length === 0 ? (
         <EmptyState>
           {isAdmin
@@ -193,17 +214,24 @@ export default async function StatusCriasPage({
             const chartHistory = responses.filter((r) => r.user_id === cria.id).slice(0, 12);
             const past = chartHistory.slice(1, 5);
             const bad = hasBadStatus(current);
+            const concerning = !bad && hasConcerningStatus(current);
             const details = detailsByCria.get(cria.id);
 
             return (
               <Card
                 key={cria.id}
-                className={bad ? "border-2 border-red-600 ring-2 ring-red-200" : ""}
+                className={
+                  bad
+                    ? "border-2 border-red-600 ring-2 ring-red-200"
+                    : concerning
+                      ? "border-2 border-amber-400 ring-2 ring-amber-100"
+                      : ""
+                }
               >
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
                     <p className="font-bold">
-                      {bad ? <span aria-hidden>🚨 </span> : null}
+                      {bad ? <span aria-hidden>🚨 </span> : concerning ? <span aria-hidden>⚠️ </span> : null}
                       {cria.full_name || "Sem nome"}
                     </p>
                     <p className="text-xs text-[var(--muted)]">
