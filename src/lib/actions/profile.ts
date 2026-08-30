@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { AgeRange, Gender } from "@/lib/types";
 
-const AGES: AgeRange[] = ["12-14", "15-16", "17"];
+const AGES: AgeRange[] = ["12-13", "14-15", "16-17"];
 const GENDERS: Gender[] = ["male", "female"];
 
 /**

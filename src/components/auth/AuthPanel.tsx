@@ -8,7 +8,7 @@ import { PasswordField } from "./PasswordField";
 
 type SignupRole = "cria" | "leader";
 
-const AGE_OPTIONS: AgeRange[] = ["12-14", "15-16", "17"];
+const AGE_OPTIONS: AgeRange[] = ["12-13", "14-15", "16-17"];
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
 
 export function AuthPanel({ next }: { next?: string }) {

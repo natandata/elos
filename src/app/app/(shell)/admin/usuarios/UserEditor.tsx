@@ -152,7 +152,7 @@ export function UserEditor({
               <label className="label">Faixa etária</label>
               <select name="age_range" className="input" defaultValue={user.age_range ?? ""}>
                 <option value="">Não informada</option>
-                {(["12-14", "15-16", "17"] as AgeRange[]).map((a) => (
+                {(["12-13", "14-15", "16-17"] as AgeRange[]).map((a) => (
                   <option key={a} value={a}>
                     {AGE_RANGE_LABEL[a]}
                   </option>

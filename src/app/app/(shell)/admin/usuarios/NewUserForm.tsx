@@ -5,7 +5,7 @@ import { createUser } from "@/lib/actions/admin";
 import { Feedback, SubmitBtn } from "@/components/forms";
 import { AGE_RANGE_LABEL, ROLE_LABEL, type AgeRange, type Role } from "@/lib/types";
 
-const AGES: AgeRange[] = ["12-14", "15-16", "17"];
+const AGES: AgeRange[] = ["12-13", "14-15", "16-17"];
 
 export function NewUserForm() {
   const [state, action] = useActionState(createUser, null);

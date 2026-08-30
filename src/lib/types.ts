@@ -1,6 +1,6 @@
 export type Role = "admin" | "leader" | "cria" | "guardian";
 export type Gender = "male" | "female";
-export type AgeRange = "12-14" | "15-16" | "17";
+export type AgeRange = "12-13" | "14-15" | "16-17";
 export type StatusLevel = "bad" | "ok" | "good";
 export type MissionType = "individual" | "collective";
 export type AssignmentStatus = "pending" | "awaiting_approval" | "approved" | "rejected";
@@ -150,9 +150,9 @@ export type ChatMessage = {
 // ---------------------------------------------------------------- rótulos PT-BR
 
 export const AGE_RANGE_LABEL: Record<AgeRange, string> = {
-  "12-14": "12–14 anos",
-  "15-16": "15–16 anos",
-  "17": "17 anos",
+  "12-13": "12–13 anos",
+  "14-15": "14–15 anos",
+  "16-17": "16–17 anos",
 };
 
 export const GENDER_LABEL: Record<Gender, string> = {

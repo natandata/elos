@@ -9,7 +9,7 @@ import type { AgeRange, Gender, Role } from "@/lib/types";
 type Result = { error?: string; ok?: boolean };
 
 const ROLES: Role[] = ["admin", "leader", "cria", "guardian"];
-const AGES: AgeRange[] = ["12-14", "15-16", "17"];
+const AGES: AgeRange[] = ["12-13", "14-15", "16-17"];
 const GENDERS: Gender[] = ["male", "female"];
 
 async function adminClient() {

@@ -5,7 +5,7 @@ import { useFormStatus } from "react-dom";
 import { completeProfile } from "@/lib/actions/profile";
 import { AGE_RANGE_LABEL, type AgeRange, type Gender } from "@/lib/types";
 
-const AGES: AgeRange[] = ["12-14", "15-16", "17"];
+const AGES: AgeRange[] = ["12-13", "14-15", "16-17"];
 
 function SubmitButton() {
   const { pending } = useFormStatus();

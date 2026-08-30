@@ -178,7 +178,7 @@ export default async function UsuariosPage({
           </label>
           <select id="age" name="age" className="input" defaultValue={sp.age ?? ""}>
             <option value="">Todas</option>
-            {(["12-14", "15-16", "17"] as AgeRange[]).map((a) => (
+            {(["12-13", "14-15", "16-17"] as AgeRange[]).map((a) => (
               <option key={a} value={a}>
                 {AGE_RANGE_LABEL[a]}
               </option>
