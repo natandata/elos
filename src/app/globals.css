@@ -244,6 +244,31 @@ select {
   animation: rise-in 0.35s ease both;
 }
 
+/* Barrinha indeterminada do overlay de transição de tela. */
+@keyframes route-loading-bar {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
+}
+.route-loading-bar {
+  animation: route-loading-bar 1s ease-in-out infinite;
+}
+
+@keyframes route-loading-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.route-loading-overlay {
+  animation: route-loading-fade-in 0.15s ease both;
+}
+
 /* Barra de XP: "líquido" subindo até o nível de preenchimento + ondulação
    contínua de brilho passando por cima, pra parecer líquido de verdade. */
 @keyframes xp-liquid-wave {

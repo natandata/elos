@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { createClient } from "@/lib/supabase/server";
 import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
+import { RouteLoadingOverlay } from "@/components/RouteLoadingOverlay";
 
 // Auto-hospedada pelo Next (sem requisição externa em runtime, sem piscar
 // fonte). Geométrica e arredondada — mais "jovem" que a system font, sem
@@ -107,6 +108,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body className="min-h-dvh antialiased">
         {children}
+        <RouteLoadingOverlay />
         <ServiceWorkerRegistrar />
       </body>
     </html>
