@@ -5,6 +5,40 @@ export type StatusLevel = "bad" | "ok" | "good";
 export type MissionType = "individual" | "collective";
 export type AssignmentStatus = "pending" | "awaiting_approval" | "approved" | "rejected";
 
+export type PrayerScope = "personal" | "elo";
+
+export type DevotionalEntry = {
+  id: string;
+  user_id: string;
+  entry_date: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PrayerRequest = {
+  id: string;
+  user_id: string;
+  elo_id: string | null;
+  scope: PrayerScope;
+  title: string;
+  is_answered: boolean;
+  answered_at: string | null;
+  reminder_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type DevotionalFavorite = {
+  id: string;
+  user_id: string;
+  reference: string;
+  verse_text: string;
+  created_at: string;
+};
+
+export const DEVOTIONAL_MILESTONES = [7, 15, 30, 90] as const;
+
 export type Elo = {
   id: string;
   name: string;
@@ -32,6 +66,8 @@ export type Profile = {
   email_opt_in: boolean;
   status_streak: number;
   status_streak_date: string | null;
+  devotional_streak: number;
+  devotional_streak_date: string | null;
   last_login_bonus_on: string | null;
   onboarding_completed_at: string | null;
   created_at: string;
