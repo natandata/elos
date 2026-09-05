@@ -82,7 +82,9 @@ function FavoriteCard({ favorite }: { favorite: DevotionalFavorite }) {
           onClick={() => setShowCard(false)}
         >
           <div
-            className="flex aspect-[4/5] w-full max-w-sm flex-col items-center justify-center gap-4 rounded-3xl bg-gradient-to-br from-[var(--accent)] to-[var(--accent-strong)] p-8 text-center text-[var(--accent-ink)] shadow-2xl"
+            // sólido, não gradiente até --accent-strong: no tema masculino
+            // accent-strong é escuro e quebraria o contraste com --accent-ink
+            className="flex aspect-[4/5] w-full max-w-sm flex-col items-center justify-center gap-4 rounded-3xl bg-[var(--accent)] p-8 text-center text-[var(--accent-ink)] shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <span className="text-4xl" aria-hidden>

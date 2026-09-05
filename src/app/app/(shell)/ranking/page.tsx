@@ -264,7 +264,10 @@ export default async function MeuEloPage() {
       <PageHeader title="Meu Elo" subtitle={eloName} />
 
       {/* destaque: liderança e Top 1 do Elo */}
-      <Card className="mb-6 bg-gradient-to-br from-[var(--accent-soft)] to-[var(--card)]">
+      {/* sem tingimento de acento: o texto aqui dentro usa a cor herdada
+          (--ink/--muted), que só tem contraste garantido contra --card/--bg —
+          --accent-soft é fixo (não muda no escuro) e quebraria isso */}
+      <Card className="mb-6">
         <div className="grid gap-5 sm:grid-cols-2">
           <div>
             <p className="text-xs font-bold uppercase tracking-wide text-[var(--muted)]">
