@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Card, EmptyState, PageHeader, StatCard } from "@/components/ui";
+import { Avatar } from "@/components/Avatar";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { XpBar } from "@/components/XpBar";
@@ -16,20 +17,32 @@ import {
   type StatusLevel,
 } from "@/lib/types";
 
+// Mesmo formato de public.leader_rankings() já usado em /app/ranking.
+type LeaderRankRow = {
+  leader_id: string;
+  leader_name: string;
+  leader_avatar_url: string | null;
+  elo_id: string | null;
+  elo_name: string | null;
+  missions_created: number;
+  missions_xp: number;
+  missions_completed: number;
+};
+
 export default async function LiderDashboard() {
   const { profile } = await requireRole("leader");
   const supabase = await createClient();
 
   const { data: links } = await supabase
     .from("leader_crias")
-    .select("profiles:cria_id(id, full_name, xp)")
+    .select("profiles:cria_id(id, full_name, xp, avatar_url)")
     .eq("leader_id", profile.id);
 
   const crias = ((links ?? []) as unknown as {
-    profiles: { id: string; full_name: string; xp: number } | null;
+    profiles: { id: string; full_name: string; xp: number; avatar_url: string | null } | null;
   }[])
     .map((r) => r.profiles)
-    .filter((p): p is { id: string; full_name: string; xp: number } => Boolean(p))
+    .filter((p): p is { id: string; full_name: string; xp: number; avatar_url: string | null } => Boolean(p))
     .sort((a, b) => b.xp - a.xp);
 
   const criaIds = crias.map((c) => c.id);
@@ -38,6 +51,7 @@ export default async function LiderDashboard() {
   const [
     eloRes,
     rankRes,
+    leaderRankRes,
     statusRes,
     followUpsRes,
     awaitingRes,
@@ -52,6 +66,7 @@ export default async function LiderDashboard() {
         ? supabase.from("elos").select("name").eq("id", profile.elo_id).maybeSingle()
         : Promise.resolve({ data: null }),
       supabase.rpc("elo_rankings"),
+      supabase.rpc("leader_rankings"),
       supabase
         .from("v_latest_status")
         .select("id, user_id, emotional_status, spiritual_status, created_at")
@@ -98,6 +113,24 @@ export default async function LiderDashboard() {
     rank_position: number;
   }[];
   const myRank = ranking.find((r) => r.elo_id === profile.elo_id);
+
+  // mesmo desempate em cascata usado em /app/ranking: criadas > nível (XP) > concluídas
+  const leaderRanking = ((leaderRankRes.data ?? []) as LeaderRankRow[])
+    .map((r) => ({
+      ...r,
+      missions_created: Number(r.missions_created),
+      missions_xp: Number(r.missions_xp),
+      missions_completed: Number(r.missions_completed),
+    }))
+    .sort(
+      (a, b) =>
+        b.missions_created - a.missions_created ||
+        b.missions_xp - a.missions_xp ||
+        b.missions_completed - a.missions_completed ||
+        a.leader_name.localeCompare(b.leader_name),
+    );
+  const myLeaderPos = leaderRanking.findIndex((l) => l.leader_id === profile.id) + 1;
+  const myLeaderStats = leaderRanking.find((l) => l.leader_id === profile.id);
 
   const statuses = (statusRes.data ?? []) as {
     id: string;
@@ -189,6 +222,68 @@ export default async function LiderDashboard() {
         <div className="mt-3 max-w-sm">
           <XpBar xp={profile.xp} tone="onAccent" />
         </div>
+      </section>
+
+      <section className="mb-6 grid gap-3 md:grid-cols-2">
+        <Card className="bg-gradient-to-br from-[var(--accent-soft)] to-[var(--card)]">
+          <p className="text-xs font-bold uppercase tracking-wide text-[var(--muted)]">
+            Sua posição entre os líderes
+          </p>
+          <p className="mt-1 text-5xl font-black tabular-nums">
+            {myLeaderPos ? `${myLeaderPos}º` : "—"}
+            {leaderRanking.length > 0 ? (
+              <span className="text-lg font-semibold text-[var(--muted)]"> de {leaderRanking.length}</span>
+            ) : null}
+          </p>
+          <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+            <div>
+              <p className="text-lg font-bold tabular-nums">{myLeaderStats?.missions_created ?? 0}</p>
+              <p className="text-[11px] text-[var(--muted)]">missões criadas</p>
+            </div>
+            <div>
+              <p className="text-lg font-bold tabular-nums">{formatXp(myLeaderStats?.missions_xp ?? 0)}</p>
+              <p className="text-[11px] text-[var(--muted)]">XP em missões</p>
+            </div>
+            <div>
+              <p className="text-lg font-bold tabular-nums">{myLeaderStats?.missions_completed ?? 0}</p>
+              <p className="text-[11px] text-[var(--muted)]">concluídas</p>
+            </div>
+          </div>
+          <Link href="/app/ranking" className="mt-4 block text-center text-xs font-semibold text-[var(--accent-strong)]">
+            ver ranking completo →
+          </Link>
+        </Card>
+
+        <Card>
+          <p className="text-xs font-bold uppercase tracking-wide text-[var(--muted)]">
+            Ranking do seu Elo
+          </p>
+          {crias.length === 0 ? (
+            <p className="mt-3 text-sm text-[var(--muted)]">
+              Nenhum cria vinculado ainda. Fale com a administração.
+            </p>
+          ) : (
+            <ol className="mt-3 space-y-1.5">
+              {crias.slice(0, 5).map((c, i) => (
+                <li key={c.id} className="flex items-center justify-between gap-3 rounded-xl px-1 py-1 text-sm">
+                  <span className="flex min-w-0 items-center gap-2.5">
+                    <span className="w-5 shrink-0 text-sm font-bold tabular-nums text-[var(--muted)]">
+                      {i + 1}º
+                    </span>
+                    <Avatar url={c.avatar_url} name={c.full_name} size={26} />
+                    <span className="truncate font-medium">{c.full_name || "Sem nome"}</span>
+                  </span>
+                  <span className="shrink-0 tabular-nums text-[var(--muted)]">{formatXp(c.xp)} XP</span>
+                </li>
+              ))}
+            </ol>
+          )}
+          {crias.length > 5 ? (
+            <Link href="/app/ranking" className="mt-3 block text-center text-xs font-semibold text-[var(--accent-strong)]">
+              ver todos →
+            </Link>
+          ) : null}
+        </Card>
       </section>
 
       <section className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
