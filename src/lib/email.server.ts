@@ -46,6 +46,16 @@ export async function sendEmail(params: {
     const body = await res.json().catch(() => null);
     const message: string = body?.message || `Falha no envio (HTTP ${res.status}).`;
 
+    // Rate limit da Resend: 2 req/s no plano free, ou teto diário/mensal
+    // estourado. Sem isso a pessoa via o JSON cru da API em vez de entender
+    // que é só esperar um pouco (ou, se for teto diário, falar comigo).
+    if (res.status === 429) {
+      return {
+        ok: false,
+        error: "Limite de envio de e-mail da Resend atingido. Aguarde um pouco e tente de novo.",
+      };
+    }
+
     // Erro conhecido do modo de teste da Resend: sem domínio verificado, só
     // entrega para o e-mail dono da conta. Traduz para algo acionável.
     if (message.includes("only send testing emails")) {
