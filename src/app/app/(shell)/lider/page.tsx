@@ -226,31 +226,31 @@ export default async function LiderDashboard() {
 
       <section className="mb-6 grid gap-3 md:grid-cols-2">
         {/* card sólido e escuro — a métrica competitiva do líder, feita pra saltar aos olhos */}
-        <Card className="border-0 bg-[var(--ink)] text-[var(--bg)]">
-          <p className="text-[11px] font-bold uppercase tracking-widest text-[var(--bg)]/60">
+        <Card className="!border-0 !bg-[var(--ink)] !text-[var(--bg)]">
+          <p className="text-[11px] font-bold uppercase tracking-widest !text-[var(--bg)] opacity-60">
             Sua posição entre os líderes
           </p>
-          <p className="mt-2 text-6xl font-black leading-none tabular-nums text-[var(--accent)]">
+          <p className="mt-2 text-6xl font-black leading-none tabular-nums !text-[var(--accent)]">
             {myLeaderPos ? `${myLeaderPos}º` : "—"}
             {leaderRanking.length > 0 ? (
-              <span className="ml-1 text-base font-semibold text-[var(--bg)]/60">de {leaderRanking.length}</span>
+              <span className="ml-1 text-base font-semibold !text-[var(--bg)] opacity-60">de {leaderRanking.length}</span>
             ) : null}
           </p>
-          <div className="mt-5 grid grid-cols-3 gap-2 border-t border-[var(--bg)]/15 pt-3 text-center">
+          <div className="mt-5 grid grid-cols-3 gap-2 border-t !border-[var(--bg)]/15 pt-3 text-center">
             <div>
-              <p className="text-base font-bold tabular-nums">{myLeaderStats?.missions_created ?? 0}</p>
-              <p className="text-[10px] uppercase tracking-wide text-[var(--bg)]/60">criadas</p>
+              <p className="text-base font-bold tabular-nums !text-[var(--bg)]">{myLeaderStats?.missions_created ?? 0}</p>
+              <p className="text-[10px] uppercase tracking-wide !text-[var(--bg)] opacity-60">criadas</p>
             </div>
             <div>
-              <p className="text-base font-bold tabular-nums">{formatXp(myLeaderStats?.missions_xp ?? 0)}</p>
-              <p className="text-[10px] uppercase tracking-wide text-[var(--bg)]/60">XP em missões</p>
+              <p className="text-base font-bold tabular-nums !text-[var(--bg)]">{formatXp(myLeaderStats?.missions_xp ?? 0)}</p>
+              <p className="text-[10px] uppercase tracking-wide !text-[var(--bg)] opacity-60">XP em missões</p>
             </div>
             <div>
-              <p className="text-base font-bold tabular-nums">{myLeaderStats?.missions_completed ?? 0}</p>
-              <p className="text-[10px] uppercase tracking-wide text-[var(--bg)]/60">concluídas</p>
+              <p className="text-base font-bold tabular-nums !text-[var(--bg)]">{myLeaderStats?.missions_completed ?? 0}</p>
+              <p className="text-[10px] uppercase tracking-wide !text-[var(--bg)] opacity-60">concluídas</p>
             </div>
           </div>
-          <Link href="/app/ranking" className="mt-4 block text-center text-xs font-semibold text-[var(--accent)]">
+          <Link href="/app/ranking" className="mt-4 block text-center text-xs font-semibold !text-[var(--accent)]">
             ver ranking completo →
           </Link>
         </Card>
