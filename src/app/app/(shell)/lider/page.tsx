@@ -225,37 +225,39 @@ export default async function LiderDashboard() {
       </section>
 
       <section className="mb-6 grid gap-3 md:grid-cols-2">
-        <Card className="bg-gradient-to-br from-[var(--accent-soft)] to-[var(--card)]">
-          <p className="text-xs font-bold uppercase tracking-wide text-[var(--muted)]">
+        {/* card sólido e escuro — a métrica competitiva do líder, feita pra saltar aos olhos */}
+        <Card className="border-0 bg-[var(--ink)] text-[var(--bg)]">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-[var(--bg)]/60">
             Sua posição entre os líderes
           </p>
-          <p className="mt-1 text-5xl font-black tabular-nums">
+          <p className="mt-2 text-6xl font-black leading-none tabular-nums text-[var(--accent)]">
             {myLeaderPos ? `${myLeaderPos}º` : "—"}
             {leaderRanking.length > 0 ? (
-              <span className="text-lg font-semibold text-[var(--muted)]"> de {leaderRanking.length}</span>
+              <span className="ml-1 text-base font-semibold text-[var(--bg)]/60">de {leaderRanking.length}</span>
             ) : null}
           </p>
-          <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+          <div className="mt-5 grid grid-cols-3 gap-2 border-t border-[var(--bg)]/15 pt-3 text-center">
             <div>
-              <p className="text-lg font-bold tabular-nums">{myLeaderStats?.missions_created ?? 0}</p>
-              <p className="text-[11px] text-[var(--muted)]">missões criadas</p>
+              <p className="text-base font-bold tabular-nums">{myLeaderStats?.missions_created ?? 0}</p>
+              <p className="text-[10px] uppercase tracking-wide text-[var(--bg)]/60">criadas</p>
             </div>
             <div>
-              <p className="text-lg font-bold tabular-nums">{formatXp(myLeaderStats?.missions_xp ?? 0)}</p>
-              <p className="text-[11px] text-[var(--muted)]">XP em missões</p>
+              <p className="text-base font-bold tabular-nums">{formatXp(myLeaderStats?.missions_xp ?? 0)}</p>
+              <p className="text-[10px] uppercase tracking-wide text-[var(--bg)]/60">XP em missões</p>
             </div>
             <div>
-              <p className="text-lg font-bold tabular-nums">{myLeaderStats?.missions_completed ?? 0}</p>
-              <p className="text-[11px] text-[var(--muted)]">concluídas</p>
+              <p className="text-base font-bold tabular-nums">{myLeaderStats?.missions_completed ?? 0}</p>
+              <p className="text-[10px] uppercase tracking-wide text-[var(--bg)]/60">concluídas</p>
             </div>
           </div>
-          <Link href="/app/ranking" className="mt-4 block text-center text-xs font-semibold text-[var(--accent-strong)]">
+          <Link href="/app/ranking" className="mt-4 block text-center text-xs font-semibold text-[var(--accent)]">
             ver ranking completo →
           </Link>
         </Card>
 
+        {/* card claro com pódio colorido — leitura rápida de quem lidera o Elo */}
         <Card>
-          <p className="text-xs font-bold uppercase tracking-wide text-[var(--muted)]">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-[var(--muted)]">
             Ranking do seu Elo
           </p>
           {crias.length === 0 ? (
@@ -263,19 +265,39 @@ export default async function LiderDashboard() {
               Nenhum cria vinculado ainda. Fale com a administração.
             </p>
           ) : (
-            <ol className="mt-3 space-y-1.5">
-              {crias.slice(0, 5).map((c, i) => (
-                <li key={c.id} className="flex items-center justify-between gap-3 rounded-xl px-1 py-1 text-sm">
-                  <span className="flex min-w-0 items-center gap-2.5">
-                    <span className="w-5 shrink-0 text-sm font-bold tabular-nums text-[var(--muted)]">
-                      {i + 1}º
+            <ol className="mt-3 space-y-1">
+              {crias.slice(0, 5).map((c, i) => {
+                const medal = ["bg-amber-400 text-amber-950", "bg-slate-300 text-slate-800", "bg-orange-400 text-orange-950"][i];
+                return (
+                  <li
+                    key={c.id}
+                    className={`flex items-center justify-between gap-3 rounded-xl px-2 py-2 ${
+                      i === 0 ? "bg-[var(--accent-soft)]" : ""
+                    }`}
+                  >
+                    <span className="flex min-w-0 items-center gap-2.5">
+                      <span
+                        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-black tabular-nums ${
+                          medal ?? "bg-[var(--bg)] text-[var(--muted)]"
+                        }`}
+                      >
+                        {i + 1}
+                      </span>
+                      <Avatar url={c.avatar_url} name={c.full_name} size={30} />
+                      <span className={`truncate ${i === 0 ? "text-base font-bold" : "text-sm font-medium"}`}>
+                        {c.full_name || "Sem nome"}
+                      </span>
                     </span>
-                    <Avatar url={c.avatar_url} name={c.full_name} size={26} />
-                    <span className="truncate font-medium">{c.full_name || "Sem nome"}</span>
-                  </span>
-                  <span className="shrink-0 tabular-nums text-[var(--muted)]">{formatXp(c.xp)} XP</span>
-                </li>
-              ))}
+                    <span
+                      className={`shrink-0 tabular-nums ${
+                        i === 0 ? "text-sm font-bold text-[var(--accent-strong)]" : "text-xs text-[var(--muted)]"
+                      }`}
+                    >
+                      {formatXp(c.xp)} XP
+                    </span>
+                  </li>
+                );
+              })}
             </ol>
           )}
           {crias.length > 5 ? (
