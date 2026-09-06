@@ -45,11 +45,18 @@ export async function updateUser(_prev: Result | null, formData: FormData): Prom
   const gender = String(formData.get("gender") ?? "");
   const firstName = String(formData.get("first_name") ?? "").trim();
   const lastName = String(formData.get("last_name") ?? "").trim();
+  const xpRaw = String(formData.get("xp") ?? "").trim();
 
   if (!id) return { error: "Usuário inválido." };
   if (!ROLES.includes(role)) return { error: "Perfil inválido." };
   if (!firstName) return { error: "Informe o nome." };
   if (!lastName) return { error: "Informe o sobrenome." };
+
+  let xp: number | undefined;
+  if (xpRaw) {
+    xp = Number(xpRaw);
+    if (!Number.isInteger(xp) || xp < 0) return { error: "XP precisa ser um número inteiro, 0 ou maior." };
+  }
 
   const { error } = await supabase
     .from("profiles")
@@ -60,6 +67,7 @@ export async function updateUser(_prev: Result | null, formData: FormData): Prom
       elo_id: eloId || null,
       ...(ageRange ? { age_range: ageRange } : {}),
       ...(gender ? { gender } : {}),
+      ...(xp !== undefined ? { xp } : {}),
     })
     .eq("id", id);
 

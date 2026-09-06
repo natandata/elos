@@ -149,6 +149,18 @@ export function UserEditor({
             </div>
 
             <div>
+              <label className="label">XP</label>
+              <input
+                name="xp"
+                type="number"
+                min={0}
+                step={1}
+                className="input"
+                defaultValue={user.xp}
+              />
+            </div>
+
+            <div>
               <label className="label">Faixa etária</label>
               <select name="age_range" className="input" defaultValue={user.age_range ?? ""}>
                 <option value="">Não informada</option>
