@@ -167,6 +167,74 @@ export type EloEvent = {
   leaders_only: boolean;
 };
 
+export type PlannedEvent = {
+  id: string;
+  title: string;
+  description: string | null;
+  event_date: string;
+  event_time: string | null;
+  location: string | null;
+  elo_id: string | null;
+  leaders_only: boolean;
+  linked_event_id: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type LiturgyItem = {
+  id: string;
+  planned_event_id: string;
+  position: number;
+  time: string | null;
+  title: string;
+  responsible: string | null;
+  notes: string | null;
+};
+
+export type EventReminder = {
+  id: string;
+  planned_event_id: string;
+  title: string;
+  done: boolean;
+  remind_at: string | null;
+};
+
+export type GuestStatus = "suggested" | "invited" | "confirmed" | "declined";
+
+export type EventGuest = {
+  id: string;
+  planned_event_id: string;
+  name: string;
+  role_or_reason: string | null;
+  contact: string | null;
+  status: GuestStatus;
+  notes: string | null;
+};
+
+export const GUEST_STATUS_LABEL: Record<GuestStatus, string> = {
+  suggested: "Sugerido",
+  invited: "Convidado",
+  confirmed: "Confirmado",
+  declined: "Recusou",
+};
+
+export const GUEST_STATUS_TONE: Record<GuestStatus, string> = {
+  suggested: "border-[var(--line)] text-[var(--muted)]",
+  invited: "bg-amber-100 text-amber-800 border-amber-200",
+  confirmed: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  declined: "bg-red-100 text-red-700 border-red-200",
+};
+
+export type SetlistItem = {
+  id: string;
+  planned_event_id: string;
+  position: number;
+  song_title: string;
+  link: string | null;
+  notes: string | null;
+};
+
 export type StatusResponse = {
   id: string;
   user_id: string;

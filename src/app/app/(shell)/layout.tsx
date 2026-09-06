@@ -35,6 +35,7 @@ const NAV: Record<string, NavItem[]> = {
       ],
     },
     { href: "/app/agenda", label: "Agenda", icon: "📅" },
+    { href: "/app/eventos", label: "Eventos", icon: "🎬" },
     { href: "/app/feed", label: "Explorar", icon: "📸" },
   ],
   leader: [
@@ -43,6 +44,7 @@ const NAV: Record<string, NavItem[]> = {
     { href: "/app/lider/missoes", label: "Missões", icon: "🎯" },
     { href: "/app/devocional", label: "Meu Devocional", icon: "📖" },
     { href: "/app/agenda", label: "Agenda", icon: "📅" },
+    { href: "/app/eventos", label: "Eventos", icon: "🎬" },
     { href: "/app/chat", label: "Chat", icon: "💬" },
     { href: "/app/feed", label: "Explorar", icon: "📸" },
     { href: "/app/lider/status-crias", label: "Status Crias", icon: "💛" },
