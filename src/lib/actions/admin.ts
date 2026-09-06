@@ -274,6 +274,42 @@ function revalidateAgenda() {
   revalidatePath("/app/lider");
 }
 
+const RECURRENCE_STEP_DAYS: Record<string, number> = { weekly: 7, biweekly: 14 };
+// trava de segurança: nunca gera mais que isso numa tacada só, mesmo que a
+// data final peça mais (evita um "até" digitado errado lotar a agenda).
+const MAX_RECURRENCE_OCCURRENCES = 52;
+
+/** Soma dias a uma data "YYYY-MM-DD" sem passar por fuso horário. */
+function addDaysToDate(date: string, days: number): string {
+  const [y, m, d] = date.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + days));
+  return dt.toISOString().slice(0, 10);
+}
+
+/** Mesmo dia do mês seguinte — se o mês não tiver esse dia (ex. 31),
+ *  Date() já rola pro mês depois sozinho; aceitável pra uma agenda de igreja. */
+function addMonthToDate(date: string): string {
+  const [y, m, d] = date.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m, d));
+  return dt.toISOString().slice(0, 10);
+}
+
+/** Gera as datas de uma série recorrente, a partir da primeira, até `until`
+ *  (inclusive) — sempre inclui a data inicial, mesmo sem repetição alguma. */
+function buildRecurrenceDates(start: string, rule: string, until: string | null): string[] {
+  const dates = [start];
+  const isKnownRule = rule in RECURRENCE_STEP_DAYS || rule === "monthly";
+  if (!until || !isKnownRule) return dates;
+
+  let current = start;
+  while (dates.length < MAX_RECURRENCE_OCCURRENCES) {
+    current = rule === "monthly" ? addMonthToDate(current) : addDaysToDate(current, RECURRENCE_STEP_DAYS[rule]);
+    if (current > until) break;
+    dates.push(current);
+  }
+  return dates;
+}
+
 export async function saveEvent(_prev: Result | null, formData: FormData): Promise<Result> {
   const supabase = await adminClient();
   const id = String(formData.get("id") ?? "");
@@ -288,10 +324,9 @@ export async function saveEvent(_prev: Result | null, formData: FormData): Promi
   const eloField = String(formData.get("elo_id") ?? "");
   const leadersOnly = eloField === "leaders";
 
-  const payload = {
+  const basePayload = {
     title,
     description: String(formData.get("description") ?? "").trim() || null,
-    event_date: eventDate,
     event_time: String(formData.get("event_time") ?? "") || null,
     location: String(formData.get("location") ?? "").trim() || null,
     elo_id: leadersOnly ? null : eloField || null,
@@ -302,9 +337,29 @@ export async function saveEvent(_prev: Result | null, formData: FormData): Promi
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { error } = id
-    ? await supabase.from("events").update(payload).eq("id", id)
-    : await supabase.from("events").insert({ ...payload, created_by: user!.id });
+  if (id) {
+    // edição: sempre a ocorrência única — recorrência só se aplica na criação.
+    const { error } = await supabase.from("events").update({ ...basePayload, event_date: eventDate }).eq("id", id);
+    if (error) return { error: "Não foi possível salvar o evento." };
+    revalidateAgenda();
+    return { ok: true };
+  }
+
+  const recurrence = String(formData.get("recurrence") ?? "none");
+  const recurrenceUntil = String(formData.get("recurrence_until") ?? "") || null;
+  const dates =
+    recurrence === "none" ? [eventDate] : buildRecurrenceDates(eventDate, recurrence, recurrenceUntil);
+  const groupId = dates.length > 1 ? crypto.randomUUID() : null;
+
+  const { error } = await supabase.from("events").insert(
+    dates.map((event_date) => ({
+      ...basePayload,
+      event_date,
+      created_by: user!.id,
+      recurrence_group_id: groupId,
+      recurrence_rule: groupId ? recurrence : null,
+    })),
+  );
 
   if (error) return { error: "Não foi possível salvar o evento." };
 

@@ -8,6 +8,7 @@ import type { Elo, EloEvent } from "@/lib/types";
 export function EventComposer({ elos }: { elos: Elo[] }) {
   const [state, action] = useActionState(saveEvent, null);
   const [open, setOpen] = useState(false);
+  const [recurrence, setRecurrence] = useState("none");
 
   return (
     <div className="card mb-5 p-4">
@@ -55,6 +56,31 @@ export function EventComposer({ elos }: { elos: Elo[] }) {
             <label className="label">Descrição</label>
             <textarea name="description" rows={2} className="input" />
           </div>
+
+          <div>
+            <label className="label">Repetir</label>
+            <select
+              name="recurrence"
+              className="input"
+              value={recurrence}
+              onChange={(e) => setRecurrence(e.target.value)}
+            >
+              <option value="none">Não repete</option>
+              <option value="weekly">Semanalmente</option>
+              <option value="biweekly">Quinzenalmente</option>
+              <option value="monthly">Mensalmente</option>
+            </select>
+          </div>
+          {recurrence !== "none" ? (
+            <div>
+              <label className="label">Repetir até</label>
+              <input name="recurrence_until" type="date" className="input" required />
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                Cria uma ocorrência por {recurrence === "weekly" ? "semana" : recurrence === "biweekly" ? "quinzena" : "mês"}, até essa data (máx. 52).
+              </p>
+            </div>
+          ) : null}
+
           <div className="sm:col-span-2">
             <Feedback state={state} />
             <SubmitBtn className="btn btn-primary mt-2 w-full">Salvar evento</SubmitBtn>
