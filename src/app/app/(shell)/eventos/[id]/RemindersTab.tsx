@@ -20,44 +20,68 @@ function ReminderRow({
   const overdue = !item.done && item.remind_at && item.remind_at < new Date().toISOString().slice(0, 10);
 
   return (
-    <li
-      className={`flex items-center justify-between gap-3 rounded-xl border p-3 ${
-        item.done
-          ? "border-emerald-200 bg-emerald-50"
-          : overdue
-            ? "border-red-200 bg-red-50"
-            : "border-[var(--line)]"
-      }`}
-    >
-      <div className="min-w-0 flex-1">
-        <p className={`text-sm ${item.done ? "text-emerald-800 line-through" : ""}`}>{item.title}</p>
-        {item.remind_at ? (
-          <p className={`text-xs ${overdue ? "font-bold text-red-700" : "text-[var(--muted)]"}`}>
-            {overdue ? "Venceu em " : "Até "}
-            {formatDate(item.remind_at)}
-          </p>
-        ) : null}
-        <Feedback state={toggleState?.error ? toggleState : deleteState?.error ? deleteState : null} />
-      </div>
-      {isAdmin ? (
-        <div className="flex shrink-0 gap-2">
-          <form action={toggleAction}>
-            <input type="hidden" name="id" value={item.id} />
-            <input type="hidden" name="planned_event_id" value={plannedEventId} />
-            <input type="hidden" name="done" value={String(!item.done)} />
-            <button type="submit" className="btn btn-ghost !px-2.5 !py-1 !text-xs">
-              {item.done ? "Reabrir" : "Feito"}
-            </button>
-          </form>
-          <form action={deleteAction}>
-            <input type="hidden" name="id" value={item.id} />
-            <input type="hidden" name="planned_event_id" value={plannedEventId} />
-            <button type="submit" className="btn btn-ghost !px-2.5 !py-1 !text-xs text-red-600">
-              Remover
-            </button>
-          </form>
+    <li>
+      <Card
+        className={`!p-3 ${
+          item.done
+            ? "!border-emerald-200 !bg-emerald-50"
+            : overdue
+              ? "!border-red-200 !bg-red-50"
+              : ""
+        }`}
+      >
+        <div className="flex items-center gap-3">
+          {isAdmin ? (
+            <form action={toggleAction}>
+              <input type="hidden" name="id" value={item.id} />
+              <input type="hidden" name="planned_event_id" value={plannedEventId} />
+              <input type="hidden" name="done" value={String(!item.done)} />
+              <button
+                type="submit"
+                aria-label={item.done ? "Reabrir" : "Marcar como feito"}
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-sm ${
+                  item.done
+                    ? "border-emerald-500 bg-emerald-500 text-white"
+                    : "border-[var(--line)] text-transparent"
+                }`}
+              >
+                ✓
+              </button>
+            </form>
+          ) : (
+            <span
+              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-sm ${
+                item.done ? "border-emerald-500 bg-emerald-500 text-white" : "border-[var(--line)]"
+              }`}
+            >
+              {item.done ? "✓" : ""}
+            </span>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className={`text-sm ${item.done ? "text-emerald-800 line-through" : ""}`}>{item.title}</p>
+            {item.remind_at ? (
+              <p className={`text-xs ${overdue ? "font-bold text-red-700" : "text-[var(--muted)]"}`}>
+                {overdue ? "Venceu em " : "Até "}
+                {formatDate(item.remind_at)}
+              </p>
+            ) : null}
+            <Feedback state={toggleState?.error ? toggleState : deleteState?.error ? deleteState : null} />
+          </div>
+          {isAdmin ? (
+            <form action={deleteAction}>
+              <input type="hidden" name="id" value={item.id} />
+              <input type="hidden" name="planned_event_id" value={plannedEventId} />
+              <button
+                type="submit"
+                aria-label="Remover"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-base hover:bg-red-100"
+              >
+                🗑️
+              </button>
+            </form>
+          ) : null}
         </div>
-      ) : null}
+      </Card>
     </li>
   );
 }

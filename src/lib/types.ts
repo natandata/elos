@@ -182,6 +182,29 @@ export type PlannedEvent = {
   updated_at: string;
 };
 
+export type LiturgyItemType =
+  | "abertura"
+  | "louvor"
+  | "oracao"
+  | "oferta"
+  | "palavra"
+  | "ceia"
+  | "testemunho"
+  | "encerramento"
+  | "outro";
+
+export const LITURGY_TYPE_META: Record<LiturgyItemType, { label: string; icon: string }> = {
+  abertura: { label: "Abertura", icon: "🚪" },
+  louvor: { label: "Louvor", icon: "🎤" },
+  oracao: { label: "Oração", icon: "🙏" },
+  oferta: { label: "Oferta", icon: "💰" },
+  palavra: { label: "Palavra", icon: "📖" },
+  ceia: { label: "Ceia", icon: "🍞" },
+  testemunho: { label: "Testemunho", icon: "🗣️" },
+  encerramento: { label: "Encerramento", icon: "✅" },
+  outro: { label: "Outro", icon: "•" },
+};
+
 export type LiturgyItem = {
   id: string;
   planned_event_id: string;
@@ -190,6 +213,8 @@ export type LiturgyItem = {
   title: string;
   responsible: string | null;
   notes: string | null;
+  item_type: LiturgyItemType;
+  duration_minutes: number | null;
 };
 
 export type EventReminder = {

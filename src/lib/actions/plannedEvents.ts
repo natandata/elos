@@ -166,11 +166,15 @@ export async function addLiturgyItem(_prev: Result | null, formData: FormData): 
     .select("id", { count: "exact", head: true })
     .eq("planned_event_id", plannedEventId);
 
+  const durationRaw = String(formData.get("duration_minutes") ?? "").trim();
+
   const { error } = await supabase.from("planned_event_liturgy_items").insert({
     planned_event_id: plannedEventId,
     position: count ?? 0,
     time: String(formData.get("time") ?? "").trim() || null,
     title,
+    item_type: String(formData.get("item_type") ?? "outro") || "outro",
+    duration_minutes: durationRaw ? Number(durationRaw) : null,
     responsible: String(formData.get("responsible") ?? "").trim() || null,
     notes: String(formData.get("notes") ?? "").trim() || null,
   });
@@ -188,11 +192,15 @@ export async function updateLiturgyItem(_prev: Result | null, formData: FormData
   if (!id) return { error: "Item inválido." };
   if (!title) return { error: "Informe o título do item." };
 
+  const durationRaw = String(formData.get("duration_minutes") ?? "").trim();
+
   const { error } = await supabase
     .from("planned_event_liturgy_items")
     .update({
       time: String(formData.get("time") ?? "").trim() || null,
       title,
+      item_type: String(formData.get("item_type") ?? "outro") || "outro",
+      duration_minutes: durationRaw ? Number(durationRaw) : null,
       responsible: String(formData.get("responsible") ?? "").trim() || null,
       notes: String(formData.get("notes") ?? "").trim() || null,
     })

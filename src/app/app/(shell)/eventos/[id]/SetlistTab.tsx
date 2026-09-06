@@ -23,51 +23,72 @@ function SetlistRow({
   const [deleteState, deleteAction] = useActionState(deleteSetlistItem, null);
 
   return (
-    <li className="flex items-start gap-3 rounded-xl border border-[var(--line)] p-3">
-      {isAdmin ? (
-        <div className="flex flex-col gap-0.5 pt-0.5">
-          <form action={moveAction}>
-            <input type="hidden" name="planned_event_id" value={plannedEventId} />
-            <input type="hidden" name="id" value={item.id} />
-            <input type="hidden" name="direction" value="up" />
-            <button type="submit" disabled={isFirst} className="text-xs text-[var(--muted)] disabled:opacity-20">
-              ▲
-            </button>
-          </form>
-          <form action={moveAction}>
-            <input type="hidden" name="planned_event_id" value={plannedEventId} />
-            <input type="hidden" name="id" value={item.id} />
-            <input type="hidden" name="direction" value="down" />
-            <button type="submit" disabled={isLast} className="text-xs text-[var(--muted)] disabled:opacity-20">
-              ▼
-            </button>
-          </form>
+    <li>
+      <Card className="!p-3">
+        <div className="flex items-start gap-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-[var(--accent)] bg-[var(--accent-soft)] text-sm font-black text-[var(--accent-strong)]">
+            🎵
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="font-bold">{item.song_title}</p>
+            {item.link ? (
+              <a
+                href={item.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="break-all text-xs text-[var(--accent-strong)] underline"
+              >
+                {item.link}
+              </a>
+            ) : null}
+            {item.notes ? <p className="mt-1 text-xs text-[var(--muted)]">{item.notes}</p> : null}
+            <Feedback state={moveState?.error ? moveState : deleteState?.error ? deleteState : null} />
+          </div>
+          {isAdmin ? (
+            <div className="flex shrink-0 items-center gap-1">
+              <div className="mr-1 flex flex-col">
+                <form action={moveAction}>
+                  <input type="hidden" name="planned_event_id" value={plannedEventId} />
+                  <input type="hidden" name="id" value={item.id} />
+                  <input type="hidden" name="direction" value="up" />
+                  <button
+                    type="submit"
+                    disabled={isFirst}
+                    aria-label="Mover pra cima"
+                    className="flex h-4 w-5 items-center justify-center text-[10px] text-[var(--muted)] disabled:opacity-20"
+                  >
+                    ▲
+                  </button>
+                </form>
+                <form action={moveAction}>
+                  <input type="hidden" name="planned_event_id" value={plannedEventId} />
+                  <input type="hidden" name="id" value={item.id} />
+                  <input type="hidden" name="direction" value="down" />
+                  <button
+                    type="submit"
+                    disabled={isLast}
+                    aria-label="Mover pra baixo"
+                    className="flex h-4 w-5 items-center justify-center text-[10px] text-[var(--muted)] disabled:opacity-20"
+                  >
+                    ▼
+                  </button>
+                </form>
+              </div>
+              <form action={deleteAction}>
+                <input type="hidden" name="id" value={item.id} />
+                <input type="hidden" name="planned_event_id" value={plannedEventId} />
+                <button
+                  type="submit"
+                  aria-label="Remover"
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-base hover:bg-red-50"
+                >
+                  🗑️
+                </button>
+              </form>
+            </div>
+          ) : null}
         </div>
-      ) : null}
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-bold">{item.song_title}</p>
-        {item.link ? (
-          <a
-            href={item.link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-[var(--accent-strong)] underline break-all"
-          >
-            {item.link}
-          </a>
-        ) : null}
-        {item.notes ? <p className="mt-1 text-xs text-[var(--muted)]">{item.notes}</p> : null}
-        <Feedback state={moveState?.error ? moveState : deleteState?.error ? deleteState : null} />
-      </div>
-      {isAdmin ? (
-        <form action={deleteAction}>
-          <input type="hidden" name="id" value={item.id} />
-          <input type="hidden" name="planned_event_id" value={plannedEventId} />
-          <button type="submit" className="text-xs text-red-600">
-            Remover
-          </button>
-        </form>
-      ) : null}
+      </Card>
     </li>
   );
 }
@@ -97,15 +118,24 @@ export function SetlistTab({
             className="mt-2 grid gap-2 sm:grid-cols-3"
           >
             <input type="hidden" name="planned_event_id" value={plannedEventId} />
-            <input
-              name="song_title"
-              className="input"
-              placeholder="Nome da música"
-              value={songTitle}
-              onChange={(e) => setSongTitle(e.target.value)}
-            />
-            <input name="link" className="input" placeholder="Link (playlist/vídeo) — opcional" />
-            <input name="notes" className="input" placeholder="Tom / observação (opcional)" />
+            <div>
+              <label className="label !text-[11px]">Música</label>
+              <input
+                name="song_title"
+                className="input"
+                placeholder="Nome da música"
+                value={songTitle}
+                onChange={(e) => setSongTitle(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="label !text-[11px]">Link</label>
+              <input name="link" className="input" placeholder="Playlist/vídeo — opcional" />
+            </div>
+            <div>
+              <label className="label !text-[11px]">Tom / observação</label>
+              <input name="notes" className="input" placeholder="Opcional" />
+            </div>
             <div className="sm:col-span-3">
               <SubmitBtn className="btn btn-primary !py-2 !text-sm" disabled={!songTitle.trim()}>
                 Adicionar
