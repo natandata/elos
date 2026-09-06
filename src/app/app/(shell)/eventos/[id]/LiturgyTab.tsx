@@ -1,10 +1,64 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { Card, EmptyState } from "@/components/ui";
 import { Feedback, SubmitBtn } from "@/components/forms";
-import { addLiturgyItem, deleteLiturgyItem, moveLiturgyItem } from "@/lib/actions/plannedEvents";
+import {
+  addLiturgyItem,
+  deleteLiturgyItem,
+  moveLiturgyItem,
+  updateLiturgyItem,
+} from "@/lib/actions/plannedEvents";
 import type { LiturgyItem } from "@/lib/types";
+
+/** "15:00" (do <input type="time">) -> "15h00", igual o resto do app fala
+ *  horário — sem isso a pessoa digitava "1500" num campo de texto livre. */
+function formatTimeLabel(time: string | null): string | null {
+  if (!time) return null;
+  return time.slice(0, 5).replace(":", "h");
+}
+
+function LiturgyEditForm({
+  item,
+  plannedEventId,
+  onDone,
+}: {
+  item: LiturgyItem;
+  plannedEventId: string;
+  onDone: () => void;
+}) {
+  const [state, action] = useActionState(updateLiturgyItem, null);
+
+  useEffect(() => {
+    if (state?.ok) onDone();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
+
+  return (
+    <form action={action} className="grid gap-2 sm:grid-cols-4">
+      <input type="hidden" name="id" value={item.id} />
+      <input type="hidden" name="planned_event_id" value={plannedEventId} />
+      <input name="time" type="time" className="input" defaultValue={item.time ?? ""} />
+      <input name="title" className="input sm:col-span-2" defaultValue={item.title} required />
+      <input name="responsible" className="input" placeholder="Responsável" defaultValue={item.responsible ?? ""} />
+      <input
+        name="notes"
+        className="input sm:col-span-4"
+        placeholder="Observações"
+        defaultValue={item.notes ?? ""}
+      />
+      <div className="flex gap-2 sm:col-span-4">
+        <SubmitBtn className="btn btn-primary !py-1.5 !text-xs">Salvar</SubmitBtn>
+        <button type="button" className="btn btn-ghost !py-1.5 !text-xs" onClick={onDone}>
+          Cancelar
+        </button>
+      </div>
+      <div className="sm:col-span-4">
+        <Feedback state={state} />
+      </div>
+    </form>
+  );
+}
 
 function LiturgyRow({
   item,
@@ -19,8 +73,17 @@ function LiturgyRow({
   plannedEventId: string;
   isAdmin: boolean;
 }) {
+  const [editing, setEditing] = useState(false);
   const [moveState, moveAction] = useActionState(moveLiturgyItem, null);
   const [deleteState, deleteAction] = useActionState(deleteLiturgyItem, null);
+
+  if (editing) {
+    return (
+      <li className="rounded-xl border border-[var(--accent)] bg-[var(--accent-soft)] p-3">
+        <LiturgyEditForm item={item} plannedEventId={plannedEventId} onDone={() => setEditing(false)} />
+      </li>
+    );
+  }
 
   return (
     <li className="flex items-start gap-3 rounded-xl border border-[var(--line)] p-3">
@@ -46,7 +109,7 @@ function LiturgyRow({
       ) : null}
       <div className="min-w-0 flex-1">
         <p className="text-sm font-bold">
-          {item.time ? <span className="text-[var(--accent-strong)]">{item.time} · </span> : null}
+          {item.time ? <span className="text-[var(--accent-strong)]">{formatTimeLabel(item.time)} · </span> : null}
           {item.title}
         </p>
         {item.responsible ? (
@@ -56,13 +119,18 @@ function LiturgyRow({
         <Feedback state={moveState?.error ? moveState : deleteState?.error ? deleteState : null} />
       </div>
       {isAdmin ? (
-        <form action={deleteAction}>
-          <input type="hidden" name="id" value={item.id} />
-          <input type="hidden" name="planned_event_id" value={plannedEventId} />
-          <button type="submit" className="text-xs text-red-600">
-            Remover
+        <div className="flex shrink-0 gap-2">
+          <button type="button" className="text-xs font-semibold text-[var(--accent-strong)]" onClick={() => setEditing(true)}>
+            Editar
           </button>
-        </form>
+          <form action={deleteAction}>
+            <input type="hidden" name="id" value={item.id} />
+            <input type="hidden" name="planned_event_id" value={plannedEventId} />
+            <button type="submit" className="text-xs text-red-600">
+              Remover
+            </button>
+          </form>
+        </div>
       ) : null}
     </li>
   );
@@ -93,7 +161,7 @@ export function LiturgyTab({
             className="mt-2 grid gap-2 sm:grid-cols-4"
           >
             <input type="hidden" name="planned_event_id" value={plannedEventId} />
-            <input name="time" className="input" placeholder="19h30" />
+            <input name="time" type="time" className="input" />
             <input
               name="title"
               className="input sm:col-span-2"

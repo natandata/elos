@@ -180,6 +180,29 @@ export async function addLiturgyItem(_prev: Result | null, formData: FormData): 
   return { ok: true };
 }
 
+export async function updateLiturgyItem(_prev: Result | null, formData: FormData): Promise<Result> {
+  const { supabase } = await adminClient();
+  const id = String(formData.get("id") ?? "");
+  const plannedEventId = String(formData.get("planned_event_id") ?? "");
+  const title = String(formData.get("title") ?? "").trim();
+  if (!id) return { error: "Item inválido." };
+  if (!title) return { error: "Informe o título do item." };
+
+  const { error } = await supabase
+    .from("planned_event_liturgy_items")
+    .update({
+      time: String(formData.get("time") ?? "").trim() || null,
+      title,
+      responsible: String(formData.get("responsible") ?? "").trim() || null,
+      notes: String(formData.get("notes") ?? "").trim() || null,
+    })
+    .eq("id", id);
+
+  if (error) return { error: "Não foi possível salvar." };
+  revalidateEventos(plannedEventId);
+  return { ok: true };
+}
+
 export async function deleteLiturgyItem(_prev: Result | null, formData: FormData): Promise<Result> {
   const { supabase } = await adminClient();
   const id = String(formData.get("id") ?? "");
