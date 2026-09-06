@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { deleteEvent, saveEvent } from "@/lib/actions/admin";
 import { Feedback, SubmitBtn } from "@/components/forms";
 import type { Elo, EloEvent } from "@/lib/types";
@@ -69,6 +69,12 @@ export function EventAdminControls({ event, elos }: { event: EloEvent; elos: Elo
   const [editing, setEditing] = useState(false);
   const [saveState, saveAction] = useActionState(saveEvent, null);
   const [deleteState, deleteAction] = useActionState(deleteEvent, null);
+
+  // depois de salvar com sucesso, recolhe o formulário — sem isso ele ficava
+  // aberto mostrando "Salvo com sucesso" indefinidamente.
+  useEffect(() => {
+    if (saveState?.ok) setEditing(false);
+  }, [saveState]);
 
   return (
     <div className="mt-3 border-t border-[var(--line)] pt-3">
