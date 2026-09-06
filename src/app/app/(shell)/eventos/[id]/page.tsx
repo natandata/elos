@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ErrorState, PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
@@ -36,6 +37,12 @@ export default async function PlannedEventPage({ params }: { params: Promise<{ i
 
   return (
     <>
+      <Link
+        href="/app/eventos"
+        className="mb-3 inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--accent-strong)]"
+      >
+        ← Voltar para Todos os eventos
+      </Link>
       <PageHeader title={plan.title} subtitle="Planejamento do evento" />
 
       <PlannedEventHeader plan={plan} elos={elos} isAdmin={isAdmin} />

@@ -50,6 +50,7 @@ export function EventComposer({ elos }: { elos: Elo[] }) {
                 </option>
               ))}
               <option value="leaders">Liderança (só líderes)</option>
+              <option value="admin">Só admin</option>
             </select>
           </div>
           <div className="sm:col-span-2">
@@ -156,7 +157,9 @@ export function EventAdminControls({ event, elos }: { event: EloEvent; elos: Elo
             <select
               name="elo_id"
               className="input"
-              defaultValue={event.leaders_only ? "leaders" : (event.elo_id ?? "")}
+              defaultValue={
+                event.admin_only ? "admin" : event.leaders_only ? "leaders" : (event.elo_id ?? "")
+              }
             >
               <option value="">Todos</option>
               {elos.map((e) => (
@@ -164,6 +167,8 @@ export function EventAdminControls({ event, elos }: { event: EloEvent; elos: Elo
                   {e.name}
                 </option>
               ))}
+              <option value="leaders">Liderança (só líderes)</option>
+              <option value="admin">Só admin</option>
             </select>
           </div>
           <div className="sm:col-span-2">

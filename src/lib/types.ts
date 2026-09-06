@@ -165,6 +165,7 @@ export type EloEvent = {
   location: string | null;
   elo_id: string | null;
   leaders_only: boolean;
+  admin_only: boolean;
 };
 
 export type PlannedEvent = {

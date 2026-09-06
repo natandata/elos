@@ -16,7 +16,7 @@ export default async function AgendaPage() {
     supabase.from("elos").select("*").order("gender").order("age_range"),
     supabase
       .from("events")
-      .select("id, title, description, event_date, event_time, location, elo_id, leaders_only")
+      .select("id, title, description, event_date, event_time, location, elo_id, leaders_only, admin_only")
       .order("event_date"),
     supabase.from("event_attendance").select("event_id, user_id"),
   ]);
@@ -51,16 +51,20 @@ export default async function AgendaPage() {
         </div>
         <span
           className={`chip ${
-            event.leaders_only
-              ? "border-red-200 bg-red-100 text-red-700"
-              : "border-[var(--line)] text-[var(--muted)]"
+            event.admin_only
+              ? "border-slate-300 bg-slate-200 text-slate-800"
+              : event.leaders_only
+                ? "border-red-200 bg-red-100 text-red-700"
+                : "border-[var(--line)] text-[var(--muted)]"
           }`}
         >
-          {event.leaders_only
-            ? "Liderança"
-            : event.elo_id
-              ? (eloName.get(event.elo_id) ?? "Elo")
-              : "Todos os ELOS"}
+          {event.admin_only
+            ? "Só admin"
+            : event.leaders_only
+              ? "Liderança"
+              : event.elo_id
+                ? (eloName.get(event.elo_id) ?? "Elo")
+                : "Todos os ELOS"}
         </span>
       </div>
       {event.description ? (
