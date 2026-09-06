@@ -145,7 +145,10 @@ function LiturgyRow({
         ) : (
           <Card className="!p-3">
             <div className="flex flex-wrap items-start justify-between gap-2">
-              <div className="min-w-0">
+              <div
+                className={`min-w-0 flex-1 ${isAdmin ? "cursor-pointer" : ""}`}
+                onClick={isAdmin ? () => setEditing(true) : undefined}
+              >
                 <div className="flex flex-wrap items-center gap-2">
                   {item.time ? (
                     <span className="text-sm font-black tabular-nums text-[var(--accent-strong)]">
@@ -165,7 +168,7 @@ function LiturgyRow({
               </div>
 
               {isAdmin ? (
-                <div className="flex shrink-0 items-center gap-1">
+                <div className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
                   <div className="mr-1 flex flex-col">
                     <form action={moveAction}>
                       <input type="hidden" name="planned_event_id" value={plannedEventId} />
@@ -194,14 +197,6 @@ function LiturgyRow({
                       </button>
                     </form>
                   </div>
-                  <button
-                    type="button"
-                    aria-label="Editar"
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-base hover:bg-[var(--bg)]"
-                    onClick={() => setEditing(true)}
-                  >
-                    ✏️
-                  </button>
                   <form action={deleteAction}>
                     <input type="hidden" name="id" value={item.id} />
                     <input type="hidden" name="planned_event_id" value={plannedEventId} />
