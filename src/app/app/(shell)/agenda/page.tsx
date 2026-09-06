@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDate, type Elo, type EloEvent } from "@/lib/types";
 import { EventAdminControls, EventComposer } from "./EventManager";
 import { EventCheckIn } from "./EventCheckIn";
+import { AgendaCalendar, type CalendarEntry } from "./AgendaCalendar";
+import { AgendaViewToggle } from "./AgendaViewToggle";
 
 export default async function AgendaPage() {
   const { profile } = await requireProfile();
@@ -79,12 +81,8 @@ export default async function AgendaPage() {
     </Card>
   );
 
-  return (
+  const listView = (
     <>
-      <PageHeader title="Agenda de Eventos" subtitle="Encontros, cultos e atividades dos ELOS." />
-
-      {isAdmin ? <EventComposer elos={elos} /> : null}
-
       <section className="mb-6">
         <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">
           Próximos ({upcoming.length})
@@ -104,6 +102,29 @@ export default async function AgendaPage() {
           <div className="space-y-3 opacity-70">{past.slice(0, 10).map(renderEvent)}</div>
         </section>
       ) : null}
+    </>
+  );
+
+  return (
+    <>
+      <PageHeader title="Agenda de Eventos" subtitle="Encontros, cultos e atividades dos ELOS." />
+
+      {isAdmin ? <EventComposer elos={elos} /> : null}
+
+      {isAdmin ? (
+        <AgendaViewToggle
+          list={listView}
+          calendar={
+            <AgendaCalendar
+              entries={all.map(
+                (e): CalendarEntry => ({ id: e.id, date: e.event_date, node: renderEvent(e) }),
+              )}
+            />
+          }
+        />
+      ) : (
+        listView
+      )}
     </>
   );
 }
