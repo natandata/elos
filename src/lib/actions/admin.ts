@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { sendEmail } from "@/lib/email.server";
 import type { AgeRange, Gender, Role } from "@/lib/types";
+import { isFrameworkFlowError, NETWORK_ERROR_MESSAGE } from "./errorHandling";
 
 type Result = { error?: string; ok?: boolean };
 
@@ -247,23 +248,29 @@ export async function approveLeader(_prev: Result | null, formData: FormData): P
 
 /** Check-in de presença: qualquer pessoa confirma a própria presença num evento que vê. */
 export async function checkInToEvent(_prev: Result | null, formData: FormData): Promise<Result> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/");
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) redirect("/");
 
-  const eventId = String(formData.get("event_id") ?? "");
-  if (!eventId) return { error: "Evento inválido." };
+    const eventId = String(formData.get("event_id") ?? "");
+    if (!eventId) return { error: "Evento inválido." };
 
-  const { error } = await supabase
-    .from("event_attendance")
-    .upsert({ event_id: eventId, user_id: user.id }, { onConflict: "event_id,user_id" });
+    const { error } = await supabase
+      .from("event_attendance")
+      .upsert({ event_id: eventId, user_id: user.id }, { onConflict: "event_id,user_id" });
 
-  if (error) return { error: "Não foi possível confirmar presença." };
+    if (error) return { error: "Não foi possível confirmar presença." };
 
-  revalidatePath("/app/agenda");
-  return { ok: true };
+    revalidatePath("/app/agenda");
+    return { ok: true };
+  } catch (err) {
+    if (isFrameworkFlowError(err)) throw err;
+    console.error("checkInToEvent falhou:", err);
+    return { error: NETWORK_ERROR_MESSAGE };
+  }
 }
 
 // ---------------------------------------------------------------- eventos

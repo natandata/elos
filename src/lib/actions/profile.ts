@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { AgeRange, Gender } from "@/lib/types";
+import { isFrameworkFlowError, NETWORK_ERROR_MESSAGE } from "./errorHandling";
 
 const AGES: AgeRange[] = ["12-13", "14-15", "16-17"];
 const GENDERS: Gender[] = ["male", "female"];
@@ -127,21 +128,27 @@ export async function updateOwnBio(
   const bio = String(formData.get("bio") ?? "").trim();
   if (bio.length > BIO_MAX) return { error: `Máximo de ${BIO_MAX} caracteres.` };
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/");
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) redirect("/");
 
-  const { error } = await supabase
-    .from("profiles")
-    .update({ bio: bio || null })
-    .eq("id", user.id);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ bio: bio || null })
+      .eq("id", user.id);
 
-  if (error) return { error: "Não foi possível salvar." };
+    if (error) return { error: "Não foi possível salvar." };
 
-  revalidatePath("/app", "layout");
-  return { ok: true };
+    revalidatePath("/app", "layout");
+    return { ok: true };
+  } catch (err) {
+    if (isFrameworkFlowError(err)) throw err;
+    console.error("updateOwnBio falhou:", err);
+    return { error: NETWORK_ERROR_MESSAGE };
+  }
 }
 
 /** Liga/desliga o recebimento de e-mails do ELOS (boas-vindas e resumos). */
