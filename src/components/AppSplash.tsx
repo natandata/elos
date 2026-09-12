@@ -8,9 +8,10 @@ import { useEffect, useState } from "react";
  *  a cada clique no menu. */
 const SESSION_KEY = "elos-splash-shown";
 
-// Marcos da animação (ver AppSplash.tsx + globals.css): ícone pulsa, depois
-// a foto "abre" por trás dele (clip-path circular), depois tudo some.
-const TOTAL_DURATION_MS = 1900;
+// Marcos da animação (ver globals.css): ícone pulsa (0–0.9s), a foto "abre"
+// por trás dele (0.85–1.55s), fica 2s inteiros visível (1.55–3.55s — pedido
+// explícito do usuário) e só então some (3.55–3.85s).
+const TOTAL_DURATION_MS = 3850;
 
 export function AppSplash() {
   const [visible, setVisible] = useState(false);
@@ -48,7 +49,7 @@ export function AppSplash() {
     >
       {/* foto de fundo — revelada de dentro do ícone, como uma cortina abrindo */}
       <div
-        className="splash-photo absolute inset-0 bg-cover bg-center"
+        className="splash-photo absolute inset-0 bg-center"
         style={{ backgroundImage: "url(/splash-cria.jpg)" }}
         aria-hidden
       />

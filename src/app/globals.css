@@ -305,6 +305,16 @@ select {
 .splash-photo {
   clip-path: circle(0% at 50% 50%);
   animation: splash-reveal 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.85s forwards;
+  /* `cover` estica a imagem além da resolução real em telas altas e
+     estreitas (o navegador conta em pixels CSS, não físicos — um celular
+     de tela alta força um zoom que borra a foto). Só no celular, mostra a
+     imagem no tamanho original: sem esticar, sem zoom, só corta as bordas. */
+  background-size: cover;
+}
+@media (max-width: 640px) {
+  .splash-photo {
+    background-size: auto;
+  }
 }
 
 @keyframes splash-container-fade-out {
@@ -313,7 +323,9 @@ select {
   }
 }
 .splash-root {
-  animation: splash-container-fade-out 0.3s ease-in 1.6s forwards;
+  /* revelada em 1.55s, some só depois de ficar 2s inteiros totalmente
+     visível — o pedido era "pelo menos 2 segundos completos" na tela. */
+  animation: splash-container-fade-out 0.3s ease-in 3.55s forwards;
 }
 
 /* Barra de XP: "líquido" subindo até o nível de preenchimento + ondulação
