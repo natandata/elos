@@ -1,11 +1,12 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useFormStatus } from "react-dom";
 import { submitStatus } from "@/lib/actions/status";
 import { requestCareMeeting } from "@/lib/actions/care";
 import { STATUS_LABEL, type StatusLevel } from "@/lib/types";
+import { hideRouteLoading, showRouteLoading } from "@/components/RouteLoadingOverlay";
 
 const LEVELS: StatusLevel[] = ["bad", "ok", "good"];
 const EMOJI: Record<StatusLevel, string> = { bad: "😔", ok: "😐", good: "😄" };
@@ -68,7 +69,14 @@ function CareMeetingOffer({ statusResponseId }: { statusResponseId: string }) {
             ? "Pedido enviado! Seu líder vai confirmar o dia."
             : "Tudo bem, sua liderança já foi avisada que você respondeu \"Mal\"."}
         </p>
-        <button type="button" className="btn btn-primary w-full" onClick={() => router.push("/app")}>
+        <button
+          type="button"
+          className="btn btn-primary w-full"
+          onClick={() => {
+            showRouteLoading();
+            router.push("/app");
+          }}
+        >
           Continuar
         </button>
       </div>
@@ -150,12 +158,20 @@ export function StatusForm() {
   const [emotional, setEmotional] = useState<StatusLevel | "">("");
   const [spiritual, setSpiritual] = useState<StatusLevel | "">("");
 
+  // Se a resposta voltou com erro ou caiu no caso "Mal" (fica na própria
+  // tela oferecendo marcar uma conversa, sem navegar), a tela de loading
+  // disparada no envio abaixo precisa sair de novo — sem redirect real, o
+  // pathname nunca muda pra escondê-la sozinha.
+  useEffect(() => {
+    if (state?.error || state?.bad) hideRouteLoading();
+  }, [state]);
+
   if (state?.bad && state.statusResponseId) {
     return <CareMeetingOffer statusResponseId={state.statusResponseId} />;
   }
 
   return (
-    <form action={action} className="space-y-5">
+    <form action={action} onSubmit={() => showRouteLoading()} className="space-y-5">
       <div>
         <p className="label">Como você está emocionalmente?</p>
         <Choice name="emotional" value={emotional} onChange={setEmotional} />

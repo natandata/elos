@@ -8,12 +8,37 @@ import { useEffect, useRef, useState } from "react";
  *  (erro de rede, rota que não existe, etc.). */
 const SAFETY_TIMEOUT_MS = 6000;
 
+/** Barramento simples pra disparar o overlay a partir de qualquer client
+ *  component (login, pesquisa de status…) sem precisar de Context — o
+ *  overlay é montado uma única vez na raiz (layout.tsx), então um Set de
+ *  listeners já resolve. Usado quando a navegação acontece via
+ *  `router.push`/`redirect()` de Server Action, casos em que não existe um
+ *  clique em `<a>` pro listener de baixo detectar sozinho. */
+type LoadingListener = (show: boolean) => void;
+const listeners = new Set<LoadingListener>();
+
+/** Chame antes de iniciar uma navegação programática (router.push, ou um
+ *  submit que vai terminar em redirect() no servidor) pra cobrir o intervalo
+ *  até a tela nova aparecer. */
+export function showRouteLoading() {
+  listeners.forEach((l) => l(true));
+}
+
+/** Chame quando ficar claro que a navegação NÃO vai acontecer (ex.: o submit
+ *  voltou um erro e a pessoa continua na mesma tela) — sem isso o overlay só
+ *  sairia pelo timeout de segurança, com o preenchimento do meio do caminho. */
+export function hideRouteLoading() {
+  listeners.forEach((l) => l(false));
+}
+
 /**
  * Cobre o intervalo "morto" entre o clique num link e a nova tela aparecer —
  * hoje esse intervalo fica com a tela anterior parada e depois troca de
  * repente. Detecta o clique em qualquer link interno (captura na raiz do
  * documento, então funciona em qualquer tela sem precisar tocar em cada
  * página) e mostra uma animação simples até o pathname realmente mudar.
+ * Também escuta o barramento acima, pra cobrir navegações que não passam
+ * por um `<a>` (login, redirecionamento pós-pesquisa de status).
  */
 export function RouteLoadingOverlay() {
   const pathname = usePathname();
@@ -21,14 +46,32 @@ export function RouteLoadingOverlay() {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevPathname = useRef(pathname);
 
+  function start() {
+    setLoading(true);
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => setLoading(false), SAFETY_TIMEOUT_MS);
+  }
+
+  function stop() {
+    setLoading(false);
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+  }
+
   // a rota mudou de verdade: a nova tela já está pronta, esconde o overlay
   useEffect(() => {
     if (prevPathname.current !== pathname) {
       prevPathname.current = pathname;
-      setLoading(false);
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      stop();
     }
   }, [pathname]);
+
+  useEffect(() => {
+    const listener: LoadingListener = (show) => (show ? start() : stop());
+    listeners.add(listener);
+    return () => {
+      listeners.delete(listener);
+    };
+  }, []);
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -53,9 +96,7 @@ export function RouteLoadingOverlay() {
       // mesma página (só âncora ou querystring): não é uma troca de tela
       if (url.pathname === window.location.pathname) return;
 
-      setLoading(true);
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      timeoutRef.current = setTimeout(() => setLoading(false), SAFETY_TIMEOUT_MS);
+      start();
     }
 
     document.addEventListener("click", onClick);

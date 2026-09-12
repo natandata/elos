@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { AGE_RANGE_LABEL, type AgeRange, type Gender } from "@/lib/types";
 import { PasswordField } from "./PasswordField";
+import { showRouteLoading } from "@/components/RouteLoadingOverlay";
 
 type SignupRole = "cria" | "leader";
 
@@ -104,6 +105,11 @@ export function AuthPanel({ next }: { next?: string }) {
       setError("E-mail ou senha inválidos.");
       return;
     }
+    // Cobre o intervalo entre "login aceito" e a tela seguinte aparecer
+    // (que pode ser a pesquisa de status ou já a tela de início, dependendo
+    // do papel/estado da conta) — sem isso a pessoa via a tela de login
+    // parada por um instante antes da troca.
+    showRouteLoading();
     router.push(destination);
     router.refresh();
   }
