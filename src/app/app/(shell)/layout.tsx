@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { AppShell, type NavItem } from "@/components/shell/AppShell";
+import { ThemeSetter } from "@/components/shell/ThemeSetter";
 import { needsGuardianAck, needsStatusCheck, requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { ROLE_LABEL } from "@/lib/types";
@@ -115,19 +116,28 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     item.href === "/app/chat" ? { ...item, badge: chatUnread } : item,
   );
 
+  // líder homem tem cor própria (vermelho); líder mulher mantém o rosa,
+  // igual às crias — só o líder homem sai do amarelo padrão masculino
+  let theme = "neutral";
+  if (profile.role === "leader" && profile.gender === "male") theme = "leader";
+  else if (profile.role !== "admin" && profile.gender) theme = profile.gender;
+
   return (
-    <AppShell
-      items={navItems}
-      name={profile.full_name || "Participante"}
-      roleLabel={ROLE_LABEL[profile.role]}
-      eloName={(eloRes.data as { name: string } | null)?.name ?? null}
-      avatarUrl={profile.avatar_url}
-      unread={unreadRes.count ?? 0}
-      pending={pending}
-      role={profile.role}
-      showOnboarding={!profile.onboarding_completed_at}
-    >
-      {children}
-    </AppShell>
+    <>
+      <ThemeSetter theme={theme} />
+      <AppShell
+        items={navItems}
+        name={profile.full_name || "Participante"}
+        roleLabel={ROLE_LABEL[profile.role]}
+        eloName={(eloRes.data as { name: string } | null)?.name ?? null}
+        avatarUrl={profile.avatar_url}
+        unread={unreadRes.count ?? 0}
+        pending={pending}
+        role={profile.role}
+        showOnboarding={!profile.onboarding_completed_at}
+      >
+        {children}
+      </AppShell>
+    </>
   );
 }

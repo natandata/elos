@@ -269,6 +269,53 @@ select {
   animation: route-loading-fade-in 0.15s ease both;
 }
 
+/* Tela de abertura do app (AppSplash.tsx): ícone pulsa, some, e a foto de
+   fundo "abre" de dentro dele (cortina circular) — depois tudo desaparece
+   junto. Toda a coreografia é feita em CSS puro, com animation-delay, pra
+   ficar suave independente de quando o React re-renderiza. */
+@keyframes splash-icon-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08) rotate(-3deg);
+  }
+}
+@keyframes splash-icon-fade-out {
+  to {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+}
+.splash-icon-box {
+  animation:
+    splash-icon-pulse 0.9s ease-in-out 1,
+    splash-icon-fade-out 0.35s ease-in 0.9s forwards;
+}
+
+@keyframes splash-reveal {
+  from {
+    clip-path: circle(0% at 50% 50%);
+  }
+  to {
+    clip-path: circle(150% at 50% 50%);
+  }
+}
+.splash-photo {
+  clip-path: circle(0% at 50% 50%);
+  animation: splash-reveal 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.85s forwards;
+}
+
+@keyframes splash-container-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+.splash-root {
+  animation: splash-container-fade-out 0.3s ease-in 1.6s forwards;
+}
+
 /* Barra de XP: "líquido" subindo até o nível de preenchimento + ondulação
    contínua de brilho passando por cima, pra parecer líquido de verdade. */
 @keyframes xp-liquid-wave {

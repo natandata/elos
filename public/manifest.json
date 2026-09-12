@@ -9,7 +9,7 @@
   "id": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#ffffff",
+  "background_color": "#7c3aed",
   "theme_color": "#7c3aed",
   "categories": ["education", "lifestyle", "social"],
   "icons": [

@@ -1,9 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
-import { createClient } from "@/lib/supabase/server";
 import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
 import { RouteLoadingOverlay } from "@/components/RouteLoadingOverlay";
+import { AppSplash } from "@/components/AppSplash";
 
 // Auto-hospedada pelo Next (sem requisição externa em runtime, sem piscar
 // fonte). Geométrica e arredondada — mais "jovem" que a system font, sem
@@ -41,8 +41,8 @@ export const metadata: Metadata = {
   },
 };
 
-// A cor do tema (data-theme) depende de quem está logado — nunca pode virar
-// HTML estático compartilhado entre contas diferentes.
+// Páginas abaixo (login, área logada) dependem de sessão/cookies por
+// requisição — nunca podem virar HTML estático compartilhado entre contas.
 export const dynamic = "force-dynamic";
 
 export const viewport: Viewport = {
@@ -52,30 +52,14 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  let theme = "neutral";
-
-  try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (user) {
-      const { data } = await supabase
-        .from("profiles")
-        .select("gender, role")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      // líder homem tem cor própria (vermelho); líder mulher mantém o rosa,
-      // igual às crias — só o líder homem sai do amarelo padrão masculino
-      if (data?.role === "leader" && data.gender === "male") theme = "leader";
-      else if (data && data.role !== "admin" && data.gender) theme = data.gender;
-    }
-  } catch {
-    // Sem Supabase configurado ainda: segue no tema neutro.
-  }
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // O tema por papel/gênero (líder homem = vermelho, cria/líder mulher = cor
+  // do gênero) só existe dentro da área logada — é resolvido lá em
+  // src/app/app/(shell)/layout.tsx, que já busca o profile mesmo. Antes essa
+  // consulta ao Supabase rodava aqui, bloqueando até a tela pública de login
+  // aparecer (a causa da "tela branca" antes de entrar). Este layout raiz
+  // nunca espera rede — sai "neutral" e sempre instantâneo.
+  const theme = "neutral";
 
   return (
     <html lang="pt-BR" data-theme={theme} className={jakarta.variable}>
@@ -108,6 +92,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body className="min-h-dvh antialiased">
         {children}
+        <AppSplash />
         <RouteLoadingOverlay />
         <ServiceWorkerRegistrar />
       </body>
