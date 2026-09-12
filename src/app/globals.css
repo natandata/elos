@@ -305,15 +305,19 @@ select {
 .splash-photo {
   clip-path: circle(0% at 50% 50%);
   animation: splash-reveal 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.85s forwards;
-  /* `cover` estica a imagem além da resolução real em telas altas e
-     estreitas (o navegador conta em pixels CSS, não físicos — um celular
-     de tela alta força um zoom que borra a foto). Só no celular, mostra a
-     imagem no tamanho original: sem esticar, sem zoom, só corta as bordas. */
+  background-repeat: no-repeat;
   background-size: cover;
 }
 @media (max-width: 640px) {
   .splash-photo {
-    background-size: auto;
+    /* `auto` mostra a imagem no tamanho intrínseco em pixels CSS (1080px) —
+       muito maior que a largura da tela de um celular (~390px CSS), o que
+       na prática aparece como um zoom enorme, mostrando só um recorte
+       minúsculo da foto. `contain` é o que de fato evita zoom: a foto
+       inteira sempre cabe na tela, sem cortar bordas e sem ampliar além do
+       necessário — o espaço sobrando (se houver) mostra a cor de fundo do
+       app por trás, sem destoar. */
+    background-size: contain;
   }
 }
 
