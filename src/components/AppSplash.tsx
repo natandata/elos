@@ -14,30 +14,52 @@ const SESSION_KEY = "elos-splash-shown";
 const TOTAL_DURATION_MS = 3850;
 
 export function AppSplash() {
+  // Leitura pura (sem gravar nada) num inicializador preguiçoso: em
+  // desenvolvimento o React chama isso 2x de propósito (Strict Mode) pra
+  // pegar efeitos que não são seguros de repetir — como é só leitura, as
+  // duas chamadas sempre concordam, sem esse tipo de problema.
+  const [wasAlreadyShown] = useState(() => {
+    if (typeof window === "undefined") return true;
+    try {
+      return sessionStorage.getItem(SESSION_KEY) === "1";
+    } catch {
+      return true;
+    }
+  });
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    let alreadyShown = true;
-    try {
-      alreadyShown = sessionStorage.getItem(SESSION_KEY) === "1";
-    } catch {
-      // sessionStorage indisponível (modo privado estrito etc.) — só não
-      // repete a splash; não vale travar a abertura do app por causa disso.
-      alreadyShown = true;
-    }
-
-    if (alreadyShown) return;
+    if (wasAlreadyShown) return;
 
     setVisible(true);
     try {
       sessionStorage.setItem(SESSION_KEY, "1");
     } catch {
-      // idem — segue sem persistir, a splash pode repetir, tudo bem.
+      // sessionStorage indisponível (modo privado estrito etc.) — só não
+      // repete a splash; não vale travar a abertura do app por causa disso.
     }
 
-    const timer = setTimeout(() => setVisible(false), TOTAL_DURATION_MS);
+    // Enquanto a splash cobre a tela, o formulário de login por baixo já
+    // está no DOM (só visualmente escondido) — o Safari/iOS detecta os
+    // campos de e-mail/senha e oferece o Face ID de preenchimento automático
+    // sozinho, antes da pessoa tocar em nada. `inert` tira esses campos da
+    // árvore de foco/acessibilidade enquanto a splash dura.
+    const content = document.getElementById("app-root-content");
+    content?.setAttribute("inert", "");
+
+    // A limpeza só cancela o temporizador pendente — não desfaz o `inert`
+    // aqui. Em desenvolvimento este efeito roda 2x (Strict Mode); como
+    // `wasAlreadyShown` é a mesma leitura pura nas duas vezes, a 2ª chamada
+    // reaplica tudo de novo (idempotente) e agenda um temporizador novo, que
+    // é quem de fato tira o `inert` no fim — sem isso a limpeza da 1ª
+    // chamada tiraria o `inert` e nada o devolveria.
+    const timer = setTimeout(() => {
+      setVisible(false);
+      content?.removeAttribute("inert");
+    }, TOTAL_DURATION_MS);
+
     return () => clearTimeout(timer);
-  }, []);
+  }, [wasAlreadyShown]);
 
   if (!visible) return null;
 

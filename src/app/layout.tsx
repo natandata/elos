@@ -91,7 +91,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="min-h-dvh antialiased">
-        {children}
+        {/* `inert` some enquanto a splash cobre a tela (AppSplash.tsx aplica/
+            remove via DOM): sem isso o Safari detecta o formulário de login
+            por baixo e oferece o Face ID/preenchimento automático sozinho,
+            antes da pessoa sequer ver o campo — "sujando" a abertura. */}
+        <div id="app-root-content">{children}</div>
         <AppSplash />
         <RouteLoadingOverlay />
         <ServiceWorkerRegistrar />
