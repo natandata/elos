@@ -9,7 +9,9 @@ import {
   AGE_RANGE_LABEL,
   GENDER_LABEL,
   ROLE_LABEL,
+  XP_PER_LEVEL,
   formatXp,
+  levelFromXp,
   type AgeRange,
   type Elo,
   type Gender,
@@ -54,6 +56,14 @@ export function UserEditor({
   // e o banco recusaria a gravação.
   const [formGender, setFormGender] = useState<Gender | "">(user.gender ?? "");
   const eloOptions = elos.filter((e) => !formGender || e.gender === formGender);
+
+  // Nível não existe como coluna própria — é sempre `xp` dividido por
+  // XP_PER_LEVEL (ver levelFromXp em lib/types.ts). Os dois campos abaixo
+  // editam o mesmo valor: mudar o Nível recalcula o XP (pro início exato
+  // daquele nível); mudar o XP só atualiza o nível mostrado. Só `xp` é
+  // enviado no submit.
+  const [formXp, setFormXp] = useState(user.xp);
+  const formLevel = levelFromXp(formXp).level;
 
   const elo = elos.find((e) => e.id === user.elo_id);
 
@@ -156,8 +166,27 @@ export function UserEditor({
                 min={0}
                 step={1}
                 className="input"
-                defaultValue={user.xp}
+                value={formXp}
+                onChange={(e) => setFormXp(Math.max(0, Number(e.target.value) || 0))}
               />
+            </div>
+
+            <div>
+              <label className="label">Nível</label>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                className="input"
+                value={formLevel}
+                onChange={(e) => {
+                  const level = Math.max(0, Number(e.target.value) || 0);
+                  setFormXp(level * XP_PER_LEVEL);
+                }}
+              />
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                Ajusta o XP pro início exato do nível ({formLevel * XP_PER_LEVEL} XP).
+              </p>
             </div>
 
             <div>
