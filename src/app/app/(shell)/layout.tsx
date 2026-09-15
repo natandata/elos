@@ -14,6 +14,7 @@ const NAV: Record<string, NavItem[]> = {
       children: [
         { href: "/app/admin/status-equipe", label: "Status Equipe", icon: "💛" },
         { href: "/app/lider/status-crias", label: "Status Crias", icon: "🧒" },
+        { href: "/app/admin/devocional", label: "Devocional", icon: "📖" },
       ],
     },
     {
