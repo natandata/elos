@@ -134,6 +134,19 @@ export async function deleteUser(_prev: Result | null, formData: FormData): Prom
   return { ok: true };
 }
 
+/** Zera o XP de todo mundo de uma vez (ex.: início de nova temporada/ranking). */
+export async function resetAllXp(_prev: Result | null, _formData: FormData): Promise<Result> {
+  const supabase = await adminClient();
+
+  // `.gte("xp", 0)` é sempre verdadeiro (xp nunca é negativo) — só serve pra
+  // dar um filtro à query, já que o Supabase recusa update sem nenhum.
+  const { error } = await supabase.from("profiles").update({ xp: 0 }).gte("xp", 0);
+  if (error) return { error: "Não foi possível zerar o XP." };
+
+  revalidateAdmin();
+  return { ok: true };
+}
+
 /** Redefine a senha de alguém que perdeu o acesso. */
 export async function resetPassword(_prev: Result | null, formData: FormData): Promise<Result> {
   const supabase = await adminClient();

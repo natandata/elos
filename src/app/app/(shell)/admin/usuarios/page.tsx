@@ -8,6 +8,7 @@ import { PendingLeaderCard } from "./PendingLeaderCard";
 import { PasswordResetRequestCard } from "./PasswordResetRequestCard";
 import { UserEditor } from "./UserEditor";
 import { ExportUsersCsv } from "./ExportUsersCsv";
+import { ResetAllXpButton } from "./ResetAllXpButton";
 
 type Search = {
   q?: string;
@@ -41,6 +42,13 @@ export default async function UsuariosPage({
   if (sp.role) query = query.eq("role", sp.role);
 
   const { data: usersData, error } = await query;
+
+  // Contagem sem os filtros da busca acima — "Zerar XP de todos" afeta
+  // literalmente todo mundo no banco, independente do que está filtrado na
+  // tela; o texto de confirmação precisa refletir isso, não a lista visível.
+  const { count: totalUserCount } = await supabase
+    .from("profiles")
+    .select("id", { count: "exact", head: true });
   const users = (usersData ?? []) as {
     id: string;
     full_name: string;
@@ -91,10 +99,13 @@ export default async function UsuariosPage({
         title="Usuários"
         subtitle={`${users.length} usuário(s) encontrados.`}
         action={
-          <ExportUsersCsv
-            users={users.map((u) => ({ ...u, email: emailById.get(u.id) ?? null }))}
-            eloName={new Map(elos.map((e) => [e.id, e.name]))}
-          />
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <ResetAllXpButton userCount={totalUserCount ?? users.length} />
+            <ExportUsersCsv
+              users={users.map((u) => ({ ...u, email: emailById.get(u.id) ?? null }))}
+              eloName={new Map(elos.map((e) => [e.id, e.name]))}
+            />
+          </div>
         }
       />
 
