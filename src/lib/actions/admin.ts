@@ -134,16 +134,25 @@ export async function deleteUser(_prev: Result | null, formData: FormData): Prom
   return { ok: true };
 }
 
-/** Zera o XP de todo mundo de uma vez (ex.: início de nova temporada/ranking). */
+/** Zera o XP de todo mundo de uma vez (ex.: início de nova temporada/ranking).
+ *  Zera as duas fontes de "XP" que existem no sistema: o XP acumulado de
+ *  cada pessoa (profiles.xp, usado no ranking de crias e nos Elos) e o valor
+ *  de XP definido em cada missão (missions.xp, usado no ranking de líderes —
+ *  "quantas missões criou, o nível/XP delas..."). Zerar só a primeira deixava
+ *  o ranking de líderes com números "presos" das missões já criadas. */
 export async function resetAllXp(_prev: Result | null, _formData: FormData): Promise<Result> {
   const supabase = await adminClient();
 
-  // `.gte("xp", 0)` é sempre verdadeiro (xp nunca é negativo) — só serve pra
-  // dar um filtro à query, já que o Supabase recusa update sem nenhum.
-  const { error } = await supabase.from("profiles").update({ xp: 0 }).gte("xp", 0);
-  if (error) return { error: "Não foi possível zerar o XP." };
+  // `.gte(...)` é sempre verdadeiro (nenhum dos dois campos é negativo) — só
+  // serve pra dar um filtro à query, já que o Supabase recusa update sem nenhum.
+  const [profilesRes, missionsRes] = await Promise.all([
+    supabase.from("profiles").update({ xp: 0 }).gte("xp", 0),
+    supabase.from("missions").update({ xp: 0 }).gte("xp", 0),
+  ]);
+  if (profilesRes.error || missionsRes.error) return { error: "Não foi possível zerar o XP." };
 
   revalidateAdmin();
+  revalidatePath("/app/ranking");
   return { ok: true };
 }
 

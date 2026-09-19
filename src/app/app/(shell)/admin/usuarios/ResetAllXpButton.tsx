@@ -32,7 +32,8 @@ export function ResetAllXpButton({ userCount }: { userCount: number }) {
       className="flex flex-wrap items-center gap-2 rounded-xl bg-red-50 p-2 pl-3"
     >
       <p className="text-xs font-medium text-red-700">
-        Zera o XP de {userCount} usuário(s) pra 0. Não dá pra desfazer.
+        Zera o XP de {userCount} usuário(s) e o valor de XP de toda missão criada (afeta o ranking
+        de líderes também) pra 0. Não dá pra desfazer.
       </p>
       <Feedback state={state} />
       <SubmitBtn className="btn btn-primary !py-1.5 !text-xs" pendingLabel="Zerando…">
