@@ -320,6 +320,35 @@ export async function checkInToEvent(_prev: Result | null, formData: FormData): 
   }
 }
 
+/** Desfaz o check-in — a pessoa pode voltar atrás na própria confirmação. */
+export async function cancelEventCheckIn(_prev: Result | null, formData: FormData): Promise<Result> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) redirect("/");
+
+    const eventId = String(formData.get("event_id") ?? "");
+    if (!eventId) return { error: "Evento inválido." };
+
+    const { error } = await supabase
+      .from("event_attendance")
+      .delete()
+      .eq("event_id", eventId)
+      .eq("user_id", user.id);
+
+    if (error) return { error: "Não foi possível desfazer a confirmação." };
+
+    revalidatePath("/app/agenda");
+    return { ok: true };
+  } catch (err) {
+    if (isFrameworkFlowError(err)) throw err;
+    console.error("cancelEventCheckIn falhou:", err);
+    return { error: NETWORK_ERROR_MESSAGE };
+  }
+}
+
 // ---------------------------------------------------------------- eventos
 
 function revalidateAgenda() {
