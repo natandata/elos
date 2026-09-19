@@ -15,6 +15,7 @@ import {
   type Gender,
   type MissionType,
 } from "@/lib/types";
+import { EloXpEditor } from "./EloXpEditor";
 
 type Participant = {
   id: string;
@@ -146,6 +147,10 @@ export default async function EloDetailPage({
           <p className="text-xs text-[var(--muted)]">XP total</p>
           <p className="text-2xl font-bold tabular-nums">{formatXp(totalXp)}</p>
         </Card>
+      </div>
+
+      <div className="mb-4">
+        <EloXpEditor eloId={elo.id} currentTotal={totalXp} criaCount={crias.length} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
