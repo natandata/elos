@@ -18,7 +18,9 @@ export default async function AgendaPage() {
       .from("events")
       .select("id, title, description, event_date, event_time, location, elo_id, leaders_only, admin_only")
       .order("event_date"),
-    supabase.from("event_attendance").select("event_id, user_id"),
+    supabase
+      .from("event_attendance")
+      .select("event_id, user_id, checked_in_at, profiles:user_id(full_name)"),
   ]);
 
   if (eventsRes.error) return <ErrorState message={eventsRes.error.message} />;
@@ -27,12 +29,29 @@ export default async function AgendaPage() {
   const eloName = new Map(elos.map((e) => [e.id, e.name]));
   const all = (eventsRes.data ?? []) as EloEvent[];
 
-  const attendance = (attendanceRes.data ?? []) as { event_id: string; user_id: string }[];
+  const attendance = (attendanceRes.data ?? []) as unknown as {
+    event_id: string;
+    user_id: string;
+    checked_in_at: string;
+    profiles: { full_name: string } | null;
+  }[];
   const myCheckIns = new Set(
     attendance.filter((a) => a.user_id === profile.id).map((a) => a.event_id),
   );
   const countByEvent = new Map<string, number>();
   attendance.forEach((a) => countByEvent.set(a.event_id, (countByEvent.get(a.event_id) ?? 0) + 1));
+
+  // Só o admin vê os nomes de quem confirmou — pra líder/cria basta o total.
+  const attendeesByEvent = new Map<string, string[]>();
+  if (isAdmin) {
+    attendance
+      .slice()
+      .sort((a, b) => (a.profiles?.full_name ?? "").localeCompare(b.profiles?.full_name ?? ""))
+      .forEach((a) => {
+        if (!attendeesByEvent.has(a.event_id)) attendeesByEvent.set(a.event_id, []);
+        attendeesByEvent.get(a.event_id)!.push(a.profiles?.full_name || "Sem nome");
+      });
+  }
 
   const today = new Date().toISOString().slice(0, 10);
   const upcoming = all.filter((e) => e.event_date >= today);
@@ -80,6 +99,18 @@ export default async function AgendaPage() {
         <p className="mt-2 text-xs text-[var(--muted)]">
           {countByEvent.get(event.id)} confirmado(s)
         </p>
+      ) : null}
+      {isAdmin && (attendeesByEvent.get(event.id)?.length ?? 0) > 0 ? (
+        <details className="mt-2">
+          <summary className="cursor-pointer text-xs font-semibold text-[var(--accent-strong)]">
+            Ver quem confirmou ({attendeesByEvent.get(event.id)!.length})
+          </summary>
+          <ul className="mt-1.5 space-y-0.5 text-xs text-[var(--muted)]">
+            {attendeesByEvent.get(event.id)!.map((name, i) => (
+              <li key={i}>{name}</li>
+            ))}
+          </ul>
+        </details>
       ) : null}
       {isAdmin ? <EventAdminControls event={event} elos={elos} /> : null}
     </Card>
