@@ -9,6 +9,7 @@ type EloRow = {
   name: string;
   gender: Gender;
   age_range: AgeRange;
+  bonus_xp: number;
   profiles: { id: string; full_name: string; role: string; xp: number }[];
 };
 
@@ -18,7 +19,7 @@ export default async function ElosPage() {
 
   const { data, error } = await supabase
     .from("elos")
-    .select("id, name, gender, age_range, profiles:profiles(id, full_name, role, xp)")
+    .select("id, name, gender, age_range, bonus_xp, profiles:profiles(id, full_name, role, xp)")
     .order("gender")
     .order("age_range");
 
@@ -31,7 +32,8 @@ export default async function ElosPage() {
         ...e,
         crias,
         leaders: e.profiles.filter((p) => p.role === "leader"),
-        totalXp: crias.reduce((sum, c) => sum + c.xp, 0),
+        // XP dos crias + o bônus definido direto pro Elo (admin/elos/[eloId]).
+        totalXp: crias.reduce((sum, c) => sum + c.xp, 0) + e.bonus_xp,
       };
     })
     .sort((a, b) => b.totalXp - a.totalXp);

@@ -50,9 +50,15 @@ export default async function EloDetailPage({
 
   const { data: elo } = await supabase
     .from("elos")
-    .select("id, name, gender, age_range")
+    .select("id, name, gender, age_range, bonus_xp")
     .eq("id", eloId)
-    .maybeSingle<{ id: string; name: string; gender: Gender; age_range: AgeRange }>();
+    .maybeSingle<{
+      id: string;
+      name: string;
+      gender: Gender;
+      age_range: AgeRange;
+      bonus_xp: number;
+    }>();
 
   if (!elo) notFound();
 
@@ -75,7 +81,8 @@ export default async function EloDetailPage({
   const participants = (participantsRes.data ?? []) as Participant[];
   const leaders = participants.filter((p) => p.role === "leader");
   const crias = participants.filter((p) => p.role === "cria");
-  const totalXp = crias.reduce((sum, c) => sum + c.xp, 0);
+  const criasXp = crias.reduce((sum, c) => sum + c.xp, 0);
+  const totalXp = criasXp + elo.bonus_xp;
 
   const missions = (missionsRes.data ?? []) as unknown as MissionRow[];
   const today = new Date().toISOString().slice(0, 10);
@@ -150,7 +157,7 @@ export default async function EloDetailPage({
       </div>
 
       <div className="mb-4">
-        <EloXpEditor eloId={elo.id} currentTotal={totalXp} criaCount={crias.length} />
+        <EloXpEditor eloId={elo.id} criasXp={criasXp} bonusXp={elo.bonus_xp} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">

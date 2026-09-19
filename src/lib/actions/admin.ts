@@ -156,54 +156,28 @@ export async function resetAllXp(_prev: Result | null, _formData: FormData): Pro
   return { ok: true };
 }
 
-/** Edita o XP total de um Elo — como ele é sempre a soma do XP dos crias
- *  (ver elo_rankings() no banco), "editar" significa redistribuir esse total
- *  entre os crias, o mais igual possível. Não mexe no XP de líderes. */
-export async function setEloXp(_prev: Result | null, formData: FormData): Promise<Result> {
+/** Define o XP "bônus" de um Elo — um valor à parte, gravado em elos.bonus_xp,
+ *  que soma no XP total do Elo por cima do que os crias acumulam. Existe
+ *  justamente pra cobrir o caso de Elo sem cria nenhum (o XP do Elo, antes,
+ *  só existia como soma dos crias — sem cria não havia o que editar). */
+export async function setEloBonusXp(_prev: Result | null, formData: FormData): Promise<Result> {
   const supabase = await adminClient();
   const eloId = String(formData.get("elo_id") ?? "");
-  const targetRaw = String(formData.get("target_xp") ?? "").trim();
+  const bonusRaw = String(formData.get("bonus_xp") ?? "").trim();
 
   if (!eloId) return { error: "Elo inválido." };
-  const target = Number(targetRaw);
-  if (!Number.isInteger(target) || target < 0) {
+  const bonusXp = Number(bonusRaw);
+  if (!Number.isInteger(bonusXp) || bonusXp < 0) {
     return { error: "XP precisa ser um número inteiro, 0 ou maior." };
   }
 
-  const { data: criasData, error: criasError } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("elo_id", eloId)
-    .eq("role", "cria")
-    .order("full_name");
-  if (criasError) return { error: "Não foi possível carregar os crias do Elo." };
-
-  const crias = (criasData ?? []) as { id: string }[];
-  if (crias.length === 0) {
-    return { error: "Este Elo não tem crias — não há para quem distribuir XP." };
-  }
-
-  // Distribuição o mais igual possível: todo mundo recebe a parte inteira,
-  // e o resto da divisão vai um a um pros primeiros da lista (ordem estável
-  // por nome), pra soma total bater exatamente com o valor pedido.
-  const base = Math.floor(target / crias.length);
-  const remainder = target - base * crias.length;
-
-  const results = await Promise.all(
-    crias.map((c, i) =>
-      supabase
-        .from("profiles")
-        .update({ xp: base + (i < remainder ? 1 : 0) })
-        .eq("id", c.id),
-    ),
-  );
-  if (results.some((r) => r.error)) {
-    return { error: "Não foi possível salvar o XP de todos os crias do Elo." };
-  }
+  const { error } = await supabase.from("elos").update({ bonus_xp: bonusXp }).eq("id", eloId);
+  if (error) return { error: "Não foi possível salvar o XP do Elo." };
 
   revalidateAdmin();
   revalidatePath(`/app/admin/elos/${eloId}`);
   revalidatePath("/app/ranking");
+  revalidatePath("/app/lider");
   return { ok: true };
 }
 
