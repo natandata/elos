@@ -208,8 +208,13 @@ export default async function MeuEloPage() {
                     </span>
                   </span>
                   <span className="shrink-0 text-right text-xs tabular-nums text-[var(--muted)]">
-                    <span className="block">{l.missions_created} missões</span>
-                    <span className="block">{formatXp(l.missions_xp)} XP · {l.missions_completed} concluídas</span>
+                    <span className="block">
+                      {l.missions_created} {l.missions_created === 1 ? "missão" : "missões"}
+                    </span>
+                    <span className="block">
+                      {formatXp(l.missions_xp)} XP ·{" "}
+                      {l.missions_completed} {l.missions_completed === 1 ? "concluída" : "concluídas"}
+                    </span>
                   </span>
                 </div>
               </li>
