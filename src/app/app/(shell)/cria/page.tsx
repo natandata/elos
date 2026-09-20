@@ -8,6 +8,7 @@ import { HojeNoElos } from "@/components/HojeNoElos";
 import { EventCountdown } from "@/components/EventCountdown";
 import { CriaDaSemana } from "@/components/CriaDaSemana";
 import { OpenChallengeBanner } from "@/components/OpenChallengeBanner";
+import { MissionSpotlight, type SpotlightMission } from "@/components/missions/MissionSpotlight";
 import { StoriesTray } from "@/components/profile/StoriesTray";
 import { getEloStoriesTray } from "@/lib/stories";
 import { statusDayCutoffUTC } from "@/lib/auth";
@@ -36,6 +37,7 @@ export default async function CriaDashboard() {
     weeklyRankRes,
     challengeRes,
     topSuggestionRes,
+    spotlightRes,
   ] = await Promise.all([
     profile.elo_id
       ? supabase.from("elos").select("name").eq("id", profile.elo_id).maybeSingle()
@@ -102,6 +104,15 @@ export default async function CriaDashboard() {
       .order("hype_count", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    // Em destaque na Home: as próprias missões ainda por fazer, mais
+    // próximas do prazo primeiro — é essa lista que gera urgência.
+    supabase
+      .from("mission_assignments")
+      .select("id, missions:mission_id(id, title, xp, due_date)")
+      .eq("cria_id", profile.id)
+      .in("status", ["pending", "rejected"])
+      .order("created_at", { ascending: false })
+      .limit(4),
   ]);
 
   const ranking = (rankingRes.data ?? []) as { id: string; full_name: string; xp: number }[];
@@ -132,6 +143,45 @@ export default async function CriaDashboard() {
     avatar_url: string | null;
     weekly_xp: number;
   }[])[0];
+
+  const spotlightRows = (
+    (spotlightRes.data ?? []) as unknown as {
+      id: string;
+      missions: { id: string; title: string; xp: number; due_date: string | null } | null;
+    }[]
+  )
+    .filter((r) => r.missions)
+    .sort((a, b) => (a.missions!.due_date ?? "9999").localeCompare(b.missions!.due_date ?? "9999"));
+
+  const spotlightMissionIds = spotlightRows.map((r) => r.missions!.id);
+  const progressRes = spotlightMissionIds.length
+    ? await supabase.rpc("mission_elo_progress", { p_mission_ids: spotlightMissionIds })
+    : { data: [] };
+  const progressByMission = new Map(
+    (
+      (progressRes.data ?? []) as {
+        mission_id: string;
+        total_approved: number;
+        leading_elo_id: string | null;
+        leading_elo_name: string | null;
+        leading_elo_count: number | null;
+      }[]
+    ).map((p) => [p.mission_id, p]),
+  );
+
+  const spotlightMissions: SpotlightMission[] = spotlightRows.map((r) => {
+    const progress = progressByMission.get(r.missions!.id);
+    return {
+      assignmentId: r.id,
+      title: r.missions!.title,
+      xp: r.missions!.xp,
+      dueDate: r.missions!.due_date,
+      totalApproved: progress?.total_approved ?? 0,
+      leadingEloId: progress?.leading_elo_id ?? null,
+      leadingEloName: progress?.leading_elo_name ?? null,
+      leadingEloCount: progress?.leading_elo_count ?? 0,
+    };
+  });
 
   const lastSeenAt = (presenceRes.data as { last_seen_at: string } | null)?.last_seen_at ?? null;
   const daysSinceLastVisit = lastSeenAt
@@ -166,6 +216,8 @@ export default async function CriaDashboard() {
         statusTotal={eloMemberIds.length}
         onlineNow={onlineRes.count ?? 0}
       />
+
+      <MissionSpotlight missions={spotlightMissions} myEloId={profile.elo_id} />
 
       {challengeRes.data ? (
         <OpenChallengeBanner
