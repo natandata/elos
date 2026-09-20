@@ -1,17 +1,16 @@
 import { redirect } from "next/navigation";
 import { needsStatusCheck, requireProfile } from "@/lib/auth";
-import { ViewAsBanner } from "@/components/shell/ViewAsBanner";
 import { StatusForm } from "./StatusForm";
 
 export default async function StatusPage() {
   const { profile, viewingAs } = await requireProfile();
-  if (!(await needsStatusCheck(profile))) redirect("/app");
+  // Visualizar como nunca deve levar o admin a responder por outra pessoa.
+  if (viewingAs || !(await needsStatusCheck(profile))) redirect("/app");
 
   const firstName = (profile.full_name || "").split(" ")[0];
 
   return (
     <main className="flex min-h-dvh items-center justify-center px-4 py-10">
-      {viewingAs ? <ViewAsBanner targetName={viewingAs.targetName} /> : null}
       <div className="w-full max-w-sm">
         <div className="mb-5 text-center">
           <h1 className="text-2xl font-black tracking-tight">

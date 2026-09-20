@@ -91,8 +91,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // Líder pendente não exerce nada ainda: a conta abre em modo bloqueado.
   const pending = profile.role === "leader" && !profile.approved;
 
-  // Pesquisa diária de status (líder e cria) antes de liberar o restante.
-  if (!pending && (await needsStatusCheck(profile))) redirect("/app/status");
+  // Pesquisa diária de status (líder e cria) antes de liberar o restante —
+  // não se aplica durante "visualizar como": o admin só está olhando a
+  // conta, não é ele quem deve responder o status do dia por ela.
+  if (!viewingAs && !pending && (await needsStatusCheck(profile))) redirect("/app/status");
 
   const supabase = await createClient();
 
