@@ -157,26 +157,52 @@ export async function resetAllXp(_prev: Result | null, _formData: FormData): Pro
   return { ok: true };
 }
 
-/** Define o XP "bônus" de um Elo — um valor à parte, gravado em elos.bonus_xp,
- *  que soma no XP total do Elo por cima do que os crias acumulam. Existe
- *  justamente pra cobrir o caso de Elo sem cria nenhum (o XP do Elo, antes,
- *  só existia como soma dos crias — sem cria não havia o que editar). */
-export async function setEloBonusXp(_prev: Result | null, formData: FormData): Promise<Result> {
+/** Define o XP TOTAL do Elo (o número que aparece pro Elo em todo lugar) —
+ *  o admin digita o valor que quer que o Elo tenha, e a função calcula por
+ *  trás quanto de "bônus" (elos.bonus_xp) é preciso pra chegar lá, com base
+ *  na soma atual do XP dos crias (recalculada no banco, não no valor que a
+ *  tela carregou, pra nunca dessincronizar). */
+export async function setEloTotalXp(_prev: Result | null, formData: FormData): Promise<Result> {
   const supabase = await adminClient();
   const eloId = String(formData.get("elo_id") ?? "");
-  const bonusRaw = String(formData.get("bonus_xp") ?? "").trim();
+  const totalRaw = String(formData.get("total_xp") ?? "").trim();
 
   if (!eloId) return { error: "Elo inválido." };
-  const bonusXp = Number(bonusRaw);
-  // Pode ser negativo de propósito: como o total do Elo é sempre soma dos
-  // crias + esse bônus, um valor negativo desconta do total — não precisa
-  // de lógica à parte, só deixar passar.
-  if (!Number.isInteger(bonusXp)) {
-    return { error: "XP precisa ser um número inteiro." };
+  const totalXp = Number(totalRaw);
+  if (!Number.isInteger(totalXp)) return { error: "XP precisa ser um número inteiro." };
+
+  const { error } = await supabase.rpc("admin_set_elo_total_xp", {
+    p_elo_id: eloId,
+    p_total: totalXp,
+  });
+  if (error) return { error: "Não foi possível salvar o XP do Elo." };
+
+  revalidateAdmin();
+  revalidatePath(`/app/admin/elos/${eloId}`);
+  revalidatePath("/app/ranking");
+  revalidatePath("/app/lider");
+  return { ok: true };
+}
+
+/** Dá um bônus de XP pro Elo, somando por cima do que ele já tem — tipo um
+ *  presente. Nunca redefine o total, só soma (ou desconta, se o valor digitado
+ *  for negativo) em cima do que já está lá. */
+export async function giveEloBonusXp(_prev: Result | null, formData: FormData): Promise<Result> {
+  const supabase = await adminClient();
+  const eloId = String(formData.get("elo_id") ?? "");
+  const amountRaw = String(formData.get("amount") ?? "").trim();
+
+  if (!eloId) return { error: "Elo inválido." };
+  const amount = Number(amountRaw);
+  if (!Number.isInteger(amount) || amount === 0) {
+    return { error: "Informe uma quantidade de XP válida." };
   }
 
-  const { error } = await supabase.from("elos").update({ bonus_xp: bonusXp }).eq("id", eloId);
-  if (error) return { error: "Não foi possível salvar o XP do Elo." };
+  const { error } = await supabase.rpc("admin_add_elo_bonus_xp", {
+    p_elo_id: eloId,
+    p_amount: amount,
+  });
+  if (error) return { error: "Não foi possível dar o bônus de XP." };
 
   revalidateAdmin();
   revalidatePath(`/app/admin/elos/${eloId}`);

@@ -157,7 +157,7 @@ export default async function EloDetailPage({
       </div>
 
       <div className="mb-4">
-        <EloXpEditor eloId={elo.id} criasXp={criasXp} bonusXp={elo.bonus_xp} />
+        <EloXpEditor eloId={elo.id} totalXp={totalXp} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
