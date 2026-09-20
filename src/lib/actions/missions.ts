@@ -145,6 +145,13 @@ export async function createMission(_prev: Result | null, formData: FormData): P
     return { error: "Não foi possível atribuir a missão aos participantes." };
   }
 
+  // 5 XP pro líder que criou — só depois que a missão e os participantes já
+  // existem de verdade (nunca antes, senão uma missão descartada por falta
+  // de participante já teria rendido XP à toa).
+  if (profile.role === "leader") {
+    await supabase.rpc("grant_leader_mission_creation_xp", { p_mission_id: mission.id });
+  }
+
   revalidateMissions();
 
   // Missão Geral vai pra plataforma inteira: esperar dezenas de envios de

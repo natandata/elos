@@ -26,6 +26,11 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  // Acerta o XP de criação de missão dos líderes: quem ficou com menos de
+  // 50% dos crias aprovados até o prazo perde os 5 XP que ganhou ao criar.
+  const { error: settleError } = await supabase.rpc("settle_leader_mission_xp");
+  if (settleError) console.error("settle_leader_mission_xp falhou:", settleError);
+
   // com a chave de serviço a RLS não se aplica, então dá pra achar os órfãos
   // com uma consulta direta em vez da RPC (que é escopada por usuário).
   const buckets = ["feed", "stories", "profile_gallery"] as const;
