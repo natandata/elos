@@ -1,8 +1,20 @@
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile, Role } from "@/lib/types";
 
-export async function requireProfile(): Promise<{ profile: Profile; userId: string }> {
+/** Cookie que guarda o id do usuário que o admin está "visualizando como".
+ *  Só tem efeito quando quem está logado de fato é admin (ver requireProfile) —
+ *  um cria/líder não vira admin só por ter esse cookie setado. */
+export const VIEW_AS_COOKIE = "elos_view_as";
+
+export type ViewingAs = { adminId: string; adminName: string; targetName: string };
+
+export async function requireProfile(): Promise<{
+  profile: Profile;
+  userId: string;
+  viewingAs: ViewingAs | null;
+}> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -10,21 +22,51 @@ export async function requireProfile(): Promise<{ profile: Profile; userId: stri
 
   if (!user) redirect("/");
 
-  const { data: profile } = await supabase
+  const { data: realProfile } = await supabase
     .from("profiles")
     .select("*")
     .eq("id", user.id)
     .maybeSingle<Profile>();
 
-  if (!profile) redirect("/");
+  if (!realProfile) redirect("/");
 
-  return { profile, userId: user.id };
+  // Modo "visualizar como": só admin ativa (via startViewAs), e só se ainda
+  // for admin de fato — o cookie sozinho nunca dá privilégio a ninguém. A
+  // troca de perfil abaixo é intencional: o resto do app (páginas, RLS via
+  // is_admin(), redirecionamentos de requireRole) passa a enxergar como se
+  // fosse o usuário-alvo, sem precisar de nenhuma mudança por página.
+  if (realProfile.role === "admin") {
+    const jar = await cookies();
+    const targetId = jar.get(VIEW_AS_COOKIE)?.value;
+    if (targetId && targetId !== realProfile.id) {
+      const { data: targetProfile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", targetId)
+        .maybeSingle<Profile>();
+      if (targetProfile) {
+        return {
+          profile: targetProfile,
+          userId: targetId,
+          viewingAs: {
+            adminId: realProfile.id,
+            adminName: realProfile.full_name || "Admin",
+            targetName: targetProfile.full_name || "Usuário",
+          },
+        };
+      }
+    }
+  }
+
+  return { profile: realProfile, userId: user.id, viewingAs: null };
 }
 
-export async function requireRole(...roles: Role[]): Promise<{ profile: Profile }> {
-  const { profile } = await requireProfile();
+export async function requireRole(
+  ...roles: Role[]
+): Promise<{ profile: Profile; viewingAs: ViewingAs | null }> {
+  const { profile, viewingAs } = await requireProfile();
   if (!roles.includes(profile.role)) redirect(homeFor(profile.role));
-  return { profile };
+  return { profile, viewingAs };
 }
 
 export function homeFor(role: Role): string {

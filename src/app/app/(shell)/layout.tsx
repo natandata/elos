@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { AppShell, type NavItem } from "@/components/shell/AppShell";
 import { ThemeSetter } from "@/components/shell/ThemeSetter";
+import { ViewAsBanner } from "@/components/shell/ViewAsBanner";
 import { needsGuardianAck, needsStatusCheck, requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { ROLE_LABEL } from "@/lib/types";
@@ -72,7 +73,7 @@ const NAV: Record<string, NavItem[]> = {
 };
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const { profile } = await requireProfile();
+  const { profile, viewingAs } = await requireProfile();
 
   // Google Auth não traz gênero/idade: completa o cadastro antes de seguir.
   // Responsável nunca tem gênero/idade/Elo — não se aplica a ele.
@@ -104,6 +105,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     supabase
       .from("notifications")
       .select("id", { count: "exact", head: true })
+      .eq("user_id", profile.id)
       .eq("read", false),
     canChat
       ? supabase
@@ -129,6 +131,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <>
       <ThemeSetter theme={theme} />
+      {viewingAs ? <ViewAsBanner targetName={viewingAs.targetName} /> : null}
       <AppShell
         items={navItems}
         name={profile.full_name || "Participante"}

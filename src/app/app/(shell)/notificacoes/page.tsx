@@ -39,7 +39,7 @@ export default async function NotificacoesPage({
 }: {
   searchParams: Promise<{ tipo?: string }>;
 }) {
-  await requireProfile();
+  const { profile } = await requireProfile();
   const { tipo } = await searchParams;
   const active = FILTERS.find((f) => f.value === (tipo ?? "")) ?? FILTERS[0];
 
@@ -48,6 +48,7 @@ export default async function NotificacoesPage({
   let query = supabase
     .from("notifications")
     .select("id, title, body, read, created_at, category")
+    .eq("user_id", profile.id)
     .order("created_at", { ascending: false })
     .limit(100);
 

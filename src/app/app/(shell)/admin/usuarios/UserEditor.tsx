@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { deleteUser, resetPassword, updateUser } from "@/lib/actions/admin";
+import { startViewAs } from "@/lib/actions/viewAs";
 import { SendEmailForm } from "./SendEmailForm";
 import { Feedback, SubmitBtn } from "@/components/forms";
 import { Avatar } from "@/components/Avatar";
@@ -51,6 +52,7 @@ export function UserEditor({
   const [userState, userAction] = useActionState(updateUser, null);
   const [deleteState, deleteAction] = useActionState(deleteUser, null);
   const [passwordState, passwordAction] = useActionState(resetPassword, null);
+  const [viewAsState, viewAsAction] = useActionState(startViewAs, null);
 
   // O Elo segue o gênero: trocar um sem o outro deixaria a dupla incoerente,
   // e o banco recusaria a gravação.
@@ -103,10 +105,21 @@ export function UserEditor({
           </p>
           </div>
         </div>
-        <button type="button" className="btn btn-ghost !py-2 !text-sm" onClick={() => setOpen(!open)}>
-          {open ? "Fechar" : "Gerenciar"}
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          {!isSelf ? (
+            <form action={viewAsAction}>
+              <input type="hidden" name="user_id" value={user.id} />
+              <SubmitBtn className="btn btn-ghost !py-2 !text-sm" pendingLabel="Abrindo…">
+                👁️ Visualizar como
+              </SubmitBtn>
+            </form>
+          ) : null}
+          <button type="button" className="btn btn-ghost !py-2 !text-sm" onClick={() => setOpen(!open)}>
+            {open ? "Fechar" : "Gerenciar"}
+          </button>
+        </div>
       </div>
+      {viewAsState?.error ? <Feedback state={viewAsState} /> : null}
 
       {open ? (
         <div className="mt-4 space-y-5 border-t border-[var(--line)] pt-4">
