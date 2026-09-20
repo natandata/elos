@@ -277,6 +277,38 @@ export type ChatMessage = {
   created_at: string;
 };
 
+export type HelpChatMessage = {
+  id: string;
+  cria_id: string;
+  sender_id: string;
+  body: string;
+  created_at: string;
+};
+
+export type SuggestionStatus = "pending" | "planned" | "done";
+
+export type Suggestion = {
+  id: string;
+  author_id: string;
+  author_name: string | null;
+  content: string;
+  status: SuggestionStatus;
+  created_at: string;
+  hype_count: number;
+};
+
+export const SUGGESTION_STATUS_LABEL: Record<SuggestionStatus, string> = {
+  pending: "Em análise",
+  planned: "Planejada",
+  done: "Feita!",
+};
+
+export const SUGGESTION_STATUS_TONE: Record<SuggestionStatus, string> = {
+  pending: "border-[var(--line)] text-[var(--muted)]",
+  planned: "border-sky-200 bg-sky-100 text-sky-800",
+  done: "border-emerald-200 bg-emerald-100 text-emerald-800",
+};
+
 // ---------------------------------------------------------------- rótulos PT-BR
 
 export const AGE_RANGE_LABEL: Record<AgeRange, string> = {

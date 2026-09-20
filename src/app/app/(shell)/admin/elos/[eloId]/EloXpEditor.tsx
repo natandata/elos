@@ -28,7 +28,6 @@ export function EloXpEditor({
           id="bonus_xp"
           name="bonus_xp"
           type="number"
-          min={0}
           step={1}
           className="input max-w-[9rem]"
           defaultValue={bonusXp}
@@ -40,7 +39,7 @@ export function EloXpEditor({
       <p className="mt-2 text-xs text-[var(--muted)]">
         Um XP à parte, definido direto pra este Elo — soma por cima do XP que os crias acumulam
         (hoje {formatXp(criasXp)} XP) sem alterar o XP de ninguém. Funciona mesmo sem nenhum cria
-        no Elo.
+        no Elo. Pode ser negativo pra descontar XP do total do Elo.
       </p>
       <Feedback state={state} />
     </form>

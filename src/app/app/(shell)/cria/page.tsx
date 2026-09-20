@@ -35,6 +35,7 @@ export default async function CriaDashboard() {
     eloMembersRes,
     weeklyRankRes,
     challengeRes,
+    topSuggestionRes,
   ] = await Promise.all([
     profile.elo_id
       ? supabase.from("elos").select("name").eq("id", profile.elo_id).maybeSingle()
@@ -95,6 +96,12 @@ export default async function CriaDashboard() {
       .select("title, description, bonus_xp")
       .eq("status", "open")
       .maybeSingle(),
+    supabase
+      .from("v_suggestions")
+      .select("id, content, hype_count")
+      .order("hype_count", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   const ranking = (rankingRes.data ?? []) as { id: string; full_name: string; xp: number }[];
@@ -138,6 +145,16 @@ export default async function CriaDashboard() {
   return (
     <>
       <PageHeader title={`Olá, ${(profile.full_name || "Cria").split(" ")[0]}!`} subtitle={eloName} />
+
+      <Link
+        href="/app/chat/ajuda"
+        className="mb-5 flex items-center justify-between gap-3 rounded-2xl border-2 border-[var(--accent)] bg-[var(--accent-soft)] px-4 py-3 text-[var(--accent-strong)]"
+      >
+        <span className="flex items-center gap-2 font-bold">
+          <span aria-hidden>🆘</span> Preciso de ajuda
+        </span>
+        <span className="text-sm font-semibold opacity-80">Falar com meu líder →</span>
+      </Link>
 
       <StoriesTray entries={storiesTray} myUserId={profile.id} />
 
@@ -260,6 +277,29 @@ export default async function CriaDashboard() {
           </Link>
         </Card>
       </section>
+
+      {topSuggestionRes.data ? (
+        <Link href="/app/mural" className="card mb-5 block p-4">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-sm font-bold">💡 Mural de Sugestões</h2>
+            <span className="text-xs font-semibold text-[var(--accent-strong)]">ver tudo →</span>
+          </div>
+          <p className="mt-2 truncate text-sm text-[var(--muted)]">
+            "{(topSuggestionRes.data as { content: string }).content}"
+          </p>
+          <p className="mt-1 text-xs text-[var(--muted)]">
+            🔥 {(topSuggestionRes.data as { hype_count: number }).hype_count} hype — a mais votada até
+            agora
+          </p>
+        </Link>
+      ) : (
+        <Link href="/app/mural" className="card mb-5 block p-4">
+          <h2 className="text-sm font-bold">💡 Mural de Sugestões</h2>
+          <p className="mt-1 text-sm text-[var(--muted)]">
+            O que você gostaria de ver no ELOS? Seja o primeiro a escrever!
+          </p>
+        </Link>
+      )}
 
       <section>
         <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">

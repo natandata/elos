@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { EmptyState, PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
@@ -37,6 +38,12 @@ export default async function ChatPage() {
         title="Chat"
         subtitle={`Converse com o seu Elo — ${elo?.name ?? ""} · mensagens somem depois de 24h`}
       />
+      <div className="mb-4 flex gap-2">
+        <span className="btn btn-primary !py-1.5 !text-xs">Chat do Elo</span>
+        <Link href="/app/chat/ajuda" className="btn btn-ghost !py-1.5 !text-xs">
+          🆘 Preciso de ajuda
+        </Link>
+      </div>
       <ChatPanel
         eloId={profile.elo_id}
         eloName={elo?.name ?? "Elo"}

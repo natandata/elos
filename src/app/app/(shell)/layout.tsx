@@ -8,6 +8,8 @@ import { ROLE_LABEL } from "@/lib/types";
 const NAV: Record<string, NavItem[]> = {
   admin: [
     { href: "/app/admin", label: "Dashboard", icon: "📊" },
+    { href: "/app/mural", label: "Mural de Sugestões", icon: "💡" },
+    { href: "/app/admin/ajuda", label: "Pedidos de Ajuda", icon: "🆘" },
     {
       label: "Status Geral",
       icon: "💛",
@@ -54,6 +56,7 @@ const NAV: Record<string, NavItem[]> = {
   ],
   cria: [
     { href: "/app/cria", label: "Início", icon: "🏠" },
+    { href: "/app/mural", label: "Mural de Sugestões", icon: "💡" },
     { href: "/app/ranking", label: "Meu Elo", icon: "🏆" },
     { href: "/app/cria/missoes", label: "Missões", icon: "🎯" },
     { href: "/app/devocional", label: "Meu Devocional", icon: "📖" },

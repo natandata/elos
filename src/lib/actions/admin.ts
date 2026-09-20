@@ -168,8 +168,11 @@ export async function setEloBonusXp(_prev: Result | null, formData: FormData): P
 
   if (!eloId) return { error: "Elo inválido." };
   const bonusXp = Number(bonusRaw);
-  if (!Number.isInteger(bonusXp) || bonusXp < 0) {
-    return { error: "XP precisa ser um número inteiro, 0 ou maior." };
+  // Pode ser negativo de propósito: como o total do Elo é sempre soma dos
+  // crias + esse bônus, um valor negativo desconta do total — não precisa
+  // de lógica à parte, só deixar passar.
+  if (!Number.isInteger(bonusXp)) {
+    return { error: "XP precisa ser um número inteiro." };
   }
 
   const { error } = await supabase.from("elos").update({ bonus_xp: bonusXp }).eq("id", eloId);
