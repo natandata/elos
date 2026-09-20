@@ -18,6 +18,7 @@ type Row = {
   submitted_at: string | null;
   approved_at: string | null;
   rejection_reason: string | null;
+  viewed_at: string | null;
   missions: {
     title: string;
     description: string | null;
@@ -41,7 +42,7 @@ export default async function CriaMissoesPage() {
   const { data, error } = await supabase
     .from("mission_assignments")
     .select(
-      "id, status, submitted_at, approved_at, rejection_reason, missions:mission_id(title, description, xp, type, due_date, creator:created_by(role))",
+      "id, status, submitted_at, approved_at, rejection_reason, viewed_at, missions:mission_id(title, description, xp, type, due_date, creator:created_by(role))",
     )
     .eq("cria_id", profile.id)
     .order("created_at", { ascending: false });
@@ -49,6 +50,13 @@ export default async function CriaMissoesPage() {
   if (error) return <ErrorState message={error.message} />;
 
   const rows = (data ?? []) as unknown as Row[];
+
+  // Marca como visto quem ainda não visualizou — carregar essa página é o
+  // próprio ato de "ver a missão" que admin/líder querem acompanhar.
+  const unseenIds = rows.filter((r) => !r.viewed_at).map((r) => r.id);
+  if (unseenIds.length > 0) {
+    await supabase.rpc("mark_missions_viewed", { p_assignment_ids: unseenIds });
+  }
 
   return (
     <>

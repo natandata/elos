@@ -30,7 +30,12 @@ type MissionRow = {
   audience: "crias" | "leaders" | "general";
   elos: { name: string } | null;
   creator: { full_name: string; role: string } | null;
-  mission_assignments: { id: string; status: string }[];
+  mission_assignments: {
+    id: string;
+    status: string;
+    viewed_at: string | null;
+    profiles: { full_name: string } | null;
+  }[];
 };
 
 type LeadershipAssignmentRow = {
@@ -39,6 +44,7 @@ type LeadershipAssignmentRow = {
   submitted_at: string | null;
   approved_at: string | null;
   rejection_reason: string | null;
+  viewed_at: string | null;
   missions: { title: string; description: string | null; xp: number; due_date: string | null } | null;
 };
 
@@ -69,7 +75,12 @@ function toManagedMission(m: MissionRow, canEdit: boolean, authorName?: string):
       awaiting: a.filter((x) => x.status === "awaiting_approval").length,
       approved: a.filter((x) => x.status === "approved").length,
       rejected: a.filter((x) => x.status === "rejected").length,
+      viewed: a.filter((x) => x.viewed_at).length,
     },
+    viewers: a.map((x) => ({
+      name: x.profiles?.full_name || "Participante",
+      viewedAt: x.viewed_at,
+    })),
     canEdit,
   };
 }
@@ -98,7 +109,7 @@ export async function MissionsWorkspace({ profile }: { profile: Profile }) {
     supabase
       .from("missions")
       .select(
-        "id, title, description, type, xp, start_date, due_date, publish_at, created_at, created_by, audience, elos:elo_id(name), creator:created_by(full_name, role), mission_assignments(id, status)",
+        "id, title, description, type, xp, start_date, due_date, publish_at, created_at, created_by, audience, elos:elo_id(name), creator:created_by(full_name, role), mission_assignments(id, status, viewed_at, profiles:cria_id(full_name))",
       )
       .order("created_at", { ascending: false }),
     supabase
@@ -110,13 +121,22 @@ export async function MissionsWorkspace({ profile }: { profile: Profile }) {
     !isAdmin
       ? supabase
           .from("mission_assignments")
-          .select("id, status, submitted_at, approved_at, rejection_reason, missions:mission_id(title, description, xp, due_date)")
+          .select("id, status, submitted_at, approved_at, rejection_reason, viewed_at, missions:mission_id(title, description, xp, due_date)")
           .eq("cria_id", profile.id)
           .order("created_at", { ascending: false })
       : Promise.resolve({ data: [] }),
   ]);
 
   if (missionsRes.error) return <ErrorState message={missionsRes.error.message} />;
+
+  // Mesma marcação de "visto" da tela do cria, aqui pro líder ver as missões
+  // que o admin atribuiu a ele (Missões da Liderança).
+  const myLeadershipUnseen = ((myLeadershipRes.data ?? []) as unknown as LeadershipAssignmentRow[])
+    .filter((r) => !r.viewed_at)
+    .map((r) => r.id);
+  if (myLeadershipUnseen.length > 0) {
+    await supabase.rpc("mark_missions_viewed", { p_assignment_ids: myLeadershipUnseen });
+  }
 
   const elos = (elosRes.data ?? []) as Elo[];
 

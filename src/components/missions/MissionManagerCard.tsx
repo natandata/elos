@@ -19,7 +19,8 @@ export type ManagedMission = {
   audience: "crias" | "leaders" | "general";
   /** Nome de quem criou, mostrado quando não é a própria missão do viewer. */
   authorName?: string;
-  counts: { total: number; awaiting: number; approved: number; rejected: number };
+  counts: { total: number; awaiting: number; approved: number; rejected: number; viewed: number };
+  viewers: { name: string; viewedAt: string | null }[];
   canEdit: boolean;
 };
 
@@ -33,6 +34,7 @@ function toDatetimeLocal(iso: string | null): string {
 export function MissionManagerCard({ mission }: { mission: ManagedMission }) {
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [showViewers, setShowViewers] = useState(false);
   const [updateState, updateAction] = useActionState(updateMission, null);
   const [deleteState, deleteAction] = useActionState(deleteMission, null);
   const [duplicateState, duplicateAction] = useActionState(duplicateMission, null);
@@ -77,6 +79,9 @@ export function MissionManagerCard({ mission }: { mission: ManagedMission }) {
         <span className="chip border-[var(--line)] text-[var(--muted)]">
           {mission.counts.total} participante(s)
         </span>
+        <span className="chip border-sky-200 bg-sky-100 text-sky-800">
+          👁️ {mission.counts.viewed} de {mission.counts.total} visualizaram
+        </span>
         {mission.counts.awaiting > 0 ? (
           <span className="chip border-amber-200 bg-amber-100 text-amber-800">
             {mission.counts.awaiting} aguardando
@@ -95,6 +100,13 @@ export function MissionManagerCard({ mission }: { mission: ManagedMission }) {
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          type="button"
+          className="btn btn-ghost !py-2 !text-sm"
+          onClick={() => setShowViewers(!showViewers)}
+        >
+          {showViewers ? "Ocultar visualizações" : "Quem visualizou"}
+        </button>
         {mission.canEdit ? (
           <>
             <button
@@ -121,6 +133,28 @@ export function MissionManagerCard({ mission }: { mission: ManagedMission }) {
         </form>
       </div>
       <Feedback state={duplicateState} />
+
+      {showViewers ? (
+        <ul className="mt-3 space-y-1 border-t border-[var(--line)] pt-3 text-sm">
+          {[...mission.viewers]
+            .sort((a, b) => {
+              if (Boolean(a.viewedAt) === Boolean(b.viewedAt)) return a.name.localeCompare(b.name);
+              return a.viewedAt ? -1 : 1;
+            })
+            .map((v, i) => (
+              <li key={`${v.name}-${i}`} className="flex items-center justify-between gap-2">
+                <span>{v.name}</span>
+                {v.viewedAt ? (
+                  <span className="text-xs text-emerald-700">
+                    👁️ visto em {formatDateTime(v.viewedAt)}
+                  </span>
+                ) : (
+                  <span className="text-xs text-[var(--muted)]">ainda não visualizou</span>
+                )}
+              </li>
+            ))}
+        </ul>
+      ) : null}
 
       {confirming ? (
         <form action={deleteAction} className="mt-3 rounded-xl bg-red-50 p-3">
