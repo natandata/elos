@@ -66,7 +66,7 @@ export default async function StatusCriasPage({
       .in("user_id", ids)
       .order("created_at", { ascending: false })
       .limit(300),
-    supabase.from("status_follow_ups").select("status_response_id, note"),
+    supabase.from("status_follow_ups").select("status_response_id, note, resolved_by"),
     supabase
       .from("care_meetings")
       .select("*")
@@ -96,10 +96,24 @@ export default async function StatusCriasPage({
     });
   }
 
-  const followUpByResponse = new Map(
-    ((followUpsRes.data ?? []) as { status_response_id: string; note: string }[]).map((f) => [
-      f.status_response_id,
-      f.note,
+  const followUps = (followUpsRes.data ?? []) as {
+    status_response_id: string;
+    note: string;
+    resolved_by: string | null;
+  }[];
+  const followUpByResponse = new Map(followUps.map((f) => [f.status_response_id, f.note]));
+
+  // Nome de quem tratou — via RPC porque quem resolveu pode não estar no
+  // mesmo Elo/liderança de quem está vendo a tela (RLS direta bloquearia).
+  const { data: resolverRows } = followUps.length
+    ? await supabase.rpc("status_follow_up_resolver_names", {
+        p_status_response_ids: followUps.map((f) => f.status_response_id),
+      })
+    : { data: [] };
+  const resolverNameByResponse = new Map(
+    ((resolverRows ?? []) as { status_response_id: string; resolver_name: string }[]).map((r) => [
+      r.status_response_id,
+      r.resolver_name,
     ]),
   );
 
@@ -295,6 +309,7 @@ export default async function StatusCriasPage({
                   <LeaderCareControls
                     statusResponseId={current.id}
                     alreadyResolvedNote={followUpByResponse.get(current.id) ?? null}
+                    resolvedByName={resolverNameByResponse.get(current.id) ?? null}
                     pendingMeeting={pendingMeetingByCria.get(cria.id) ?? null}
                   />
                 ) : null}

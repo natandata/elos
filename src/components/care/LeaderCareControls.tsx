@@ -9,10 +9,12 @@ import { formatDate, type CareMeeting } from "@/lib/types";
 export function LeaderCareControls({
   statusResponseId,
   alreadyResolvedNote,
+  resolvedByName,
   pendingMeeting,
 }: {
   statusResponseId: string;
   alreadyResolvedNote: string | null;
+  resolvedByName: string | null;
   pendingMeeting: CareMeeting | null;
 }) {
   const [resolveState, resolveAction] = useActionState(resolveStatusAlert, null);
@@ -75,7 +77,8 @@ export function LeaderCareControls({
 
       {alreadyResolvedNote ? (
         <p className="rounded-xl bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
-          <strong>Já tratado:</strong> {alreadyResolvedNote}
+          <strong>Já tratado{resolvedByName ? ` por ${resolvedByName}` : ""}:</strong>{" "}
+          {alreadyResolvedNote}
         </p>
       ) : (
         <form action={resolveAction} className="space-y-2">
