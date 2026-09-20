@@ -66,9 +66,10 @@ function StatusButton({
   );
 }
 
-function AdminControls({ suggestion }: { suggestion: Suggestion }) {
+function AdminControls({ suggestion, hypers }: { suggestion: Suggestion; hypers: string[] }) {
   const [deleteState, deleteAction] = useActionState(deleteSuggestion, null);
   const [confirming, setConfirming] = useState(false);
+  const [showHypers, setShowHypers] = useState(false);
 
   return (
     <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-[var(--line)] pt-2">
@@ -80,6 +81,16 @@ function AdminControls({ suggestion }: { suggestion: Suggestion }) {
           active={suggestion.status === s}
         />
       ))}
+
+      {hypers.length > 0 ? (
+        <button
+          type="button"
+          className="text-xs text-[var(--muted)] underline underline-offset-2"
+          onClick={() => setShowHypers(!showHypers)}
+        >
+          {showHypers ? "Ocultar quem hypou" : `Quem hypou (${hypers.length})`}
+        </button>
+      ) : null}
 
       {confirming ? (
         <form action={deleteAction} className="flex items-center gap-1">
@@ -105,6 +116,12 @@ function AdminControls({ suggestion }: { suggestion: Suggestion }) {
         </button>
       )}
       <Feedback state={deleteState?.error ? deleteState : null} />
+
+      {showHypers ? (
+        <p className="w-full text-xs text-[var(--muted)]">
+          🔥 {hypers.join(", ")}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -114,11 +131,13 @@ export function SuggestionBoard({
   myHypedIds,
   canSubmit,
   isAdmin,
+  hypersBySuggestion,
 }: {
   suggestions: Suggestion[];
   myHypedIds: Set<string>;
   canSubmit: boolean;
   isAdmin: boolean;
+  hypersBySuggestion?: Record<string, string[]>;
 }) {
   const [state, action] = useActionState(createSuggestion, null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -176,7 +195,9 @@ export function SuggestionBoard({
               <div className="mt-3">
                 <HypeButton suggestionId={s.id} hyped={myHypedIds.has(s.id)} count={s.hype_count} />
               </div>
-              {isAdmin ? <AdminControls suggestion={s} /> : null}
+              {isAdmin ? (
+                <AdminControls suggestion={s} hypers={hypersBySuggestion?.[s.id] ?? []} />
+              ) : null}
             </li>
           ))}
         </ul>

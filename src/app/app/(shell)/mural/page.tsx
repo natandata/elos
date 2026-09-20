@@ -8,12 +8,29 @@ export default async function MuralPage() {
   const { profile } = await requireRole("admin", "leader", "cria");
   const supabase = await createClient();
 
-  const [{ data: suggestions }, { data: myHypes }] = await Promise.all([
+  const isAdmin = profile.role === "admin";
+
+  const [{ data: suggestions }, { data: myHypes }, { data: hypesData }] = await Promise.all([
     supabase.from("v_suggestions").select("*").order("created_at", { ascending: false }),
     supabase.from("suggestion_hypes").select("suggestion_id").eq("user_id", profile.id),
+    // Só admin precisa de "quem hypou" — os outros só veem a contagem.
+    isAdmin
+      ? supabase.from("suggestion_hypes").select("suggestion_id, profiles:user_id(full_name)")
+      : Promise.resolve({ data: [] }),
   ]);
 
   const myHypedIds = new Set(((myHypes ?? []) as { suggestion_id: string }[]).map((h) => h.suggestion_id));
+
+  const hypersBySuggestion = new Map<string, string[]>();
+  for (const h of (hypesData ?? []) as unknown as {
+    suggestion_id: string;
+    profiles: { full_name: string } | null;
+  }[]) {
+    const name = h.profiles?.full_name || "Alguém";
+    const list = hypersBySuggestion.get(h.suggestion_id) ?? [];
+    list.push(name);
+    hypersBySuggestion.set(h.suggestion_id, list);
+  }
 
   return (
     <>
@@ -25,7 +42,8 @@ export default async function MuralPage() {
         suggestions={(suggestions ?? []) as Suggestion[]}
         myHypedIds={myHypedIds}
         canSubmit={profile.role === "cria"}
-        isAdmin={profile.role === "admin"}
+        isAdmin={isAdmin}
+        hypersBySuggestion={Object.fromEntries(hypersBySuggestion)}
       />
     </>
   );
