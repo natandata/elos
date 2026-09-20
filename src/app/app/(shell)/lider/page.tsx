@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { Card, EmptyState, PageHeader, StatCard } from "@/components/ui";
 import { Avatar } from "@/components/Avatar";
-import { requireRole } from "@/lib/auth";
+import { needsWeeklyPushNudge, requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { WeeklyPushNudge } from "@/components/push/WeeklyPushNudge";
 import { XpBar } from "@/components/XpBar";
 import { HojeNoElos } from "@/components/HojeNoElos";
 import { EventCountdown } from "@/components/EventCountdown";
@@ -38,8 +39,9 @@ type LeaderRankRow = {
 };
 
 export default async function LiderDashboard() {
-  const { profile } = await requireRole("leader");
+  const { profile, viewingAs } = await requireRole("leader");
   const supabase = await createClient();
+  const showPushNudge = !viewingAs && (await needsWeeklyPushNudge(supabase, profile));
 
   const { data: links } = await supabase
     .from("leader_crias")
@@ -219,6 +221,8 @@ export default async function LiderDashboard() {
         title={`Olá, ${(profile.full_name || "Líder").split(" ")[0]}!`}
         subtitle={`${eloName} · ${crias.length} cria(s) sob sua responsabilidade.`}
       />
+
+      <WeeklyPushNudge eligible={showPushNudge} />
 
       <StoriesTray entries={storiesTray} myUserId={profile.id} />
 

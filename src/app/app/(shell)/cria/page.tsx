@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
-import { requireRole } from "@/lib/auth";
+import { needsWeeklyPushNudge, requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { WeeklyPushNudge } from "@/components/push/WeeklyPushNudge";
 import { CriaCareMeetingCard } from "@/components/care/CriaCareMeetingCard";
 import { XpBar } from "@/components/XpBar";
 import { HojeNoElos } from "@/components/HojeNoElos";
@@ -19,8 +20,9 @@ import { formatDate, formatXp, type CareMeeting } from "@/lib/types";
 const ONLINE_WINDOW_MS = 60_000;
 
 export default async function CriaDashboard() {
-  const { profile } = await requireRole("cria");
+  const { profile, viewingAs } = await requireRole("cria");
   const supabase = await createClient();
+  const showPushNudge = !viewingAs && (await needsWeeklyPushNudge(supabase, profile));
 
   const [
     eloRes,
@@ -195,6 +197,8 @@ export default async function CriaDashboard() {
   return (
     <>
       <PageHeader title={`Olá, ${(profile.full_name || "Cria").split(" ")[0]}!`} subtitle={eloName} />
+
+      <WeeklyPushNudge eligible={showPushNudge} />
 
       <Link
         href="/app/chat/ajuda"

@@ -1,6 +1,7 @@
 import { Bar, Card, PageHeader, StatCard } from "@/components/ui";
-import { requireRole } from "@/lib/auth";
+import { needsWeeklyPushNudge, requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { WeeklyPushNudge } from "@/components/push/WeeklyPushNudge";
 import { formatDateTime, STATUS_LABEL, type StatusLevel } from "@/lib/types";
 
 const ACTIVITY_LABEL: Record<string, { icon: string; verb: string }> = {
@@ -15,8 +16,9 @@ const ACTIVITY_LABEL: Record<string, { icon: string; verb: string }> = {
 };
 
 export default async function AdminDashboard() {
-  const { profile } = await requireRole("admin");
+  const { profile, viewingAs } = await requireRole("admin");
   const supabase = await createClient();
+  const showPushNudge = !viewingAs && (await needsWeeklyPushNudge(supabase, profile));
 
   const [
     users,
@@ -50,7 +52,7 @@ export default async function AdminDashboard() {
       .eq("status", "rejected"),
     supabase.from("v_latest_status").select("emotional_status, spiritual_status"),
     supabase.from("elos").select("id, name, profiles:profiles(id, role)"),
-    supabase.rpc("admin_recent_activity", { p_exclude_user: profile.id, p_limit: 30 }),
+    supabase.rpc("admin_recent_activity", { p_exclude_user: profile.id }),
   ]);
 
   const activity = (activityRes.data ?? []) as {
@@ -88,6 +90,8 @@ export default async function AdminDashboard() {
   return (
     <>
       <PageHeader title="Dashboard" subtitle="Visão geral dos ELOS." />
+
+      <WeeklyPushNudge eligible={showPushNudge} />
 
       <section className="mb-6">
         <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">
@@ -147,7 +151,7 @@ export default async function AdminDashboard() {
 
       <section className="mb-6">
         <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">
-          Atividade recente
+          Atividade recente (últimas 24h)
         </h2>
         <Card className="!p-0">
           {activity.length === 0 ? (

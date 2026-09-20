@@ -114,6 +114,24 @@ export async function needsStatusCheck(profile: Profile): Promise<boolean> {
   return (count ?? 0) === 0;
 }
 
+/** Toda sexta-feira (horário de Brasília), pra quem ainda não tem nenhuma
+ *  notificação push ativa em lugar nenhum — puxa pra ativar antes do fim de
+ *  semana, quando mais avisos importantes costumam sair. */
+export async function needsWeeklyPushNudge(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  profile: Profile,
+): Promise<boolean> {
+  const brasiliaNow = new Date(Date.now() - BRASILIA_UTC_OFFSET_HOURS * 3_600_000);
+  if (brasiliaNow.getUTCDay() !== 5) return false;
+
+  const { count } = await supabase
+    .from("push_subscriptions")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", profile.id);
+
+  return (count ?? 0) === 0;
+}
+
 const GUARDIAN_ACK_DAYS = 15;
 
 /** Autorização do responsável: pedida no cadastro, revalidada a cada 15 dias. */

@@ -1,8 +1,10 @@
 import { EmptyState, PageHeader } from "@/components/ui";
-import { requireRole } from "@/lib/auth";
+import { needsWeeklyPushNudge, requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { FeedComposer } from "@/components/feed/FeedComposer";
+import { FeedStoriesTray, type FeedStoryAuthor } from "@/components/feed/FeedStoriesTray";
 import { ProfileSearch } from "@/components/feed/ProfileSearch";
+import { WeeklyPushNudge } from "@/components/push/WeeklyPushNudge";
 import { FeedPostCard, type FeedPost } from "@/components/feed/FeedPostCard";
 import { ROLE_LABEL, type Role } from "@/lib/types";
 import { stableSignedUrls } from "@/lib/signedUrls";
@@ -28,10 +30,14 @@ type AuthorRow = {
 };
 
 export default async function FeedPage() {
-  const { profile } = await requireRole("admin", "leader", "cria", "guardian");
+  const { profile, viewingAs } = await requireRole("admin", "leader", "cria", "guardian");
   const supabase = await createClient();
   const isAdmin = profile.role === "admin";
   const canInteract = profile.role === "leader" || profile.role === "cria";
+  // Explorar é a Home do responsável (guardian) — pros outros papéis, o
+  // lembrete semanal já aparece na própria tela de início deles.
+  const showPushNudge =
+    profile.role === "guardian" && !viewingAs && (await needsWeeklyPushNudge(supabase, profile));
 
   const [postsRes, likesRes, commentsRes, elosRes, galleryCountRes] = await Promise.all([
     supabase
@@ -125,6 +131,33 @@ export default async function FeedPage() {
     };
   });
 
+  // Bolinhas de story no topo, uma por autor: as fotos de cada um em ordem
+  // cronológica (mais antiga primeiro, igual Instagram), mas a ORDEM DAS
+  // BOLINHAS é por quem postou mais recentemente primeiro.
+  const postsByAuthorAsc = [...posts].sort((a, b) => a.created_at.localeCompare(b.created_at));
+  const storyMap = new Map<string, FeedStoryAuthor>();
+  for (const p of postsByAuthorAsc) {
+    const author = authorById.get(p.author_id);
+    const item = {
+      id: p.id,
+      imageUrl: urlByPath.get(p.image_path) ?? null,
+      caption: p.caption,
+      createdAt: p.created_at,
+    };
+    const existing = storyMap.get(p.author_id);
+    if (existing) existing.posts.push(item);
+    else
+      storyMap.set(p.author_id, {
+        authorId: p.author_id,
+        name: author?.full_name || "Sem nome",
+        avatarUrl: author?.avatar_url ?? null,
+        posts: [item],
+      });
+  }
+  const storyAuthors = Array.from(storyMap.values()).sort((a, b) =>
+    b.posts[b.posts.length - 1].createdAt.localeCompare(a.posts[a.posts.length - 1].createdAt),
+  );
+
   return (
     <>
       <PageHeader
@@ -136,6 +169,10 @@ export default async function FeedPage() {
           ) : undefined
         }
       />
+
+      <WeeklyPushNudge eligible={showPushNudge} />
+
+      <FeedStoriesTray authors={storyAuthors} myUserId={profile.id} />
 
       <ProfileSearch />
 
