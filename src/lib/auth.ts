@@ -43,7 +43,7 @@ const BRASILIA_UTC_OFFSET_HOURS = 3;
  * desse horário, ainda conta como o dia anterior (alguém acordado às 2h da
  * manhã não deveria já cair no dia seguinte).
  */
-function statusDayCutoffUTC(): Date {
+export function statusDayCutoffUTC(): Date {
   const brasiliaNow = new Date(Date.now() - BRASILIA_UTC_OFFSET_HOURS * 3_600_000);
   const y = brasiliaNow.getUTCFullYear();
   const m = brasiliaNow.getUTCMonth();

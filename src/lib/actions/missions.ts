@@ -18,9 +18,9 @@ async function currentProfile() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, role, elo_id")
+    .select("id, role, elo_id, full_name")
     .eq("id", user.id)
-    .maybeSingle<{ id: string; role: string; elo_id: string | null }>();
+    .maybeSingle<{ id: string; role: string; elo_id: string | null; full_name: string }>();
 
   if (!profile) redirect("/");
   return { supabase, profile };
@@ -299,7 +299,7 @@ export async function toggleLeaderMissionsVisibility(
 }
 
 export async function reviewAssignment(_prev: Result | null, formData: FormData): Promise<Result> {
-  const { supabase } = await currentProfile();
+  const { supabase, profile } = await currentProfile();
   const id = String(formData.get("assignment_id") ?? "");
   const approve = String(formData.get("approve") ?? "") === "true";
   const reason = String(formData.get("reason") ?? "").trim() || null;
@@ -308,9 +308,29 @@ export async function reviewAssignment(_prev: Result | null, formData: FormData)
 
   const { data: assignment } = await supabase
     .from("mission_assignments")
-    .select("cria_id")
+    .select("cria_id, missions:mission_id(title)")
     .eq("id", id)
-    .maybeSingle<{ cria_id: string }>();
+    .maybeSingle<{ cria_id: string; missions: { title: string } | null }>();
+
+  // Posição do Elo do cria no ranking geral ANTES de creditar o XP — só pra
+  // comparar depois e saber se ele subiu com essa aprovação específica.
+  let criaEloId: string | null = null;
+  let rankBefore: number | null = null;
+  if (approve && assignment?.cria_id) {
+    const { data: criaProfile } = await supabase
+      .from("profiles")
+      .select("elo_id")
+      .eq("id", assignment.cria_id)
+      .maybeSingle<{ elo_id: string | null }>();
+    criaEloId = criaProfile?.elo_id ?? null;
+    if (criaEloId) {
+      const { data: before } = await supabase.rpc("elo_rankings");
+      rankBefore =
+        ((before ?? []) as { elo_id: string; rank_position: number }[]).find(
+          (r) => r.elo_id === criaEloId,
+        )?.rank_position ?? null;
+    }
+  }
 
   const { error } = await supabase.rpc("review_assignment", {
     p_assignment: id,
@@ -321,6 +341,48 @@ export async function reviewAssignment(_prev: Result | null, formData: FormData)
 
   if (approve && assignment?.cria_id) {
     await supabase.rpc("check_and_grant_achievements", { p_user: assignment.cria_id });
+
+    // Gancho de curiosidade: o push esconde o valor exato do XP (só sabendo
+    // abrindo o app) — a notificação de dentro do app (criada pela própria
+    // review_assignment RPC) já mostra "+N XP — título", informação completa
+    // pra quem já está lá dentro.
+    const missionTitle = assignment.missions?.title ?? "sua missão";
+    const approverFirstName = (profile.full_name || "Seu líder").trim().split(" ")[0];
+    await sendPushToUsers([assignment.cria_id], {
+      title: `${approverFirstName} aprovou "${missionTitle}"!`,
+      body: "Veja quanto XP você ganhou 👀",
+      url: "/app/cria/missoes",
+    });
+
+    // O Elo subiu no ranking geral por causa dessa aprovação? Avisa todo mundo.
+    if (criaEloId && rankBefore !== null) {
+      const { data: afterRanking } = await supabase.rpc("elo_rankings");
+      const rankAfter =
+        ((afterRanking ?? []) as { elo_id: string; rank_position: number }[]).find(
+          (r) => r.elo_id === criaEloId,
+        )?.rank_position ?? null;
+
+      if (rankAfter !== null && rankAfter < rankBefore) {
+        const title = "Seu Elo subiu no ranking! 🚀";
+        const body = `Agora está em ${rankAfter}º lugar no ranking geral.`;
+        await supabase.rpc("notify_elo_members", {
+          p_elo_id: criaEloId,
+          p_title: title,
+          p_body: body,
+          p_link: "/app/ranking",
+          p_category: "elo",
+        });
+        const { data: members } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("elo_id", criaEloId)
+          .in("role", ["cria", "leader"]);
+        const memberIds = (members ?? []).map((m) => m.id as string);
+        if (memberIds.length > 0) {
+          await sendPushToUsers(memberIds, { title, body, url: "/app/ranking" });
+        }
+      }
+    }
   }
 
   revalidateMissions();

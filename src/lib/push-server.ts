@@ -1,5 +1,6 @@
 import webpush from "web-push";
 import { createClient } from "@/lib/supabase/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 let configured = false;
 
@@ -24,13 +25,21 @@ type SubRow = { id: string; endpoint: string; p256dh: string; auth: string };
  * Envia push (notificação de sistema, aparece mesmo com o app fechado) pra
  * uma lista de usuários. Sem chaves VAPID configuradas, não faz nada —
  * nunca deve derrubar a ação que chamou (postar no feed, criar missão etc).
+ *
+ * `client` é opcional: por padrão usa o client autenticado por cookie (uma
+ * Server Action, com sessão de usuário). Rotinas de cron não têm sessão —
+ * passam o client de service role (createAdminClient()) aqui.
  */
-export async function sendPushToUsers(userIds: string[], payload: PushPayload): Promise<void> {
+export async function sendPushToUsers(
+  userIds: string[],
+  payload: PushPayload,
+  client?: SupabaseClient,
+): Promise<void> {
   const ids = Array.from(new Set(userIds)).filter(Boolean);
   if (ids.length === 0) return;
   if (!ensureConfigured()) return;
 
-  const supabase = await createClient();
+  const supabase = client ?? (await createClient());
   const { data } = await supabase.rpc("push_subscriptions_for", { p_user_ids: ids });
   const subs = (data ?? []) as SubRow[];
   if (subs.length === 0) return;

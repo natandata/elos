@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { sendEmail } from "@/lib/email.server";
+import { sendPushToUsers } from "@/lib/push-server";
 import type { AgeRange, Gender, Role } from "@/lib/types";
 import { isFrameworkFlowError, NETWORK_ERROR_MESSAGE } from "./errorHandling";
 
@@ -461,5 +462,122 @@ export async function deleteEvent(_prev: Result | null, formData: FormData): Pro
   if (error) return { error: "Não foi possível excluir o evento." };
 
   revalidateAgenda();
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------- desafio entre Elos
+
+function revalidateChallenge() {
+  revalidatePath("/app/admin/elos");
+  revalidatePath("/app/ranking");
+  revalidatePath("/app/cria");
+  revalidatePath("/app/lider");
+}
+
+/** Propõe um desafio entre Elos — só um em aberto por vez. */
+export async function createEloChallenge(_prev: Result | null, formData: FormData): Promise<Result> {
+  const supabase = await adminClient();
+  const title = String(formData.get("title") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim() || null;
+  const bonusXp = Number(String(formData.get("bonus_xp") ?? "").trim());
+
+  if (!title) return { error: "Dê um nome ao desafio." };
+  if (!Number.isInteger(bonusXp) || bonusXp < 0) {
+    return { error: "XP precisa ser um número inteiro, 0 ou maior." };
+  }
+
+  const { count } = await supabase
+    .from("elo_challenges")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "open");
+  if ((count ?? 0) > 0) {
+    return { error: "Já existe um desafio em andamento — encerre-o antes de criar outro." };
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { error } = await supabase
+    .from("elo_challenges")
+    .insert({ title, description, bonus_xp: bonusXp, created_by: user?.id ?? null });
+  if (error) return { error: "Não foi possível criar o desafio." };
+
+  const { data: everyone } = await supabase.from("profiles").select("id").in("role", ["cria", "leader"]);
+  const ids = (everyone ?? []).map((p) => p.id as string);
+  if (ids.length > 0) {
+    await sendPushToUsers(ids, {
+      title: "Novo desafio entre os Elos! 🏆",
+      body: title,
+      url: "/app/ranking",
+    });
+  }
+
+  revalidateChallenge();
+  return { ok: true };
+}
+
+/** Encerra o desafio em aberto, declara o Elo vencedor e credita o bônus
+ *  pra cada cria dele — de uma vez, via RPC (soma XP, não substitui). */
+export async function finishEloChallenge(_prev: Result | null, formData: FormData): Promise<Result> {
+  const supabase = await adminClient();
+  const id = String(formData.get("id") ?? "");
+  const winnerEloId = String(formData.get("winner_elo_id") ?? "");
+  if (!id || !winnerEloId) return { error: "Selecione o Elo vencedor." };
+
+  const { data: challenge } = await supabase
+    .from("elo_challenges")
+    .select("title, bonus_xp, status")
+    .eq("id", id)
+    .maybeSingle<{ title: string; bonus_xp: number; status: string }>();
+  if (!challenge) return { error: "Desafio não encontrado." };
+  if (challenge.status === "finished") return { error: "Esse desafio já foi encerrado." };
+
+  const { error: updateError } = await supabase
+    .from("elo_challenges")
+    .update({ status: "finished", winner_elo_id: winnerEloId, finished_at: new Date().toISOString() })
+    .eq("id", id);
+  if (updateError) return { error: "Não foi possível encerrar o desafio." };
+
+  if (challenge.bonus_xp > 0) {
+    await supabase.rpc("award_elo_challenge_bonus", { p_elo_id: winnerEloId, p_amount: challenge.bonus_xp });
+  }
+
+  const title = "Seu Elo venceu o desafio! 🏆";
+  const body =
+    challenge.bonus_xp > 0
+      ? `"${challenge.title}" — +${challenge.bonus_xp} XP pra todo mundo do Elo!`
+      : `"${challenge.title}"`;
+  await supabase.rpc("notify_elo_members", {
+    p_elo_id: winnerEloId,
+    p_title: title,
+    p_body: body,
+    p_link: "/app/ranking",
+    p_category: "elo",
+  });
+  const { data: winners } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("elo_id", winnerEloId)
+    .in("role", ["cria", "leader"]);
+  const winnerIds = (winners ?? []).map((p) => p.id as string);
+  if (winnerIds.length > 0) {
+    await sendPushToUsers(winnerIds, { title, body, url: "/app/ranking" });
+  }
+
+  revalidateChallenge();
+  return { ok: true };
+}
+
+/** Cancela um desafio em aberto sem declarar vencedor (ex.: criado por engano). */
+export async function cancelEloChallenge(_prev: Result | null, formData: FormData): Promise<Result> {
+  const supabase = await adminClient();
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { error: "Desafio inválido." };
+
+  const { error } = await supabase.from("elo_challenges").delete().eq("id", id).eq("status", "open");
+  if (error) return { error: "Não foi possível cancelar o desafio." };
+
+  revalidateChallenge();
   return { ok: true };
 }

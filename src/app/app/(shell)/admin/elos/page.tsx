@@ -2,7 +2,8 @@ import Link from "next/link";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { AGE_RANGE_LABEL, GENDER_LABEL, formatXp, type AgeRange, type Gender } from "@/lib/types";
+import { EloChallengeManager } from "./EloChallengeManager";
+import { AGE_RANGE_LABEL, GENDER_LABEL, formatXp, type AgeRange, type Elo, type Gender } from "@/lib/types";
 
 type EloRow = {
   id: string;
@@ -17,13 +18,26 @@ export default async function ElosPage() {
   await requireRole("admin");
   const supabase = await createClient();
 
-  const { data, error } = await supabase
-    .from("elos")
-    .select("id, name, gender, age_range, bonus_xp, profiles:profiles(id, full_name, role, xp)")
-    .order("gender")
-    .order("age_range");
+  const [{ data, error }, { data: openChallengeData }] = await Promise.all([
+    supabase
+      .from("elos")
+      .select("id, name, gender, age_range, bonus_xp, profiles:profiles(id, full_name, role, xp)")
+      .order("gender")
+      .order("age_range"),
+    supabase
+      .from("elo_challenges")
+      .select("id, title, description, bonus_xp")
+      .eq("status", "open")
+      .maybeSingle(),
+  ]);
 
   const elos = (data ?? []) as unknown as EloRow[];
+  const openChallenge = openChallengeData as {
+    id: string;
+    title: string;
+    description: string | null;
+    bonus_xp: number;
+  } | null;
 
   const ranked = elos
     .map((e) => {
@@ -43,6 +57,8 @@ export default async function ElosPage() {
   return (
     <>
       <PageHeader title="ELOS" subtitle="Estrutura, liderança e XP de cada Elo." />
+
+      <EloChallengeManager challenge={openChallenge} elos={(elos as unknown as Elo[]) ?? []} />
 
       {error ? (
         <EmptyState>Não foi possível carregar os ELOS.</EmptyState>

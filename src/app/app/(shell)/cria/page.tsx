@@ -5,9 +5,17 @@ import { createClient } from "@/lib/supabase/server";
 import { CriaCareMeetingCard } from "@/components/care/CriaCareMeetingCard";
 import { XpBar } from "@/components/XpBar";
 import { HojeNoElos } from "@/components/HojeNoElos";
+import { EventCountdown } from "@/components/EventCountdown";
+import { CriaDaSemana } from "@/components/CriaDaSemana";
+import { OpenChallengeBanner } from "@/components/OpenChallengeBanner";
 import { StoriesTray } from "@/components/profile/StoriesTray";
 import { getEloStoriesTray } from "@/lib/stories";
+import { statusDayCutoffUTC } from "@/lib/auth";
 import { formatDate, formatXp, type CareMeeting } from "@/lib/types";
+
+// "Online agora" pro contador ao vivo do Elo — mesma janela usada no admin
+// pra marcar presença (ver src/app/app/(shell)/admin/usuarios/page.tsx).
+const ONLINE_WINDOW_MS = 60_000;
 
 export default async function CriaDashboard() {
   const { profile } = await requireRole("cria");
@@ -24,6 +32,9 @@ export default async function CriaDashboard() {
     presenceRes,
     feedTodayRes,
     dueTodayRes,
+    eloMembersRes,
+    weeklyRankRes,
+    challengeRes,
   ] = await Promise.all([
     profile.elo_id
       ? supabase.from("elos").select("name").eq("id", profile.elo_id).maybeSingle()
@@ -73,6 +84,17 @@ export default async function CriaDashboard() {
       .select("id, missions:mission_id(due_date)")
       .eq("cria_id", profile.id)
       .in("status", ["pending", "rejected"]),
+    profile.elo_id
+      ? supabase.from("profiles").select("id").eq("elo_id", profile.elo_id).in("role", ["cria", "leader"])
+      : Promise.resolve({ data: [] }),
+    profile.elo_id
+      ? supabase.rpc("weekly_xp_ranking", { p_elo_id: profile.elo_id })
+      : Promise.resolve({ data: [] }),
+    supabase
+      .from("elo_challenges")
+      .select("title, description, bonus_xp")
+      .eq("status", "open")
+      .maybeSingle(),
   ]);
 
   const ranking = (rankingRes.data ?? []) as { id: string; full_name: string; xp: number }[];
@@ -80,6 +102,29 @@ export default async function CriaDashboard() {
   const eloName = (eloRes.data as { name: string } | null)?.name ?? "Sem Elo";
   const meetings = (meetingsRes.data ?? []) as CareMeeting[];
   const storiesTray = await getEloStoriesTray(supabase, profile.elo_id);
+
+  const eloMemberIds = ((eloMembersRes.data ?? []) as { id: string }[]).map((m) => m.id);
+  const [statusTodayRes, onlineRes] = eloMemberIds.length
+    ? await Promise.all([
+        supabase
+          .from("status_responses")
+          .select("user_id", { count: "exact", head: true })
+          .in("user_id", eloMemberIds)
+          .gte("created_at", statusDayCutoffUTC().toISOString()),
+        supabase
+          .from("user_presence")
+          .select("user_id", { count: "exact", head: true })
+          .in("user_id", eloMemberIds)
+          .gte("last_seen_at", new Date(Date.now() - ONLINE_WINDOW_MS).toISOString()),
+      ])
+    : [{ count: 0 }, { count: 0 }];
+
+  const weeklyTop = ((weeklyRankRes.data ?? []) as {
+    user_id: string;
+    full_name: string;
+    avatar_url: string | null;
+    weekly_xp: number;
+  }[])[0];
 
   const lastSeenAt = (presenceRes.data as { last_seen_at: string } | null)?.last_seen_at ?? null;
   const daysSinceLastVisit = lastSeenAt
@@ -100,7 +145,34 @@ export default async function CriaDashboard() {
         daysSinceLastVisit={daysSinceLastVisit}
         feedPostsToday={feedTodayRes.count ?? 0}
         missionsDueToday={missionsDueToday}
+        statusAnswered={statusTodayRes.count ?? 0}
+        statusTotal={eloMemberIds.length}
+        onlineNow={onlineRes.count ?? 0}
       />
+
+      {challengeRes.data ? (
+        <OpenChallengeBanner
+          title={(challengeRes.data as { title: string }).title}
+          description={(challengeRes.data as { description: string | null }).description}
+          bonusXp={(challengeRes.data as { bonus_xp: number }).bonus_xp}
+        />
+      ) : null}
+
+      {(eventsRes.data as { title: string; event_date: string }[] | null)?.[0] ? (
+        <EventCountdown
+          title={(eventsRes.data as { title: string; event_date: string }[])[0].title}
+          eventDate={(eventsRes.data as { title: string; event_date: string }[])[0].event_date}
+        />
+      ) : null}
+
+      {weeklyTop && weeklyTop.weekly_xp > 0 ? (
+        <CriaDaSemana
+          name={weeklyTop.full_name || "Sem nome"}
+          avatarUrl={weeklyTop.avatar_url}
+          weeklyXp={Number(weeklyTop.weekly_xp)}
+          isMe={weeklyTop.user_id === profile.id}
+        />
+      ) : null}
 
       {meetings.length > 0 ? (
         <section className="mb-5 space-y-2">

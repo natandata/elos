@@ -18,6 +18,12 @@ export default async function StatusPage() {
           <p className="mt-1 text-sm text-[var(--muted)]">
             Uma resposta rápida por dia. Só sua liderança vê.
           </p>
+          {profile.status_streak > 0 ? (
+            <p className="mt-3 inline-block rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">
+              🔥 Sua ofensiva de {profile.status_streak}{" "}
+              {profile.status_streak === 1 ? "dia está" : "dias está"} em jogo — responda pra continuar
+            </p>
+          ) : null}
         </div>
         <div className="card p-5">
           <StatusForm />

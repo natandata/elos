@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { sendPushToUsers } from "@/lib/push-server";
 import type { PrayerScope } from "@/lib/types";
 import { isFrameworkFlowError, NETWORK_ERROR_MESSAGE } from "./errorHandling";
 
@@ -105,13 +106,41 @@ export async function togglePrayerAnswered(_prev: Result | null, formData: FormD
     const answered = formData.get("answered") === "true";
     if (!id) return { error: "Pedido inválido." };
 
-    const { error } = await supabase
+    const { data: updated, error } = await supabase
       .from("prayer_requests")
       .update({ is_answered: answered, answered_at: answered ? new Date().toISOString() : null })
       .eq("id", id)
-      .eq("user_id", userId);
+      .eq("user_id", userId)
+      .select("title, scope, elo_id")
+      .maybeSingle<{ title: string; scope: PrayerScope; elo_id: string | null }>();
 
     if (error) return { error: "Não foi possível atualizar o pedido." };
+
+    // Fecha o ciclo: só quem viu o pedido (o Elo, no caso de scope "elo") fica
+    // sabendo que a oração foi respondida — pedido pessoal continua privado.
+    if (answered && updated?.scope === "elo" && updated.elo_id) {
+      const title = "Oração respondida! 🙏";
+      const body = updated.title;
+      await supabase.rpc("notify_elo_members", {
+        p_elo_id: updated.elo_id,
+        p_title: title,
+        p_body: body,
+        p_link: "/app/devocional",
+        p_category: "prayer",
+        p_exclude: userId,
+      });
+
+      const { data: members } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("elo_id", updated.elo_id)
+        .in("role", ["cria", "leader"])
+        .neq("id", userId);
+      const memberIds = (members ?? []).map((m) => m.id as string);
+      if (memberIds.length > 0) {
+        await sendPushToUsers(memberIds, { title, body, url: "/app/devocional" });
+      }
+    }
 
     revalidateDevotional();
     return { ok: true };
