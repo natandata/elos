@@ -145,6 +145,20 @@ export default async function StatusCriasPage({
       Number(hasBadStatus(latest.get(b.id))) - Number(hasBadStatus(latest.get(a.id))),
   );
 
+  // Admin vê todo mundo de uma vez, de todos os ELOS — sem agrupar vira uma
+  // lista enorme sem organização nenhuma. Segue a mesma ordem (gênero/faixa
+  // etária) da query de elos; quem não tem Elo fica num grupo à parte no fim.
+  const eloGroups = isAdmin
+    ? [
+        ...elos.map((e) => ({
+          id: e.id as string | null,
+          name: e.name,
+          crias: sortedCrias.filter((c) => c.elo_id === e.id),
+        })),
+        { id: null, name: "Sem Elo", crias: sortedCrias.filter((c) => !c.elo_id) },
+      ].filter((g) => g.crias.length > 0)
+    : [];
+
   return (
     <>
       <PageHeader
@@ -221,103 +235,110 @@ export default async function StatusCriasPage({
             ? "Nenhum cria cadastrado ainda."
             : "Nenhum cria vinculado a você ainda. A administração faz esse vínculo em Usuários."}
         </EmptyState>
-      ) : (
-        <div className="space-y-3">
-          {sortedCrias.map((cria) => {
-            const current = latest.get(cria.id);
-            const chartHistory = responses.filter((r) => r.user_id === cria.id).slice(0, 12);
-            const past = chartHistory.slice(1, 5);
-            const bad = hasBadStatus(current);
-            const concerning = !bad && hasConcerningStatus(current);
-            const details = detailsByCria.get(cria.id);
-
-            return (
-              <Card
-                key={cria.id}
-                className={
-                  bad
-                    ? "border-2 border-red-600 ring-2 ring-red-200"
-                    : concerning
-                      ? "border-2 border-amber-400 ring-2 ring-amber-100"
-                      : ""
-                }
-              >
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div>
-                    <p className="font-bold">
-                      {bad ? <span aria-hidden>🚨 </span> : concerning ? <span aria-hidden>⚠️ </span> : null}
-                      {cria.full_name || "Sem nome"}
-                    </p>
-                    <p className="text-xs text-[var(--muted)]">
-                      Atualizado {relativeDay(current?.created_at ?? null).toLowerCase()}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {current ? (
-                      <>
-                        <span className={`chip ${STATUS_TONE[current.emotional_status]}`}>
-                          Emocional: {STATUS_LABEL[current.emotional_status]}
-                        </span>
-                        <span className={`chip ${STATUS_TONE[current.spiritual_status]}`}>
-                          Espiritual: {STATUS_LABEL[current.spiritual_status]}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="chip border-[var(--line)] text-[var(--muted)]">
-                        Sem resposta
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {chartHistory.length >= 2 ? (
-                  <StatusHistoryChart history={chartHistory} />
-                ) : null}
-
-                {past.length > 0 ? (
-                  <details className="mt-3">
-                    <summary className="cursor-pointer text-xs font-semibold text-[var(--muted)]">
-                      Histórico ({past.length})
-                    </summary>
-                    <ul className="mt-2 space-y-1 text-xs text-[var(--muted)]">
-                      {past.map((r) => (
-                        <li key={r.id}>
-                          {formatDateTime(r.created_at)} — emocional{" "}
-                          {STATUS_LABEL[r.emotional_status].toLowerCase()}, espiritual{" "}
-                          {STATUS_LABEL[r.spiritual_status].toLowerCase()}
-                        </li>
-                      ))}
-                    </ul>
-                  </details>
-                ) : null}
-
-                {details && (details.guardian_name || details.guardian_phone || details.notes) ? (
-                  <details className="mt-2">
-                    <summary className="cursor-pointer text-xs font-semibold text-[var(--muted)]">
-                      Ficha do cria
-                    </summary>
-                    <div className="mt-2 space-y-1 text-xs text-[var(--muted)]">
-                      {details.guardian_name ? <p>Responsável: {details.guardian_name}</p> : null}
-                      {details.guardian_phone ? <p>Telefone: {details.guardian_phone}</p> : null}
-                      {details.guardian_relationship ? <p>Parentesco: {details.guardian_relationship}</p> : null}
-                      {details.notes ? <p>Observações: {details.notes}</p> : null}
-                    </div>
-                  </details>
-                ) : null}
-
-                {bad && current ? (
-                  <LeaderCareControls
-                    statusResponseId={current.id}
-                    alreadyResolvedNote={followUpByResponse.get(current.id) ?? null}
-                    resolvedByName={resolverNameByResponse.get(current.id) ?? null}
-                    pendingMeeting={pendingMeetingByCria.get(cria.id) ?? null}
-                  />
-                ) : null}
-              </Card>
-            );
-          })}
+      ) : isAdmin ? (
+        <div className="space-y-6">
+          {eloGroups.map((group) => (
+            <section key={group.id ?? "sem-elo"}>
+              <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">
+                {group.name} ({group.crias.length})
+              </h2>
+              <div className="space-y-3">{group.crias.map(renderCriaCard)}</div>
+            </section>
+          ))}
         </div>
+      ) : (
+        <div className="space-y-3">{sortedCrias.map(renderCriaCard)}</div>
       )}
     </>
   );
+
+  function renderCriaCard(cria: { id: string; full_name: string; elo_id: string | null }) {
+    const current = latest.get(cria.id);
+    const chartHistory = responses.filter((r) => r.user_id === cria.id).slice(0, 12);
+    const past = chartHistory.slice(1, 5);
+    const bad = hasBadStatus(current);
+    const concerning = !bad && hasConcerningStatus(current);
+    const details = detailsByCria.get(cria.id);
+
+    return (
+      <Card
+        key={cria.id}
+        className={
+          bad
+            ? "border-2 border-red-600 ring-2 ring-red-200"
+            : concerning
+              ? "border-2 border-amber-400 ring-2 ring-amber-100"
+              : ""
+        }
+      >
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <p className="font-bold">
+              {bad ? <span aria-hidden>🚨 </span> : concerning ? <span aria-hidden>⚠️ </span> : null}
+              {cria.full_name || "Sem nome"}
+            </p>
+            <p className="text-xs text-[var(--muted)]">
+              Atualizado {relativeDay(current?.created_at ?? null).toLowerCase()}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {current ? (
+              <>
+                <span className={`chip ${STATUS_TONE[current.emotional_status]}`}>
+                  Emocional: {STATUS_LABEL[current.emotional_status]}
+                </span>
+                <span className={`chip ${STATUS_TONE[current.spiritual_status]}`}>
+                  Espiritual: {STATUS_LABEL[current.spiritual_status]}
+                </span>
+              </>
+            ) : (
+              <span className="chip border-[var(--line)] text-[var(--muted)]">Sem resposta</span>
+            )}
+          </div>
+        </div>
+
+        {chartHistory.length >= 2 ? <StatusHistoryChart history={chartHistory} /> : null}
+
+        {past.length > 0 ? (
+          <details className="mt-3">
+            <summary className="cursor-pointer text-xs font-semibold text-[var(--muted)]">
+              Histórico ({past.length})
+            </summary>
+            <ul className="mt-2 space-y-1 text-xs text-[var(--muted)]">
+              {past.map((r) => (
+                <li key={r.id}>
+                  {formatDateTime(r.created_at)} — emocional{" "}
+                  {STATUS_LABEL[r.emotional_status].toLowerCase()}, espiritual{" "}
+                  {STATUS_LABEL[r.spiritual_status].toLowerCase()}
+                </li>
+              ))}
+            </ul>
+          </details>
+        ) : null}
+
+        {details && (details.guardian_name || details.guardian_phone || details.notes) ? (
+          <details className="mt-2">
+            <summary className="cursor-pointer text-xs font-semibold text-[var(--muted)]">
+              Ficha do cria
+            </summary>
+            <div className="mt-2 space-y-1 text-xs text-[var(--muted)]">
+              {details.guardian_name ? <p>Responsável: {details.guardian_name}</p> : null}
+              {details.guardian_phone ? <p>Telefone: {details.guardian_phone}</p> : null}
+              {details.guardian_relationship ? <p>Parentesco: {details.guardian_relationship}</p> : null}
+              {details.notes ? <p>Observações: {details.notes}</p> : null}
+            </div>
+          </details>
+        ) : null}
+
+        {bad && current ? (
+          <LeaderCareControls
+            statusResponseId={current.id}
+            alreadyResolvedNote={followUpByResponse.get(current.id) ?? null}
+            resolvedByName={resolverNameByResponse.get(current.id) ?? null}
+            pendingMeeting={pendingMeetingByCria.get(cria.id) ?? null}
+          />
+        ) : null}
+      </Card>
+    );
+  }
 }

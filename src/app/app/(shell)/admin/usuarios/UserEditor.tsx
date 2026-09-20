@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
 import { deleteUser, resetPassword, updateUser } from "@/lib/actions/admin";
 import { startViewAs } from "@/lib/actions/viewAs";
@@ -72,7 +73,10 @@ export function UserEditor({
   return (
     <div className="card p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
+        <Link
+          href={`/app/perfil/${user.id}`}
+          className="flex min-w-0 items-center gap-3 hover:opacity-80"
+        >
           <Avatar url={user.avatar_url} name={user.full_name} size={40} />
           <div className="min-w-0">
           <p className="flex items-center gap-2 truncate font-bold">
@@ -104,7 +108,7 @@ export function UserEditor({
             {elo?.name ?? "Sem Elo"} · {formatXp(user.xp)} XP
           </p>
           </div>
-        </div>
+        </Link>
         <div className="flex shrink-0 items-center gap-2">
           {!isSelf ? (
             <form action={viewAsAction}>
