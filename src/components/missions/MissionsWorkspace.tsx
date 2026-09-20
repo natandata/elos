@@ -46,6 +46,7 @@ type LeadershipAssignmentRow = {
   rejection_reason: string | null;
   viewed_at: string | null;
   missions: { title: string; description: string | null; xp: number; due_date: string | null } | null;
+  xp_transactions: { amount: number }[];
 };
 
 type AssignmentRow = {
@@ -121,7 +122,7 @@ export async function MissionsWorkspace({ profile }: { profile: Profile }) {
     !isAdmin
       ? supabase
           .from("mission_assignments")
-          .select("id, status, submitted_at, approved_at, rejection_reason, viewed_at, missions:mission_id(title, description, xp, due_date)")
+          .select("id, status, submitted_at, approved_at, rejection_reason, viewed_at, missions:mission_id(title, description, xp, due_date), xp_transactions(amount)")
           .eq("cria_id", profile.id)
           .order("created_at", { ascending: false })
       : Promise.resolve({ data: [] }),
@@ -201,21 +202,26 @@ export async function MissionsWorkspace({ profile }: { profile: Profile }) {
             Missões da Liderança pra você ({myLeadership.length})
           </h2>
           <div className="space-y-3">
-            {myLeadership.map((a) => (
+            {myLeadership.map((a) => {
+              const missionDeleted = !a.missions && a.status === "approved";
+              const earnedXp = a.xp_transactions?.[0]?.amount ?? a.missions?.xp ?? 0;
+              return (
               <div key={a.id} className="card p-4">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
                     <span className="chip mb-1 bg-red-50 font-extrabold uppercase tracking-wide text-red-700">
                       Missão do Admin
                     </span>
-                    <p className="font-bold">{a.missions?.title ?? "Missão"}</p>
+                    <p className="font-bold">
+                      {a.missions?.title ?? (missionDeleted ? "Missão excluída pelo admin" : "Missão")}
+                    </p>
                     <p className="text-xs text-[var(--muted)]">
                       prazo {formatDate(a.missions?.due_date ?? null)}
                     </p>
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1">
                     <span className="chip bg-[var(--accent-soft)] text-[var(--accent-strong)]">
-                      {a.missions?.xp ?? 0} XP
+                      {earnedXp} XP
                     </span>
                     <span className={`chip ${ASSIGNMENT_TONE[a.status]}`}>
                       {ASSIGNMENT_LABEL[a.status]}
@@ -237,14 +243,16 @@ export async function MissionsWorkspace({ profile }: { profile: Profile }) {
                 ) : null}
                 {a.status === "approved" ? (
                   <p className="mt-2 text-xs text-emerald-700">
-                    Aprovada em {formatDateTime(a.approved_at)} · +{a.missions?.xp ?? 0} XP
+                    Aprovada em {formatDateTime(a.approved_at)} · +{earnedXp} XP
+                    {missionDeleted ? " · a missão foi excluída, mas o XP continua com você" : ""}
                   </p>
                 ) : null}
                 {a.status === "pending" || a.status === "rejected" ? (
                   <SubmitMissionButton assignmentId={a.id} />
                 ) : null}
               </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       ) : null}

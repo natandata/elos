@@ -192,10 +192,17 @@ export async function updateMission(_prev: Result | null, formData: FormData): P
   return { ok: true };
 }
 
+/** Excluir a missão nunca pode tirar de quem já teve ela aprovada o que já
+ *  ganhou: só as atribuições sem XP garantido (pendente/aguardando/recusada)
+ *  são removidas aqui — as aprovadas ficam (mission_id vira null quando a
+ *  missão for apagada logo abaixo, via "on delete set null"), preservando o
+ *  histórico de quem já recebeu. */
 export async function deleteMission(_prev: Result | null, formData: FormData): Promise<Result> {
   const { supabase } = await currentProfile();
   const id = String(formData.get("id") ?? "");
   if (!id) return { error: "Missão inválida." };
+
+  await supabase.from("mission_assignments").delete().eq("mission_id", id).neq("status", "approved");
 
   const { error } = await supabase.from("missions").delete().eq("id", id);
   if (error) return { error: "Não foi possível excluir a missão." };

@@ -160,7 +160,8 @@ export function MissionManagerCard({ mission }: { mission: ManagedMission }) {
         <form action={deleteAction} className="mt-3 rounded-xl bg-red-50 p-3">
           <input type="hidden" name="id" value={mission.id} />
           <p className="mb-2 text-sm text-red-700">
-            Excluir esta missão remove as atribuições dos crias. Confirma?
+            Excluir esta missão remove quem ainda não tinha nada garantido (pendente, aguardando ou
+            recusado). Quem já teve aprovado mantém o XP e o histórico. Confirma?
           </p>
           <Feedback state={deleteState} />
           <div className="mt-2 flex gap-2">

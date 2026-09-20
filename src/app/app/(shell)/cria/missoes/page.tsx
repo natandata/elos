@@ -27,6 +27,7 @@ type Row = {
     due_date: string | null;
     creator: { role: string } | null;
   } | null;
+  xp_transactions: { amount: number }[];
 };
 
 const GROUPS: { status: AssignmentStatus[]; title: string }[] = [
@@ -42,7 +43,7 @@ export default async function CriaMissoesPage() {
   const { data, error } = await supabase
     .from("mission_assignments")
     .select(
-      "id, status, submitted_at, approved_at, rejection_reason, viewed_at, missions:mission_id(title, description, xp, type, due_date, creator:created_by(role))",
+      "id, status, submitted_at, approved_at, rejection_reason, viewed_at, missions:mission_id(title, description, xp, type, due_date, creator:created_by(role)), xp_transactions(amount)",
     )
     .eq("cria_id", profile.id)
     .order("created_at", { ascending: false });
@@ -76,7 +77,10 @@ export default async function CriaMissoesPage() {
                   {group.title} ({items.length})
                 </h2>
                 <div className="space-y-3">
-                  {items.map((row) => (
+                  {items.map((row) => {
+                    const missionDeleted = !row.missions && row.status === "approved";
+                    const earnedXp = row.xp_transactions?.[0]?.amount ?? row.missions?.xp ?? 0;
+                    return (
                     <Card key={row.id}>
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div className="min-w-0">
@@ -85,7 +89,9 @@ export default async function CriaMissoesPage() {
                               Missão do Admin
                             </span>
                           ) : null}
-                          <p className="font-bold">{row.missions?.title ?? "Missão"}</p>
+                          <p className="font-bold">
+                            {row.missions?.title ?? (missionDeleted ? "Missão excluída pelo admin" : "Missão")}
+                          </p>
                           <p className="text-xs text-[var(--muted)]">
                             {row.missions ? MISSION_TYPE_LABEL[row.missions.type] : ""} · prazo{" "}
                             {formatDate(row.missions?.due_date ?? null)}
@@ -93,7 +99,7 @@ export default async function CriaMissoesPage() {
                         </div>
                         <div className="flex shrink-0 flex-col items-end gap-1">
                           <span className="chip bg-[var(--accent-soft)] text-[var(--accent-strong)]">
-                            {row.missions?.xp ?? 0} XP
+                            {earnedXp} XP
                           </span>
                           <span className={`chip ${ASSIGNMENT_TONE[row.status]}`}>
                             {ASSIGNMENT_LABEL[row.status]}
@@ -122,7 +128,8 @@ export default async function CriaMissoesPage() {
 
                       {row.status === "approved" ? (
                         <p className="mt-2 text-xs text-emerald-700">
-                          Aprovada em {formatDateTime(row.approved_at)} · +{row.missions?.xp ?? 0} XP
+                          Aprovada em {formatDateTime(row.approved_at)} · +{earnedXp} XP
+                          {missionDeleted ? " · a missão foi excluída, mas o XP continua com você" : ""}
                         </p>
                       ) : null}
 
@@ -130,7 +137,8 @@ export default async function CriaMissoesPage() {
                         <SubmitMissionButton assignmentId={row.id} />
                       ) : null}
                     </Card>
-                  ))}
+                    );
+                  })}
                 </div>
               </section>
             );
