@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { deleteStoryPost, updateStoryCaption } from "@/lib/actions/stories";
+import { deleteStoryPost, markStoryViewed, updateStoryCaption } from "@/lib/actions/stories";
 import { Feedback, SubmitBtn } from "@/components/forms";
 import { formatDateTime } from "@/lib/types";
 
@@ -12,6 +12,8 @@ export type StoryItem = {
   caption: string | null;
   createdAt: string;
   imagePath?: string;
+  /** Só preenchido pro próprio autor — nomes de quem já viu esse story. */
+  viewerNames?: string[];
 };
 
 /** Visualizador em tela cheia, estilo Instagram Stories — passa sozinho por cada foto. */
@@ -32,6 +34,7 @@ export function StoryViewer({
   const [menuOpen, setMenuOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [captionDraft, setCaptionDraft] = useState("");
+  const [showViewers, setShowViewers] = useState(false);
   const [captionState, captionAction] = useActionState(updateStoryCaption, null);
   const [deleteState, deleteAction] = useActionState(deleteStoryPost, null);
 
@@ -45,6 +48,16 @@ export function StoryViewer({
   useEffect(() => {
     if (captionState?.ok) setEditing(false);
   }, [captionState]);
+
+  useEffect(() => {
+    setShowViewers(false);
+  }, [index]);
+
+  useEffect(() => {
+    // não conta o próprio autor vendo o próprio story.
+    if (!canManage && stories[index]) markStoryViewed(stories[index].id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index]);
 
   useEffect(() => {
     if (deleteState?.ok) {
@@ -157,6 +170,23 @@ export function StoryViewer({
             </>
           ) : null}
         </div>
+
+        {canManage && current.viewerNames ? (
+          <div className="bg-black/80 px-3 py-2">
+            <button
+              type="button"
+              onClick={() => setShowViewers((v) => !v)}
+              className="text-xs font-semibold text-white/80"
+            >
+              👁 {current.viewerNames.length} visualiza{current.viewerNames.length === 1 ? "ção" : "ções"}
+            </button>
+            {showViewers ? (
+              <p className="mt-1.5 text-xs text-white/70">
+                {current.viewerNames.length > 0 ? current.viewerNames.join(", ") : "Ninguém viu ainda."}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
 
         {editing ? (
           <form action={captionAction} className="space-y-2 bg-black/90 p-3">

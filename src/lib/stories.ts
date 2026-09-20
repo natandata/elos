@@ -14,6 +14,7 @@ export async function getEloStoriesTray(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: SupabaseClient<any>,
   eloId: string | null,
+  myUserId?: string,
 ): Promise<StoryTrayEntry[]> {
   if (!eloId) return [];
 
@@ -45,6 +46,29 @@ export async function getEloStoriesTray(
 
   const urlByPath = await stableSignedUrls(supabase, "stories", rows.map((r) => r.image_path));
 
+  // Só busca "quem viu" dos PRÓPRIOS stories (é o único caso em que a tela
+  // realmente mostra essa lista) — evita uma consulta à toa pros stories de
+  // todo mundo.
+  const myStoryIds = myUserId ? rows.filter((r) => r.author_id === myUserId).map((r) => r.id) : [];
+  const { data: viewRows } = myStoryIds.length
+    ? await supabase.from("story_views").select("story_id, viewer_id").in("story_id", myStoryIds)
+    : { data: [] };
+  const viewerIds = Array.from(
+    new Set(((viewRows ?? []) as { story_id: string; viewer_id: string }[]).map((v) => v.viewer_id)),
+  );
+  const { data: viewerProfiles } = viewerIds.length
+    ? await supabase.rpc("feed_author_names", { p_ids: viewerIds })
+    : { data: [] as { id: string; full_name: string }[] };
+  const viewerNameById = new Map(
+    ((viewerProfiles ?? []) as { id: string; full_name: string }[]).map((v) => [v.id, v.full_name]),
+  );
+  const viewerNamesByStory = new Map<string, string[]>();
+  for (const v of (viewRows ?? []) as { story_id: string; viewer_id: string }[]) {
+    const list = viewerNamesByStory.get(v.story_id) ?? [];
+    list.push(viewerNameById.get(v.viewer_id) || "Alguém");
+    viewerNamesByStory.set(v.story_id, list);
+  }
+
   const byAuthor = new Map<string, StoryItem[]>();
   rows.forEach((r) => {
     const list = byAuthor.get(r.author_id) ?? [];
@@ -54,6 +78,7 @@ export async function getEloStoriesTray(
       caption: r.caption,
       createdAt: r.created_at,
       imagePath: r.image_path,
+      viewerNames: r.author_id === myUserId ? viewerNamesByStory.get(r.id) ?? [] : undefined,
     });
     byAuthor.set(r.author_id, list);
   });

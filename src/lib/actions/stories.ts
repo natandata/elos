@@ -46,6 +46,18 @@ export async function createStoryPost(_prev: Result | null, formData: FormData):
   return { ok: true };
 }
 
+/** Marca que o usuário atual viu esse story — chamado quando ele é aberto,
+ *  não só listado (diferente do Explorar, aqui a semântica é "assistiu",
+ *  igual Instagram Stories). Silencioso: o autor vendo o próprio story não
+ *  conta como visualização (RLS aceita, mas o client já evita chamar). */
+export async function markStoryViewed(storyId: string): Promise<void> {
+  if (!storyId) return;
+  const { supabase, profile } = await currentProfile();
+  await supabase
+    .from("story_views")
+    .upsert({ story_id: storyId, viewer_id: profile.id }, { onConflict: "story_id,viewer_id", ignoreDuplicates: true });
+}
+
 export async function updateStoryCaption(_prev: Result | null, formData: FormData): Promise<Result> {
   const { supabase, profile } = await currentProfile();
   const id = String(formData.get("id") ?? "");

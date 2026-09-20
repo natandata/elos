@@ -40,6 +40,8 @@ export type FeedPost = {
   pinned: boolean;
   canPin: boolean;
   comments: FeedComment[];
+  /** Nomes de quem já viu — só vem preenchido quando é a própria foto do autor. */
+  viewerNames?: string[];
 };
 
 const REACTION_EMOJI: Record<string, string> = { like: "👍", pray: "🙏", fire: "🔥", clap: "👏" };
@@ -83,6 +85,7 @@ export function FeedPostCard({
   const [captionState, captionAction] = useActionState(updateFeedCaption, null);
   const [pinState, pinAction] = useActionState(toggleFeedPin, null);
   const [showComments, setShowComments] = useState(false);
+  const [showViewers, setShowViewers] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [captionDraft, setCaptionDraft] = useState(post.caption ?? "");
@@ -277,12 +280,38 @@ export function FeedPostCard({
                 {post.comments.length > 0 ? post.comments.length : "Comentar"}
               </span>
             </button>
+
+            {post.viewerNames ? (
+              <button
+                type="button"
+                onClick={() => setShowViewers((v) => !v)}
+                className="flex items-center gap-1 rounded-full border border-[var(--line)] bg-[var(--bg)] px-2.5 py-1.5 text-base leading-none shadow-sm transition active:scale-90 hover:border-[var(--accent)]"
+              >
+                👁{" "}
+                <span className="text-xs font-bold text-[var(--muted)]">
+                  {post.viewerNames.length}
+                </span>
+              </button>
+            ) : null}
           </div>
 
           <span className="shrink-0 text-xs text-[var(--muted)]">
             {formatDateTime(post.createdAt)}
           </span>
         </div>
+
+        {showViewers ? (
+          <div className="mt-3 border-t border-[var(--line)] pt-3 text-sm">
+            {post.viewerNames && post.viewerNames.length > 0 ? (
+              <p className="text-[var(--muted)]">
+                <strong className="text-[var(--ink)]">Visualizado por:</strong>{" "}
+                {post.viewerNames.join(", ")}
+              </p>
+            ) : (
+              <p className="text-[var(--muted)]">Ninguém viu essa foto ainda.</p>
+            )}
+          </div>
+        ) : null}
 
         {showComments ? (
           <div className="mt-3 space-y-2 border-t border-[var(--line)] pt-3">

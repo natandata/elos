@@ -121,7 +121,7 @@ export default async function CriaDashboard() {
   const position = ranking.findIndex((r) => r.id === profile.id) + 1;
   const eloName = (eloRes.data as { name: string } | null)?.name ?? "Sem Elo";
   const meetings = (meetingsRes.data ?? []) as CareMeeting[];
-  const storiesTray = await getEloStoriesTray(supabase, profile.elo_id);
+  const storiesTray = await getEloStoriesTray(supabase, profile.elo_id, profile.id);
 
   const eloMemberIds = ((eloMembersRes.data ?? []) as { id: string }[]).map((m) => m.id);
   const [statusTodayRes, onlineRes] = eloMemberIds.length

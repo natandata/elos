@@ -131,6 +131,43 @@ export default async function FeedPage() {
     };
   });
 
+  // Marca como visto quem não é o próprio autor — carregar o Explorar já
+  // conta como "ver a foto" (mesmo padrão do "quem visualizou a missão").
+  // Não conta durante "visualizar como" (o admin não é quem está de fato
+  // vendo) — a própria RLS já barraria escrever com um viewer_id que não é o
+  // auth.uid() real, então isso é só pra não nem tentar.
+  const postIdsToMark = viewingAs ? [] : feed.filter((p) => p.authorId !== profile.id).map((p) => p.id);
+  if (postIdsToMark.length > 0) {
+    await supabase
+      .from("feed_post_views")
+      .upsert(
+        postIdsToMark.map((post_id) => ({ post_id, viewer_id: profile.id })),
+        { onConflict: "post_id,viewer_id", ignoreDuplicates: true },
+      );
+  }
+
+  // Pra quem é dono da foto: quem já viu.
+  const myPostIds = feed.filter((p) => p.authorId === profile.id).map((p) => p.id);
+  const { data: viewRows } = myPostIds.length
+    ? await supabase.from("feed_post_views").select("post_id, viewer_id").in("post_id", myPostIds)
+    : { data: [] };
+  const viewerIds = Array.from(
+    new Set(((viewRows ?? []) as { post_id: string; viewer_id: string }[]).map((v) => v.viewer_id)),
+  );
+  const { data: viewerProfiles } = viewerIds.length
+    ? await supabase.rpc("feed_author_names", { p_ids: viewerIds })
+    : { data: [] as AuthorRow[] };
+  const viewerNameById = new Map(((viewerProfiles ?? []) as AuthorRow[]).map((v) => [v.id, v.full_name]));
+  const viewerNamesByPost = new Map<string, string[]>();
+  for (const v of (viewRows ?? []) as { post_id: string; viewer_id: string }[]) {
+    const list = viewerNamesByPost.get(v.post_id) ?? [];
+    list.push(viewerNameById.get(v.viewer_id) || "Alguém");
+    viewerNamesByPost.set(v.post_id, list);
+  }
+  for (const p of feed) {
+    if (p.authorId === profile.id) p.viewerNames = viewerNamesByPost.get(p.id) ?? [];
+  }
+
   // Bolinhas de story no topo, uma por autor: as fotos de cada um em ordem
   // cronológica (mais antiga primeiro, igual Instagram), mas a ORDEM DAS
   // BOLINHAS é por quem postou mais recentemente primeiro.

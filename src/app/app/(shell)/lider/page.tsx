@@ -181,7 +181,7 @@ export default async function LiderDashboard() {
     return hasBadStatus(s) && !resolvedIds.has(s!.id);
   });
 
-  const storiesTray = await getEloStoriesTray(supabase, profile.elo_id);
+  const storiesTray = await getEloStoriesTray(supabase, profile.elo_id, profile.id);
 
   const eloMemberIds = ((eloMembersRes.data ?? []) as { id: string }[]).map((m) => m.id);
   const [statusTodayRes, onlineRes] = eloMemberIds.length
