@@ -6,6 +6,7 @@ import { SubmitBtn, Feedback } from "@/components/forms";
 import {
   createPrayerRequest,
   deletePrayerRequest,
+  prayForRequest,
   togglePrayerAnswered,
   togglePrayerReminder,
 } from "@/lib/actions/devotional";
@@ -77,6 +78,7 @@ function PrayerItem({ prayer, isOwner }: { prayer: PrayerRequest; isOwner: boole
   const [answeredState, answeredAction] = useActionState(togglePrayerAnswered, null);
   const [reminderState, reminderAction] = useActionState(togglePrayerReminder, null);
   const [deleteState, deleteAction] = useActionState(deletePrayerRequest, null);
+  const [prayState, prayAction] = useActionState(prayForRequest, null);
 
   return (
     <li
@@ -99,6 +101,33 @@ function PrayerItem({ prayer, isOwner }: { prayer: PrayerRequest; isOwner: boole
         {formatDate(prayer.created_at)}
         {prayer.is_answered ? " · respondido 🙌" : ""}
       </p>
+
+      {prayer.scope === "elo" ? (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          {!isOwner ? (
+            <form action={prayAction}>
+              <input type="hidden" name="id" value={prayer.id} />
+              <button
+                type="submit"
+                disabled={prayer.i_prayed}
+                className={`btn !px-2.5 !py-1 !text-xs ${
+                  prayer.i_prayed
+                    ? "btn-ghost cursor-default text-emerald-700"
+                    : "btn-primary"
+                }`}
+              >
+                {prayer.i_prayed ? "🙏 Você orou por esse pedido" : "🙏 Orei por você"}
+              </button>
+            </form>
+          ) : null}
+          {(prayer.support_count ?? 0) > 0 ? (
+            <span className="chip border-[var(--line)] text-[var(--muted)]">
+              🙏 {prayer.support_count} {prayer.support_count === 1 ? "pessoa orou" : "pessoas oraram"}
+            </span>
+          ) : null}
+          <Feedback state={prayState} />
+        </div>
+      ) : null}
 
       {isOwner ? (
         <div className="mt-2 flex flex-wrap gap-2">

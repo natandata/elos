@@ -29,6 +29,10 @@ export type PrayerRequest = {
   updated_at: string;
   /** Só vem preenchido pra pedidos compartilhados com o Elo — quem registrou. */
   author_name?: string | null;
+  /** Quantas pessoas já apertaram "Orei por você" — só faz sentido no scope "elo". */
+  support_count?: number;
+  /** Se quem está vendo já orou por esse pedido (não pode orar de novo). */
+  i_prayed?: boolean;
 };
 
 export type DevotionalFavorite = {

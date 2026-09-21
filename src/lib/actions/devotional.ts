@@ -151,6 +151,37 @@ export async function togglePrayerAnswered(_prev: Result | null, formData: FormD
   }
 }
 
+/** "Orei por você" — só pra pedidos compartilhados com o Elo, e não pro
+ *  próprio dono (a RPC já barra isso). Avisa quem registrou o pedido. */
+export async function prayForRequest(_prev: Result | null, formData: FormData): Promise<Result> {
+  try {
+    const { supabase } = await currentUser();
+    const id = String(formData.get("id") ?? "");
+    if (!id) return { error: "Pedido inválido." };
+
+    const { data, error } = await supabase
+      .rpc("pray_for_request", { p_prayer_id: id })
+      .single<{ owner_id: string; notified: boolean }>();
+
+    if (error) return { error: "Não foi possível registrar." };
+
+    if (data?.notified && data.owner_id) {
+      await sendPushToUsers([data.owner_id], {
+        title: "Alguém orou pelo seu pedido 🙏",
+        body: "Toque para ver seus pedidos de oração.",
+        url: "/app/devocional",
+      });
+    }
+
+    revalidateDevotional();
+    return { ok: true };
+  } catch (err) {
+    if (isFrameworkFlowError(err)) throw err;
+    console.error("prayForRequest falhou:", err);
+    return { error: NETWORK_ERROR_MESSAGE };
+  }
+}
+
 export async function togglePrayerReminder(_prev: Result | null, formData: FormData): Promise<Result> {
   try {
     const { supabase, userId } = await currentUser();

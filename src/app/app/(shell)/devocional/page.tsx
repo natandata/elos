@@ -38,11 +38,31 @@ export default async function DevocionalPage() {
   ]);
 
   const entries = (entriesRes.data ?? []) as DevotionalEntry[];
-  const prayers = (
+  const rawPrayers = (
     (prayersRes.data ?? []) as unknown as (PrayerRequest & {
       profiles: { full_name: string } | null;
     })[]
   ).map((p) => ({ ...p, author_name: p.profiles?.full_name ?? null }));
+
+  // "Orei por você": contagem + se quem está vendo já orou, só pros
+  // compartilhados com o Elo (é onde o botão aparece).
+  const eloPrayerIds = rawPrayers.filter((p) => p.scope === "elo").map((p) => p.id);
+  const { data: supportRows } = eloPrayerIds.length
+    ? await supabase.from("prayer_supports").select("prayer_id, user_id").in("prayer_id", eloPrayerIds)
+    : { data: [] };
+  const supports = (supportRows ?? []) as { prayer_id: string; user_id: string }[];
+  const supportCountByPrayer = new Map<string, number>();
+  const iPrayedSet = new Set<string>();
+  supports.forEach((s) => {
+    supportCountByPrayer.set(s.prayer_id, (supportCountByPrayer.get(s.prayer_id) ?? 0) + 1);
+    if (s.user_id === profile.id) iPrayedSet.add(s.prayer_id);
+  });
+  const prayers: PrayerRequest[] = rawPrayers.map((p) => ({
+    ...p,
+    support_count: supportCountByPrayer.get(p.id) ?? 0,
+    i_prayed: iPrayedSet.has(p.id),
+  }));
+
   const favorites = (favoritesRes.data ?? []) as DevotionalFavorite[];
   const earnedBadges = new Set(
     ((achievementsRes.data ?? []) as { achievement_key: string }[]).map((a) => a.achievement_key),
