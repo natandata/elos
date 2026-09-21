@@ -23,7 +23,7 @@ export default async function DevocionalPage() {
       .limit(30),
     supabase
       .from("prayer_requests")
-      .select("*")
+      .select("*, profiles:user_id(full_name)")
       .order("created_at", { ascending: false }),
     supabase
       .from("devotional_favorites")
@@ -38,7 +38,11 @@ export default async function DevocionalPage() {
   ]);
 
   const entries = (entriesRes.data ?? []) as DevotionalEntry[];
-  const prayers = (prayersRes.data ?? []) as PrayerRequest[];
+  const prayers = (
+    (prayersRes.data ?? []) as unknown as (PrayerRequest & {
+      profiles: { full_name: string } | null;
+    })[]
+  ).map((p) => ({ ...p, author_name: p.profiles?.full_name ?? null }));
   const favorites = (favoritesRes.data ?? []) as DevotionalFavorite[];
   const earnedBadges = new Set(
     ((achievementsRes.data ?? []) as { achievement_key: string }[]).map((a) => a.achievement_key),

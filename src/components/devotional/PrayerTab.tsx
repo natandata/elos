@@ -95,6 +95,7 @@ function PrayerItem({ prayer, isOwner }: { prayer: PrayerRequest; isOwner: boole
         ) : null}
       </div>
       <p className="mt-1 text-xs text-[var(--muted)]">
+        {!isOwner && prayer.scope === "elo" && prayer.author_name ? `${prayer.author_name} · ` : ""}
         {formatDate(prayer.created_at)}
         {prayer.is_answered ? " · respondido 🙌" : ""}
       </p>

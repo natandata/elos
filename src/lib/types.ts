@@ -27,6 +27,8 @@ export type PrayerRequest = {
   reminder_enabled: boolean;
   created_at: string;
   updated_at: string;
+  /** Só vem preenchido pra pedidos compartilhados com o Elo — quem registrou. */
+  author_name?: string | null;
 };
 
 export type DevotionalFavorite = {
