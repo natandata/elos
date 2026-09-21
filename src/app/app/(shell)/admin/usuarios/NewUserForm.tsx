@@ -119,7 +119,7 @@ export function NewUserForm() {
 
           <p className="text-xs text-[var(--muted)] sm:col-span-2">
             {isGuardian
-              ? "Responsável tem acesso só-leitura: Explorar, Ranking Geral de Crias e Agenda."
+              ? "Responsável tem acesso só-leitura: Explorar, Ranking Geral de Crias, Pedidos de Oração e Agenda."
               : "O Elo é definido automaticamente pelo gênero e pela faixa etária."}{" "}
             Anote a senha inicial: ela não fica visível depois.
           </p>

@@ -68,6 +68,7 @@ const NAV: Record<string, NavItem[]> = {
   guardian: [
     { href: "/app/feed", label: "Explorar", icon: "📸" },
     { href: "/app/ranking-crias", label: "Ranking Geral de Crias", icon: "🏆" },
+    { href: "/app/pedidos-oracao", label: "Pedidos de Oração", icon: "🙏" },
     { href: "/app/agenda", label: "Agenda", icon: "📅" },
   ],
 };
