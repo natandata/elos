@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { EmptyState, PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -16,6 +17,7 @@ type Search = {
   gender?: string;
   age?: string;
   role?: string;
+  sort?: string;
 };
 
 export default async function UsuariosPage({
@@ -30,10 +32,14 @@ export default async function UsuariosPage({
   const { data: elosData } = await supabase.from("elos").select("*").order("gender").order("age_range");
   const elos = (elosData ?? []) as Elo[];
 
+  const bySignup = sp.sort === "cadastro";
+
   let query = supabase
     .from("profiles")
-    .select("id, full_name, first_name, last_name, avatar_url, role, approved, gender, age_range, elo_id, xp")
-    .order("full_name");
+    .select(
+      "id, full_name, first_name, last_name, avatar_url, role, approved, gender, age_range, elo_id, xp, created_at",
+    )
+    .order(bySignup ? "created_at" : "full_name", { ascending: !bySignup });
 
   if (sp.q) query = query.ilike("full_name", `%${sp.q}%`);
   if (sp.elo) query = query.eq("elo_id", sp.elo);
@@ -61,7 +67,18 @@ export default async function UsuariosPage({
     age_range: AgeRange | null;
     elo_id: string | null;
     xp: number;
+    created_at: string;
   }[];
+
+  // Número da ordem de cadastro é sempre sobre TODO MUNDO, não só o que os
+  // filtros acima deixaram visível — senão "1º" mudaria dependendo do filtro.
+  const { data: allSignupsData } = await supabase
+    .from("profiles")
+    .select("id, created_at")
+    .order("created_at", { ascending: true });
+  const signupNumberById = new Map(
+    ((allSignupsData ?? []) as { id: string; created_at: string }[]).map((r, i) => [r.id, i + 1]),
+  );
 
   const { data: emailRows } = await supabase.rpc("admin_user_emails");
   const emailById = new Map(
@@ -108,6 +125,21 @@ export default async function UsuariosPage({
           </div>
         }
       />
+
+      <div className="mb-4 flex gap-2">
+        <Link
+          href={{ pathname: "/app/admin/usuarios", query: { ...sp, sort: undefined } }}
+          className={`chip ${!bySignup ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent-strong)]" : "border-[var(--line)] text-[var(--muted)]"}`}
+        >
+          Por nome
+        </Link>
+        <Link
+          href={{ pathname: "/app/admin/usuarios", query: { ...sp, sort: "cadastro" } }}
+          className={`chip ${bySignup ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent-strong)]" : "border-[var(--line)] text-[var(--muted)]"}`}
+        >
+          Ordem de cadastro
+        </Link>
+      </div>
 
       {resetRequests.length > 0 ? (
         <section className="mb-4">
@@ -227,6 +259,7 @@ export default async function UsuariosPage({
               })()}
               elos={elos}
               isSelf={u.id === current.id}
+              signupNumber={signupNumberById.get(u.id) ?? null}
             />
           ))}
         </div>

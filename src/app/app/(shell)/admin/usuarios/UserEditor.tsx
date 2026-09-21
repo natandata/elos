@@ -12,6 +12,7 @@ import {
   GENDER_LABEL,
   ROLE_LABEL,
   XP_PER_LEVEL,
+  formatDateTime,
   formatXp,
   levelFromXp,
   type AgeRange,
@@ -33,6 +34,7 @@ type Row = {
   elo_id: string | null;
   xp: number;
   email: string | null;
+  created_at: string;
 };
 
 type Presence = { online: boolean; screen: string } | null;
@@ -42,11 +44,13 @@ export function UserEditor({
   elos,
   isSelf,
   presence,
+  signupNumber,
 }: {
   user: Row;
   elos: Elo[];
   isSelf: boolean;
   presence?: Presence;
+  signupNumber?: number | null;
 }) {
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -106,6 +110,10 @@ export function UserEditor({
             {user.gender ? ` · ${GENDER_LABEL[user.gender]}` : ""}
             {user.age_range ? ` · ${AGE_RANGE_LABEL[user.age_range]}` : ""} ·{" "}
             {elo?.name ?? "Sem Elo"} · {formatXp(user.xp)} XP
+          </p>
+          <p className="truncate text-xs text-[var(--muted)]">
+            {signupNumber ? `${signupNumber}º cadastro · ` : ""}
+            cadastrado em {formatDateTime(user.created_at)}
           </p>
           </div>
         </Link>
