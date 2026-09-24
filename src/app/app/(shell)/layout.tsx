@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { AppShell, type NavItem } from "@/components/shell/AppShell";
 import { ThemeSetter } from "@/components/shell/ThemeSetter";
 import { ViewAsBanner } from "@/components/shell/ViewAsBanner";
+import { AnnouncementModal, type ActiveAnnouncement } from "@/components/announcements/AnnouncementModal";
 import { needsGuardianAck, needsStatusCheck, requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { ROLE_LABEL } from "@/lib/types";
@@ -11,6 +12,7 @@ const NAV: Record<string, NavItem[]> = {
     { href: "/app/admin", label: "Dashboard", icon: "📊" },
     { href: "/app/mural", label: "Mural de Sugestões", icon: "💡" },
     { href: "/app/admin/ajuda", label: "Pedidos de Ajuda", icon: "🆘" },
+    { href: "/app/admin/avisos", label: "Avisos", icon: "📣" },
     {
       label: "Status Geral",
       icon: "💛",
@@ -120,6 +122,33 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       : Promise.resolve({ count: 0 }),
   ]);
 
+  // Aviso do admin: mostra o mais antigo ainda não visto (na versão atual).
+  // Não aparece pro admin, em "visualizar como" nem pra líder pendente.
+  let announcement: ActiveAnnouncement | null = null;
+  if (!viewingAs && !pending && profile.role !== "admin") {
+    const [annRes, seenRes] = await Promise.all([
+      supabase
+        .from("announcements")
+        .select("id, title, body, version")
+        .eq("active", true)
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("announcement_seen")
+        .select("announcement_id, seen_version")
+        .eq("user_id", profile.id),
+    ]);
+    const seenVersion = new Map(
+      ((seenRes.data ?? []) as { announcement_id: string; seen_version: number }[]).map((s) => [
+        s.announcement_id,
+        s.seen_version,
+      ]),
+    );
+    announcement =
+      ((annRes.data ?? []) as ActiveAnnouncement[]).find(
+        (a) => (seenVersion.get(a.id) ?? 0) < a.version,
+      ) ?? null;
+  }
+
   const chatUnread = chatUnreadRes.count ?? 0;
   const navItems = (NAV[profile.role] ?? NAV.cria).map((item) =>
     item.href === "/app/chat" ? { ...item, badge: chatUnread } : item,
@@ -148,6 +177,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       >
         {children}
       </AppShell>
+      {announcement ? (
+        <AnnouncementModal key={`${announcement.id}-${announcement.version}`} announcement={announcement} />
+      ) : null}
     </>
   );
 }
