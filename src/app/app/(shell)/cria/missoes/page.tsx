@@ -1,5 +1,6 @@
 import { Card, EmptyState, ErrorState, PageHeader } from "@/components/ui";
 import { SubmitMissionButton } from "@/components/missions/SubmitMissionButton";
+import { WithdrawMissionButton } from "@/components/missions/WithdrawMissionButton";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -120,10 +121,13 @@ export default async function CriaMissoesPage() {
                       ) : null}
 
                       {row.status === "awaiting_approval" ? (
-                        <p className="mt-2 text-xs text-[var(--muted)]">
-                          Enviada em {formatDateTime(row.submitted_at)}. Aguarde a avaliação da
-                          liderança.
-                        </p>
+                        <>
+                          <p className="mt-2 text-xs text-[var(--muted)]">
+                            Enviada em {formatDateTime(row.submitted_at)}. Aguarde a avaliação da
+                            liderança.
+                          </p>
+                          <WithdrawMissionButton assignmentId={row.id} />
+                        </>
                       ) : null}
 
                       {row.status === "approved" ? (
@@ -134,7 +138,12 @@ export default async function CriaMissoesPage() {
                       ) : null}
 
                       {row.status === "pending" || row.status === "rejected" ? (
-                        <SubmitMissionButton assignmentId={row.id} />
+                        <SubmitMissionButton
+                          assignmentId={row.id}
+                          title={row.missions?.title}
+                          description={row.missions?.description}
+                          xp={row.missions?.xp}
+                        />
                       ) : null}
                     </Card>
                     );

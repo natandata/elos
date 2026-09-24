@@ -5,6 +5,7 @@ import { formatDate } from "@/lib/types";
 export type SpotlightMission = {
   assignmentId: string;
   title: string;
+  description: string | null;
   xp: number;
   dueDate: string | null;
   totalApproved: number;
@@ -75,7 +76,12 @@ export function MissionSpotlight({
                 </p>
               ) : null}
 
-              <SubmitMissionButton assignmentId={m.assignmentId} />
+              <SubmitMissionButton
+                assignmentId={m.assignmentId}
+                title={m.title}
+                description={m.description}
+                xp={m.xp}
+              />
             </div>
           );
         })}

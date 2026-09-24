@@ -1,6 +1,7 @@
 import { EmptyState, ErrorState, PageHeader } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
 import { SubmitMissionButton } from "@/components/missions/SubmitMissionButton";
+import { WithdrawMissionButton } from "@/components/missions/WithdrawMissionButton";
 import {
   ASSIGNMENT_LABEL,
   ASSIGNMENT_TONE,
@@ -237,9 +238,12 @@ export async function MissionsWorkspace({ profile }: { profile: Profile }) {
                   </p>
                 ) : null}
                 {a.status === "awaiting_approval" ? (
-                  <p className="mt-2 text-xs text-[var(--muted)]">
-                    Enviada em {formatDateTime(a.submitted_at)}. Aguardando avaliação da administração.
-                  </p>
+                  <>
+                    <p className="mt-2 text-xs text-[var(--muted)]">
+                      Enviada em {formatDateTime(a.submitted_at)}. Aguardando avaliação da administração.
+                    </p>
+                    <WithdrawMissionButton assignmentId={a.id} />
+                  </>
                 ) : null}
                 {a.status === "approved" ? (
                   <p className="mt-2 text-xs text-emerald-700">
@@ -248,7 +252,12 @@ export async function MissionsWorkspace({ profile }: { profile: Profile }) {
                   </p>
                 ) : null}
                 {a.status === "pending" || a.status === "rejected" ? (
-                  <SubmitMissionButton assignmentId={a.id} />
+                  <SubmitMissionButton
+                    assignmentId={a.id}
+                    title={a.missions?.title}
+                    description={a.missions?.description}
+                    xp={a.missions?.xp}
+                  />
                 ) : null}
               </div>
               );

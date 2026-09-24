@@ -110,7 +110,7 @@ export default async function CriaDashboard() {
     // próximas do prazo primeiro — é essa lista que gera urgência.
     supabase
       .from("mission_assignments")
-      .select("id, missions:mission_id(id, title, xp, due_date)")
+      .select("id, missions:mission_id(id, title, description, xp, due_date)")
       .eq("cria_id", profile.id)
       .in("status", ["pending", "rejected"])
       .order("created_at", { ascending: false })
@@ -149,7 +149,13 @@ export default async function CriaDashboard() {
   const spotlightRows = (
     (spotlightRes.data ?? []) as unknown as {
       id: string;
-      missions: { id: string; title: string; xp: number; due_date: string | null } | null;
+      missions: {
+        id: string;
+        title: string;
+        description: string | null;
+        xp: number;
+        due_date: string | null;
+      } | null;
     }[]
   )
     .filter((r) => r.missions)
@@ -176,6 +182,7 @@ export default async function CriaDashboard() {
     return {
       assignmentId: r.id,
       title: r.missions!.title,
+      description: r.missions!.description,
       xp: r.missions!.xp,
       dueDate: r.missions!.due_date,
       totalApproved: progress?.total_approved ?? 0,

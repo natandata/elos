@@ -292,6 +292,19 @@ export async function submitAssignment(_prev: Result | null, formData: FormData)
   return { ok: true };
 }
 
+/** Cria retira do envio uma missão enviada sem querer (só antes da avaliação). */
+export async function withdrawAssignment(_prev: Result | null, formData: FormData): Promise<Result> {
+  const { supabase } = await currentProfile();
+  const id = String(formData.get("assignment_id") ?? "");
+  if (!id) return { error: "Missão inválida." };
+
+  const { error } = await supabase.rpc("withdraw_assignment", { p_assignment: id });
+  if (error) return { error: error.message };
+
+  revalidateMissions();
+  return { ok: true };
+}
+
 /** Líder/Admin aprova ou recusa. O XP é creditado no banco, uma única vez. */
 /** Cada líder decide se quer ver a lista de missões de outros líderes. */
 export async function toggleLeaderMissionsVisibility(
