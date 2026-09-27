@@ -387,6 +387,33 @@ function revalidateAgenda() {
   revalidatePath("/app/lider");
 }
 
+type EventAudienceRule = { elo_id: string | null; leaders_only: boolean; admin_only: boolean };
+
+/** Quem enxerga um evento — mesma regra usada na tela de Agenda e no cron
+ *  de lembretes: "Liderança" só líder/admin, um Elo só quem é dele, "Só
+ *  admin" ninguém além do próprio admin (não notifica), senão todo mundo. */
+async function eventAudienceIds(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  event: EventAudienceRule,
+): Promise<string[]> {
+  if (event.admin_only) return [];
+  let query = supabase.from("profiles").select("id");
+  if (event.leaders_only) query = query.in("role", ["leader", "admin"]);
+  else if (event.elo_id) query = query.eq("elo_id", event.elo_id);
+  const { data } = await query;
+  return ((data ?? []) as { id: string }[]).map((p) => p.id);
+}
+
+/** Só quem tem notificação (push) ativada — não manda pra quem desligou. */
+async function withPushEnabled(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userIds: string[],
+): Promise<string[]> {
+  if (userIds.length === 0) return [];
+  const { data } = await supabase.from("push_subscriptions").select("user_id").in("user_id", userIds);
+  return Array.from(new Set(((data ?? []) as { user_id: string }[]).map((s) => s.user_id)));
+}
+
 const RECURRENCE_STEP_DAYS: Record<string, number> = { weekly: 7, biweekly: 14 };
 // trava de segurança: nunca gera mais que isso numa tacada só, mesmo que a
 // data final peça mais (evita um "até" digitado errado lotar a agenda).
@@ -478,7 +505,65 @@ export async function saveEvent(_prev: Result | null, formData: FormData): Promi
 
   if (error) return { error: "Não foi possível salvar o evento." };
 
+  // Avisa quem pode ver o evento e tem notificação ativada — uma vez pra
+  // série toda (não uma por ocorrência recorrente).
+  const audience = await eventAudienceIds(supabase, basePayload);
+  const notifyIds = await withPushEnabled(supabase, audience);
+  if (notifyIds.length > 0) {
+    const dateLabel = new Date(`${eventDate}T00:00:00Z`).toLocaleDateString("pt-BR", { timeZone: "UTC" });
+    const body =
+      dates.length > 1
+        ? `${title} — a partir de ${dateLabel}, ${dates.length} datas`
+        : `${title} — ${dateLabel}`;
+    await supabase
+      .from("notifications")
+      .insert(notifyIds.map((user_id) => ({ user_id, title: "Novo evento na agenda", body, category: "agenda" })));
+    await sendPushToUsers(notifyIds, { title: "Novo evento na agenda", body, url: "/app/agenda" }, supabase);
+  }
+
   revalidateAgenda();
+  return { ok: true };
+}
+
+/** Botão do admin no evento: manda pra todo mundo que vê o evento e tem
+ *  notificação ativada, avisando quantos dias faltam (ou se é hoje/passou). */
+export async function notifyEventCountdown(_prev: Result | null, formData: FormData): Promise<Result> {
+  const supabase = await adminClient();
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { error: "Evento inválido." };
+
+  const { data: event } = await supabase
+    .from("events")
+    .select("title, event_date, elo_id, leaders_only, admin_only")
+    .eq("id", id)
+    .maybeSingle<{
+      title: string;
+      event_date: string;
+      elo_id: string | null;
+      leaders_only: boolean;
+      admin_only: boolean;
+    }>();
+  if (!event) return { error: "Evento não encontrado." };
+
+  const audience = await eventAudienceIds(supabase, event);
+  const notifyIds = await withPushEnabled(supabase, audience);
+  if (notifyIds.length === 0) return { error: "Ninguém com notificação ativada pra avisar." };
+
+  const todayBR = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+  const daysLeft = Math.round(
+    (new Date(`${event.event_date}T00:00:00Z`).getTime() - new Date(`${todayBR}T00:00:00Z`).getTime()) /
+      86_400_000,
+  );
+
+  const title =
+    daysLeft < 0 ? "Evento já passou" : daysLeft === 0 ? "É hoje!" : daysLeft === 1 ? "É amanhã!" : `Faltam ${daysLeft} dias`;
+  const body = `${event.title}`;
+
+  await supabase
+    .from("notifications")
+    .insert(notifyIds.map((user_id) => ({ user_id, title, body, category: "agenda" })));
+  await sendPushToUsers(notifyIds, { title, body, url: "/app/agenda" }, supabase);
+
   return { ok: true };
 }
 

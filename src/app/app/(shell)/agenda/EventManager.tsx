@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { deleteEvent, saveEvent } from "@/lib/actions/admin";
+import { deleteEvent, notifyEventCountdown, saveEvent } from "@/lib/actions/admin";
 import { Feedback, SubmitBtn } from "@/components/forms";
 import type { Elo, EloEvent } from "@/lib/types";
 
@@ -96,6 +96,7 @@ export function EventAdminControls({ event, elos }: { event: EloEvent; elos: Elo
   const [editing, setEditing] = useState(false);
   const [saveState, saveAction] = useActionState(saveEvent, null);
   const [deleteState, deleteAction] = useActionState(deleteEvent, null);
+  const [notifyState, notifyAction] = useActionState(notifyEventCountdown, null);
 
   // depois de salvar com sucesso, recolhe o formulário — sem isso ele ficava
   // aberto mostrando "Salvo com sucesso" indefinidamente.
@@ -113,6 +114,19 @@ export function EventAdminControls({ event, elos }: { event: EloEvent; elos: Elo
         >
           {editing ? "Fechar" : "Editar"}
         </button>
+        <form
+          action={notifyAction}
+          onSubmit={(e) => {
+            if (!window.confirm("Avisar todo mundo que vê este evento e tem notificação ativada?")) {
+              e.preventDefault();
+            }
+          }}
+        >
+          <input type="hidden" name="id" value={event.id} />
+          <SubmitBtn className="btn btn-ghost !py-1.5 !text-xs" pendingLabel="Enviando…">
+            📣 Avisar quantos dias faltam
+          </SubmitBtn>
+        </form>
         <form action={deleteAction}>
           <input type="hidden" name="id" value={event.id} />
           <SubmitBtn className="btn btn-ghost !py-1.5 !text-xs text-red-600" pendingLabel="Excluindo…">
@@ -120,6 +134,7 @@ export function EventAdminControls({ event, elos }: { event: EloEvent; elos: Elo
           </SubmitBtn>
         </form>
       </div>
+      <Feedback state={notifyState} />
       <Feedback state={deleteState?.error ? deleteState : null} />
 
       {editing ? (
