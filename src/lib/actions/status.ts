@@ -8,7 +8,30 @@ import { isFrameworkFlowError, NETWORK_ERROR_MESSAGE } from "./errorHandling";
 
 const LEVELS: StatusLevel[] = ["bad", "ok", "good"];
 
-type SubmitStatusResult = { error?: string; ok?: boolean; bad?: boolean; statusResponseId?: string };
+type SubmitStatusResult = {
+  error?: string;
+  ok?: boolean;
+  bad?: boolean;
+  statusResponseId?: string;
+  showPushPrompt?: boolean;
+};
+
+/** O admin liga essa campanha (togglePushActivationCampaign) pra pedir, logo
+ *  após o status do dia, que quem ainda não tem push ative — só mostra pra
+ *  quem realmente ainda não tem nenhuma inscrição salva. */
+async function shouldShowPushPrompt(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+): Promise<boolean> {
+  const [{ data: campaign }, { count }] = await Promise.all([
+    supabase.from("push_activation_campaign").select("active").eq("id", true).maybeSingle(),
+    supabase
+      .from("push_subscriptions")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId),
+  ]);
+  return Boolean(campaign?.active) && (count ?? 0) === 0;
+}
 
 export async function submitStatus(
   _prev: SubmitStatusResult | null,
@@ -43,13 +66,17 @@ export async function submitStatus(
     // streak de dias seguidos respondendo — some quando pula um dia
     await supabase.rpc("record_status_streak");
 
-    revalidatePath("/app", "layout");
-
     const bad = emotional === "bad" || spiritual === "bad";
-    if (!bad) redirect("/app");
+    const showPushPrompt = await shouldShowPushPrompt(supabase, user.id);
 
-    // se "Mal" em alguma pergunta, fica na tela pra oferecer marcar uma conversa
-    return { ok: true, bad: true, statusResponseId: data.id };
+    if (!bad && !showPushPrompt) {
+      revalidatePath("/app", "layout");
+      redirect("/app");
+    }
+
+    // "Mal" oferece marcar uma conversa; sem push ativado (com a campanha
+    // ligada) oferece ativar — os dois casos ficam na tela em vez de sair.
+    return { ok: true, bad, statusResponseId: data.id, showPushPrompt };
   } catch (err) {
     if (isFrameworkFlowError(err)) throw err;
     console.error("submitStatus falhou:", err);

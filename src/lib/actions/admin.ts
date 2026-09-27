@@ -695,3 +695,24 @@ export async function cancelEloChallenge(_prev: Result | null, formData: FormDat
   revalidateChallenge();
   return { ok: true };
 }
+
+// ---------------------------------------------------------------- campanha de ativação de push
+
+/** Liga/desliga o card "quer ativar notificações?" que aparece pra quem
+ *  ainda não tem push, logo depois de responder o status do dia. */
+export async function togglePushActivationCampaign(
+  _prev: Result | null,
+  formData: FormData,
+): Promise<Result> {
+  const supabase = await adminClient();
+  const active = String(formData.get("active") ?? "") === "true";
+
+  const { error } = await supabase
+    .from("push_activation_campaign")
+    .update({ active, updated_at: new Date().toISOString() })
+    .eq("id", true);
+  if (error) return { error: "Não foi possível salvar." };
+
+  revalidatePath("/app/admin/avisos");
+  return { ok: true };
+}

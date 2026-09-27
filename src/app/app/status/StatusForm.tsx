@@ -7,6 +7,7 @@ import { submitStatus } from "@/lib/actions/status";
 import { requestCareMeeting } from "@/lib/actions/care";
 import { STATUS_LABEL, type StatusLevel } from "@/lib/types";
 import { hideRouteLoading, showRouteLoading } from "@/components/RouteLoadingOverlay";
+import { PushActivationPrompt } from "@/components/push/PushActivationPrompt";
 
 const LEVELS: StatusLevel[] = ["bad", "ok", "good"];
 const EMOJI: Record<StatusLevel, string> = { bad: "😔", ok: "😐", good: "😄" };
@@ -54,8 +55,7 @@ function SubmitButton({ disabled, label }: { disabled: boolean; label: string })
 }
 
 /** Depois de responder "Mal", oferece marcar uma conversa com o líder. */
-function CareMeetingOffer({ statusResponseId }: { statusResponseId: string }) {
-  const router = useRouter();
+function CareMeetingOffer({ statusResponseId, onDone }: { statusResponseId: string; onDone: () => void }) {
   const [careState, careAction] = useActionState(requestCareMeeting, null);
   const [modality, setModality] = useState<"online" | "presencial" | "">("");
   const [skipped, setSkipped] = useState(false);
@@ -69,14 +69,7 @@ function CareMeetingOffer({ statusResponseId }: { statusResponseId: string }) {
             ? "Pedido enviado! Seu líder vai confirmar o dia."
             : "Tudo bem, sua liderança já foi avisada que você respondeu \"Mal\"."}
         </p>
-        <button
-          type="button"
-          className="btn btn-primary w-full"
-          onClick={() => {
-            showRouteLoading();
-            router.push("/app");
-          }}
-        >
+        <button type="button" className="btn btn-primary w-full" onClick={onDone}>
           Continuar
         </button>
       </div>
@@ -157,17 +150,39 @@ export function StatusForm() {
   const [state, action] = useActionState(submitStatus, null);
   const [emotional, setEmotional] = useState<StatusLevel | "">("");
   const [spiritual, setSpiritual] = useState<StatusLevel | "">("");
+  // Depois do "Mal", marca que a oferta de conversa já foi tratada — só
+  // depois disso (se for o caso) é que o pedido de ativar push aparece.
+  const [careHandled, setCareHandled] = useState(false);
+  const router = useRouter();
 
-  // Se a resposta voltou com erro ou caiu no caso "Mal" (fica na própria
-  // tela oferecendo marcar uma conversa, sem navegar), a tela de loading
-  // disparada no envio abaixo precisa sair de novo — sem redirect real, o
-  // pathname nunca muda pra escondê-la sozinha.
+  // Se a resposta voltou com erro, a tela de loading disparada no envio
+  // abaixo precisa sair de novo — sem redirect real, o pathname nunca muda
+  // pra escondê-la sozinha.
   useEffect(() => {
-    if (state?.error || state?.bad) hideRouteLoading();
+    if (state?.error) hideRouteLoading();
   }, [state]);
 
-  if (state?.bad && state.statusResponseId) {
-    return <CareMeetingOffer statusResponseId={state.statusResponseId} />;
+  function goToApp() {
+    showRouteLoading();
+    router.push("/app");
+  }
+
+  // Tudo derivado direto de `state` (o retorno da Server Action), no MESMO
+  // ciclo de render em que ele muda — nada de useEffect+estado à parte pra
+  // decidir o que mostrar. Um passo intermediário assim cria uma folga
+  // entre "state chegou" e "tela atualizou" onde o Next.js pode vencer a
+  // corrida com uma navegação implícita (revalidação da rota atual), e a
+  // página de status tem sua própria guarda que redireciona assim que
+  // enxerga a resposta de hoje já salva — a oferta de conversa/push nunca
+  // chegava a aparecer.
+  if (state?.ok && state.bad && state.statusResponseId && !careHandled) {
+    return (
+      <CareMeetingOffer statusResponseId={state.statusResponseId} onDone={() => setCareHandled(true)} />
+    );
+  }
+
+  if (state?.ok && state.showPushPrompt && (!state.bad || careHandled)) {
+    return <PushActivationPrompt onDone={goToApp} />;
   }
 
   return (
