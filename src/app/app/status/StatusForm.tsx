@@ -177,7 +177,14 @@ export function StatusForm() {
   // chegava a aparecer.
   if (state?.ok && state.bad && state.statusResponseId && !careHandled) {
     return (
-      <CareMeetingOffer statusResponseId={state.statusResponseId} onDone={() => setCareHandled(true)} />
+      <CareMeetingOffer
+        statusResponseId={state.statusResponseId}
+        onDone={() => {
+          // Só fica na página se ainda falta oferecer o push — senão sai.
+          if (state.showPushPrompt) setCareHandled(true);
+          else goToApp();
+        }}
+      />
     );
   }
 
