@@ -196,6 +196,17 @@ select {
   font-size: 16px !important;
 }
 
+/* iOS Safari às vezes ignora `width: 100%` no controle nativo de data/hora
+   e desenha o texto/ícone além da borda do campo (cortado pelo overflow-x
+   clip do <html>, mas some da vista) — sobra de um bug antigo do WebKit com
+   input[type=date/time]. max-width trava o controle no tamanho do pai. */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"] {
+  max-width: 100%;
+  min-width: 0;
+}
+
 .label {
   display: block;
   font-size: 0.8rem;

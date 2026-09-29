@@ -1,11 +1,14 @@
 import { Card, Chip, EmptyState, PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { LeaderCareControls } from "@/components/care/LeaderCareControls";
 import {
   formatDateTime,
+  hasBadStatus,
   relativeDay,
   STATUS_LABEL,
   STATUS_TONE,
+  type CareMeeting,
   type StatusLevel,
 } from "@/lib/types";
 
@@ -26,12 +29,23 @@ export default async function StatusEquipePage() {
     elos: { name: string } | null;
   }[];
 
-  const { data: history } = await supabase
-    .from("status_responses")
-    .select("id, user_id, emotional_status, spiritual_status, created_at")
-    .in("user_id", leaderList.map((l) => l.id).length ? leaderList.map((l) => l.id) : ["-"])
-    .order("created_at", { ascending: false })
-    .limit(200);
+  const leaderIds = leaderList.length ? leaderList.map((l) => l.id) : ["-"];
+
+  const [{ data: history }, { data: followUps }, { data: meetings }] = await Promise.all([
+    supabase
+      .from("status_responses")
+      .select("id, user_id, emotional_status, spiritual_status, created_at")
+      .in("user_id", leaderIds)
+      .order("created_at", { ascending: false })
+      .limit(200),
+    supabase.from("status_follow_ups").select("status_response_id, note, resolved_by"),
+    supabase
+      .from("care_meetings")
+      .select("*")
+      .in("cria_id", leaderIds)
+      .eq("status", "pending_leader")
+      .order("created_at", { ascending: false }),
+  ]);
 
   const responses = (history ?? []) as {
     id: string;
@@ -44,6 +58,32 @@ export default async function StatusEquipePage() {
   const latest = new Map<string, (typeof responses)[number]>();
   responses.forEach((r) => {
     if (!latest.has(r.user_id)) latest.set(r.user_id, r);
+  });
+
+  const followUpRows = (followUps ?? []) as {
+    status_response_id: string;
+    note: string;
+    resolved_by: string | null;
+  }[];
+  const followUpByResponse = new Map(followUpRows.map((f) => [f.status_response_id, f.note]));
+
+  // Nome de quem tratou — via RPC porque quem resolveu pode não ser admin
+  // (mesmo padrão de status-crias.tsx).
+  const { data: resolverRows } = followUpRows.length
+    ? await supabase.rpc("status_follow_up_resolver_names", {
+        p_status_response_ids: followUpRows.map((f) => f.status_response_id),
+      })
+    : { data: [] };
+  const resolverNameByResponse = new Map(
+    ((resolverRows ?? []) as { status_response_id: string; resolver_name: string }[]).map((r) => [
+      r.status_response_id,
+      r.resolver_name,
+    ]),
+  );
+
+  const pendingMeetingByLeader = new Map<string, CareMeeting>();
+  ((meetings ?? []) as CareMeeting[]).forEach((m) => {
+    if (!pendingMeetingByLeader.has(m.cria_id)) pendingMeetingByLeader.set(m.cria_id, m);
   });
 
   return (
@@ -62,18 +102,22 @@ export default async function StatusEquipePage() {
           {leaderList.map((leader) => {
             const current = latest.get(leader.id);
             const past = responses.filter((r) => r.user_id === leader.id).slice(1, 5);
+            const bad = hasBadStatus(current);
 
             return (
-              <Card key={leader.id}>
+              <Card key={leader.id} className={bad ? "border-2 border-red-600 ring-2 ring-red-200" : ""}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="font-bold">{leader.full_name || "Sem nome"}</p>
+                    <p className="font-bold">
+                      {bad ? <span aria-hidden>🚨 </span> : null}
+                      {leader.full_name || "Sem nome"}
+                    </p>
                     <p className="text-xs text-[var(--muted)]">
                       {leader.elos?.name ?? "Sem Elo"} · Atualizado{" "}
                       {relativeDay(current?.created_at ?? null).toLowerCase()}
                     </p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     {current ? (
                       <>
                         <Chip className={STATUS_TONE[current.emotional_status]}>
@@ -106,6 +150,15 @@ export default async function StatusEquipePage() {
                       ))}
                     </ul>
                   </details>
+                ) : null}
+
+                {bad && current ? (
+                  <LeaderCareControls
+                    statusResponseId={current.id}
+                    alreadyResolvedNote={followUpByResponse.get(current.id) ?? null}
+                    resolvedByName={resolverNameByResponse.get(current.id) ?? null}
+                    pendingMeeting={pendingMeetingByLeader.get(leader.id) ?? null}
+                  />
                 ) : null}
               </Card>
             );

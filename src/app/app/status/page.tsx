@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { needsStatusCheck, requireProfile } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 import { StatusForm } from "./StatusForm";
 
 export default async function StatusPage() {
@@ -8,6 +9,17 @@ export default async function StatusPage() {
   if (viewingAs || !(await needsStatusCheck(profile))) redirect("/app");
 
   const firstName = (profile.full_name || "").split(" ")[0];
+
+  // Se o líder responder "Mal", a conversa é com a administração — o
+  // "líder de todos os líderes" hoje. Busca os admins só nesse caso.
+  let admins: { id: string; full_name: string }[] = [];
+  if (profile.role === "leader") {
+    const supabase = await createClient();
+    // RPC (não select direto): a RLS de profiles não deixa um líder ler a
+    // linha de um admin, já que não é "seu" líder nem está no mesmo Elo.
+    const { data } = await supabase.rpc("leader_admin_contacts");
+    admins = (data ?? []) as { id: string; full_name: string }[];
+  }
 
   return (
     <main className="flex min-h-dvh items-center justify-center px-4 py-10">
@@ -27,7 +39,7 @@ export default async function StatusPage() {
           ) : null}
         </div>
         <div className="card p-5">
-          <StatusForm />
+          <StatusForm role={profile.role} admins={admins} />
         </div>
       </div>
     </main>

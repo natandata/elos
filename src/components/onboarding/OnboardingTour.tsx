@@ -131,9 +131,15 @@ export function OnboardingTour({
     : null;
 
   // Card acima ou abaixo do elemento, o que tiver mais espaço na tela.
+  // Largura via CSS puro (`min()`/`calc()`, calculado pelo navegador a
+  // partir da viewport real) em vez de um número JS derivado de
+  // `window.innerWidth` — esse valor difere entre o HTML vindo do servidor
+  // (sem `window`, caía num fallback fixo) e a primeira renderização no
+  // cliente, causando um mismatch de hidratação que já chegou a produzir
+  // uma largura inválida (negativa) e corte de texto no card.
   const vh = typeof window !== "undefined" ? window.innerHeight : 800;
   const vw = typeof window !== "undefined" ? window.innerWidth : 400;
-  const cardWidth = Math.min(340, vw - 24);
+  const cardWidth = Math.min(340, Math.max(0, vw - 24));
   let cardStyle: CSSProperties;
   if (highlight) {
     const spaceBelow = vh - (highlight.top + highlight.height);
@@ -148,7 +154,7 @@ export function OnboardingTour({
   const card = (
     <div
       className="card fixed z-[70] p-4 shadow-2xl"
-      style={{ width: cardWidth, ...cardStyle }}
+      style={{ width: "min(340px, calc(100vw - 24px))", ...cardStyle }}
     >
       <p className="mb-1 text-xs font-bold uppercase tracking-wide text-[var(--muted)]">
         Passo {stepIndex + 1} de {steps.length}

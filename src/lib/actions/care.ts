@@ -32,6 +32,7 @@ export async function requestCareMeeting(_prev: Result | null, formData: FormDat
   const time = String(formData.get("proposed_time") ?? "") || null;
   const note = String(formData.get("note") ?? "").trim() || null;
   const statusResponseId = String(formData.get("status_response_id") ?? "") || null;
+  const targetAdminId = String(formData.get("target_admin_id") ?? "") || null;
 
   if (!["online", "presencial"].includes(modality)) return { error: "Escolha a modalidade." };
   if (!date) return { error: "Escolha uma data." };
@@ -42,6 +43,7 @@ export async function requestCareMeeting(_prev: Result | null, formData: FormDat
     p_time: time,
     p_note: note,
     p_status_response: statusResponseId,
+    p_target_admin_id: targetAdminId,
   });
 
   if (error) return { error: error.message };

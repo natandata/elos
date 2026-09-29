@@ -123,6 +123,7 @@ export type CareMeeting = {
   note: string | null;
   status: CareMeetingStatus;
   proposed_by: "cria" | "leader";
+  target_admin_id: string | null;
   created_at: string;
   updated_at: string;
 };

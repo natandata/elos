@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useFormStatus } from "react-dom";
 import { submitStatus } from "@/lib/actions/status";
 import { requestCareMeeting } from "@/lib/actions/care";
-import { STATUS_LABEL, type StatusLevel } from "@/lib/types";
+import { STATUS_LABEL, type Role, type StatusLevel } from "@/lib/types";
 import { hideRouteLoading, showRouteLoading } from "@/components/RouteLoadingOverlay";
 import { PushActivationPrompt } from "@/components/push/PushActivationPrompt";
 
@@ -54,11 +54,27 @@ function SubmitButton({ disabled, label }: { disabled: boolean; label: string })
   );
 }
 
-/** Depois de responder "Mal", oferece marcar uma conversa com o líder. */
-function CareMeetingOffer({ statusResponseId, onDone }: { statusResponseId: string; onDone: () => void }) {
+export type CareAdmin = { id: string; full_name: string };
+
+/** Depois de responder "Mal", oferece marcar uma conversa — com o líder (se
+ *  for cria) ou com a administração (se for líder, o "líder de todos os
+ *  líderes" hoje). */
+function CareMeetingOffer({
+  statusResponseId,
+  role,
+  admins,
+  onDone,
+}: {
+  statusResponseId: string;
+  role: "cria" | "leader";
+  admins: CareAdmin[];
+  onDone: () => void;
+}) {
   const [careState, careAction] = useActionState(requestCareMeeting, null);
   const [modality, setModality] = useState<"online" | "presencial" | "">("");
+  const [targetAdminId, setTargetAdminId] = useState("");
   const [skipped, setSkipped] = useState(false);
+  const withWho = role === "leader" ? "a administração" : "seu líder";
 
   if (careState?.ok || skipped) {
     return (
@@ -66,8 +82,8 @@ function CareMeetingOffer({ statusResponseId, onDone }: { statusResponseId: stri
         <p className="text-4xl">🙏</p>
         <p className="text-sm text-[var(--muted)]">
           {careState?.ok
-            ? "Pedido enviado! Seu líder vai confirmar o dia."
-            : "Tudo bem, sua liderança já foi avisada que você respondeu \"Mal\"."}
+            ? `Pedido enviado! ${role === "leader" ? "A administração" : "Seu líder"} vai confirmar o dia.`
+            : `Tudo bem, ${withWho} já foi avisada que você respondeu "Mal".`}
         </p>
         <button type="button" className="btn btn-primary w-full" onClick={onDone}>
           Continuar
@@ -81,11 +97,36 @@ function CareMeetingOffer({ statusResponseId, onDone }: { statusResponseId: stri
       <input type="hidden" name="status_response_id" value={statusResponseId} />
       <div className="text-center">
         <p className="text-3xl">💛</p>
-        <p className="mt-2 text-sm font-semibold">Quer marcar uma conversa com seu líder?</p>
+        <p className="mt-2 text-sm font-semibold">Quer marcar uma conversa com {withWho}?</p>
         <p className="mt-1 text-xs text-[var(--muted)]">
-          Só uma sugestão de dia — seu líder confirma ou propõe outro.
+          Só uma sugestão de dia — {role === "leader" ? "a administração confirma" : "seu líder confirma"}{" "}
+          ou propõe outro.
         </p>
       </div>
+
+      {role === "leader" && admins.length > 1 ? (
+        <div>
+          <label className="label" htmlFor="target_admin_id">
+            Falar com
+          </label>
+          <select
+            id="target_admin_id"
+            name="target_admin_id"
+            className="input"
+            value={targetAdminId}
+            onChange={(e) => setTargetAdminId(e.target.value)}
+          >
+            <option value="">Qualquer um da administração</option>
+            {admins.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.full_name}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : role === "leader" && admins.length === 1 ? (
+        <input type="hidden" name="target_admin_id" value={admins[0].id} />
+      ) : null}
 
       <div>
         <p className="label">Modalidade</p>
@@ -96,7 +137,7 @@ function CareMeetingOffer({ statusResponseId, onDone }: { statusResponseId: stri
               type="button"
               name="modality"
               onClick={() => setModality(m)}
-              className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition ${
+              className={`rounded-xl border px-2 py-2.5 text-sm font-semibold transition ${
                 modality === m
                   ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent-strong)]"
                   : "border-[var(--line)] text-[var(--muted)]"
@@ -146,7 +187,13 @@ function CareMeetingOffer({ statusResponseId, onDone }: { statusResponseId: stri
   );
 }
 
-export function StatusForm() {
+export function StatusForm({
+  role,
+  admins = [],
+}: {
+  role: Role;
+  admins?: CareAdmin[];
+}) {
   const [state, action] = useActionState(submitStatus, null);
   const [emotional, setEmotional] = useState<StatusLevel | "">("");
   const [spiritual, setSpiritual] = useState<StatusLevel | "">("");
@@ -179,6 +226,8 @@ export function StatusForm() {
     return (
       <CareMeetingOffer
         statusResponseId={state.statusResponseId}
+        role={role === "leader" ? "leader" : "cria"}
+        admins={admins}
         onDone={() => {
           // Só fica na página se ainda falta oferecer o push — senão sai.
           if (state.showPushPrompt) setCareHandled(true);
