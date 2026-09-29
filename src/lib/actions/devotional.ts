@@ -22,6 +22,16 @@ function revalidateDevotional() {
   revalidatePath("/app/devocional");
 }
 
+// Mesmo fuso usado em record_devotional_streak() e na página. Calculada
+// aqui dentro da action (não confiando num campo escondido vindo do
+// formulário) porque a página é um Server Component só renderizado uma vez
+// — quem deixa o app aberto em segundo plano (comum em PWA) e escreve depois
+// da virada do dia enviaria a data de ONTEM, sobrescrevendo a anotação
+// anterior e fazendo a de hoje "sumir" (na prática parecia não ter salvo).
+function todayBR(): string {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+}
+
 // ---------------------------------------------------------------- diário
 
 /** Salva (cria ou atualiza) a anotação do dia — uma por dia, upsert por data. */
@@ -29,11 +39,10 @@ export async function saveDiaryEntry(_prev: Result | null, formData: FormData): 
   try {
     const { supabase, userId } = await currentUser();
     const content = String(formData.get("content") ?? "").trim();
-    const entryDate = String(formData.get("entry_date") ?? "");
+    const entryDate = todayBR();
 
     if (!content) return { error: "Escreva algo antes de salvar." };
     if (content.length > 4000) return { error: "Anotação muito longa (máx. 4000 caracteres)." };
-    if (!entryDate) return { error: "Data inválida." };
 
     const { error } = await supabase
       .from("devotional_entries")
@@ -44,8 +53,15 @@ export async function saveDiaryEntry(_prev: Result | null, formData: FormData): 
 
     if (error) return { error: "Não foi possível salvar sua anotação." };
 
-    // conta como "dia de devocional preenchido" pra ofensiva
-    await supabase.rpc("record_devotional_streak");
+    // Conta como "dia de devocional preenchido" pra ofensiva — num try/catch
+    // à parte: se essa chamada falhar (ex.: rede caiu bem nesse instante), a
+    // anotação acima JÁ foi salva, e a pessoa não pode ver uma mensagem de
+    // erro que faz parecer que perdeu o que escreveu.
+    try {
+      await supabase.rpc("record_devotional_streak");
+    } catch (err) {
+      console.error("record_devotional_streak falhou (anotação já salva):", err);
+    }
 
     revalidateDevotional();
     return { ok: true };

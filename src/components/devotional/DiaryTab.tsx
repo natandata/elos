@@ -29,7 +29,6 @@ export function DiaryTab({
           Reflexões, insights ou como pretende aplicar a leitura na sua rotina.
         </p>
         <form action={action} className="space-y-3">
-          <input type="hidden" name="entry_date" value={today} />
           <textarea
             name="content"
             rows={6}
