@@ -36,16 +36,30 @@ export async function createFeedPost(_prev: Result | null, formData: FormData): 
 
   const imagePath = String(formData.get("image_path") ?? "").trim();
   const caption = String(formData.get("caption") ?? "").trim() || null;
+  const themeConfirmed = formData.get("theme_confirmed") === "true";
   if (!imagePath) return { error: "Envie uma foto." };
 
-  const { error } = await supabase
+  const { data: post, error } = await supabase
     .from("feed_posts")
-    .insert({ author_id: profile.id, image_path: imagePath, caption });
+    .insert({ author_id: profile.id, image_path: imagePath, caption, theme_confirmed: themeConfirmed })
+    .select("id")
+    .single<{ id: string }>();
 
-  if (error) {
+  if (error || !post) {
     // o arquivo já subiu: sem registro ele viraria lixo invisível no Storage
     await supabase.storage.from("feed").remove([imagePath]);
     return { error: "Não foi possível publicar." };
+  }
+
+  // XP do tema entra já na resposta (não em `after`): é o que acende o
+  // "+1 XP" na tela pra quem confirmou — não pode depender de um passo que
+  // roda só depois que a tela já respondeu.
+  if (themeConfirmed) {
+    try {
+      await supabase.rpc("award_feed_theme_xp", { p_post_id: post.id });
+    } catch (err) {
+      console.error("award_feed_theme_xp falhou (post já publicado):", err);
+    }
   }
 
   revalidateFeed();
@@ -183,6 +197,35 @@ export async function addFeedComment(_prev: Result | null, formData: FormData): 
     await sendPushToUsers([authorId as string], {
       title: "Comentaram na sua foto",
       body: body.length > 80 ? `${body.slice(0, 80)}…` : body,
+      url: "/app/feed",
+    });
+  }
+
+  revalidateFeed();
+  return { ok: true };
+}
+
+/** Admin revoga o XP do tema quando o post não é coerente com o tema do dia. */
+export async function revokeFeedThemeXp(_prev: Result | null, formData: FormData): Promise<Result> {
+  const { supabase, profile } = await currentProfile();
+  if (profile.role !== "admin") return { error: "Só o admin revoga XP do tema." };
+
+  const postId = String(formData.get("post_id") ?? "");
+  if (!postId) return { error: "Post inválido." };
+
+  const { data: post } = await supabase
+    .from("feed_posts")
+    .select("author_id")
+    .eq("id", postId)
+    .maybeSingle<{ author_id: string }>();
+
+  const { error } = await supabase.rpc("revoke_feed_theme_xp", { p_post_id: postId });
+  if (error) return { error: "Não foi possível revogar o XP." };
+
+  if (post?.author_id) {
+    await sendPushToUsers([post.author_id], {
+      title: "XP do tema revogado",
+      body: "Uma das suas fotos no Explorar não pareceu coerente com o tema do dia.",
       url: "/app/feed",
     });
   }

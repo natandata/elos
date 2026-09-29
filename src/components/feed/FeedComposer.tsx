@@ -57,6 +57,7 @@ export function FeedComposer({
   const [caption, setCaption] = useState("");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [themeConfirmed, setThemeConfirmed] = useState(false);
 
   const actionByDestination = {
     explorar: explorarAction,
@@ -71,6 +72,7 @@ export function FeedComposer({
     setImagePath("");
     setCaption("");
     setUploadError(null);
+    setThemeConfirmed(false);
     if (fileRef.current) fileRef.current.value = "";
   }
 
@@ -182,8 +184,11 @@ export function FeedComposer({
               <>
                 <p className="mb-1 text-xs text-[var(--muted)]">{HINT_BY_DESTINATION[destination]}</p>
                 {destination === "explorar" && dailyPrompt ? (
-                  <p className="mb-3 text-xs font-semibold text-[var(--accent-strong)]">
+                  <p className="mb-3 flex flex-wrap items-center gap-1.5 text-xs font-semibold text-[var(--accent-strong)]">
                     💡 Tema de hoje: {dailyPrompt}
+                    <span className="chip border-[var(--accent)] bg-[var(--accent-soft)] !px-1.5 !py-0">
+                      +1 XP
+                    </span>
                   </p>
                 ) : (
                   <div className="mb-3" />
@@ -225,6 +230,23 @@ export function FeedComposer({
                       value={caption}
                       onChange={(e) => setCaption(e.target.value)}
                     />
+                    {destination === "explorar" ? (
+                      <>
+                        <input type="hidden" name="theme_confirmed" value={themeConfirmed ? "true" : "false"} />
+                        <label className="flex items-start gap-2 rounded-xl border border-[var(--line)] p-2.5 text-xs">
+                          <input
+                            type="checkbox"
+                            checked={themeConfirmed}
+                            onChange={(e) => setThemeConfirmed(e.target.checked)}
+                            className="mt-0.5"
+                          />
+                          <span>
+                            Esse post é pra cumprir o tema do dia?{" "}
+                            <span className="font-semibold text-[var(--accent-strong)]">+1 XP</span>
+                          </span>
+                        </label>
+                      </>
+                    ) : null}
                     <Feedback state={state} />
                     <div className="flex gap-2">
                       <SubmitBtn className="btn btn-primary !py-2 !text-sm" pendingLabel="Publicando…">

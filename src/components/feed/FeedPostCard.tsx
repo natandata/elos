@@ -6,6 +6,7 @@ import {
   addFeedComment,
   deleteFeedComment,
   deleteFeedPost,
+  revokeFeedThemeXp,
   toggleFeedLike,
   updateFeedCaption,
 } from "@/lib/actions/feed";
@@ -39,6 +40,9 @@ export type FeedPost = {
   myReaction: string | null;
   pinned: boolean;
   canPin: boolean;
+  themeConfirmed: boolean;
+  themeXpAwarded: boolean;
+  themeXpRevoked: boolean;
   comments: FeedComment[];
   /** Nomes de quem já viu — só vem preenchido quando é a própria foto do autor. */
   viewerNames?: string[];
@@ -84,6 +88,7 @@ export function FeedPostCard({
   const [deleteState, deleteAction] = useActionState(deleteFeedPost, null);
   const [captionState, captionAction] = useActionState(updateFeedCaption, null);
   const [pinState, pinAction] = useActionState(toggleFeedPin, null);
+  const [revokeState, revokeAction] = useActionState(revokeFeedThemeXp, null);
   const [showComments, setShowComments] = useState(false);
   const [showViewers, setShowViewers] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -162,6 +167,17 @@ export function FeedPostCard({
                       </button>
                     </form>
                   ) : null}
+                  {isAdmin && post.themeXpAwarded && !post.themeXpRevoked ? (
+                    <form action={revokeAction} onSubmit={() => setMenuOpen(false)}>
+                      <input type="hidden" name="post_id" value={post.id} />
+                      <button
+                        type="submit"
+                        className="block w-full px-3 py-2.5 text-left text-sm text-amber-700 hover:bg-[var(--bg)]"
+                      >
+                        Revogar XP do tema
+                      </button>
+                    </form>
+                  ) : null}
                   {canDeletePost ? (
                     <form
                       action={deleteAction}
@@ -229,8 +245,20 @@ export function FeedPostCard({
         ) : post.caption ? (
           <p className="mb-2.5 text-[15px] leading-relaxed">{post.caption}</p>
         ) : null}
+
+        {post.themeXpAwarded && !post.themeXpRevoked ? (
+          <p className="mb-2.5 inline-flex items-center gap-1 rounded-full border border-[var(--accent)] bg-[var(--accent-soft)] px-2.5 py-1 text-xs font-bold text-[var(--accent-strong)]">
+            ✨ Tema do dia — +1 XP
+          </p>
+        ) : post.themeXpRevoked ? (
+          <p className="mb-2.5 inline-flex items-center gap-1 rounded-full border border-[var(--line)] bg-[var(--bg)] px-2.5 py-1 text-xs font-bold text-[var(--muted)]">
+            XP do tema revogado
+          </p>
+        ) : null}
+
         <Feedback state={deleteState} />
         <Feedback state={pinState} />
+        <Feedback state={revokeState} />
 
         <div className="flex items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-1.5">

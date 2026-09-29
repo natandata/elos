@@ -19,6 +19,9 @@ type PostRow = {
   created_at: string;
   author_id: string;
   pinned_at: string | null;
+  theme_confirmed: boolean;
+  theme_xp_awarded: boolean;
+  theme_xp_revoked: boolean;
 };
 
 type AuthorRow = {
@@ -44,7 +47,9 @@ export default async function FeedPage() {
   const [postsRes, likesRes, commentsRes, elosRes, galleryCountRes] = await Promise.all([
     supabase
       .from("feed_posts")
-      .select("id, image_path, caption, created_at, author_id, pinned_at")
+      .select(
+        "id, image_path, caption, created_at, author_id, pinned_at, theme_confirmed, theme_xp_awarded, theme_xp_revoked",
+      )
       .order("pinned_at", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false }),
     supabase.from("feed_likes").select("post_id, user_id, kind"),
@@ -118,6 +123,9 @@ export default async function FeedPage() {
       })).filter((r) => r.count > 0),
       myReaction: likes.find((l) => l.post_id === p.id && l.user_id === profile.id)?.kind ?? null,
       pinned: p.pinned_at !== null,
+      themeConfirmed: p.theme_confirmed,
+      themeXpAwarded: p.theme_xp_awarded,
+      themeXpRevoked: p.theme_xp_revoked,
       canPin:
         isAdmin ||
         (profile.role === "leader" && author?.elo_id != null && author.elo_id === profile.elo_id),
@@ -218,8 +226,11 @@ export default async function FeedPage() {
       {canInteract ? (
         <div className="card flex flex-wrap items-center justify-between gap-3 p-4">
           <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-[var(--accent-strong)]">
+            <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-[var(--accent-strong)]">
               💡 Tema de hoje
+              <span className="chip border-[var(--accent)] bg-[var(--accent-soft)] !px-1.5 !py-0 text-[var(--accent-strong)]">
+                +1 XP
+              </span>
             </p>
             <p className="mt-0.5 text-sm font-semibold">{dailyPrompt}</p>
           </div>
