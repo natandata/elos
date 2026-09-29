@@ -1,6 +1,7 @@
 import { EmptyState, PageHeader } from "@/components/ui";
 import { needsWeeklyPushNudge, requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { dailyFeedPrompt } from "@/lib/feedPrompts";
 import { FeedComposer } from "@/components/feed/FeedComposer";
 import { FeedStoriesTray, type FeedStoryAuthor } from "@/components/feed/FeedStoriesTray";
 import { ProfileSearch } from "@/components/feed/ProfileSearch";
@@ -38,6 +39,7 @@ export default async function FeedPage() {
   // lembrete semanal já aparece na própria tela de início deles.
   const showPushNudge =
     profile.role === "guardian" && !viewingAs && (await needsWeeklyPushNudge(supabase, profile));
+  const dailyPrompt = dailyFeedPrompt();
 
   const [postsRes, likesRes, commentsRes, elosRes, galleryCountRes] = await Promise.all([
     supabase
@@ -202,12 +204,32 @@ export default async function FeedPage() {
         subtitle="Fotos do ELOS — cada uma some depois de 24h."
         action={
           canInteract ? (
-            <FeedComposer userId={profile.id} galleryFull={(galleryCountRes.count ?? 0) >= 3} />
+            <FeedComposer
+              userId={profile.id}
+              galleryFull={(galleryCountRes.count ?? 0) >= 3}
+              dailyPrompt={dailyPrompt}
+            />
           ) : undefined
         }
       />
 
       <WeeklyPushNudge eligible={showPushNudge} />
+
+      {canInteract ? (
+        <div className="card flex flex-wrap items-center justify-between gap-3 p-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wide text-[var(--accent-strong)]">
+              💡 Tema de hoje
+            </p>
+            <p className="mt-0.5 text-sm font-semibold">{dailyPrompt}</p>
+          </div>
+          {profile.feed_streak > 0 ? (
+            <span className="chip border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent-strong)]">
+              🔥 {profile.feed_streak} {profile.feed_streak === 1 ? "dia seguido" : "dias seguidos"}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
 
       <FeedStoriesTray authors={storyAuthors} myUserId={profile.id} />
 

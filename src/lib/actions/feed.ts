@@ -50,11 +50,18 @@ export async function createFeedPost(_prev: Result | null, formData: FormData): 
 
   revalidateFeed();
 
-  // Conquistas e push saem do caminho da resposta: com ~60 pessoas, esperar
-  // por dezenas de envios de push deixaria "Publicar" travado por segundos.
-  // `after` roda isso depois que a tela já respondeu.
+  // Conquistas, ofensiva e push saem do caminho da resposta: com ~60 pessoas,
+  // esperar por dezenas de envios de push deixaria "Publicar" travado por
+  // segundos. `after` roda isso depois que a tela já respondeu.
   after(async () => {
-    await supabase.rpc("check_and_grant_achievements", { p_user: profile.id });
+    // record_feed_streak() já chama check_and_grant_achievements por dentro
+    // — numa tentativa própria: se ela falhar (ex.: rede), o post em si já
+    // foi publicado acima, e o envio de push abaixo não pode ficar refém disso.
+    try {
+      await supabase.rpc("record_feed_streak");
+    } catch (err) {
+      console.error("record_feed_streak falhou (post já publicado):", err);
+    }
     const { data: targets } = await supabase.rpc("feed_push_targets", { p_exclude: profile.id });
     await sendPushToUsers(
       ((targets ?? []) as { id: string }[]).map((t) => t.id),
@@ -100,6 +107,7 @@ export async function deleteFeedPost(_prev: Result | null, formData: FormData): 
 }
 
 const REACTION_KINDS = ["like", "pray", "fire", "clap"];
+const REACTION_EMOJI: Record<string, string> = { like: "👍", pray: "🙏", fire: "🔥", clap: "👏" };
 
 /**
  * Reação rápida (👍🙏🔥👏): clicar na mesma reação remove; clicar numa
@@ -135,7 +143,17 @@ export async function toggleFeedLike(_prev: Result | null, formData: FormData): 
       .from("feed_likes")
       .insert({ post_id: postId, user_id: profile.id, kind });
     if (error) return { error: "Não foi possível reagir." };
-    await supabase.rpc("notify_feed_interaction", { p_post_id: postId, p_kind: "like" });
+    const { data: authorId } = await supabase.rpc("notify_feed_interaction", {
+      p_post_id: postId,
+      p_kind: "like",
+    });
+    if (authorId) {
+      await sendPushToUsers([authorId as string], {
+        title: "Reagiram na sua foto",
+        body: `${REACTION_EMOJI[kind] ?? "👍"} Alguém reagiu à sua foto no Explorar.`,
+        url: "/app/feed",
+      });
+    }
   }
 
   revalidateFeed();
@@ -157,7 +175,17 @@ export async function addFeedComment(_prev: Result | null, formData: FormData): 
     .insert({ post_id: postId, author_id: profile.id, body });
 
   if (error) return { error: "Não foi possível comentar." };
-  await supabase.rpc("notify_feed_interaction", { p_post_id: postId, p_kind: "comment" });
+  const { data: authorId } = await supabase.rpc("notify_feed_interaction", {
+    p_post_id: postId,
+    p_kind: "comment",
+  });
+  if (authorId) {
+    await sendPushToUsers([authorId as string], {
+      title: "Comentaram na sua foto",
+      body: body.length > 80 ? `${body.slice(0, 80)}…` : body,
+      url: "/app/feed",
+    });
+  }
 
   revalidateFeed();
   return { ok: true };

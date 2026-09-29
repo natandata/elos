@@ -33,7 +33,16 @@ const HINT_BY_DESTINATION: Record<Exclude<Destination, null>, string> = {
 };
 
 /** Botão discreto "+" que deixa escolher o destino: Explorar, Story ou Feed (galeria fixa do perfil). */
-export function FeedComposer({ userId, galleryFull = false }: { userId: string; galleryFull?: boolean }) {
+export function FeedComposer({
+  userId,
+  galleryFull = false,
+  dailyPrompt,
+}: {
+  userId: string;
+  galleryFull?: boolean;
+  /** Tema do dia (mesmo pra todo mundo) — mostrado só na hora de postar no Explorar. */
+  dailyPrompt?: string;
+}) {
   const router = useRouter();
   const supabase = createClient();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -171,7 +180,14 @@ export function FeedComposer({ userId, galleryFull = false }: { userId: string; 
               </div>
             ) : (
               <>
-                <p className="mb-3 text-xs text-[var(--muted)]">{HINT_BY_DESTINATION[destination]}</p>
+                <p className="mb-1 text-xs text-[var(--muted)]">{HINT_BY_DESTINATION[destination]}</p>
+                {destination === "explorar" && dailyPrompt ? (
+                  <p className="mb-3 text-xs font-semibold text-[var(--accent-strong)]">
+                    💡 Tema de hoje: {dailyPrompt}
+                  </p>
+                ) : (
+                  <div className="mb-3" />
+                )}
 
                 <input
                   ref={fileRef}
