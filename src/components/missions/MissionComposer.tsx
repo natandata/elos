@@ -85,7 +85,6 @@ export function MissionComposer({
                 type="number"
                 min={0}
                 max={25}
-                step={5}
                 defaultValue={25}
                 className="input"
                 required
