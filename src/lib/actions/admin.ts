@@ -505,11 +505,12 @@ export async function saveEvent(_prev: Result | null, formData: FormData): Promi
 
   if (error) return { error: "Não foi possível salvar o evento." };
 
-  // Avisa quem pode ver o evento e tem notificação ativada — uma vez pra
-  // série toda (não uma por ocorrência recorrente).
+  // Avisa quem pode ver o evento — uma vez pra série toda (não uma por
+  // ocorrência recorrente). O sino (in-app) vai pra TODA a audiência; o
+  // push só pra quem tem notificação ativada (withPushEnabled é um filtro
+  // à parte, não deve reduzir quem recebe o aviso in-app também).
   const audience = await eventAudienceIds(supabase, basePayload);
-  const notifyIds = await withPushEnabled(supabase, audience);
-  if (notifyIds.length > 0) {
+  if (audience.length > 0) {
     const dateLabel = new Date(`${eventDate}T00:00:00Z`).toLocaleDateString("pt-BR", { timeZone: "UTC" });
     const body =
       dates.length > 1
@@ -517,16 +518,20 @@ export async function saveEvent(_prev: Result | null, formData: FormData): Promi
         : `${title} — ${dateLabel}`;
     await supabase
       .from("notifications")
-      .insert(notifyIds.map((user_id) => ({ user_id, title: "Novo evento na agenda", body, category: "agenda" })));
-    await sendPushToUsers(notifyIds, { title: "Novo evento na agenda", body, url: "/app/agenda" }, supabase);
+      .insert(audience.map((user_id) => ({ user_id, title: "Novo evento na agenda", body, category: "agenda" })));
+    const pushIds = await withPushEnabled(supabase, audience);
+    if (pushIds.length > 0) {
+      await sendPushToUsers(pushIds, { title: "Novo evento na agenda", body, url: "/app/agenda" }, supabase);
+    }
   }
 
   revalidateAgenda();
   return { ok: true };
 }
 
-/** Botão do admin no evento: manda pra todo mundo que vê o evento e tem
- *  notificação ativada, avisando quantos dias faltam (ou se é hoje/passou). */
+/** Botão do admin no evento: manda pra todo mundo que vê o evento, avisando
+ *  quantos dias faltam (ou se é hoje/passou) — sino pra todo mundo, push só
+ *  pra quem tem notificação ativada. */
 export async function notifyEventCountdown(_prev: Result | null, formData: FormData): Promise<Result> {
   const supabase = await adminClient();
   const id = String(formData.get("id") ?? "");
@@ -546,8 +551,7 @@ export async function notifyEventCountdown(_prev: Result | null, formData: FormD
   if (!event) return { error: "Evento não encontrado." };
 
   const audience = await eventAudienceIds(supabase, event);
-  const notifyIds = await withPushEnabled(supabase, audience);
-  if (notifyIds.length === 0) return { error: "Ninguém com notificação ativada pra avisar." };
+  if (audience.length === 0) return { error: "Ninguém pode ver esse evento pra avisar." };
 
   const todayBR = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
   const daysLeft = Math.round(
@@ -561,8 +565,11 @@ export async function notifyEventCountdown(_prev: Result | null, formData: FormD
 
   await supabase
     .from("notifications")
-    .insert(notifyIds.map((user_id) => ({ user_id, title, body, category: "agenda" })));
-  await sendPushToUsers(notifyIds, { title, body, url: "/app/agenda" }, supabase);
+    .insert(audience.map((user_id) => ({ user_id, title, body, category: "agenda" })));
+  const pushIds = await withPushEnabled(supabase, audience);
+  if (pushIds.length > 0) {
+    await sendPushToUsers(pushIds, { title, body, url: "/app/agenda" }, supabase);
+  }
 
   return { ok: true };
 }
