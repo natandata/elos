@@ -56,6 +56,7 @@ const NAV: Record<string, NavItem[]> = {
     { href: "/app/chat", label: "Chat", icon: "💬" },
     { href: "/app/feed", label: "Explorar", icon: "📸" },
     { href: "/app/lider/status-crias", label: "Status Crias", icon: "💛" },
+    { href: "/app/lider/devocional-crias", label: "Devocional Crias", icon: "📖" },
   ],
   cria: [
     { href: "/app/cria", label: "Início", icon: "🏠" },
