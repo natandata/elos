@@ -37,7 +37,7 @@ export default async function UsuariosPage({
   let query = supabase
     .from("profiles")
     .select(
-      "id, full_name, first_name, last_name, avatar_url, role, approved, gender, age_range, elo_id, xp, created_at",
+      "id, full_name, first_name, last_name, avatar_url, role, approved, gender, age_range, elo_id, xp, created_at, is_test_account",
     )
     .order(bySignup ? "created_at" : "full_name", { ascending: !bySignup });
 
@@ -68,6 +68,7 @@ export default async function UsuariosPage({
     elo_id: string | null;
     xp: number;
     created_at: string;
+    is_test_account: boolean;
   }[];
 
   // Número da ordem de cadastro é sempre sobre TODO MUNDO, não só o que os
@@ -246,7 +247,7 @@ export default async function UsuariosPage({
               // só refletem o valor inicial. Incluindo role/gender/age/elo na
               // key, qualquer mudança persistida força um remount e o
               // formulário passa a mostrar o dado real, não o antigo.
-              key={`${u.id}-${u.role}-${u.gender}-${u.age_range}-${u.elo_id}-${u.approved}`}
+              key={`${u.id}-${u.role}-${u.gender}-${u.age_range}-${u.elo_id}-${u.approved}-${u.is_test_account}`}
               user={{
                 ...u,
                 email: emailById.get(u.id) ?? null,

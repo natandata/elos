@@ -1,5 +1,6 @@
 import webpush from "web-push";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 let configured = false;
@@ -22,6 +23,46 @@ export type PushPayload = { title: string; body: string; url?: string };
 type SubRow = { id: string; endpoint: string; p256dh: string; auth: string };
 
 /**
+ * Quando quem disparou essa notificação (a sessão logada agora, na Server
+ * Action que chamou sendPushToUsers) é uma conta marcada como "de teste",
+ * o push nunca pode chegar em gente de verdade — só em outras contas de
+ * teste, se alguma estiver na lista. Fora de uma Server Action (rotinas de
+ * cron, sem sessão — `client` aí é o de service role) isso não se aplica:
+ * `auth.getUser()` não acha ninguém e a lista passa intacta.
+ *
+ * Usa um client de service role pra essa checagem interna, à parte do
+ * `client` recebido — sem isso, a RLS de profiles poderia barrar uma conta
+ * de teste (cria/líder comum) de ler o próprio `is_test_account` ou o dos
+ * destinatários, e a filtragem falharia pro lado errado (deixando passar).
+ */
+async function filterOutRealUsersIfTesting(
+  requestClient: SupabaseClient,
+  ids: string[],
+): Promise<string[]> {
+  const {
+    data: { user: actor },
+  } = await requestClient.auth.getUser();
+  if (!actor) return ids;
+
+  const admin = createAdminClient();
+  if (!admin) return ids;
+
+  const { data: actorProfile } = await admin
+    .from("profiles")
+    .select("is_test_account")
+    .eq("id", actor.id)
+    .maybeSingle<{ is_test_account: boolean }>();
+  if (!actorProfile?.is_test_account) return ids;
+
+  const { data: testRecipients } = await admin
+    .from("profiles")
+    .select("id")
+    .in("id", ids)
+    .eq("is_test_account", true);
+  return ((testRecipients ?? []) as { id: string }[]).map((r) => r.id);
+}
+
+/**
  * Envia push (notificação de sistema, aparece mesmo com o app fechado) pra
  * uma lista de usuários. Sem chaves VAPID configuradas, não faz nada —
  * nunca deve derrubar a ação que chamou (postar no feed, criar missão etc).
@@ -40,7 +81,11 @@ export async function sendPushToUsers(
   if (!ensureConfigured()) return;
 
   const supabase = client ?? (await createClient());
-  const { data } = await supabase.rpc("push_subscriptions_for", { p_user_ids: ids });
+
+  const targetIds = await filterOutRealUsersIfTesting(supabase, ids);
+  if (targetIds.length === 0) return;
+
+  const { data } = await supabase.rpc("push_subscriptions_for", { p_user_ids: targetIds });
   const subs = (data ?? []) as SubRow[];
   if (subs.length === 0) return;
 

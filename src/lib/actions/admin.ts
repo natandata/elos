@@ -48,6 +48,7 @@ export async function updateUser(_prev: Result | null, formData: FormData): Prom
   const firstName = String(formData.get("first_name") ?? "").trim();
   const lastName = String(formData.get("last_name") ?? "").trim();
   const xpRaw = String(formData.get("xp") ?? "").trim();
+  const isTestAccount = formData.get("is_test_account") === "true";
 
   if (!id) return { error: "Usuário inválido." };
   if (!ROLES.includes(role)) return { error: "Perfil inválido." };
@@ -67,6 +68,7 @@ export async function updateUser(_prev: Result | null, formData: FormData): Prom
       last_name: lastName,
       role,
       elo_id: eloId || null,
+      is_test_account: isTestAccount,
       ...(ageRange ? { age_range: ageRange } : {}),
       ...(gender ? { gender } : {}),
       ...(xp !== undefined ? { xp } : {}),

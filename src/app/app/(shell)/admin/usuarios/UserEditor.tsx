@@ -35,6 +35,7 @@ type Row = {
   xp: number;
   email: string | null;
   created_at: string;
+  is_test_account: boolean;
 };
 
 type Presence = { online: boolean; screen: string } | null;
@@ -71,6 +72,7 @@ export function UserEditor({
   // enviado no submit.
   const [formXp, setFormXp] = useState(user.xp);
   const formLevel = levelFromXp(formXp).level;
+  const [isTestAccount, setIsTestAccount] = useState(user.is_test_account);
 
   const elo = elos.find((e) => e.id === user.elo_id);
 
@@ -88,6 +90,14 @@ export function UserEditor({
             {user.role === "leader" && !user.approved ? (
               <span className="chip border-amber-200 bg-amber-100 text-amber-800">
                 Aguardando aprovação
+              </span>
+            ) : null}
+            {user.is_test_account ? (
+              <span
+                className="chip border-violet-200 bg-violet-100 text-violet-800"
+                title="Ações dessa conta nunca notificam usuários de verdade."
+              >
+                🧪 Teste
               </span>
             ) : null}
             {presence?.online ? (
@@ -254,6 +264,23 @@ export function UserEditor({
                       : null}
                 </p>
               )}
+            </div>
+
+            <div className="sm:col-span-3">
+              <input type="hidden" name="is_test_account" value={isTestAccount ? "true" : "false"} />
+              <label className="flex items-start gap-2 rounded-xl border border-[var(--line)] p-2.5 text-xs">
+                <input
+                  type="checkbox"
+                  checked={isTestAccount}
+                  onChange={(e) => setIsTestAccount(e.target.checked)}
+                  className="mt-0.5"
+                />
+                <span>
+                  <span className="font-semibold">🧪 Conta de teste</span> — ações dessa conta (postar,
+                  criar evento/desafio etc.) nunca mandam notificação pra usuários de verdade, só pra
+                  outras contas de teste.
+                </span>
+              </label>
             </div>
 
             <div className="sm:col-span-3">
