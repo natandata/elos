@@ -209,12 +209,15 @@ export default async function CriaDashboard() {
 
       <Link
         href="/app/chat/ajuda"
-        className="mb-5 flex items-center justify-between gap-3 rounded-2xl border-2 border-[var(--accent)] bg-[var(--accent-soft)] px-4 py-3 text-[var(--accent-strong)]"
+        className="mb-5 flex items-center justify-between gap-3 rounded-2xl border-2 border-[var(--accent)] bg-[var(--accent-soft)] px-5 py-4 text-[var(--accent-strong)]"
       >
-        <span className="flex items-center gap-2 font-bold">
-          <span aria-hidden>🆘</span> Preciso de ajuda
+        <span className="flex items-center gap-2.5 text-lg font-black">
+          <span className="text-2xl" aria-hidden>
+            🆘
+          </span>{" "}
+          Preciso de ajuda
         </span>
-        <span className="text-sm font-semibold opacity-80">Falar com meu líder →</span>
+        <span className="text-sm font-bold opacity-80">Falar com meu líder →</span>
       </Link>
 
       <StoriesTray entries={storiesTray} myUserId={profile.id} />
@@ -278,12 +281,18 @@ export default async function CriaDashboard() {
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-1">
           <Link href="/app/cria/missoes" className="card p-4">
-            <p className="text-xs font-semibold uppercase text-[var(--muted)]">Disponíveis</p>
-            <p className="mt-1 text-2xl font-bold tabular-nums">{pendingRes.count ?? 0}</p>
+            <p className="text-2xl" aria-hidden>
+              🎯
+            </p>
+            <p className="mt-1 text-3xl font-black tabular-nums leading-none">{pendingRes.count ?? 0}</p>
+            <p className="mt-1 text-xs font-bold text-[var(--muted)]">Disponíveis</p>
           </Link>
           <Link href="/app/cria/missoes" className="card p-4">
-            <p className="text-xs font-semibold uppercase text-[var(--muted)]">Aguardando</p>
-            <p className="mt-1 text-2xl font-bold tabular-nums">{awaitingRes.count ?? 0}</p>
+            <p className="text-2xl" aria-hidden>
+              ⏳
+            </p>
+            <p className="mt-1 text-3xl font-black tabular-nums leading-none">{awaitingRes.count ?? 0}</p>
+            <p className="mt-1 text-xs font-bold text-[var(--muted)]">Aguardando</p>
           </Link>
         </div>
       </section>

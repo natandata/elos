@@ -42,10 +42,10 @@ export function MissionSpotlight({
             <div key={m.assignmentId} className="card border-2 border-[var(--accent)] p-4">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="font-bold">{m.title}</p>
-                  <p className="text-xs text-[var(--muted)]">prazo {formatDate(m.dueDate)}</p>
+                  <p className="text-lg font-black">{m.title}</p>
+                  <p className="text-xs font-semibold text-[var(--muted)]">prazo {formatDate(m.dueDate)}</p>
                 </div>
-                <span className="chip shrink-0 bg-[var(--accent-soft)] text-[var(--accent-strong)]">
+                <span className="chip shrink-0 bg-[var(--accent-soft)] text-sm font-black text-[var(--accent-strong)]">
                   {m.xp} XP
                 </span>
               </div>
