@@ -638,6 +638,32 @@ export async function createEloChallenge(_prev: Result | null, formData: FormDat
   return { ok: true };
 }
 
+/** Edita título/descrição/XP do desafio em aberto — só antes de encerrar,
+ *  pra não mexer no bônus depois que já foi creditado a um vencedor. */
+export async function updateEloChallenge(_prev: Result | null, formData: FormData): Promise<Result> {
+  const supabase = await adminClient();
+  const id = String(formData.get("id") ?? "");
+  const title = String(formData.get("title") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim() || null;
+  const bonusXp = Number(String(formData.get("bonus_xp") ?? "").trim());
+
+  if (!id) return { error: "Desafio inválido." };
+  if (!title) return { error: "Dê um nome ao desafio." };
+  if (!Number.isInteger(bonusXp) || bonusXp < 0) {
+    return { error: "XP precisa ser um número inteiro, 0 ou maior." };
+  }
+
+  const { error } = await supabase
+    .from("elo_challenges")
+    .update({ title, description, bonus_xp: bonusXp })
+    .eq("id", id)
+    .eq("status", "open");
+  if (error) return { error: "Não foi possível salvar as alterações." };
+
+  revalidateChallenge();
+  return { ok: true };
+}
+
 /** Encerra o desafio em aberto, declara o Elo vencedor e credita o bônus
  *  pra cada cria dele — de uma vez, via RPC (soma XP, não substitui). */
 export async function finishEloChallenge(_prev: Result | null, formData: FormData): Promise<Result> {

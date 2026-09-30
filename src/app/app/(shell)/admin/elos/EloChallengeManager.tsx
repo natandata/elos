@@ -1,7 +1,12 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { cancelEloChallenge, createEloChallenge, finishEloChallenge } from "@/lib/actions/admin";
+import { useActionState, useEffect, useState } from "react";
+import {
+  cancelEloChallenge,
+  createEloChallenge,
+  finishEloChallenge,
+  updateEloChallenge,
+} from "@/lib/actions/admin";
 import { Feedback, SubmitBtn } from "@/components/forms";
 import type { Elo } from "@/lib/types";
 
@@ -14,10 +19,16 @@ type OpenChallenge = {
 
 export function EloChallengeManager({ challenge, elos }: { challenge: OpenChallenge | null; elos: Elo[] }) {
   const [createState, createAction] = useActionState(createEloChallenge, null);
+  const [updateState, updateAction] = useActionState(updateEloChallenge, null);
   const [finishState, finishAction] = useActionState(finishEloChallenge, null);
   const [cancelState, cancelAction] = useActionState(cancelEloChallenge, null);
   const [confirming, setConfirming] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [winnerId, setWinnerId] = useState("");
+
+  useEffect(() => {
+    if (updateState?.ok) setEditing(false);
+  }, [updateState]);
 
   if (!challenge) {
     return (
@@ -54,6 +65,52 @@ export function EloChallengeManager({ challenge, elos }: { challenge: OpenChalle
     );
   }
 
+  if (editing) {
+    return (
+      <div className="card mb-5 border-amber-300 bg-amber-50 p-4">
+        <p className="chip mb-3 border-amber-300 bg-amber-100 text-amber-800">Editando desafio</p>
+        <form action={updateAction} className="grid gap-3 sm:grid-cols-2">
+          <input type="hidden" name="id" value={challenge.id} />
+          <div className="sm:col-span-2">
+            <label className="label">Título</label>
+            <input name="title" className="input" defaultValue={challenge.title} required />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="label">Descrição (o que vale pra ganhar)</label>
+            <textarea
+              name="description"
+              rows={2}
+              className="input"
+              defaultValue={challenge.description ?? ""}
+            />
+          </div>
+          <div>
+            <label className="label">XP de bônus pra cada cria do Elo vencedor</label>
+            <input
+              name="bonus_xp"
+              type="number"
+              min={0}
+              step={1}
+              className="input"
+              defaultValue={challenge.bonus_xp}
+            />
+          </div>
+          <div className="flex items-end gap-2 sm:col-span-2">
+            <SubmitBtn className="btn btn-primary !py-2 !text-sm" pendingLabel="Salvando…">
+              Salvar alterações
+            </SubmitBtn>
+            <button type="button" className="btn btn-ghost !py-2 !text-sm" onClick={() => setEditing(false)}>
+              Cancelar
+            </button>
+          </div>
+          <div className="sm:col-span-2">
+            <Feedback state={updateState} />
+          </div>
+        </form>
+      </div>
+    );
+  }
+
   return (
     <div className="card mb-5 border-amber-300 bg-amber-50 p-4">
       <div className="flex items-start justify-between gap-3">
@@ -65,6 +122,13 @@ export function EloChallengeManager({ challenge, elos }: { challenge: OpenChalle
           ) : null}
           <p className="mt-1 text-xs font-semibold text-amber-700">+{challenge.bonus_xp} XP pro Elo vencedor</p>
         </div>
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          className="shrink-0 rounded-lg px-2 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+        >
+          ✏️ Editar
+        </button>
       </div>
 
       {!confirming ? (
