@@ -76,6 +76,8 @@ export type Profile = {
   devotional_streak_date: string | null;
   feed_streak: number;
   feed_streak_date: string | null;
+  game_streak: number;
+  game_streak_date: string | null;
   last_login_bonus_on: string | null;
   onboarding_completed_at: string | null;
   created_at: string;

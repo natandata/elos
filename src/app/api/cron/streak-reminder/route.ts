@@ -36,7 +36,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: candidatesError.message }, { status: 500 });
   }
   if (!candidates || candidates.length === 0) {
-    return NextResponse.json({ ok: true, notified: 0 });
+    const extra = await notifyDailyHabitStreaks(supabase);
+    return NextResponse.json({ ok: true, notified: extra });
   }
 
   const ids = candidates.map((c) => c.id as string);
@@ -53,7 +54,8 @@ export async function GET(request: NextRequest) {
   }[];
 
   if (atRisk.length === 0) {
-    return NextResponse.json({ ok: true, notified: 0 });
+    const extra = await notifyDailyHabitStreaks(supabase);
+    return NextResponse.json({ ok: true, notified: extra });
   }
 
   // agrupa por tamanho de ofensiva pra mandar a mensagem certa pra cada um
@@ -73,5 +75,62 @@ export async function GET(request: NextRequest) {
     await sendPushToUsers(userIds, { title, body, url: "/app/status" }, supabase);
   }
 
-  return NextResponse.json({ ok: true, notified: atRisk.length });
+  const extra = await notifyDailyHabitStreaks(supabase);
+  return NextResponse.json({ ok: true, notified: atRisk.length + extra });
+}
+
+type Admin = NonNullable<ReturnType<typeof createAdminClient>>;
+
+/**
+ * Devocional e jogos: a ofensiva só quebra se o último dia registrado foi
+ * ONTEM (ou seja, ainda não fez hoje). Esses dois hábitos guardam a data do
+ * último dia em `*_streak_date`, então dá pra achar quem está em risco sem
+ * consultar tabela nenhuma.
+ */
+async function notifyDailyHabitStreaks(supabase: Admin): Promise<number> {
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+  const yesterday = new Date(new Date(`${today}T00:00:00Z`).getTime() - 86_400_000).toISOString().slice(0, 10);
+
+  const habits = [
+    {
+      streak: "devotional_streak",
+      date: "devotional_streak_date",
+      title: (n: number) => `📖 Seu devocional de ${n} ${n === 1 ? "dia" : "dias"} está em risco`,
+      body: "Faça o devocional de hoje antes da meia-noite pra manter a sequência.",
+      url: "/app/devocional",
+    },
+    {
+      streak: "game_streak",
+      date: "game_streak_date",
+      title: (n: number) => `🎮 Sua sequência de ${n} ${n === 1 ? "dia" : "dias"} nos jogos está em risco`,
+      body: "Jogue um jogo bíblico hoje — leva 1 minutinho!",
+      url: "/app/jogos",
+    },
+  ] as const;
+
+  let notified = 0;
+  for (const h of habits) {
+    const { data } = await supabase
+      .from("profiles")
+      .select(`id, ${h.streak}`)
+      .in("role", ["cria", "leader"])
+      .gt(h.streak, 0)
+      .eq(h.date, yesterday);
+    const rows = (data ?? []) as unknown as Record<string, number | string>[];
+    const byStreak = new Map<number, string[]>();
+    for (const r of rows) {
+      const n = Number(r[h.streak]);
+      if (!byStreak.has(n)) byStreak.set(n, []);
+      byStreak.get(n)!.push(String(r.id));
+    }
+    for (const [n, userIds] of byStreak) {
+      const title = h.title(n);
+      await supabase
+        .from("notifications")
+        .insert(userIds.map((user_id) => ({ user_id, title, body: h.body, link: h.url, category: "streak" })));
+      await sendPushToUsers(userIds, { title, body: h.body, url: h.url }, supabase);
+      notified += userIds.length;
+    }
+  }
+  return notified;
 }

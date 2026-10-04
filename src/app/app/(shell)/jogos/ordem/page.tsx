@@ -1,0 +1,44 @@
+import Link from "next/link";
+import { OrderGame } from "@/components/games/OrderGame";
+import { PageHeader } from "@/components/ui";
+import { requireRole } from "@/lib/auth";
+import { dailyOrder } from "@/lib/games/engine";
+import { todaysPlays } from "@/lib/games/status";
+import { createClient } from "@/lib/supabase/server";
+
+export default async function OrdemPage() {
+  const { profile } = await requireRole("cria", "leader");
+  const supabase = await createClient();
+  const play = (await todaysPlays(supabase, profile.id)).get("order");
+  const round = dailyOrder();
+  const attemptsUsed = play?.answers?.length ?? 0;
+
+  return (
+    <>
+      <PageHeader title="⏳ Ordene os Fatos" subtitle={`${round.set.title} · acertou a linha do tempo = +1 XP`} />
+      {play?.finished ? (
+        <div className="card p-6">
+          <p className="text-center text-5xl" aria-hidden>
+            {play.score > 0 ? "🎉" : "😅"}
+          </p>
+          <h2 className="mt-2 text-center text-2xl font-black">
+            {play.score > 0 ? "Você acertou a ordem!" : "Hoje não deu"}
+          </h2>
+          <ol className="mt-4 space-y-2">
+            {round.set.events.map((e, i) => (
+              <li key={i} className="flex items-center gap-3 rounded-2xl border-2 border-emerald-300 bg-emerald-50 px-4 py-3 text-base font-bold text-emerald-900">
+                <span className="text-lg font-black">{i + 1}º</span> {e}
+              </li>
+            ))}
+          </ol>
+          <p className="mt-3 text-center text-sm text-[var(--muted)]">Uma nova linha do tempo chega amanhã.</p>
+          <Link href="/app/jogos" className="btn btn-primary mt-4 w-full">
+            Voltar aos jogos
+          </Link>
+        </div>
+      ) : (
+        <OrderGame items={round.shuffled} attemptsLeft={2 - attemptsUsed} />
+      )}
+    </>
+  );
+}

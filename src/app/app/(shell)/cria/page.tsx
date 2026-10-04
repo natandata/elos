@@ -9,6 +9,9 @@ import { HojeNoElos } from "@/components/HojeNoElos";
 import { EventCountdown } from "@/components/EventCountdown";
 import { CriaDaSemana } from "@/components/CriaDaSemana";
 import { OpenChallengeBanner } from "@/components/OpenChallengeBanner";
+import { GamesBanner } from "@/components/games/GamesBanner";
+import { EloWeeklyGoal } from "@/components/games/EloWeeklyGoal";
+import { liveGameStreak, todaysPlays } from "@/lib/games/status";
 import { MissionSpotlight, type SpotlightMission } from "@/components/missions/MissionSpotlight";
 import { StoriesTray } from "@/components/profile/StoriesTray";
 import { getEloStoriesTray } from "@/lib/stories";
@@ -40,6 +43,8 @@ export default async function CriaDashboard() {
     challengeRes,
     topSuggestionRes,
     spotlightRes,
+    gamePlays,
+    duelsRes,
   ] = await Promise.all([
     profile.elo_id
       ? supabase.from("elos").select("name").eq("id", profile.elo_id).maybeSingle()
@@ -115,6 +120,12 @@ export default async function CriaDashboard() {
       .in("status", ["pending", "rejected"])
       .order("created_at", { ascending: false })
       .limit(4),
+    todaysPlays(supabase, profile.id),
+    supabase
+      .from("game_duels")
+      .select("challenger_id, challenger_score, opponent_score")
+      .eq("status", "open")
+      .gte("created_at", new Date(Date.now() - 7 * 86_400_000).toISOString()),
   ]);
 
   const ranking = (rankingRes.data ?? []) as { id: string; full_name: string; xp: number }[];
@@ -192,6 +203,14 @@ export default async function CriaDashboard() {
     };
   });
 
+  const gamesDone = ["quiz", "verse", "who", "order"].filter((g) => gamePlays.get(g)?.finished).length;
+  const duelsWaiting = (
+    (duelsRes.data ?? []) as { challenger_id: string; challenger_score: number | null; opponent_score: number | null }[]
+  ).filter((d) => (d.challenger_id === profile.id ? d.challenger_score === null : d.opponent_score === null)).length;
+  const weeklyRows = (weeklyRankRes.data ?? []) as { weekly_xp: number }[];
+  const eloWeeklyXp = weeklyRows.reduce((sum, r) => sum + Number(r.weekly_xp), 0);
+  const eloWeeklyGoal = Math.max(40, weeklyRows.length * 8);
+
   const lastSeenAt = (presenceRes.data as { last_seen_at: string } | null)?.last_seen_at ?? null;
   const daysSinceLastVisit = lastSeenAt
     ? Math.floor((Date.now() - new Date(lastSeenAt).getTime()) / 86_400_000)
@@ -222,6 +241,14 @@ export default async function CriaDashboard() {
 
       <StoriesTray entries={storiesTray} myUserId={profile.id} />
 
+      <GamesBanner
+        done={gamesDone}
+        total={4}
+        streak={liveGameStreak(profile.game_streak ?? 0, profile.game_streak_date ?? null)}
+        duelsWaiting={duelsWaiting}
+        chestOpen={gamePlays.get("chest")?.finished === true}
+      />
+
       <HojeNoElos
         daysSinceLastVisit={daysSinceLastVisit}
         feedPostsToday={feedTodayRes.count ?? 0}
@@ -232,6 +259,8 @@ export default async function CriaDashboard() {
       />
 
       <MissionSpotlight missions={spotlightMissions} myEloId={profile.elo_id} />
+
+      {weeklyRows.length > 0 ? <EloWeeklyGoal xp={eloWeeklyXp} goal={eloWeeklyGoal} eloName={eloName} /> : null}
 
       {challengeRes.data ? (
         <OpenChallengeBanner
