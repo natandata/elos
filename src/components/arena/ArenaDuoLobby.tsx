@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Avatar } from "@/components/Avatar";
-import { challengeArenaDuo, respondArenaDuo } from "@/lib/actions/arenaDuo";
+import { challengeArenaDuo, leaveArenaDuo, respondArenaDuo } from "@/lib/actions/arenaDuo";
 
 export type Mate = { id: string; name: string; avatarUrl: string | null };
 export type DuoItem = {
@@ -54,6 +54,14 @@ export function ArenaDuoLobby({ mates, items }: { mates: Mate[]; items: DuoItem[
     router.refresh();
   }
 
+  async function leave(id: string) {
+    setBusy(id);
+    const r = await leaveArenaDuo(id).catch(() => ({ error: "Sem conexão. Tente de novo." }));
+    setBusy(null);
+    if (r.error) setError(r.error);
+    router.refresh();
+  }
+
   const invites = items.filter((i) => i.incoming);
   const active = items.filter((i) => !i.incoming && (i.status === "accepted" || i.status === "invited"));
   const done = items.filter((i) => i.status === "finished" || i.status === "disputed");
@@ -93,6 +101,9 @@ export function ArenaDuoLobby({ mates, items }: { mates: Mate[]; items: DuoItem[
                 </span>
                 <button type="button" onClick={() => router.push(`/app/jogos/arena/duplas/${i.id}`)} className="btn btn-primary !px-4 !py-2 !text-sm">
                   {i.status === "accepted" ? "Entrar" : "Abrir"}
+                </button>
+                <button type="button" disabled={busy === i.id} onClick={() => leave(i.id)} className="btn btn-ghost !px-3 !py-2 !text-sm">
+                  Sair
                 </button>
               </li>
             ))}

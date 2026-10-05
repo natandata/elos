@@ -88,6 +88,16 @@ export async function respondArenaDuo(id: string, accept: boolean): Promise<{ er
   return { deck, allReady: row?.status === "accepted" };
 }
 
+/** Sai da sala (anfitrião ou convidado, mesmo depois de aceitar): cancela o desafio e libera todo mundo. */
+export async function leaveArenaDuo(id: string): Promise<{ error?: string }> {
+  const { supabase, userId, name } = await player();
+  const { data: row } = await supabase.from("arena_duo").select("players").eq("id", id).maybeSingle<{ players: string[] }>();
+  const { error } = await supabase.rpc("arena_duo_leave", { p_id: id });
+  if (error) return { error: "Não dá mais pra sair desta sala (a partida já começou ou acabou)." };
+  if (row) await notify(row.players.filter((p) => p !== userId), "👥 Sala de duplas cancelada", `${name} saiu da sala de duplas. O desafio foi cancelado: criem outro quando quiserem.`, "/app/jogos/arena/duplas");
+  return {};
+}
+
 /** Estado atual da sala (e tenta fechar a partida se já der). */
 export async function checkArenaDuo(id: string): Promise<{ view?: DuoView; status?: string; decks?: (string[] | null)[]; accepted?: boolean[]; error?: string }> {
   const { supabase, userId } = await player();

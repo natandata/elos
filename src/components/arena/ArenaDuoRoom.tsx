@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
-import { checkArenaDuo, reportArenaDuo, respondArenaDuo } from "@/lib/actions/arenaDuo";
+import { checkArenaDuo, leaveArenaDuo, reportArenaDuo, respondArenaDuo } from "@/lib/actions/arenaDuo";
 import { Lockstep, type Frame } from "@/lib/arena/lockstep";
 import { teamOf, type Side } from "@/lib/arena/core";
 import type { DuoView } from "@/lib/arena/settleDuo";
@@ -110,6 +110,16 @@ export function ArenaDuoRoom({ id, me, names, arena, seed, decks, initialStatus,
       setStatus("accepted");
       setStage("ready");
     }
+  }
+
+  async function leaveRoom() {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    const r = await leaveArenaDuo(id).catch(() => ({ error: "Sem conexão. Tente de novo." }));
+    setBusy(false);
+    if (r.error) return setError(r.error);
+    router.push("/app/jogos/arena/duplas");
   }
 
   // ---------------------------------------------------------- relatório e resultado
@@ -398,7 +408,12 @@ export function ArenaDuoRoom({ id, me, names, arena, seed, decks, initialStatus,
 
         {stage === "invite" ? (
           me === 0 || accepted[me] ? (
-            <p className="mt-4 text-center text-sm font-bold">⏳ Esperando todo mundo aceitar… Esta tela avisa sozinha.</p>
+            <>
+              <p className="mt-4 text-center text-sm font-bold">⏳ Esperando todo mundo aceitar… Esta tela avisa sozinha.</p>
+              <button type="button" disabled={busy} onClick={leaveRoom} className="btn btn-ghost mt-3 w-full">
+                {me === 0 ? "Cancelar desafio" : "Sair da sala"}
+              </button>
+            </>
           ) : (
             <div className="mt-4 grid gap-2">
               <button type="button" disabled={busy} onClick={() => respond(true)} className="btn btn-primary !py-3">
@@ -417,6 +432,9 @@ export function ArenaDuoRoom({ id, me, names, arena, seed, decks, initialStatus,
             <p className="mt-1 text-center text-xs text-[var(--muted)]">Se você sair no meio, conta como derrota.</p>
             <button type="button" onClick={enter} className="btn btn-primary mt-4 w-full !py-3 !text-lg">
               ⚔️ Entrar na partida
+            </button>
+            <button type="button" disabled={busy} onClick={leaveRoom} className="btn btn-ghost mt-2 w-full">
+              Sair da sala
             </button>
           </>
         ) : null}
