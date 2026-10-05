@@ -234,8 +234,12 @@ export function ArenaPlayfield({
             const y1 = flip ? H - r.y0 : r.y1;
             ctx.fillStyle = `rgba(255,255,255,${pulse})`;
             ctx.fillRect(x0 * s, y0 * s, (x1 - x0) * s, (y1 - y0) * s);
-            ctx.strokeStyle = "rgba(255,255,255,0.75)";
-            ctx.lineWidth = 2;
+            // contorno escuro por baixo: a linha branca aparece mesmo sobre grama clara
+            ctx.strokeStyle = "rgba(0,0,0,0.55)";
+            ctx.lineWidth = 5;
+            ctx.strokeRect(x0 * s, y0 * s, (x1 - x0) * s, (y1 - y0) * s);
+            ctx.strokeStyle = "rgba(255,255,255,0.95)";
+            ctx.lineWidth = 2.5;
             ctx.setLineDash([8, 6]);
             ctx.lineDashOffset = -tickF;
             ctx.strokeRect(x0 * s, y0 * s, (x1 - x0) * s, (y1 - y0) * s);
@@ -555,7 +559,6 @@ export function ArenaPlayfield({
   const mana = hud?.mana ?? 0;
   const doubled = (hud?.tick ?? 0) >= DOUBLE_MANA_TICK;
   const nextCard = ARENA_CARD_BY_KEY.get(hud?.next ?? "");
-  const shadow = "[text-shadow:0_1px_3px_#000,0_0_2px_#000]";
   return (
     <div className="fixed inset-0 z-[70] select-none bg-[#10201a]">
       <div className="mx-auto flex h-full w-full max-w-[480px] flex-col bg-[#4d8f3a]">
@@ -563,13 +566,13 @@ export function ArenaPlayfield({
           <canvas ref={canvasRef} onPointerDown={onCanvasPointer} className="absolute left-0 top-0 touch-none" />
           <div className="pointer-events-none absolute left-2 top-2 flex items-center gap-2">
             <div className="flex h-11 w-11 items-center justify-center rounded-lg border-2 border-amber-300 bg-gradient-to-b from-rose-700 to-rose-950 text-2xl shadow-lg">🛡️</div>
-            <div className="leading-tight">
-              <p className={`max-w-[170px] truncate text-base font-black text-fuchsia-300 ${shadow}`}>{d.opponentLabel}</p>
-              <p className={`text-xs font-bold text-white ${shadow}`}>{ARENAS[d.arena]?.name ?? "Arena dos Heróis"}</p>
+            <div className="rounded-lg bg-black/65 px-2.5 py-1 leading-tight ring-1 ring-white/25">
+              <p className="max-w-[170px] truncate text-base font-black text-white">{d.opponentLabel}</p>
+              <p className="text-xs font-bold text-amber-200">{ARENAS[d.arena]?.name ?? "Arena dos Heróis"}</p>
             </div>
           </div>
-          <div className="pointer-events-none absolute right-2 top-2 rounded-lg border-2 border-black/70 bg-[#173a1c]/90 px-3 py-1 text-right shadow-lg">
-            <p className={`text-[11px] font-black ${doubled ? "text-amber-300" : "text-white/90"}`}>{doubled ? "Maná em dobro!" : "Tempo:"}</p>
+          <div className="pointer-events-none absolute right-2 top-2 rounded-lg border-2 border-white/40 bg-black/75 px-3 py-1 text-right shadow-lg">
+            <p className={`text-xs font-black ${doubled ? "text-amber-300" : "text-white"}`}>{doubled ? "Maná em dobro!" : "Tempo:"}</p>
             <p className="text-2xl font-black leading-none tabular-nums text-white">{fmtTime(hud?.tick ?? 0)}</p>
           </div>
           <div className="pointer-events-none absolute right-1 top-1/2 flex -translate-y-1/2 flex-col gap-4">
@@ -611,7 +614,7 @@ export function ArenaPlayfield({
               >
                 ✕
               </button>
-              <p className="text-[10px] font-black text-white">Próxima:</p>
+              <p className="text-[11px] font-black text-white">Próxima:</p>
               <div className="flex h-12 w-11 items-center justify-center rounded-lg border-2 border-[#0f2f6b] bg-gradient-to-b from-[#4a90e2] to-[#2d62b8]">
                 {nextCard ? nextCard.art ? <CardArt card={nextCard} className="h-10" /> : <span className="text-xl" aria-hidden>{nextCard.emoji}</span> : null}
               </div>
@@ -655,7 +658,7 @@ export function ArenaPlayfield({
             <div className="flex h-10 w-10 shrink-0 items-center justify-center">
               <ManaBread n={Math.floor(mana)} size={32} />
             </div>
-            <div className="relative h-5 flex-1 overflow-hidden rounded-full border-2 border-[#0f2f6b] bg-[#3b2208]">
+            <div className="relative h-5 flex-1 overflow-hidden rounded-full border-2 border-white/70 bg-[#1a1006] shadow-[0_0_0_1px_rgba(0,0,0,0.6)]">
               <div
                 className="h-full bg-gradient-to-b from-yellow-200 via-amber-400 to-amber-600 transition-[width] duration-200 ease-linear"
                 style={{ width: `${(Math.min(MANA_MAX, mana) / MANA_MAX) * 100}%` }}
@@ -664,7 +667,7 @@ export function ArenaPlayfield({
                 <span key={i} className="absolute top-0 h-full w-px bg-black/40" style={{ left: `${((i + 1) / MANA_MAX) * 100}%` }} />
               ))}
             </div>
-            <span className="w-11 text-right text-[10px] font-black text-white/85">Máx: {MANA_MAX}</span>
+            <span className="w-12 text-right text-[11px] font-black text-white">Máx: {MANA_MAX}</span>
           </div>
         </div>
       </div>

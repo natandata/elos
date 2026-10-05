@@ -362,9 +362,12 @@ export function drawTower(g: CanvasRenderingContext2D, s: number, e: Entity, t =
   const frac = Math.max(0, e.hp / e.maxHp);
   const barW = Math.max(bw, s * 1.5);
   const barY = y0 - bh * 0.95 - s * 0.35;
-  g.fillStyle = "rgba(0,0,0,0.6)";
-  roundRect(g, cx - barW / 2 - 1, barY - 1, barW + 2, s * 0.3 + 2, s * 0.12);
+  g.fillStyle = "rgba(0,0,0,0.85)";
+  roundRect(g, cx - barW / 2 - 1.5, barY - 1.5, barW + 3, s * 0.3 + 3, s * 0.12);
   g.fill();
+  g.strokeStyle = "rgba(255,255,255,0.7)";
+  g.lineWidth = 1;
+  g.stroke();
   g.fillStyle = team;
   roundRect(g, cx - barW / 2, barY, Math.max(2, barW * frac), s * 0.3, s * 0.1);
   g.fill();
