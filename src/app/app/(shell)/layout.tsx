@@ -74,15 +74,27 @@ const NAV: Record<string, NavItem[]> = {
     { href: "/app/jogos", label: "Jogos", icon: "🎮" },
   ],
   cria: [
-    { href: "/app/cria", label: "Início", icon: "🏠" },
-    { href: "/app/mural", label: "Mural de Sugestões", icon: "💡" },
-    { href: "/app/ranking", label: "Meu Elo", icon: "🏆" },
-    { href: "/app/cria/missoes", label: "Missões", icon: "🎯" },
-    { href: "/app/devocional", label: "Meu Devocional", icon: "📖" },
-    { href: "/app/jogos", label: "Jogos", icon: "🎮" },
+    {
+      href: "/app/cria",
+      label: "Início",
+      icon: "🏠",
+      children: [
+        { href: "/app/devocional", label: "Meu Devocional", icon: "📖" },
+        { href: "/app/mural", label: "Mural de Sugestões", icon: "💡" },
+      ],
+    },
+    {
+      href: "/app/ranking",
+      label: "Meu Elo",
+      icon: "🏆",
+      children: [
+        { href: "/app/cria/missoes", label: "Missões", icon: "🎯" },
+        { href: "/app/chat", label: "Chat", icon: "💬" },
+      ],
+    },
     { href: "/app/agenda", label: "Agenda", icon: "📅" },
-    { href: "/app/chat", label: "Chat", icon: "💬" },
     { href: "/app/feed", label: "Explorar", icon: "📸" },
+    { href: "/app/jogos", label: "Jogos", icon: "🎮" },
   ],
   guardian: [
     { href: "/app/feed", label: "Explorar", icon: "📸" },
