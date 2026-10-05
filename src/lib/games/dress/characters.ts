@@ -259,6 +259,5 @@ export const DRESS_CHARACTERS: DressCharacter[] = [
 
 export const DRESS_CHARACTER_BY_ID = new Map(DRESS_CHARACTERS.map((c) => [c.id, c]));
 
-/** Mulheres e homens (o sorteio do dia leva 2 mulheres e 1 homem). */
+/** O jogo só sorteia personagens femininas (os personagens masculinos ficam guardados, fora do sorteio). */
 export const FEMALE_CHARACTERS = DRESS_CHARACTERS.filter((c) => c.base.female);
-export const MALE_CHARACTERS = DRESS_CHARACTERS.filter((c) => !c.base.female);
