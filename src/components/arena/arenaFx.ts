@@ -1,6 +1,7 @@
 import { ARENA_CARD_BY_KEY } from "@/lib/arena/cards";
 import type { GameEvent } from "@/lib/arena/core";
 import { TEAM } from "./arenaRender";
+import { CUSTOM_PROJ, IMPACT_CARDS, IMPACT_DUR, MELEE_DUR, drawImpact, drawMelee, drawProjectile } from "./arenaAttackFx";
 
 // Animações da Arena. Tudo aqui é só visual: nada disso altera o jogo.
 // Tempos em "ticks" (1/20 s); `tickF` = tick atual + fração entre ticks.
@@ -27,8 +28,9 @@ export type Anim = {
 
 export type Fx =
   | { k: "float"; x: number; y: number; text: string; color: string; t0: number; dur: number; big: boolean }
-  | { k: "proj"; x1: number; y1: number; x2: number; y2: number; t0: number; dur: number; emoji: string | null; team: number }
-  | { k: "slash"; x: number; y: number; ang: number; t0: number; dur: number }
+  | { k: "proj"; x1: number; y1: number; x2: number; y2: number; t0: number; dur: number; emoji: string | null; team: number; card: string }
+  | { k: "melee"; card: string; x: number; y: number; ang: number; t0: number; dur: number }
+  | { k: "impact"; card: string; x: number; y: number; t0: number; dur: number }
   | { k: "burst"; x: number; y: number; t0: number; dur: number; color: string; r: number }
   | { k: "ring"; x: number; y: number; t0: number; dur: number; color: string; r: number }
   | { k: "spell"; key: string; x: number; y: number; r: number; t0: number; dur: number }
@@ -53,11 +55,9 @@ export const newAnim = (born: number, side: number): Anim => ({
   steps: 0,
 });
 
+// projétil em emoji (os heróis em CUSTOM_PROJ desenham o próprio)
 const PROJ_EMOJI: Record<string, string | null> = {
   davi: "🪨",
-  elias: "🔥",
-  moises: "✨",
-  salomao: "✨",
 };
 
 /** Transforma um evento do motor em animações. `anims` guarda o estado por entidade. */
@@ -82,13 +82,19 @@ export function applyEvent(ev: GameEvent, tick: number, anims: Map<number, Anim>
       }
       if (ev.ranged) {
         const tower = ev.fromCard === "atalaia" || ev.fromCard === "santuario";
+        const dur = Math.max(3, Math.min(8, Math.round(d * 0.8)));
         fx.push({
           k: "proj", x1: ev.x1, y1: ev.y1 - (tower ? 1 : 0.3), x2: ev.x2, y2: ev.y2, t0: tick,
-          dur: Math.max(3, Math.min(8, Math.round(d * 0.8))),
-          emoji: tower ? null : (PROJ_EMOJI[ev.fromCard] ?? null), team: ev.side,
+          dur, emoji: tower ? null : (PROJ_EMOJI[ev.fromCard] ?? null), team: ev.side, card: ev.fromCard,
         });
+        if (IMPACT_CARDS.has(ev.fromCard)) fx.push({ k: "impact", card: ev.fromCard, x: ev.x2, y: ev.y2 - 0.3, t0: tick + dur, dur: IMPACT_DUR });
       } else {
-        fx.push({ k: "slash", x: ev.x2, y: ev.y2 - 0.2, ang: Math.atan2(dy, dx), t0: tick, dur: 6 });
+        fx.push({ k: "melee", card: ev.fromCard, x: ev.x2, y: ev.y2 - 0.2, ang: Math.atan2(dy, dx), t0: tick, dur: MELEE_DUR[ev.fromCard] ?? 6 });
+        // a clava do Sansão faz o chão tremer um pouquinho
+        if (ev.fromCard === "sansao" && shake.until < tick + 4) {
+          shake.until = tick + 4;
+          shake.amp = 1.6;
+        }
       }
       break;
     }
@@ -174,6 +180,10 @@ export function drawFx(ctx: CanvasRenderingContext2D, s: number, list: Fx[], tic
     if (p < 0 || p >= 1) continue;
     switch (f.k) {
       case "proj": {
+        if (CUSTOM_PROJ.has(f.card)) {
+          drawProjectile(ctx, s, f.card, f.x1 * s, f.y1 * s, f.x2 * s, f.y2 * s, p, tickF);
+          break;
+        }
         const x = (f.x1 + (f.x2 - f.x1) * p) * s;
         const arc = f.emoji ? Math.sin(p * Math.PI) * 0.9 : 0;
         const y = (f.y1 + (f.y2 - f.y1) * p - arc) * s;
@@ -244,19 +254,12 @@ export function drawFx(ctx: CanvasRenderingContext2D, s: number, list: Fx[], tic
         ctx.globalAlpha = 1;
         break;
       }
-      case "slash": {
-        ctx.save();
-        ctx.translate(f.x * s, f.y * s);
-        ctx.rotate(f.ang);
-        ctx.strokeStyle = `rgba(255,248,200,${1 - p})`;
-        ctx.lineWidth = Math.max(3, s * 0.26) * (1 - p * 0.6);
-        ctx.lineCap = "round";
-        ctx.beginPath();
-        ctx.arc(-s * 0.2, 0, s * 0.95, -0.9 + p * 0.5, 0.9 + p * 0.5);
-        ctx.stroke();
-        ctx.restore();
+      case "melee":
+        drawMelee(ctx, s, f.card, f.x * s, f.y * s, f.ang, p);
         break;
-      }
+      case "impact":
+        drawImpact(ctx, s, f.card, f.x * s, f.y * s, p);
+        break;
       case "burst": {
         const r = f.r * s * (0.5 + ease(p));
         ctx.fillStyle = f.color;

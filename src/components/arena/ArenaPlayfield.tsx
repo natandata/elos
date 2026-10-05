@@ -51,6 +51,18 @@ function fmtTime(ticks: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
+/** Como o corpo do herói se mexe ao golpear de perto: recuo, avanço e pulo. */
+const ATK_BODY_DEFAULT = { wind: 1, lunge: 1, hop: 0 };
+const ATK_BODY: Record<string, { wind: number; lunge: number; hop: number }> = {
+  sansao: { wind: 1.9, lunge: 1.25, hop: 0.45 }, // levanta a clava e desce com tudo
+  daniel: { wind: 0.8, lunge: 1.5, hop: 0.1 }, // bote do leão
+  joao: { wind: 0.6, lunge: 1.1, hop: 0 },
+  gideao: { wind: 0.6, lunge: 0.8, hop: 0 },
+  miguel: { wind: 1.1, lunge: 1.2, hop: 0.3 },
+  josue: { wind: 1.4, lunge: 1.1, hop: 0.15 },
+  noe: { wind: 1.2, lunge: 0.9, hop: 0.15 },
+};
+
 /** Pãozinho de Maná (custo das cartas e Maná atual). */
 function ManaBread({ n, size = 28 }: { n: number; size?: number }) {
   return (
@@ -279,6 +291,7 @@ export function ArenaPlayfield({
           // ataque: prepara (recua), dispara (avança rápido) e volta
           const a = tickF - an.atk;
           const W_ATK = 9;
+          const style = ATK_BODY[e.card] ?? ATK_BODY_DEFAULT;
           if (a >= 0 && a < W_ATK) {
             const t = a / W_ATK;
             let off: number;
@@ -289,21 +302,23 @@ export function ArenaPlayfield({
               sy *= 1 + 0.05 * Math.sin(t * Math.PI);
             } else if (t < 0.28) {
               const u = t / 0.28;
-              off = -0.22 * u;
+              off = -0.22 * u * style.wind;
               sx *= 1 - 0.05 * u;
               sy *= 1 + 0.06 * u;
-              sway += -0.12 * an.face * u;
+              sway += -0.12 * an.face * u * style.wind;
+              bob += style.hop * s * u;
             } else if (t < 0.5) {
               const u = (t - 0.28) / 0.22;
               const e3 = 1 - Math.pow(1 - u, 3);
-              off = -0.22 + 0.92 * e3;
+              off = -0.22 * style.wind + (0.92 * style.lunge + 0.22 * style.wind) * e3;
               sx *= 1 + 0.12 * e3;
               sy *= 1 - 0.1 * e3;
-              sway += 0.28 * an.face * e3 - 0.12 * an.face * (1 - e3);
+              sway += 0.28 * an.face * e3 - 0.12 * an.face * style.wind * (1 - e3);
+              bob += style.hop * s * (1 - e3);
             } else {
               const u = (t - 0.5) / 0.5;
               const e2 = u * u * (3 - 2 * u);
-              off = 0.7 * (1 - e2);
+              off = 0.7 * style.lunge * (1 - e2);
               sx *= 1 + 0.12 * (1 - e2);
               sy *= 1 - 0.1 * (1 - e2);
               sway += 0.28 * an.face * (1 - e2);
