@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { GATE_GAME_KEYS, GATE_START, computeGate, describeGate, gameCounts, type GateEvent, type GateGame, type GateInfo } from "./gate";
+import { GATE_GAME_KEYS, GATE_START, computeGate, gateBattlesFor, describeGate, gameCounts, type GateEvent, type GateGame, type GateInfo } from "./gate";
 
 const todayBR = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 
@@ -9,6 +9,7 @@ const todayBR = () => new Date().toLocaleDateString("en-CA", { timeZone: "Americ
  */
 export async function loadGate(supabase: SupabaseClient, userId: string): Promise<GateInfo> {
   const events: GateEvent[] = [];
+  const { data: me } = await supabase.from("profiles").select("role").eq("id", userId).maybeSingle<{ role: string }>();
   const iso = (v: string | null | undefined) => (v ? new Date(v).getTime() : NaN);
 
   const [pve, games] = await Promise.all([
@@ -41,5 +42,5 @@ export async function loadGate(supabase: SupabaseClient, userId: string): Promis
     .in("game", [...GATE_GAME_KEYS]);
   for (const r of (todays ?? []) as { game: GateGame }[]) doneToday.add(r.game);
 
-  return describeGate(computeGate(events), [...doneToday]);
+  return describeGate(computeGate(events, gateBattlesFor(me?.role)), [...doneToday]);
 }

@@ -6,6 +6,9 @@
 // depois de GATE_START (quem já jogava não fica preso no passado).
 
 export const GATE_BATTLES = 3;
+/** Líderes jogam mais batalhas antes da pausa. */
+export const GATE_BATTLES_LEADER = 15;
+export const gateBattlesFor = (role: string | null | undefined): number => (role === "leader" ? GATE_BATTLES_LEADER : GATE_BATTLES);
 export const GATE_GAMES = 3;
 /** A regra vale a partir daqui. */
 export const GATE_START = "2026-10-05T12:30:00.000Z";
@@ -42,8 +45,10 @@ export type GateEvent = { t: number; kind: "battle" | "game" };
 
 export type GateState = {
   locked: boolean;
-  /** batalhas feitas neste bloco (0 a 3) */
+  /** batalhas feitas neste bloco (0 até `limit`) */
   battles: number;
+  /** quantas batalhas cabem antes da pausa (3 pra crias, 15 pra líderes) */
+  limit: number;
   /** jogos feitos depois que travou (0 a 3) */
   games: number;
 };
@@ -52,7 +57,7 @@ export type GateState = {
  * Percorre o que o jogador fez em ordem e diz em que ponto está.
  * Batalha só conta enquanto destravado; jogo só conta depois de travar.
  */
-export function computeGate(events: GateEvent[]): GateState {
+export function computeGate(events: GateEvent[], limit: number = GATE_BATTLES): GateState {
   const sorted = [...events].sort((a, b) => a.t - b.t);
   let locked = false;
   let battles = 0;
@@ -61,7 +66,7 @@ export function computeGate(events: GateEvent[]): GateState {
     if (e.kind === "battle") {
       if (locked) continue; // partida combinada antes de travar, terminando agora: não soma
       battles++;
-      if (battles >= GATE_BATTLES) {
+      if (battles >= limit) {
         locked = true;
         games = 0;
       }
@@ -74,7 +79,7 @@ export function computeGate(events: GateEvent[]): GateState {
       }
     }
   }
-  return { locked, battles, games };
+  return { locked, battles, games, limit };
 }
 
 /** Informação pronta pra tela. */
@@ -95,5 +100,5 @@ export const GATE_LOCKED_MESSAGE = `Você jogou ${GATE_BATTLES} batalhas contra 
 /** Texto do bloqueio, já considerando quantos jogos faltam. */
 export function gateMessage(g: GateInfo): string {
   const falta = g.remaining === 1 ? "mais 1 jogo" : `mais ${g.remaining} jogos`;
-  return `Você jogou ${GATE_BATTLES} batalhas contra o computador! Vença ${falta} (Quiz, Versículo, Quem Sou Eu ou Ordene os Fatos) pra continuar na Arena. Só conta quando você ganha o jogo. Jogar de novo um jogo que já fez hoje vale como treino (sem XP), mas só no nível Difícil.`;
+  return `Você jogou ${g.limit} batalhas contra o computador! Vença ${falta} (Quiz, Versículo, Quem Sou Eu ou Ordene os Fatos) pra continuar na Arena. Só conta quando você ganha o jogo. Jogar de novo um jogo que já fez hoje vale como treino (sem XP), mas só no nível Difícil.`;
 }

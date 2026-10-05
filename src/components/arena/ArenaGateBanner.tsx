@@ -1,13 +1,13 @@
 import Link from "next/link";
-import { GATE_BATTLES, GATE_GAMES, GATE_GAME_INFO, GATE_GAME_KEYS, gateMessage, type GateInfo } from "@/lib/arena/gate";
+import { GATE_GAMES, GATE_GAME_INFO, GATE_GAME_KEYS, gateMessage, type GateInfo } from "@/lib/arena/gate";
 
 /** Aviso da trava da Arena: progresso das batalhas e, quando travou, os jogos pra destravar. */
 export function ArenaGateBanner({ gate, compact = false }: { gate: GateInfo; compact?: boolean }) {
   if (!gate.locked) {
-    const left = GATE_BATTLES - gate.battles;
+    const left = gate.limit - gate.battles;
     return (
       <p className={`cr-text text-center text-[11px] opacity-90 ${compact ? "" : "mt-2"}`}>
-        {Array.from({ length: GATE_BATTLES }).map((_, i) => (i < gate.battles ? "🟡" : "⚪")).join(" ")} · {left === 1 ? "mais 1 batalha" : `mais ${left} batalhas`} contra o computador até a pausa pra vencer outros jogos
+        {gate.limit <= 5 ? Array.from({ length: gate.limit }).map((_, i) => (i < gate.battles ? "🟡" : "⚪")).join(" ") : `${gate.battles}/${gate.limit}`} · {left === 1 ? "mais 1 batalha" : `mais ${left} batalhas`} contra o computador até a pausa pra vencer outros jogos
       </p>
     );
   }
