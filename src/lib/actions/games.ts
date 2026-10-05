@@ -115,6 +115,8 @@ async function notify(c: Ctx, userId: string, title: string, body: string, link:
   }
 }
 
+// Só o baú revalida: a tela do jogo precisa continuar montada pra mostrar o
+// resultado (XP, carta); as demais telas buscam dado novo ao navegar.
 function refresh() {
   revalidatePath("/app", "layout");
 }
@@ -220,15 +222,14 @@ export async function answerQuestion(input: {
         await notify(
           c,
           theirId,
-          "⚔️ É a sua vez no duelo!",
-          `${c.name} já jogou. Responda as 5 perguntas e vença!`,
+          "⚔️ Você foi desafiado!",
+          `${c.name} fez ${score} de ${questions.length}. Dá pra virar? Responda e vença!`,
           `/app/jogos/duelo/${duel.id}`,
         );
       }
     }
   }
 
-  refresh();
   return result;
 }
 
@@ -275,7 +276,6 @@ export async function guessWho(choice: number): Promise<WhoResult> {
   const xp = correct ? (attempt <= 2 ? 2 : 1) : 0;
   const { data: paid } = await c.admin.rpc("game_finish", { p_play: play.id, p_xp: xp, p_type: "game_who" });
   const card = correct ? await giveCard(c, round.item.key, "quem_sou_eu") : null;
-  refresh();
   return {
     correct,
     finished: true,
@@ -340,7 +340,6 @@ export async function submitOrder(order: number[]): Promise<OrderResult> {
     p_xp: correct ? 1 : 0,
     p_type: "game_order",
   });
-  refresh();
   return {
     correct,
     finished: true,
@@ -411,13 +410,7 @@ export async function createDuel(opponentId: string): Promise<{ error?: string; 
     .single<{ id: string }>();
   if (error || !duel) return { error: "Não foi possível criar o duelo." };
 
-  await notify(
-    c,
-    opponentId,
-    "⚔️ Você foi desafiado!",
-    `${c.name} te chamou pra um duelo bíblico. Topa?`,
-    `/app/jogos/duelo/${duel.id}`,
-  );
+  // o aviso ao colega sai quando o desafiante termina de jogar (com o placar)
   revalidatePath("/app/jogos");
   return { id: duel.id };
 }
