@@ -107,7 +107,7 @@ export function ArenaHome({
 
   return (
     <div className="cr-pattern mx-auto w-full max-w-[480px] overflow-hidden rounded-[26px] border-[3px] border-[#0b2a5c] shadow-2xl">
-      <div className="px-3 pb-4 pt-3">
+      <div className="min-h-[650px] px-3 pb-4 pt-3">
         {tab === "battle" ? (
           <>
             {/* atalhos de cima */}
