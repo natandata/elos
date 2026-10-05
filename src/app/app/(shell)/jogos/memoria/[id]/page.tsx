@@ -19,6 +19,8 @@ type Row = {
   created_at: string;
 };
 
+const nowMs = () => Date.now();
+
 export default async function MemoriaDuelPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { profile } = await requireRole("cria", "leader");
@@ -35,7 +37,7 @@ export default async function MemoriaDuelPage({ params }: { params: Promise<{ id
   const otherId = mine ? d.opponent_id : d.challenger_id;
   const { data: other } = await supabase.from("profiles").select("full_name").eq("id", otherId).maybeSingle<{ full_name: string }>();
   const otherName = other?.full_name || "seu colega";
-  const expired = d.status === "open" && Date.now() - new Date(d.created_at).getTime() > 24 * 3_600_000;
+  const expired = d.status === "open" && nowMs() - new Date(d.created_at).getTime() > 24 * 3_600_000;
 
   return (
     <>

@@ -6,7 +6,7 @@ import { randomInt } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushToUsers } from "@/lib/push-server";
-import { DUEL_PAIRS, buildBoard, minPlausibleMs, verifyTurns } from "@/lib/games/memory";
+import { DUEL_PAIRS, SOLO_SIZES, buildBoard, minPlausibleMs, verifyTurns } from "@/lib/games/memory";
 
 async function player() {
   const supabase = await createClient();
@@ -52,7 +52,8 @@ type Duel = {
 const COLS = "id, challenger_id, opponent_id, seed, pairs, status, c_started_at, o_started_at, c_ms, o_ms, created_at";
 const EXPIRE_MS = 24 * 3_600_000;
 
-export async function createMemoryDuel(opponentId: string): Promise<{ error?: string; id?: string }> {
+export async function createMemoryDuel(opponentId: string, pairs: number = DUEL_PAIRS): Promise<{ error?: string; id?: string }> {
+  if (!SOLO_SIZES.some((s) => s.pairs === pairs)) return { error: "Nível inválido." };
   const c = await player();
   if (!c.eloId) return { error: "Você precisa estar em um Elo." };
   if (!opponentId || opponentId === c.userId) return { error: "Escolha um colega do Elo." };
@@ -75,12 +76,12 @@ export async function createMemoryDuel(opponentId: string): Promise<{ error?: st
 
   const { data: duel, error } = await c.admin
     .from("memory_duels")
-    .insert({ challenger_id: c.userId, opponent_id: opponentId, elo_id: c.eloId, seed: randomInt(1, 2 ** 31 - 1), pairs: DUEL_PAIRS })
+    .insert({ challenger_id: c.userId, opponent_id: opponentId, elo_id: c.eloId, seed: randomInt(1, 2 ** 31 - 1), pairs })
     .select("id")
     .single<{ id: string }>();
   if (error || !duel) return { error: "Não foi possível criar o desafio." };
 
-  await notify(opponentId, "🃏 Desafio de memória!", `${c.name} te desafiou: quem termina o jogo da memória primeiro?`, `/app/jogos/memoria/${duel.id}`);
+  await notify(opponentId, "🃏 Desafio de memória!", `${c.name} te desafiou (${pairs} pares): quem termina o jogo da memória primeiro?`, `/app/jogos/memoria/${duel.id}`);
   revalidatePath("/app/jogos/memoria");
   return { id: duel.id };
 }
