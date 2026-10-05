@@ -65,6 +65,11 @@ export const ITEMS: DressItem[] = [
   { id: "hand_jawbone", slot: "hand", name: "Queixada de jumento" },
   { id: "hand_pitcher", slot: "hand", name: "Cântaro" },
   { id: "hand_phone", slot: "hand", name: "Celular" },
+  { id: "hand_sheaf", slot: "hand", name: "Feixe de espigas" },
+  { id: "hand_tambourine", slot: "hand", name: "Pandeiro" },
+  { id: "hand_tentpeg", slot: "hand", name: "Estaca de tenda e martelo" },
+  { id: "hand_alabaster", slot: "hand", name: "Vaso de alabastro" },
+  { id: "hand_cloth", slot: "hand", name: "Tecido dobrado" },
 ];
 
 export const ITEM_BY_ID = new Map(ITEMS.map((i) => [i.id, i]));

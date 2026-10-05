@@ -1,7 +1,7 @@
 // Passarela do "Vista o Herói" (SÓ SERVIDOR: usa as respostas certas pra nota de fidelidade).
 import "server-only";
 import { pickDaily } from "../engine";
-import { DRESS_CHARACTERS, type DressCharacter } from "./characters";
+import { FEMALE_CHARACTERS, MALE_CHARACTERS, type DressCharacter } from "./characters";
 import { ITEM_BY_ID, SLOTS, type Look, type Slot } from "./items";
 import { SOLUTIONS } from "./solutions";
 
@@ -10,7 +10,10 @@ export const RUNWAY_PRIZES = [30, 20, 10] as const;
 
 /** Tema (personagem) da Passarela de um dia: sorteio próprio, independente do desafio solo. */
 export function runwayTheme(date: string): DressCharacter {
-  return pickDaily(DRESS_CHARACTERS, 1, date, "runway")[0];
+  // 2 de cada 3 dias o tema é uma personagem feminina
+  const day = Math.floor(new Date(`${date}T00:00:00Z`).getTime() / 86_400_000);
+  const pool = day % 3 === 2 ? MALE_CHARACTERS : FEMALE_CHARACTERS;
+  return pickDaily(pool, 1, date, day % 3 === 2 ? "runway-m" : "runway-f")[0];
 }
 
 /** Dias em que dá pra votar: o de hoje e o de ontem. */

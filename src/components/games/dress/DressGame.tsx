@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { HeroCover } from "./HeroCover";
 import { PaperDoll } from "./PaperDoll";
 import { submitDressRound, type DressSubmit } from "@/lib/actions/dress";
 import { DRESS_CHARACTER_BY_ID } from "@/lib/games/dress/characters";
@@ -62,11 +63,7 @@ export function DressGame({
         {practice ? <span className="rounded-full bg-sky-100 px-3 py-1 text-sky-800">🏋️ Treino · sem bilhetes</span> : <span className="rounded-full bg-amber-100 px-3 py-1 text-amber-800">🎫 Valendo bilhetes</span>}
       </div>
 
-      <div className="card mb-3 p-4">
-        <h2 className="text-xl font-black">{ch.name}</h2>
-        <p className="mt-1 text-sm text-[var(--muted)]">{ch.clue}</p>
-        <p className="mt-1 text-xs font-bold text-[var(--accent-strong)]">📖 {ch.ref}</p>
-      </div>
+      <HeroCover ch={ch} label={`Personagem ${index + 1} de ${total}`} />
 
       <div className="mb-3 flex justify-center">
         <PaperDoll key={JSON.stringify(look)} base={ch.base} look={look} bg={ch.bg} title={ch.name} className="dress-pop h-[320px] w-auto" />

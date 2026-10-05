@@ -1,7 +1,7 @@
 // Sorteio, opções e pontuação do "Vista o Herói" (SÓ SERVIDOR: usa as respostas certas).
 import "server-only";
 import { pickDaily, shuffle } from "../engine";
-import { DRESS_CHARACTERS, DRESS_CHARACTER_BY_ID, type DressCharacter } from "./characters";
+import { DRESS_CHARACTER_BY_ID, FEMALE_CHARACTERS, MALE_CHARACTERS, type DressCharacter } from "./characters";
 import { ITEMS_BY_SLOT, SLOTS, type Slot } from "./items";
 import { SOLUTIONS, type Solution } from "./solutions";
 
@@ -19,9 +19,10 @@ export function dressDrawDate(date: string, variant: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** Os 3 personagens do dia (sem repetir dentro de um ciclo da lista). */
+/** Os 3 personagens do dia: 2 mulheres e 1 homem (sem repetir dentro de um ciclo de cada lista), em ordem embaralhada. */
 export function dailyCharacters(drawDate: string): DressCharacter[] {
-  return pickDaily(DRESS_CHARACTERS, ROUNDS_PER_DAY, drawDate, "dress");
+  const picks = [...pickDaily(FEMALE_CHARACTERS, 2, drawDate, "dress-f"), ...pickDaily(MALE_CHARACTERS, 1, drawDate, "dress-m")];
+  return shuffle(picks, `dress-order:${drawDate}`);
 }
 
 /** 4 opções por espaço: a ideal, uma aceitável (se houver) e o resto distratores, embaralhadas. */

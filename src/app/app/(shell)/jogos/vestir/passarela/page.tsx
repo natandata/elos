@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { HeroCover } from "@/components/games/dress/HeroCover";
 import { PaperDoll } from "@/components/games/dress/PaperDoll";
 import { RunwayBuilder } from "@/components/games/dress/RunwayBuilder";
 import { RunwayVote, type RunwayLookCard } from "@/components/games/dress/RunwayVote";
@@ -72,12 +73,9 @@ export default async function PassarelaPage() {
     <>
       <PageHeader title="📸 Passarela" subtitle="Monte o look do dia, vote nos looks dos colegas e ganhe Bilhetes Dourados." />
 
+      <HeroCover ch={theme} label="Tema de hoje" />
       <section className="card mb-5 bg-gradient-to-br from-fuchsia-50 to-violet-100 p-4">
-        <p className="text-xs font-black uppercase tracking-wide text-fuchsia-600">Tema de hoje</p>
-        <h2 className="text-xl font-black">{theme.name}</h2>
-        <p className="mt-1 text-sm text-[var(--muted)]">{theme.clue}</p>
-        <p className="mt-1 text-xs font-bold text-[var(--accent-strong)]">📖 {theme.ref}</p>
-        <p className="mt-2 text-xs text-[var(--muted)]">
+        <p className="text-xs text-[var(--muted)]">
           🎫 1º lugar {RUNWAY_PRIZES[0]}, 2º {RUNWAY_PRIZES[1]}, 3º {RUNWAY_PRIZES[2]} · quem vota ganha 1 🎫 por voto (até {MAX_VOTES_PER_DAY}). A votação de cada dia fica aberta hoje e amanhã. Empate: vence o look mais fiel à Bíblia.
         </p>
       </section>

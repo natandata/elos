@@ -453,6 +453,68 @@ export const ITEM_ART: Record<string, () => ReactElement> = {
       <Shine d="M150 202 L172 202 L150 226 Z" o={0.4} />
     </g>
   ),
+  hand_sheaf: () => (
+    <g>
+      <Grads colors={["#e3b941", "#c98a1c"]} />
+      <g fill="none" strokeLinecap="round">
+        {[-24, -14, -5, 5, 14, 24].map((a, i) => (
+          <g key={a} transform={`rotate(${a} 160 258)`}>
+            <path d="M160 258 L160 160" stroke={INK} strokeWidth="6" />
+            <path d="M160 258 L160 160" stroke={i % 2 ? "#d9a21a" : "#e3b941"} strokeWidth="3" />
+            {[0, 1, 2, 3].map((k) => (
+              <ellipse key={k} cx={k % 2 ? 164 : 156} cy={166 + k * 9} rx="4.5" ry="8" transform={`rotate(${k % 2 ? 24 : -24} ${k % 2 ? 164 : 156} ${166 + k * 9})`} fill={F("#e3b941")} {...thin} />
+            ))}
+          </g>
+        ))}
+      </g>
+      <path d="M140 232 Q160 242 180 232 L180 246 Q160 256 140 246 Z" fill={F("#c43a3a")} {...line} />
+    </g>
+  ),
+  hand_tambourine: () => (
+    <g>
+      <Grads colors={["#b8642f", "#f4e6c4"]} />
+      <circle cx="162" cy="196" r="30" fill={F("#b8642f")} {...line} />
+      <circle cx="162" cy="196" r="22" fill={F("#f4e6c4")} {...thin} />
+      <Shine d="M148 184 Q160 172 176 178 L164 198 Z" o={0.5} />
+      {[0, 60, 120, 180, 240, 300].map((a) => (
+        <g key={a} transform={`rotate(${a} 162 196)`}>
+          <circle cx="162" cy="170" r="4.2" fill={GOLD} stroke={INK} strokeWidth="1.3" />
+        </g>
+      ))}
+      <path d="M180 220 Q196 238 184 262" fill="none" stroke={INK} strokeWidth="6" strokeLinecap="round" />
+      <path d="M180 220 Q196 238 184 262" fill="none" stroke="#e5484d" strokeWidth="3" strokeLinecap="round" />
+    </g>
+  ),
+  hand_tentpeg: () => (
+    <g>
+      <Grads colors={["#8c5e36", "#6b4226", "#cfd5de"]} />
+      <rect x="155" y="142" width="10" height="130" rx="4" fill={F("#8c5e36")} {...line} />
+      <rect x="132" y="126" width="56" height="26" rx="6" fill={F("#6b4226")} {...line} />
+      <Shine d="M136 130 L184 130 L184 138 L136 138 Z" o={0.3} />
+      <path d="M176 262 L190 262 L183 300 Z" fill={F("#8c5e36")} {...line} />
+    </g>
+  ),
+  hand_alabaster: () => (
+    <g>
+      <Grads colors={["#f7f1e2", "#e8dcc2"]} />
+      <path d="M146 246 Q138 222 150 204 L154 188 L166 188 L170 204 Q182 222 174 246 Q160 258 146 246 Z" fill={F("#f7f1e2")} {...line} />
+      <rect x="152" y="176" width="16" height="14" rx="4" fill={F("#e8dcc2")} {...line} />
+      <ellipse cx="160" cy="174" rx="12" ry="5" fill={F("#e8dcc2")} {...line} />
+      <Shine d="M148 214 Q152 204 158 204 L156 240 Q148 236 148 214 Z" o={0.5} />
+      <path d="M150 220 Q160 226 172 220" fill="none" stroke="#b8a77a" strokeWidth="2" />
+      <path d="M186 192 Q190 200 186 206 Q182 200 186 192 Z" fill="#e86a9a" stroke={INK} strokeWidth="1.2" />
+    </g>
+  ),
+  hand_cloth: () => (
+    <g>
+      <Grads colors={["#a84a8c", "#8a3a74"]} />
+      <path d="M134 200 L186 196 L190 244 L136 250 Z" fill={F("#a84a8c")} {...line} />
+      <path d="M134 200 L186 196 L184 208 L135 213 Z" fill={F("#8a3a74")} {...thin} />
+      <path d="M138 226 L188 222 M138 238 L189 233" stroke="#6a2a58" strokeWidth="2" opacity="0.7" />
+      <Shine d="M138 204 L168 202 L166 224 L140 226 Z" o={0.22} />
+      <path d="M160 194 L160 252" stroke={GOLD} strokeWidth="5" opacity="0.9" />
+    </g>
+  ),
 };
 
 // evita aviso de import não usado nos temas de cor
