@@ -19,7 +19,10 @@ export default async function ArenaPvpRoomPage({ params }: { params: Promise<{ i
   // partida de torneio pode ser contra alguém de outro Elo (o perfil não é legível pela sessão)
   let tournamentId: string | null = null;
   let other: { full_name: string } | null = null;
-  if (row.tournament_match_id) {
+  if (row.rank_duel && !row.tournament_match_id) {
+    const admin = createAdminClient();
+    if (admin) other = (await admin.from("profiles").select("full_name").eq("id", otherId).maybeSingle<{ full_name: string }>()).data;
+  } else if (row.tournament_match_id) {
     const admin = createAdminClient();
     if (admin) {
       const [{ data: m }, { data: o }] = await Promise.all([
@@ -43,7 +46,7 @@ export default async function ArenaPvpRoomPage({ params }: { params: Promise<{ i
 
   return (
     <>
-      <PageHeader title={tournamentId ? "🏆 Torneio · 1x1" : "🏰 Arena 1x1"} subtitle={tournamentId ? "Partida do torneio, em tempo real." : "Partida em tempo real contra um colega do seu Elo."} />
+      <PageHeader title={tournamentId ? "🏆 Torneio · 1x1" : row.rank_duel ? "👑 Duelo de posição" : "🏰 Arena 1x1"} subtitle={tournamentId ? "Partida do torneio, em tempo real." : row.rank_duel ? "Vizinhos do Top 3: se o de baixo vencer, os dois trocam de lugar e de troféus." : "Partida em tempo real contra um colega do seu Elo."} />
       <ArenaPvpRoom
         id={row.id}
         meSide={meSide}

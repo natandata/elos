@@ -4,6 +4,7 @@ import { deckAllowed } from "./arenas";
 import { onRoomFinished } from "./tournamentServer";
 import { loadOwned } from "./owned";
 import { COPIES_OTHER, COPIES_WIN, pickBattleCard, unlockedCards } from "./economy";
+import { sendPushToUsers } from "@/lib/push-server";
 import { PVP_MIN_TICKS_FOR_REWARD, PVP_TROPHY_STEAL, resolvePvp, type PvpReport } from "./pvp";
 
 /** Passado esse tempo do 1º relatório, vale o que o único jogador presente mandou. */
@@ -30,6 +31,9 @@ export type PvpRow = {
   why: string | null;
   rewarded: boolean;
   tournament_match_id: string | null;
+  /** duelo de posição do Top 3 e a troca que ele fez (posições antes da troca) */
+  rank_duel: boolean;
+  rank_swap: { up: string; down: string; upPos: number; downPos: number } | null;
   trophy_c: number;
   trophy_o: number;
   copies_c: number;
@@ -54,6 +58,10 @@ export type PvpView = {
   rewarded?: boolean;
   why?: string | null;
   trophies?: number;
+  /** duelo de posição: houve troca? (minha posição antes → depois, só se eu fui um dos trocados) */
+  rankDuel?: boolean;
+  rankSwapped?: boolean;
+  rankMove?: { from: number; to: number } | null;
   /** medalha de vitória deste 1x1 (quem ganhou) e o placar de medalhas entre os dois */
   medal?: { winner: "me" | "them" | null; mine: number; theirs: number };
 };
@@ -96,6 +104,9 @@ export function viewOf(row: PvpRow, userId: string): PvpView {
       xp: iAmC ? row.xp_c : row.xp_o,
       rewarded: row.rewarded,
       why: row.why,
+      rankDuel: row.rank_duel,
+      rankSwapped: !!row.rank_swap,
+      rankMove: !row.rank_swap ? null : userId === row.rank_swap.up ? { from: row.rank_swap.upPos, to: row.rank_swap.downPos } : userId === row.rank_swap.down ? { from: row.rank_swap.downPos, to: row.rank_swap.upPos } : null,
     };
   }
   if (row.status === "accepted") {
@@ -150,7 +161,7 @@ export async function settleArenaPvp(admin: SupabaseClient, id: string): Promise
       .or(
         `and(challenger_id.eq.${row.challenger_id},opponent_id.eq.${row.opponent_id}),and(challenger_id.eq.${row.opponent_id},opponent_id.eq.${row.challenger_id})`,
       );
-    if ((pair ?? 0) >= MAX_REWARDED_PER_PAIR) rewarded = false;
+    if ((pair ?? 0) >= MAX_REWARDED_PER_PAIR && !row.rank_duel) rewarded = false;
   }
   const todayCount = async (uid: string) => {
     const { count } = await admin
@@ -162,7 +173,7 @@ export async function settleArenaPvp(admin: SupabaseClient, id: string): Promise
       .or(`challenger_id.eq.${uid},opponent_id.eq.${uid}`);
     return count ?? 0;
   };
-  if (rewarded && ((await todayCount(row.challenger_id)) >= MAX_REWARDED_PER_USER || (await todayCount(row.opponent_id)) >= MAX_REWARDED_PER_USER)) {
+  if (rewarded && !row.rank_duel && ((await todayCount(row.challenger_id)) >= MAX_REWARDED_PER_USER || (await todayCount(row.opponent_id)) >= MAX_REWARDED_PER_USER)) {
     rewarded = false;
   }
 
@@ -174,9 +185,38 @@ export async function settleArenaPvp(admin: SupabaseClient, id: string): Promise
       .or(`and(challenger_id.eq.${uid},xp_c.gt.0),and(opponent_id.eq.${uid},xp_o.gt.0)`);
     return (count ?? 0) > 0;
   };
+  // duelo de posição (Top 3): vizinhos trocam de lugar e de troféus; quem desafia perde pra quem está embaixo se perder
+  let swap: PvpRow["rank_swap"] = null;
+  const swapDelta: Record<string, number> = {};
+  if (rewarded && row.rank_duel && result !== "draw") {
+    const posOf = async (uid: string) => {
+      const { data } = await admin.rpc("arena_rank_of", { p_user: uid });
+      return typeof data === "number" ? data : null;
+    };
+    const [rc, ro] = await Promise.all([posOf(row.challenger_id), posOf(row.opponent_id)]);
+    if (rc !== null && ro !== null && ro <= 2 && rc === ro + 1) {
+      if (result === "challenger") {
+        swap = { up: row.opponent_id, down: row.challenger_id, upPos: ro, downPos: rc };
+      } else {
+        const { data: below } = await admin.rpc("arena_rank_user_at", { p_pos: rc + 1 });
+        if (typeof below === "string") swap = { up: row.challenger_id, down: below, upPos: rc, downPos: rc + 1 };
+      }
+    }
+    if (swap) {
+      const { data: rows } = await admin.from("arena_stats").select("user_id, trophies").in("user_id", [swap.up, swap.down]);
+      const tr = new Map(((rows ?? []) as { user_id: string; trophies: number }[]).map((r) => [r.user_id, r.trophies]));
+      const tu = tr.get(swap.up) ?? 0;
+      const td = tr.get(swap.down) ?? 0;
+      const nu = tu === td ? Math.max(0, td - 1) : td;
+      const nd = tu === td ? td + 1 : tu;
+      swapDelta[swap.up] = nu - tu;
+      swapDelta[swap.down] = nd - td;
+    }
+  }
+
   // o vencedor rouba troféus do perdedor (no máximo o que o perdedor tem)
   const steal = await (async () => {
-    if (!rewarded || result === "draw" || row.tournament_match_id) return 0;
+    if (!rewarded || result === "draw" || row.tournament_match_id || row.rank_duel) return 0;
     const loser = result === "challenger" ? row.opponent_id : row.challenger_id;
     const { data: st } = await admin.from("arena_stats").select("trophies").eq("user_id", loser).maybeSingle<{ trophies: number }>();
     return Math.min(PVP_TROPHY_STEAL, Math.max(0, st?.trophies ?? 0));
@@ -186,7 +226,7 @@ export async function settleArenaPvp(admin: SupabaseClient, id: string): Promise
     const won = result === mine;
     const res = result === "draw" ? "draw" : won ? "win" : "loss";
     // vencedor rouba troféus do perdedor; quem vence também ganha uma medalha contra ele (veja abaixo)
-    const trophy = res === "win" ? steal : res === "loss" ? -steal : 0;
+    const trophy = row.rank_duel ? (swapDelta[uid] ?? 0) : res === "win" ? steal : res === "loss" ? -steal : 0;
     const copies = res === "win" ? COPIES_WIN : COPIES_OTHER;
     const card = pickBattleCard(unlockedCards(best, owned), deck);
     const xp = res === "win" && !(await hadXp(uid)) ? 1 : 0;
@@ -207,6 +247,7 @@ export async function settleArenaPvp(admin: SupabaseClient, id: string): Promise
       rewarded,
       trophy_c: pc.trophy,
       trophy_o: po.trophy,
+      rank_swap: swap,
       copies_c: pc.copies,
       copies_o: po.copies,
       card_c: pc.card,
@@ -223,8 +264,18 @@ export async function settleArenaPvp(admin: SupabaseClient, id: string): Promise
       [row.challenger_id, pc],
       [row.opponent_id, po],
     ] as const) {
-      await admin.rpc("arena_apply_result", { p_user: uid, p_delta: r.trophy, p_result: r.res, p_copies: r.copies, p_card: r.card });
+      await admin.rpc("arena_apply_result", { p_user: uid, p_delta: row.rank_duel ? 0 : r.trophy, p_result: r.res, p_copies: r.copies, p_card: r.card });
       if (r.xp > 0) await admin.rpc("game_grant_xp", { p_user: uid, p_amount: r.xp, p_type: "game_arena_pvp" });
+    }
+  }
+  if (closed && closed.length > 0 && swap) {
+    await admin.rpc("arena_rank_swap", { p_up: swap.up, p_down: swap.down });
+    // quem não jogou mas foi trocado de lugar (o de baixo, quando o desafiante perde) é avisado
+    const third = swap.up === row.challenger_id ? swap.down : swap.down === row.challenger_id ? null : null;
+    if (third && third !== row.opponent_id) {
+      const body = `Alguém perdeu um duelo de posição e você subiu para o ${swap.upPos}º lugar do ranking da Arena!`;
+      await admin.from("notifications").insert({ user_id: third, title: "🏆 Você subiu no ranking!", body, link: "/app/jogos/arena", category: "jogos" });
+      await sendPushToUsers([third], { title: "🏆 Você subiu no ranking!", body, url: "/app/jogos/arena" }).catch(() => null);
     }
   }
   // medalha de vitória contra o colega derrotado (partida de verdade, sem empate e fora de torneio)

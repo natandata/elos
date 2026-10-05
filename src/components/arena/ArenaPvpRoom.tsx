@@ -474,7 +474,22 @@ function Result({ view, status, opponentName, tournamentId }: { view: PvpView; s
       ) : null}
       {view.rewarded ? (
         <>
-          {r !== "draw" ? (
+          {view.rankDuel ? (
+            <div className="mt-2">
+              {view.rankMove ? (
+                <p className={`text-xl font-black ${view.rankMove.to < view.rankMove.from ? "text-amber-500" : "text-rose-500"}`}>
+                  {view.rankMove.to < view.rankMove.from ? "⬆️" : "⬇️"} Você foi do {view.rankMove.from}º para o {view.rankMove.to}º lugar!
+                  {view.trophyDelta ? <span className="block text-sm font-bold">{view.trophyDelta > 0 ? "+" : ""}{view.trophyDelta} 🏆 {typeof view.trophies === "number" ? `(total ${view.trophies})` : ""}</span> : null}
+                </p>
+              ) : r === "draw" ? (
+                <p className="text-sm font-bold text-[var(--muted)]">Empate: ninguém trocou de posição.</p>
+              ) : r === "win" ? (
+                <p className="text-sm font-bold text-[var(--muted)]">Você defendeu a sua posição!</p>
+              ) : (
+                <p className="text-sm font-bold text-[var(--muted)]">Ninguém trocou de lugar desta vez.</p>
+              )}
+            </div>
+          ) : r !== "draw" ? (
             <p className={`mt-2 text-xl font-black tabular-nums ${(view.trophyDelta ?? 0) >= 0 ? "text-amber-500" : "text-rose-500"}`}>
               {r === "win" ? `Você roubou ${view.trophyDelta ?? 0} 🏆 de ${opponentName}` : `${opponentName} roubou ${Math.abs(view.trophyDelta ?? 0)} 🏆 de você`}
               {typeof view.trophies === "number" ? <span className="block text-sm font-bold text-[var(--muted)]">Total: {view.trophies} 🏆</span> : null}

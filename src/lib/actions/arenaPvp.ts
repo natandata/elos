@@ -49,6 +49,8 @@ const ERRORS: Record<string, string> = {
   not_same_elo: "Você só pode desafiar alguém do seu Elo.",
   not_allowed: "Só crias e líderes jogam.",
   limit: "Você já fez muitos desafios hoje. Volte amanhã!",
+  not_rank_neighbors: "Duelo de posição só vale entre vizinhos do Top 3 (o 2º desafia o 1º, o 3º desafia o 2º).",
+  rank_limit: "Você já fez um duelo de posição hoje. Tente de novo amanhã.",
   already_open: "Já existe um desafio aberto com essa pessoa.",
   not_found: "Esse desafio não está mais disponível.",
 };
@@ -63,6 +65,16 @@ export async function challengeArenaPvp(opponentId: string): Promise<{ error?: s
   const { data, error } = await supabase.rpc("arena_pvp_create", { p_opponent: opponentId, p_deck: deck, p_arena: arena });
   if (error || typeof data !== "string") return { error: friendly(error?.message) };
   await notify(opponentId, "⚔️ Desafio na Arena!", `${name} te desafiou pra uma partida 1x1 na Arena dos Heróis.`, `/app/jogos/arena/pvp/${data}`);
+  return { id: data };
+}
+
+/** Duelo de posição: quem está logo abaixo no Top 3 desafia o de cima (qualquer Elo). */
+export async function challengeRankDuel(opponentId: string): Promise<{ error?: string; id?: string }> {
+  const { supabase, userId, name } = await player();
+  const { deck, arena } = await myLoadout(supabase, userId);
+  const { data, error } = await supabase.rpc("arena_pvp_create_rank", { p_opponent: opponentId, p_deck: deck, p_arena: arena });
+  if (error || typeof data !== "string") return { error: friendly(error?.message) };
+  await notify(opponentId, "👑 Duelo de posição!", `${name} te desafiou pela sua posição no ranking da Arena. Se ele vencer, vocês trocam de lugar e de troféus.`, `/app/jogos/arena/pvp/${data}`);
   return { id: data };
 }
 

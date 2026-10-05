@@ -4,6 +4,8 @@ import { PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import { viewOf, type PvpRow } from "@/lib/arena/settlePvp";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { RankDuelCard } from "@/components/arena/RankDuelCard";
 
 export default async function ArenaPvpLobbyPage() {
   const { profile } = await requireRole("cria", "leader");
@@ -37,6 +39,32 @@ export default async function ArenaPvpLobbyPage() {
     if (r.winner_id === profile.id) medals[other].mine = r.wins;
     else medals[other].theirs = r.wins;
   }
+  // duelo de posição (Top 3): minha posição e o vizinho de cima (podem ser de outro Elo, então via servidor)
+  const admin = createAdminClient();
+  let rankCard: { myPos: number; target: { id: string; name: string; pos: number; trophies: number } | null } | null = null;
+  const crossNames = new Map<string, string>();
+  if (admin) {
+    const { data: pos } = await admin.rpc("arena_rank_of", { p_user: profile.id });
+    if (typeof pos === "number" && pos <= 3) {
+      if (pos === 1) rankCard = { myPos: 1, target: null };
+      else {
+        const { data: tid } = await admin.rpc("arena_rank_user_at", { p_pos: pos - 1 });
+        if (typeof tid === "string") {
+          const [{ data: tp }, { data: ts }] = await Promise.all([
+            admin.from("profiles").select("full_name").eq("id", tid).maybeSingle<{ full_name: string }>(),
+            admin.from("arena_stats").select("trophies").eq("user_id", tid).maybeSingle<{ trophies: number }>(),
+          ]);
+          rankCard = { myPos: pos, target: { id: tid, name: tp?.full_name || "colega", pos: pos - 1, trophies: ts?.trophies ?? 0 } };
+        }
+      }
+    }
+    // nomes de quem não é do meu Elo (duelos de posição)
+    const unknown = [...new Set(((pvpRes.data ?? []) as PvpRow[]).flatMap((r) => [r.challenger_id, r.opponent_id]).filter((id) => id !== profile.id && !nameOf.has(id)))];
+    if (unknown.length > 0) {
+      const { data: ps } = await admin.from("profiles").select("id, full_name").in("id", unknown);
+      for (const p of (ps ?? []) as { id: string; full_name: string }[]) crossNames.set(p.id, p.full_name);
+    }
+  }
   const dayAgo = Date.now() - 24 * 3_600_000;
 
   const items: PvpItem[] = ((pvpRes.data ?? []) as PvpRow[])
@@ -46,7 +74,7 @@ export default async function ArenaPvpLobbyPage() {
       const v = viewOf(r, profile.id);
       return {
         id: r.id,
-        other: nameOf.get(iAmC ? r.opponent_id : r.challenger_id) ?? "colega",
+        other: nameOf.get(iAmC ? r.opponent_id : r.challenger_id) ?? crossNames.get(iAmC ? r.opponent_id : r.challenger_id) ?? "colega",
         incoming: !iAmC,
         status: r.status,
         result: v.result ?? null,
@@ -58,6 +86,7 @@ export default async function ArenaPvpLobbyPage() {
   return (
     <>
       <PageHeader title="⚔️ Arena 1x1" subtitle="Desafie um colega do seu Elo: partida de 3 minutos em tempo real, todo mundo com cartas no nível 1. Quem vence rouba 30 🏆 do adversário e ganha uma 🏅 medalha contra ele." />
+      {rankCard ? <RankDuelCard myPos={rankCard.myPos} target={rankCard.target} /> : null}
       <ArenaPvpLobby mates={mates} items={items} medals={medals} />
       <Link href="/app/jogos/arena" className="btn btn-ghost mt-4 w-full">
         ← Voltar à Arena
