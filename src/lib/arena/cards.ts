@@ -51,12 +51,8 @@ export type ArenaCard = {
 
 export const ARENA_CARDS: ArenaCard[] = [
   { key: "davi", name: "Davi", emoji: "🪨", art: true, kind: "unit", cost: 3, desc: "Atira de longe com a funda.", hp: 130, dmg: 30, atkSpeed: 1.0, range: 5, speed: 1.5, radius: 0.5, canHitAir: true },
-  { key: "pedro", name: "Pedro", emoji: "🎣", kind: "unit", cost: 2, desc: "Rápido e barato, ótimo pra defender.", hp: 140, dmg: 22, atkSpeed: 0.9, range: 0.8, speed: 2.0, radius: 0.5 },
   { key: "sansao", name: "Sansão", emoji: "💪", art: true, kind: "unit", cost: 4, desc: "Força enorme: dano alto de perto.", hp: 330, dmg: 60, atkSpeed: 1.3, range: 0.9, speed: 1.5, radius: 0.6 },
-  { key: "golias", name: "Golias", emoji: "🗿", kind: "unit", cost: 5, desc: "Gigante lento. Só ataca Atalaias e Santuário.", hp: 750, dmg: 55, atkSpeed: 1.5, range: 1.0, speed: 0.9, radius: 0.85, towersOnly: true },
   { key: "gideao", name: "Gideão e os 300", emoji: "🎺", art: true, kind: "unit", cost: 3, desc: "Três guerreiros de uma vez.", count: 3, hp: 75, dmg: 18, atkSpeed: 0.8, range: 0.8, speed: 1.8, radius: 0.4 },
-  { key: "rebanho", name: "Rebanho de Noé", emoji: "🐑", kind: "unit", cost: 3, desc: "Quatro animaizinhos rápidos.", count: 4, hp: 45, dmg: 12, atkSpeed: 0.8, range: 0.7, speed: 2.0, radius: 0.35 },
-  { key: "elias", name: "Elias", emoji: "🔥", kind: "unit", cost: 4, desc: "Fogo em área, atira de longe.", hp: 170, dmg: 35, atkSpeed: 1.7, range: 5.5, speed: 1.2, radius: 0.5, canHitAir: true, splash: 1.3 },
   { key: "miguel", name: "Arcanjo Miguel", emoji: "👼", art: true, kind: "unit", cost: 4, desc: "Voa por cima do rio e do exército.", hp: 200, dmg: 34, atkSpeed: 1.1, range: 1.0, speed: 1.8, radius: 0.6, flying: true, canHitAir: true },
   { key: "moises", name: "Moisés", emoji: "🌊", art: true, kind: "unit", cost: 5, desc: "Seu cajado deixa os inimigos lentos.", hp: 400, dmg: 32, atkSpeed: 1.4, range: 4.5, speed: 1.1, radius: 0.6, canHitAir: true, hitSlow: { amount: 0.4, secs: 2 } },
   { key: "josue", name: "Josué", emoji: "🔥", art: true, kind: "unit", cost: 4, desc: "Derruba muros: muito dano em construções.", hp: 310, dmg: 36, atkSpeed: 1.2, range: 0.9, speed: 1.5, radius: 0.55, unitTowerMult: 1.8 },
