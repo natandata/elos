@@ -27,6 +27,7 @@ export function MemoryBoard({
   onProgress?: (found: number) => void;
   onComplete: (r: MemoryResult) => void;
 }) {
+  const dense = pairs > 12; // 30+ cartas: 6 colunas e cartas menores
   const board = useMemo(() => buildBoard(seed, pairs), [seed, pairs]);
   const [up, setUp] = useState<number[]>([]);
   const [matched, setMatched] = useState<Set<number>>(new Set());
@@ -101,7 +102,7 @@ export function MemoryBoard({
         <span className="rounded-full bg-[var(--card)] px-3 py-1 tabular-nums ring-1 ring-[var(--line)]">🔄 {turnsCount}</span>
       </div>
 
-      <div className="grid grid-cols-4 gap-2 [perspective:900px]">
+      <div className={`grid ${dense ? "grid-cols-6 gap-1.5" : "grid-cols-4 gap-2"} [perspective:900px]`}>
         {board.map((key, i) => {
           const card = ARENA_CARD_BY_KEY.get(key);
           const faceUp = up.includes(i) || matched.has(i);
@@ -120,10 +121,10 @@ export function MemoryBoard({
               >
                 {/* costas */}
                 <span className="absolute inset-0 flex flex-col items-center justify-center rounded-xl border-2 border-amber-300 bg-gradient-to-br from-indigo-600 via-violet-700 to-indigo-900 shadow-md [backface-visibility:hidden]">
-                  <span className="text-3xl drop-shadow" aria-hidden>
+                  <span className={`${dense ? "text-xl" : "text-3xl"} drop-shadow`} aria-hidden>
                     🛡️
                   </span>
-                  <span className="mt-0.5 text-[9px] font-black uppercase tracking-widest text-amber-200">Arena</span>
+                  {dense ? null : <span className="mt-0.5 text-[9px] font-black uppercase tracking-widest text-amber-200">Arena</span>}
                 </span>
                 {/* frente */}
                 <span
@@ -131,8 +132,8 @@ export function MemoryBoard({
                     isMatched ? "border-emerald-400 bg-emerald-50 ring-2 ring-emerald-300" : "border-amber-300 bg-amber-50"
                   }`}
                 >
-                  <span className="flex min-h-0 flex-1 items-center">{card ? <CardArt card={card} className="max-h-full h-14" /> : null}</span>
-                  <span className="w-full truncate text-center text-[9px] font-black leading-tight text-slate-800">{card?.name}</span>
+                  <span className="flex min-h-0 flex-1 items-center">{card ? <CardArt card={card} className={dense ? "max-h-full h-9" : "max-h-full h-14"} /> : null}</span>
+                  <span className={`w-full truncate text-center font-black ${dense ? "text-[7px]" : "text-[9px]"} leading-tight text-slate-800`}>{card?.name}</span>
                 </span>
               </span>
             </button>

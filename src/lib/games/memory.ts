@@ -7,6 +7,9 @@ export const SOLO_SIZES = [
   { pairs: 6, label: "Fácil", hint: "6 pares" },
   { pairs: 8, label: "Médio", hint: "8 pares" },
   { pairs: 12, label: "Difícil", hint: "12 pares" },
+  { pairs: 15, label: "Experiente", hint: "15 pares" },
+  { pairs: 18, label: "Lendário", hint: "18 pares" },
+  { pairs: 21, label: "Mestre Lendário", hint: "21 pares" },
 ] as const;
 
 function rng(s: number): () => number {
