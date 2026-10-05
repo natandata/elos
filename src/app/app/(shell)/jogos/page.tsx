@@ -4,16 +4,17 @@ import { ChestButton } from "@/components/games/ChestButton";
 import { PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import { CARDS } from "@/lib/games/cards";
-import { liveGameStreak, todaysPlays } from "@/lib/games/status";
+import { difficultyChip } from "@/lib/games/difficulty";
+import { liveGameStreak, playDifficulty, todaysPlays } from "@/lib/games/status";
 import { createClient } from "@/lib/supabase/server";
 
 type Tile = { href: string; game: string; emoji: string; title: string; hint: string; tone: string };
 
 const TILES: Tile[] = [
-  { href: "/app/jogos/quiz", game: "quiz", emoji: "🧠", title: "Quiz do Dia", hint: "até +2 XP", tone: "bg-violet-100 text-violet-900 border-violet-300" },
-  { href: "/app/jogos/versiculo", game: "verse", emoji: "📖", title: "Complete o Versículo", hint: "até +2 XP", tone: "bg-sky-100 text-sky-900 border-sky-300" },
-  { href: "/app/jogos/quem-sou-eu", game: "who", emoji: "🕵️", title: "Quem Sou Eu?", hint: "+ carta · até +2 XP", tone: "bg-amber-100 text-amber-900 border-amber-300" },
-  { href: "/app/jogos/ordem", game: "order", emoji: "⏳", title: "Ordene os Fatos", hint: "+1 XP", tone: "bg-emerald-100 text-emerald-900 border-emerald-300" },
+  { href: "/app/jogos/quiz", game: "quiz", emoji: "🧠", title: "Quiz do Dia", hint: "até +3 XP", tone: "bg-violet-100 text-violet-900 border-violet-300" },
+  { href: "/app/jogos/versiculo", game: "verse", emoji: "📖", title: "Complete o Versículo", hint: "até +3 XP", tone: "bg-sky-100 text-sky-900 border-sky-300" },
+  { href: "/app/jogos/quem-sou-eu", game: "who", emoji: "🕵️", title: "Quem Sou Eu?", hint: "+ carta · até +3 XP", tone: "bg-amber-100 text-amber-900 border-amber-300" },
+  { href: "/app/jogos/ordem", game: "order", emoji: "⏳", title: "Ordene os Fatos", hint: "até +2 XP", tone: "bg-emerald-100 text-emerald-900 border-emerald-300" },
 ];
 
 export default async function JogosPage() {
@@ -102,6 +103,9 @@ export default async function JogosPage() {
                 <p className="text-lg font-black leading-tight">{t.title}</p>
                 <p className="mt-1 text-xs font-bold opacity-80">
                   {done ? `✔ Feito · ${play?.score ?? 0} pts` : started ? "Continuar →" : t.hint}
+                </p>
+                <p className="mt-0.5 text-[11px] font-black uppercase tracking-wide opacity-70">
+                  {difficultyChip(playDifficulty(play)) ?? "Escolha a dificuldade"}
                 </p>
               </div>
             </Link>

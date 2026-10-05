@@ -6,17 +6,18 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushToUsers } from "@/lib/push-server";
 import { CARDS, CARD_BY_KEY, RARITY_WEIGHT, type GameCard } from "@/lib/games/cards";
+import { dailyOrder, dailyQuestions, dailyWho, duelQuestions, todayBR, weightedPick } from "@/lib/games/engine";
 import {
-  dailyOrder,
-  dailyQuestions,
-  dailyWho,
-  duelQuestions,
-  todayBR,
-  weightedPick,
-  WHO_MAX_GUESSES,
+  isDifficulty,
+  ORDER_ATTEMPTS,
+  rules,
+  xpForOrder,
   xpForQuiz,
   xpForVerse,
-} from "@/lib/games/engine";
+  xpForWho,
+  type GameKey,
+  type StoredDifficulty,
+} from "@/lib/games/difficulty";
 
 type AdminClient = NonNullable<ReturnType<typeof createAdminClient>>;
 type Ctx = { userId: string; name: string; role: string; eloId: string | null; admin: AdminClient };
@@ -29,7 +30,20 @@ type DuelRow = {
   opponent_score: number | null;
 };
 
-type Play = { id: string; answers: unknown[]; score: number; finished: boolean; xp_awarded: number };
+type Play = {
+  id: string;
+  answers: unknown[];
+  score: number;
+  finished: boolean;
+  xp_awarded: number;
+  difficulty: StoredDifficulty | null;
+};
+
+/** Partida criada antes da dificuldade existir (sem escolha, mas já com respostas) joga como "legacy". */
+function playDifficulty(play: Play): StoredDifficulty | null {
+  if (play.difficulty) return play.difficulty;
+  return (play.answers?.length ?? 0) > 0 ? "legacy" : null;
+}
 
 async function context(): Promise<Ctx> {
   const supabase = await createClient();
@@ -57,12 +71,13 @@ async function getOrCreatePlay(
   c: Ctx,
   game: "quiz" | "verse" | "who" | "order" | "duel" | "chest",
   duelId: string | null = null,
+  difficulty: StoredDifficulty | null = null,
 ): Promise<Play> {
   const date = todayBR();
   const find = async () => {
     let q = c.admin
       .from("game_plays")
-      .select("id, answers, score, finished, xp_awarded")
+      .select("id, answers, score, finished, xp_awarded, difficulty")
       .eq("user_id", c.userId)
       .eq("game", game);
     q = duelId ? q.eq("duel_id", duelId) : q.eq("play_date", date).is("duel_id", null);
@@ -75,8 +90,8 @@ async function getOrCreatePlay(
 
   const { data: created, error } = await c.admin
     .from("game_plays")
-    .insert({ user_id: c.userId, game, play_date: date, duel_id: duelId })
-    .select("id, answers, score, finished, xp_awarded")
+    .insert({ user_id: c.userId, game, play_date: date, duel_id: duelId, difficulty })
+    .select("id, answers, score, finished, xp_awarded, difficulty")
     .single<Play>();
   if (created) return created;
 
@@ -121,6 +136,33 @@ function refresh() {
   revalidatePath("/app", "layout");
 }
 
+// ------------------------------------------------------------ escolha de dificuldade
+
+/** Trava a dificuldade do dia. Depois da primeira resposta não dá mais pra trocar. */
+export async function startGame(
+  game: GameKey,
+  difficulty: string,
+): Promise<{ error?: string; difficulty?: StoredDifficulty }> {
+  const c = await context();
+  if (!isDifficulty(difficulty)) return { error: "Dificuldade inválida." };
+  if (!["quiz", "verse", "who", "order"].includes(game)) return { error: "Jogo inválido." };
+
+  const play = await getOrCreatePlay(c, game);
+  if (play.finished) return { error: "Você já jogou hoje." };
+
+  const current = playDifficulty(play);
+  if (current) return { difficulty: current };
+
+  const { error } = await c.admin
+    .from("game_plays")
+    .update({ difficulty })
+    .eq("id", play.id)
+    .eq("finished", false)
+    .is("difficulty", null);
+  if (error) return { error: "Não consegui salvar a dificuldade. Tente de novo." };
+  return { difficulty };
+}
+
 // ------------------------------------------------------------ quiz / versículo / duelo
 
 export type AnswerResult = {
@@ -161,10 +203,14 @@ export async function answerQuestion(input: {
     }
   }
 
-  const questions = game === "duel" ? duelQuestions(duelId!) : dailyQuestions(game);
+  const play =
+    game === "duel" ? await getOrCreatePlay(c, game, duelId!, "medio") : await getOrCreatePlay(c, game);
+  const diff: StoredDifficulty | null = game === "duel" ? "medio" : playDifficulty(play);
+  if (!diff) return { error: "Escolha a dificuldade antes de jogar." };
+
+  const questions = game === "duel" ? duelQuestions(duelId!) : dailyQuestions(game, diff);
   if (idx < 0 || idx >= questions.length) return { error: "Pergunta inválida." };
 
-  const play = await getOrCreatePlay(c, game, game === "duel" ? duelId! : null);
   if (play.finished) return { error: "Você já terminou esse jogo.", answered: questions.length, done: true };
 
   const answers = (play.answers ?? []) as number[];
@@ -186,11 +232,12 @@ export async function answerQuestion(input: {
   const result: AnswerResult = { correct, correctIdx: q.correctIdx, ref: q.ref, score, done, xp: 0 };
   if (!done) return result;
 
-  const xp = game === "quiz" ? xpForQuiz(score) : game === "verse" ? xpForVerse(score) : 0;
+  const xp = game === "quiz" ? xpForQuiz(score, diff) : game === "verse" ? xpForVerse(score, diff) : 0;
   const { data: paid } = await c.admin.rpc("game_finish", { p_play: play.id, p_xp: xp, p_type: `game_${game}` });
   result.xp = typeof paid === "number" && paid > 0 ? paid : 0;
 
-  if (game === "quiz" && score === questions.length) {
+  // carta de quiz perfeito só nos níveis Médio e Difícil (no Fácil é fácil demais)
+  if (game === "quiz" && score === questions.length && rules(diff) !== "facil") {
     result.card = await randomNewCard(c, "quiz_perfeito");
   }
 
@@ -250,11 +297,13 @@ export async function guessWho(choice: number): Promise<WhoResult> {
   const c = await context();
   if (!Number.isInteger(choice)) return { error: "Palpite inválido." };
 
-  const round = dailyWho();
-  if (choice < 0 || choice >= round.options.length) return { error: "Palpite inválido." };
-
   const play = await getOrCreatePlay(c, "who");
   if (play.finished) return { error: "Você já jogou hoje.", finished: true };
+  const diff = playDifficulty(play);
+  if (!diff) return { error: "Escolha a dificuldade antes de jogar." };
+
+  const round = dailyWho(diff);
+  if (choice < 0 || choice >= round.options.length) return { error: "Palpite inválido." };
 
   const guesses = (play.answers ?? []) as number[];
   if (guesses.includes(choice)) return { error: "Você já tentou essa opção." };
@@ -262,7 +311,7 @@ export async function guessWho(choice: number): Promise<WhoResult> {
   const attempt = guesses.length + 1;
   const correct = choice === round.correctIdx;
   const score = correct ? 5 - attempt : 0;
-  const finished = correct || attempt >= WHO_MAX_GUESSES;
+  const finished = correct || attempt >= round.maxGuesses;
 
   const { error: upErr } = await c.admin
     .from("game_plays")
@@ -271,9 +320,12 @@ export async function guessWho(choice: number): Promise<WhoResult> {
     .eq("finished", false);
   if (upErr) return { error: "Não consegui salvar seu palpite. Tente de novo." };
 
-  if (!finished) return { correct: false, finished: false, nextHint: round.item.hints[attempt] };
+  if (!finished) {
+    // cada erro revela uma dica a mais (as dicas iniciais já estavam na tela)
+    return { correct: false, finished: false, nextHint: round.item.hints[round.startHints + attempt - 1] };
+  }
 
-  const xp = correct ? (attempt <= 2 ? 2 : 1) : 0;
+  const xp = correct ? xpForWho(attempt, diff) : 0;
   const { data: paid } = await c.admin.rpc("game_finish", { p_play: play.id, p_xp: xp, p_type: "game_who" });
   const card = correct ? await giveCard(c, round.item.key, "quem_sou_eu") : null;
   return {
@@ -299,11 +351,15 @@ export type OrderResult = {
   xp?: number;
 };
 
-const ORDER_MAX_ATTEMPTS = 2;
-
 export async function submitOrder(order: number[]): Promise<OrderResult> {
   const c = await context();
-  const round = dailyOrder();
+  const play = await getOrCreatePlay(c, "order");
+  if (play.finished) return { error: "Você já jogou hoje.", finished: true };
+  const diff = playDifficulty(play);
+  if (!diff) return { error: "Escolha a dificuldade antes de jogar." };
+
+  const round = dailyOrder(diff);
+  const maxAttempts = ORDER_ATTEMPTS[rules(diff)];
   const size = round.shuffled.length;
   const valid =
     Array.isArray(order) &&
@@ -312,17 +368,14 @@ export async function submitOrder(order: number[]): Promise<OrderResult> {
     new Set(order).size === size;
   if (!valid) return { error: "Ordem inválida." };
 
-  const play = await getOrCreatePlay(c, "order");
-  if (play.finished) return { error: "Você já jogou hoje.", finished: true };
-
   const attempts = (play.answers ?? []) as number[][];
-  if (attempts.length >= ORDER_MAX_ATTEMPTS) return { error: "Sem tentativas.", finished: true };
+  if (attempts.length >= maxAttempts) return { error: "Sem tentativas.", finished: true };
 
   const rightPositions = order.filter((n, i) => n === round.correctOrder[i]).length;
   const correct = rightPositions === size;
   const attempt = attempts.length + 1;
-  const finished = correct || attempt >= ORDER_MAX_ATTEMPTS;
-  const score = correct ? (attempt === 1 ? 4 : 2) : 0;
+  const finished = correct || attempt >= maxAttempts;
+  const score = correct ? (attempt === 1 ? 4 : attempt === 2 ? 2 : 1) : 0;
 
   const { error: upErr } = await c.admin
     .from("game_plays")
@@ -332,12 +385,12 @@ export async function submitOrder(order: number[]): Promise<OrderResult> {
   if (upErr) return { error: "Não consegui salvar. Tente de novo." };
 
   if (!finished) {
-    return { correct: false, finished: false, rightPositions, attemptsLeft: ORDER_MAX_ATTEMPTS - attempt };
+    return { correct: false, finished: false, rightPositions, attemptsLeft: maxAttempts - attempt };
   }
 
   const { data: paid } = await c.admin.rpc("game_finish", {
     p_play: play.id,
-    p_xp: correct ? 1 : 0,
+    p_xp: correct ? xpForOrder(diff) : 0,
     p_type: "game_order",
   });
   return {
@@ -356,7 +409,7 @@ export type ChestResult = { error?: string; card?: GameCard | null; xp?: number 
 
 export async function openChest(): Promise<ChestResult> {
   const c = await context();
-  const play = await getOrCreatePlay(c, "chest");
+  const play = await getOrCreatePlay(c, "chest", null, "medio");
   if (play.finished) return { error: "Você já abriu o baú de hoje. Volte amanhã!" };
 
   const card = await randomNewCard(c, "bau");

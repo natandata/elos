@@ -1,22 +1,32 @@
 import Link from "next/link";
+import { DifficultyPicker } from "@/components/games/DifficultyPicker";
 import { OrderGame } from "@/components/games/OrderGame";
 import { PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
+import { DIFFICULTY_INFO, difficultyChip, ORDER_ATTEMPTS, rules } from "@/lib/games/difficulty";
 import { dailyOrder } from "@/lib/games/engine";
-import { todaysPlays } from "@/lib/games/status";
+import { playDifficulty, todaysPlays } from "@/lib/games/status";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function OrdemPage() {
   const { profile } = await requireRole("cria", "leader");
   const supabase = await createClient();
   const play = (await todaysPlays(supabase, profile.id)).get("order");
-  const round = dailyOrder();
+  const diff = playDifficulty(play);
+  const round = diff ? dailyOrder(diff) : null;
   const attemptsUsed = play?.answers?.length ?? 0;
 
   return (
     <>
-      <PageHeader title="⏳ Ordene os Fatos" subtitle={`${round.set.title} · acertou a linha do tempo = +1 XP`} />
-      {play?.finished ? (
+      <PageHeader
+        title="⏳ Ordene os Fatos"
+        subtitle={
+          diff && round
+            ? `${round.set.title} · ${difficultyChip(diff) ?? "🔥 Médio"} · ${DIFFICULTY_INFO.order[rules(diff)]}`
+            : "Coloque os fatos bíblicos na ordem certa"
+        }
+      />
+      {play?.finished && round ? (
         <div className="card p-6">
           <p className="text-center text-5xl" aria-hidden>
             {play.score > 0 ? "🎉" : "😅"}
@@ -36,8 +46,10 @@ export default async function OrdemPage() {
             Voltar aos jogos
           </Link>
         </div>
+      ) : !round || !diff ? (
+        <DifficultyPicker game="order" />
       ) : (
-        <OrderGame items={round.shuffled} attemptsLeft={2 - attemptsUsed} />
+        <OrderGame items={round.shuffled} attemptsLeft={ORDER_ATTEMPTS[rules(diff)] - attemptsUsed} />
       )}
     </>
   );

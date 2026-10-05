@@ -1,22 +1,32 @@
 import Link from "next/link";
+import { DifficultyPicker } from "@/components/games/DifficultyPicker";
 import { WhoGame } from "@/components/games/WhoGame";
 import { PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
+import { DIFFICULTY_INFO, difficultyChip, rules } from "@/lib/games/difficulty";
 import { dailyWho } from "@/lib/games/engine";
-import { todaysPlays } from "@/lib/games/status";
+import { playDifficulty, todaysPlays } from "@/lib/games/status";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function QuemSouEuPage() {
   const { profile } = await requireRole("cria", "leader");
   const supabase = await createClient();
   const play = (await todaysPlays(supabase, profile.id)).get("who");
-  const round = dailyWho();
+  const diff = playDifficulty(play);
+  const round = diff ? dailyWho(diff) : null;
   const guesses = ((play?.answers ?? []) as number[]).filter((n) => Number.isInteger(n));
 
   return (
     <>
-      <PageHeader title="🕵️ Quem Sou Eu?" subtitle="Acertou cedo? +2 XP e a carta do personagem" />
-      {play?.finished ? (
+      <PageHeader
+        title="🕵️ Quem Sou Eu?"
+        subtitle={
+          diff
+            ? `${difficultyChip(diff) ?? "🔥 Médio"} · ${DIFFICULTY_INFO.who[rules(diff)]}`
+            : "Descubra o personagem bíblico pelas dicas"
+        }
+      />
+      {play?.finished && round ? (
         <div className="card p-6 text-center">
           <p className="text-5xl" aria-hidden>
             {play.score > 0 ? "🎉" : "😅"}
@@ -28,10 +38,12 @@ export default async function QuemSouEuPage() {
             Voltar aos jogos
           </Link>
         </div>
+      ) : !round ? (
+        <DifficultyPicker game="who" />
       ) : (
         <WhoGame
           options={round.options}
-          initialHints={round.item.hints.slice(0, Math.min(guesses.length + 1, 4))}
+          initialHints={round.item.hints.slice(0, Math.min(round.startHints + guesses.length, 4))}
           initialGuesses={guesses}
         />
       )}

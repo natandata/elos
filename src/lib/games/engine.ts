@@ -1,4 +1,5 @@
-import { ORDER, QUIZ, VERSES, WHO, type OrderSet, type QuizItem, type VerseItem, type WhoItem } from "./content";
+import { ORDER, QUIZ, VERSES, WHO, type Level, type OrderSet, type QuizItem, type VerseItem, type WhoItem } from "./content";
+import { OPTION_COUNT, rules, WHO_RULES, type StoredDifficulty } from "./difficulty";
 
 // ---------------------------------------------------------------- datas / sorteio
 
@@ -63,13 +64,25 @@ function pickDaily<T>(pool: readonly T[], count: number, date: string, salt: str
 export type Question = { prompt: string; options: string[]; correctIdx: number; ref: string };
 export type PublicQuestion = { prompt: string; options: string[] };
 
-function buildQuiz(item: QuizItem, seed: string): Question {
-  const options = shuffle([item.a, ...item.w], `${seed}:${item.q}`);
+const LEVEL: Record<"facil" | "medio" | "dificil", Level> = { facil: 1, medio: 2, dificil: 3 };
+
+/** Sorteio do dia por dificuldade; "legacy" mantém o sorteio antigo (lista toda). */
+function poolFor<T extends { d: Level }>(pool: readonly T[], diff: StoredDifficulty, legacySize = pool.length): readonly T[] {
+  return diff === "legacy" ? pool.slice(0, legacySize) : pool.filter((i) => i.d === LEVEL[diff]);
+}
+
+// Tamanho da lista de perguntas na época do "legacy" (as novas entram no fim).
+const LEGACY_QUIZ_SIZE = 57;
+const saltFor = (salt: string, diff: StoredDifficulty) => (diff === "legacy" ? salt : `${salt}:${diff}`);
+const optionCount = (diff: StoredDifficulty) => (diff === "legacy" ? 4 : OPTION_COUNT[diff]);
+
+function buildQuiz(item: QuizItem, seed: string, count = 4): Question {
+  const options = shuffle([item.a, ...item.w.slice(0, count - 1)], `${seed}:${item.q}`);
   return { prompt: item.q, options, correctIdx: options.indexOf(item.a), ref: item.ref };
 }
 
-function buildVerse(item: VerseItem, seed: string): Question {
-  const options = shuffle([item.a, ...item.w], `${seed}:${item.ref}`);
+function buildVerse(item: VerseItem, seed: string, count = 4): Question {
+  const options = shuffle([item.a, ...item.w.slice(0, count - 1)], `${seed}:${item.ref}`);
   // pontuação logo depois da lacuna fica colada ("_____;"), não solta ("_____ ;")
   const glue = /^[;,.:?!]/.test(item.after) ? "" : " ";
   const prompt = `${item.before ? `${item.before} ` : ""}_____${item.after ? `${glue}${item.after}` : ""}`;
@@ -78,11 +91,12 @@ function buildVerse(item: VerseItem, seed: string): Question {
 
 export const QUESTION_COUNT = { quiz: 5, verse: 3, duel: 5 } as const;
 
-export function dailyQuestions(game: "quiz" | "verse", date = todayBR()): Question[] {
+export function dailyQuestions(game: "quiz" | "verse", diff: StoredDifficulty, date = todayBR()): Question[] {
+  const n = optionCount(diff);
   if (game === "quiz") {
-    return pickDaily(QUIZ, QUESTION_COUNT.quiz, date, "quiz").map((q) => buildQuiz(q, date));
+    return pickDaily(poolFor(QUIZ, diff, LEGACY_QUIZ_SIZE), QUESTION_COUNT.quiz, date, saltFor("quiz", diff)).map((q) => buildQuiz(q, date, n));
   }
-  return pickDaily(VERSES, QUESTION_COUNT.verse, date, "verse").map((v) => buildVerse(v, date));
+  return pickDaily(poolFor(VERSES, diff), QUESTION_COUNT.verse, date, saltFor("verse", diff)).map((v) => buildVerse(v, date, n));
 }
 
 export function duelQuestions(duelId: string): Question[] {
@@ -95,28 +109,21 @@ export function toPublic(questions: Question[]): PublicQuestion[] {
   return questions.map((q) => ({ prompt: q.prompt, options: q.options }));
 }
 
-export function xpForQuiz(score: number): number {
-  return score >= 5 ? 2 : score >= 3 ? 1 : 0;
-}
-export function xpForVerse(score: number): number {
-  return score >= 3 ? 2 : score >= 2 ? 1 : 0;
-}
-
 // ---------------------------------------------------------------- Quem Sou Eu?
 
 export const WHO_OPTIONS = 5;
-export const WHO_MAX_GUESSES = 4;
 
-export type WhoRound = { item: WhoItem; options: string[]; correctIdx: number };
+export type WhoRound = { item: WhoItem; options: string[]; correctIdx: number; startHints: number; maxGuesses: number };
 
-export function dailyWho(date = todayBR()): WhoRound {
-  const [item] = pickDaily(WHO, 1, date, "who");
+export function dailyWho(diff: StoredDifficulty, date = todayBR()): WhoRound {
+  const [item] = pickDaily(poolFor(WHO, diff), 1, date, saltFor("who", diff));
   const others = shuffle(
     WHO.filter((w) => w.key !== item.key),
     `who-others:${date}`,
   ).slice(0, WHO_OPTIONS - 1);
   const options = shuffle([item.name, ...others.map((o) => o.name)], `who-opts:${date}`);
-  return { item, options, correctIdx: options.indexOf(item.name) };
+  const r = WHO_RULES[rules(diff)];
+  return { item, options, correctIdx: options.indexOf(item.name), startHints: r.startHints, maxGuesses: r.maxGuesses };
 }
 
 // ---------------------------------------------------------------- Ordene os Fatos
@@ -125,8 +132,8 @@ export type OrderRound = { set: OrderSet; shuffled: string[]; correctOrder: numb
 
 /** `shuffled` é o que o jogador vê; `correctOrder[i]` é o índice (em `shuffled`)
  *  do evento que deve ocupar a posição i da linha do tempo. */
-export function dailyOrder(date = todayBR()): OrderRound {
-  const [set] = pickDaily(ORDER, 1, date, "order");
+export function dailyOrder(diff: StoredDifficulty, date = todayBR()): OrderRound {
+  const [set] = pickDaily(poolFor(ORDER, diff), 1, date, saltFor("order", diff));
   let shuffled = shuffle(set.events, `order:${date}`);
   // evita que o embaralhado já saia na ordem certa
   if (shuffled.every((e, i) => e === set.events[i])) shuffled = [...shuffled.slice(1), shuffled[0]];

@@ -1,20 +1,26 @@
 import Link from "next/link";
+import { DifficultyPicker } from "@/components/games/DifficultyPicker";
 import { QuestionGame } from "@/components/games/QuestionGame";
 import { PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import { dailyQuestions, toPublic } from "@/lib/games/engine";
-import { todaysPlays } from "@/lib/games/status";
+import { DIFFICULTY_INFO, difficultyChip, rules } from "@/lib/games/difficulty";
+import { playDifficulty, todaysPlays } from "@/lib/games/status";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function VersiculoPage() {
   const { profile } = await requireRole("cria", "leader");
   const supabase = await createClient();
   const play = (await todaysPlays(supabase, profile.id)).get("verse");
-  const questions = toPublic(dailyQuestions("verse"));
+  const diff = playDifficulty(play);
+  const questions = diff ? toPublic(dailyQuestions("verse", diff)) : [];
 
   return (
     <>
-      <PageHeader title="📖 Complete o Versículo" subtitle="3 versículos · 2 acertos = +1 XP · 3 acertos = +2 XP" />
+      <PageHeader
+        title="📖 Complete o Versículo"
+        subtitle={diff ? `${difficultyChip(diff) ?? "🔥 Médio"} · ${DIFFICULTY_INFO.verse[rules(diff)]}` : "3 versículos por dia"}
+      />
       {play?.finished ? (
         <div className="card p-6 text-center">
           <p className="text-5xl" aria-hidden>
@@ -29,6 +35,8 @@ export default async function VersiculoPage() {
             Voltar aos jogos
           </Link>
         </div>
+      ) : !diff ? (
+        <DifficultyPicker game="verse" />
       ) : (
         <QuestionGame
           game="verse"
