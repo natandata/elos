@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 const MAX_XP_WINS = 1;
 
 export default async function ArenaPage() {
-  const { profile } = await requireRole("cria", "leader");
+  const { profile } = await requireRole("cria", "leader", "admin");
   const supabase = await createClient();
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
   const { count } = await supabase

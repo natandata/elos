@@ -12,7 +12,7 @@ import { createClient } from "@/lib/supabase/server";
 type PlayRow = { variant: number; finished: boolean; score: number; tickets_awarded: number };
 
 export default async function VestirPage() {
-  const { profile } = await requireRole("cria", "leader");
+  const { profile } = await requireRole("cria", "leader", "admin");
 
   if (!(await gameOpenFor("dress", profile.id))) {
     return (

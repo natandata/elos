@@ -16,7 +16,7 @@ const STATUS: Record<string, { label: string; tone: string }> = {
 };
 
 export default async function TorneiosPage() {
-  await requireRole("cria", "leader");
+  await requireRole("cria", "leader", "admin");
   const supabase = await createClient();
   const { data } = await supabase
     .from("arena_tournaments")

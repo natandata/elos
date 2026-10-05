@@ -42,7 +42,7 @@ async function adminCtx() {
 
 async function playerCtx() {
   const c = await who();
-  if (c.profile.role !== "cria" && c.profile.role !== "leader") throw new Error("Torneios são só para crias e líderes.");
+  if (c.profile.role !== "cria" && c.profile.role !== "leader" && c.profile.role !== "admin") throw new Error("Torneios são só para crias e líderes.");
   return c;
 }
 

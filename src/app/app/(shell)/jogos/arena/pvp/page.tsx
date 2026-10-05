@@ -8,7 +8,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { RankDuelCard } from "@/components/arena/RankDuelCard";
 
 export default async function ArenaPvpLobbyPage() {
-  const { profile } = await requireRole("cria", "leader");
+  const { profile } = await requireRole("cria", "leader", "admin");
   const supabase = await createClient();
 
   const [matesRes, pvpRes] = await Promise.all([

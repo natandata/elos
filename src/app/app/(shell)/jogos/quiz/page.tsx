@@ -10,7 +10,7 @@ import { activePlays, playDifficulty } from "@/lib/games/status";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function QuizPage() {
-  const { profile } = await requireRole("cria", "leader");
+  const { profile } = await requireRole("cria", "leader", "admin");
   const supabase = await createClient();
   const play = (await activePlays(supabase, profile.id)).get("quiz");
   const date = practiceDate(todayBR(), play?.variant ?? 0, play?.created_at);

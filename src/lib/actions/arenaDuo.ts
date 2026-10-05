@@ -22,7 +22,7 @@ async function player() {
     .eq("id", user.id)
     .maybeSingle<{ id: string; full_name: string; role: string }>();
   if (!profile) redirect("/");
-  if (profile.role !== "cria" && profile.role !== "leader") throw new Error("A Arena é só para crias e líderes.");
+  if (profile.role !== "cria" && profile.role !== "leader" && profile.role !== "admin") throw new Error("A Arena é só para crias e líderes.");
   return { supabase, userId: profile.id, name: profile.full_name || "Um colega" };
 }
 

@@ -19,7 +19,7 @@ async function player() {
     .select("id, full_name, role, elo_id")
     .eq("id", user.id)
     .maybeSingle<{ id: string; full_name: string; role: string; elo_id: string | null }>();
-  if (!profile || (profile.role !== "cria" && profile.role !== "leader")) redirect("/");
+  if (!profile || (profile.role !== "cria" && profile.role !== "leader" && profile.role !== "admin")) redirect("/");
   const admin = createAdminClient();
   if (!admin) throw new Error("Jogos indisponíveis no momento.");
   return { admin, userId: profile.id, name: profile.full_name, eloId: profile.elo_id };

@@ -15,7 +15,7 @@ type DuelRow = {
 };
 
 export default async function DueloPage() {
-  const { profile } = await requireRole("cria", "leader");
+  const { profile } = await requireRole("cria", "leader", "admin");
   const supabase = await createClient();
 
   const [matesRes, duelsRes] = await Promise.all([

@@ -6,7 +6,7 @@ import { CARDS } from "@/lib/games/cards";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function ColecaoPage() {
-  const { profile } = await requireRole("cria", "leader");
+  const { profile } = await requireRole("cria", "leader", "admin");
   const supabase = await createClient();
   const { data } = await supabase.from("user_cards").select("card_key").eq("user_id", profile.id);
   const owned = new Set(((data ?? []) as { card_key: string }[]).map((r) => r.card_key));

@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export default async function DueloDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { profile } = await requireRole("cria", "leader");
+  const { profile } = await requireRole("cria", "leader", "admin");
   const supabase = await createClient();
 
   const { data: duel } = await supabase

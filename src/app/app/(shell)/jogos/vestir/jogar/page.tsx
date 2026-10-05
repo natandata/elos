@@ -11,7 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 type PlayRow = { variant: number; answers: unknown[]; score: number; finished: boolean; tickets_awarded: number };
 
 export default async function VestirJogarPage() {
-  const { profile } = await requireRole("cria", "leader");
+  const { profile } = await requireRole("cria", "leader", "admin");
   if (!(await gameOpenFor("dress", profile.id))) redirect("/app/jogos/vestir");
 
   const supabase = await createClient();

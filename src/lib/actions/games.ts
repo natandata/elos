@@ -71,7 +71,7 @@ async function context(): Promise<Ctx> {
     .eq("id", user.id)
     .maybeSingle<{ id: string; full_name: string; role: string; elo_id: string | null }>();
   if (!profile) redirect("/");
-  if (profile.role !== "cria" && profile.role !== "leader") {
+  if (profile.role !== "cria" && profile.role !== "leader" && profile.role !== "admin") {
     throw new Error("Os jogos são só para crias e líderes.");
   }
 

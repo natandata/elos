@@ -27,7 +27,7 @@ type LookRow = {
 const dayLabel = (date: string, today: string) => (date === today ? "hoje" : "ontem");
 
 export default async function PassarelaPage() {
-  const { profile } = await requireRole("cria", "leader");
+  const { profile } = await requireRole("cria", "leader", "admin");
   if (!(await gameOpenFor("dress", profile.id))) redirect("/app/jogos/vestir");
   const admin = createAdminClient();
   if (!admin) redirect("/app/jogos/vestir");

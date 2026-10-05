@@ -21,7 +21,7 @@ const TILES: Tile[] = [
 ];
 
 export default async function JogosPage() {
-  const { profile } = await requireRole("cria", "leader");
+  const { profile } = await requireRole("cria", "leader", "admin");
   const supabase = await createClient();
 
   const [plays, cardsRes, duelsRes, weekRes, boardRes] = await Promise.all([

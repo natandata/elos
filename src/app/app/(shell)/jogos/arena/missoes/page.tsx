@@ -6,7 +6,7 @@ import { loadArenaMissions } from "@/lib/arena/missionsServer";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function MissoesArenaPage() {
-  const { profile } = await requireRole("cria", "leader");
+  const { profile } = await requireRole("cria", "leader", "admin");
   const supabase = await createClient();
   const missions = await loadArenaMissions(supabase, profile.id);
   const appMissions = profile.role === "leader" ? "/app/lider/missoes" : "/app/cria/missoes";

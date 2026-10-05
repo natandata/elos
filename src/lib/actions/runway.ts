@@ -15,7 +15,7 @@ async function player() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/");
   const { data: profile } = await supabase.from("profiles").select("id, role").eq("id", user.id).maybeSingle<{ id: string; role: string }>();
-  if (!profile || (profile.role !== "cria" && profile.role !== "leader")) redirect("/");
+  if (!profile || (profile.role !== "cria" && profile.role !== "leader" && profile.role !== "admin")) redirect("/");
   const admin = createAdminClient();
   if (!admin) throw new Error("Jogos indisponíveis no momento.");
   return { admin, userId: profile.id };

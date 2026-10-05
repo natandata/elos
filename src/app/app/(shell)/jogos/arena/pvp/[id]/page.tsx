@@ -8,7 +8,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export default async function ArenaPvpRoomPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { profile } = await requireRole("cria", "leader");
+  const { profile } = await requireRole("cria", "leader", "admin");
   const supabase = await createClient();
 
   const { data: row } = await supabase.from("arena_pvp").select("*").eq("id", id).maybeSingle<PvpRow>();

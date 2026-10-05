@@ -13,9 +13,17 @@ const NAV: Record<string, NavItem[]> = {
     { href: "/app/mural", label: "Mural de Sugestões", icon: "💡" },
     { href: "/app/admin/ajuda", label: "Pedidos de Ajuda", icon: "🆘" },
     { href: "/app/admin/avisos", label: "Avisos", icon: "📣" },
-    { href: "/app/admin/torneios", label: "Torneios da Arena", icon: "🏆" },
-    { href: "/app/admin/arena", label: "Arena hoje", icon: "🏰" },
-    { href: "/app/admin/passarela", label: "Passarela", icon: "📸" },
+    {
+      href: "/app/admin/jogos",
+      label: "Sala de Jogos",
+      icon: "🎮",
+      children: [
+        { href: "/app/admin/jogos", label: "Testar jogos", icon: "🕹️" },
+        { href: "/app/admin/torneios", label: "Torneios da Arena", icon: "🏆" },
+        { href: "/app/admin/arena", label: "Arena hoje", icon: "🏰" },
+        { href: "/app/admin/passarela", label: "Passarela", icon: "📸" },
+      ],
+    },
     {
       label: "Status Geral",
       icon: "💛",

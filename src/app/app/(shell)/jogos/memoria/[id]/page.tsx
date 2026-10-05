@@ -23,7 +23,7 @@ const nowMs = () => Date.now();
 
 export default async function MemoriaDuelPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { profile } = await requireRole("cria", "leader");
+  const { profile } = await requireRole("cria", "leader", "admin");
   const supabase = await createClient();
 
   const { data: d } = await supabase

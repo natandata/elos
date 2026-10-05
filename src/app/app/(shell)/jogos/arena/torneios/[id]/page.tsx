@@ -15,7 +15,7 @@ const STATUS: Record<string, string> = { open: "Inscrições abertas", running: 
 
 export default async function TorneioPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { profile } = await requireRole("cria", "leader");
+  const { profile } = await requireRole("cria", "leader", "admin");
   const admin = createAdminClient();
   if (!admin) return <p className="card p-4 text-sm font-bold">Torneios indisponíveis no momento.</p>;
   const data = await loadTournamentData(admin, id);

@@ -6,7 +6,7 @@ import { viewOfDuo, type DuoRow } from "@/lib/arena/settleDuo";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function ArenaDuoLobbyPage() {
-  const { profile } = await requireRole("cria", "leader");
+  const { profile } = await requireRole("cria", "leader", "admin");
   const supabase = await createClient();
 
   const [matesRes, duoRes] = await Promise.all([
