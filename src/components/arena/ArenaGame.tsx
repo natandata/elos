@@ -78,7 +78,7 @@ export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, in
     startingRef.current = true;
     setError(null);
     setVerdict(null);
-    const res: { error?: string; matchId?: string; seed?: number; deck?: string[]; arena?: number; levels?: Record<string, number> } = await startArena(viewArena).catch(() => ({
+    const res: { error?: string; matchId?: string; seed?: number; deck?: string[]; arena?: number; levels?: Record<string, number>; botBoost?: number } = await startArena(viewArena).catch(() => ({
       error: "Sem conexão. Tente de novo.",
     }));
     if (res.error || !res.matchId || res.seed === undefined) {
@@ -87,7 +87,7 @@ export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, in
       return;
     }
     matchRef.current = res.matchId;
-    const game = createGame(res.seed, res.deck ?? deck, undefined, { levels: res.levels ?? levels, arena: res.arena ?? 0 });
+    const game = createGame(res.seed, res.deck ?? deck, undefined, { levels: res.levels ?? levels, arena: res.arena ?? 0, botBoost: res.botBoost ?? 0 });
     logRef.current = [];
     let pending: Input[] = [];
     setDriver({

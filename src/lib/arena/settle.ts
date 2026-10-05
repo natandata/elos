@@ -80,9 +80,9 @@ export async function settleArena(
 ): Promise<ArenaFinish> {
   const { data: match } = await admin
     .from("arena_matches")
-    .select("id, user_id, seed, deck, status, started_at, play_date, arena, levels, training")
+    .select("id, user_id, seed, deck, status, started_at, play_date, arena, levels, training, bot_boost")
     .eq("id", input.matchId)
-    .maybeSingle<{ id: string; user_id: string; seed: number; deck: string[]; status: string; started_at: string; play_date: string; arena: number; levels: Record<string, number> | null; training: boolean }>();
+    .maybeSingle<{ id: string; user_id: string; seed: number; deck: string[]; status: string; started_at: string; play_date: string; arena: number; levels: Record<string, number> | null; training: boolean; bot_boost: number | null }>();
   if (!match || match.user_id !== userId) return { error: "Partida não encontrada." };
   if (match.status !== "open") return { error: "Essa partida já foi encerrada." };
   // o jogador insere a própria partida: um baralho adulterado (ex.: 8 Jesus) não conta
@@ -101,7 +101,7 @@ export async function settleArena(
   let crownsMe = 0;
   let crownsBot = 0;
   if (!input.surrender) {
-    const sim = simulate(match.seed, match.deck, cleanInputs(input.inputs), { levels, arena: match.arena ?? 0 });
+    const sim = simulate(match.seed, match.deck, cleanInputs(input.inputs), { levels, arena: match.arena ?? 0, botBoost: Number(match.bot_boost) || 0 });
     crownsMe = sim.crowns[0];
     crownsBot = sim.crowns[1];
     result = sim.winner === 0 ? "win" : sim.winner === 1 ? "loss" : "draw";

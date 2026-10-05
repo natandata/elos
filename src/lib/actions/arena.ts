@@ -4,7 +4,7 @@ import { randomInt } from "node:crypto";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { ARENA_CARD_BY_KEY, MAX_CARD_LEVEL, STARTER_DECK, isValidDeck, upgradeCost } from "@/lib/arena/cards";
+import { ARENA_CARD_BY_KEY, MAX_CARD_LEVEL, STARTER_DECK, isValidDeck, rankBotBoost, upgradeCost } from "@/lib/arena/cards";
 import { arenaIndexFor, chestFinds, deckAllowed, isCardUnlocked } from "@/lib/arena/arenas";
 import { loadOwned } from "@/lib/arena/owned";
 import { CHEST_BY_KIND, rollChest, unlockedCards, type ChestKind, type CopyGrant } from "@/lib/arena/economy";
@@ -35,7 +35,7 @@ async function currentPlayer() {
 }
 
 /** Abre uma partida: o servidor sorteia a semente (o computador e o baralho dependem dela). */
-export async function startArena(arenaChoice?: number): Promise<{ error?: string; matchId?: string; seed?: number; deck?: string[]; arena?: number; levels?: Record<string, number> }> {
+export async function startArena(arenaChoice?: number): Promise<{ error?: string; matchId?: string; seed?: number; deck?: string[]; arena?: number; levels?: Record<string, number>; botBoost?: number }> {
   const { supabase, userId } = await currentPlayer();
   const date = todayBR();
 
@@ -68,15 +68,19 @@ export async function startArena(arenaChoice?: number): Promise<{ error?: string
   const levels: Record<string, number> = {};
   for (const r of (owned ?? []) as { card: string; level: number }[]) if (deck.includes(r.card)) levels[r.card] = r.level;
 
+  // quanto mais alto no ranking, mais forte o computador
+  const { data: rank } = admin ? await admin.rpc("arena_rank_of", { p_user: userId }) : { data: null };
+  const botBoost = rankBotBoost(typeof rank === "number" ? rank : null);
+
   const seed = randomInt(1, 2 ** 31 - 1);
   // só o servidor cria partida (semente sorteada aqui, limite diário e pausa de jogos valem pra todo mundo)
   const { data, error } = await (admin ?? supabase)
     .from("arena_matches")
-    .insert({ user_id: userId, seed, deck, play_date: date, arena, levels, training })
+    .insert({ user_id: userId, seed, deck, play_date: date, arena, levels, training, bot_boost: botBoost })
     .select("id")
     .single<{ id: string }>();
   if (error || !data) return { error: "Não foi possível começar a partida. Tente de novo." };
-  return { matchId: data.id, seed, deck, arena, levels };
+  return { matchId: data.id, seed, deck, arena, levels, botBoost };
 }
 
 /** Salva o baralho do jogador (8 cartas diferentes). */
