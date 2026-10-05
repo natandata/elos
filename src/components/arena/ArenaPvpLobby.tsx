@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Avatar } from "@/components/Avatar";
-import { challengeArenaPvp, respondArenaPvp } from "@/lib/actions/arenaPvp";
+import { challengeArenaPvp, leaveArenaPvp, respondArenaPvp } from "@/lib/actions/arenaPvp";
 
 export type Mate = { id: string; name: string; avatarUrl: string | null };
 export type PvpItem = {
@@ -35,6 +35,14 @@ export function ArenaPvpLobby({ mates, items, medals = {} }: { mates: Mate[]; it
     setBusy(id);
     await respondArenaPvp(id, false).catch(() => null);
     setBusy(null);
+    router.refresh();
+  }
+
+  async function leave(id: string) {
+    setBusy(id);
+    const r = await leaveArenaPvp(id).catch(() => ({ error: "Sem conexão. Tente de novo." }));
+    setBusy(null);
+    if (r.error) setError(r.error);
     router.refresh();
   }
 
@@ -74,6 +82,9 @@ export function ArenaPvpLobby({ mates, items, medals = {} }: { mates: Mate[]; it
                 </span>
                 <button type="button" onClick={() => router.push(`/app/jogos/arena/pvp/${i.id}`)} className="btn btn-primary !px-4 !py-2 !text-sm">
                   {i.status === "accepted" ? "Entrar" : "Abrir"}
+                </button>
+                <button type="button" disabled={busy === i.id} onClick={() => leave(i.id)} className="btn btn-ghost !px-3 !py-2 !text-sm">
+                  Sair
                 </button>
               </li>
             ))}

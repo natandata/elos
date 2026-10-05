@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
-import { checkArenaPvp, reportArenaPvp, respondArenaPvp } from "@/lib/actions/arenaPvp";
+import { checkArenaPvp, reportArenaPvp, leaveArenaPvp, respondArenaPvp } from "@/lib/actions/arenaPvp";
 import { Lockstep, type Frame } from "@/lib/arena/lockstep";
 import { PVP_INPUT_DELAY } from "@/lib/arena/pvp";
 import type { PvpView } from "@/lib/arena/settlePvp";
@@ -90,6 +90,16 @@ export function ArenaPvpRoom({ id, meSide, opponentName, arena, seed, decks, ini
     }, 3000);
     return () => clearInterval(t);
   }, [stage, iAmChallenger, id]);
+
+  async function leaveRoom() {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    const r = await leaveArenaPvp(id).catch(() => ({ error: "Sem conexão. Tente de novo." }));
+    setBusy(false);
+    if (r.error) return setError(r.error);
+    router.push("/app/jogos/arena/pvp");
+  }
 
   async function respond(accept: boolean) {
     setBusy(true);
@@ -356,6 +366,9 @@ export function ArenaPvpRoom({ id, meSide, opponentName, arena, seed, decks, ini
             <>
               <p className="mt-4 font-bold">⏳ Esperando {opponentName} aceitar o desafio…</p>
               <p className="mt-1 text-xs text-[var(--muted)]">Pode deixar esta tela aberta: ela avisa quando ele aceitar.</p>
+              <button type="button" disabled={busy} onClick={leaveRoom} className="btn btn-ghost mt-3 w-full">
+                Cancelar desafio
+              </button>
             </>
           ) : (
             <>
@@ -378,6 +391,9 @@ export function ArenaPvpRoom({ id, meSide, opponentName, arena, seed, decks, ini
             <p className="mt-1 text-xs text-[var(--muted)]">Se você sair no meio, conta como desistência.</p>
             <button type="button" onClick={enter} className="btn btn-primary mt-4 w-full !py-3 !text-lg">
               ⚔️ Entrar na partida
+            </button>
+            <button type="button" disabled={busy} onClick={leaveRoom} className="btn btn-ghost mt-2 w-full">
+              Sair da sala
             </button>
           </>
         ) : null}

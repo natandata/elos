@@ -66,6 +66,16 @@ export async function challengeArenaPvp(opponentId: string): Promise<{ error?: s
   return { id: data };
 }
 
+/** Sai da sala 1x1 (quem desafiou ou foi desafiado, mesmo depois de aceitar): cancela o desafio. */
+export async function leaveArenaPvp(id: string): Promise<{ error?: string }> {
+  const { supabase, userId, name } = await player();
+  const { data: row } = await supabase.from("arena_pvp").select("challenger_id, opponent_id").eq("id", id).maybeSingle<{ challenger_id: string; opponent_id: string }>();
+  const { error } = await supabase.rpc("arena_pvp_leave", { p_id: id });
+  if (error) return { error: "Não dá mais pra sair desta sala (a partida já começou ou acabou)." };
+  if (row) await notify(row.challenger_id === userId ? row.opponent_id : row.challenger_id, "⚔️ Desafio cancelado", `${name} saiu da sala 1x1. Criem outro desafio quando quiserem.`, "/app/jogos/arena/pvp");
+  return {};
+}
+
 export async function respondArenaPvp(id: string, accept: boolean): Promise<{ error?: string; deck?: string[] }> {
   const { supabase, userId, name } = await player();
   if (!accept) {
