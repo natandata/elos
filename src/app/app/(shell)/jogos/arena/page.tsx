@@ -1,6 +1,6 @@
 import { ArenaGame } from "@/components/arena/ArenaGame";
 import { STARTER_DECK, isValidDeck } from "@/lib/arena/cards";
-import { deckAllowed } from "@/lib/arena/arenas";
+import { deckAllowed, ownedFromRows } from "@/lib/arena/arenas";
 import { loadGate } from "@/lib/arena/gateServer";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -52,14 +52,15 @@ export default async function ArenaPage() {
   const { count: tournamentCount } = await supabase.from("arena_tournaments").select("id", { count: "exact", head: true }).in("status", ["open", "running"]);
   const { data: stats } = await supabase.from("arena_stats").select("trophies, best, chest_date").eq("user_id", profile.id).maybeSingle<{ trophies: number; best: number; chest_date: string | null }>();
   const { data: owned } = await supabase.from("arena_card_levels").select("card, level, copies").eq("user_id", profile.id);
+  const ownedRows = (owned ?? []) as { card: string; level: number; copies: number }[];
   const levels: Record<string, number> = {};
   const copies: Record<string, number> = {};
-  for (const r of (owned ?? []) as { card: string; level: number; copies: number }[]) {
+  for (const r of ownedRows) {
     levels[r.card] = r.level;
     copies[r.card] = r.copies;
   }
   const { data: saved } = await supabase.from("arena_decks").select("deck").eq("user_id", profile.id).maybeSingle<{ deck: string[] }>();
-  const deck = isValidDeck(saved?.deck) && deckAllowed(saved.deck, stats?.best ?? 0) ? saved.deck : STARTER_DECK;
+  const deck = isValidDeck(saved?.deck) && deckAllowed(saved.deck, stats?.best ?? 0, ownedFromRows(ownedRows)) ? saved.deck : STARTER_DECK;
 
   return (
     <ArenaGame winsToday={count ?? 0} maxWins={MAX_XP_WINS} initialDeck={deck} initialTrophies={stats?.trophies ?? 0} initialBest={stats?.best ?? 0} initialCopies={copies} initialLevels={levels} dailyChestReady={stats?.chest_date !== today} eloRanking={eloRanking} myEloId={profile.elo_id ?? null} trophyRanking={trophyRanking} myId={profile.id} invites={(invites ?? 0) + duoInvites} gate={gate} openTournaments={tournamentCount ?? 0} />

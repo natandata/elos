@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { isValidDeck } from "./cards";
 import { ARENAS, arenaIndexFor, deckAllowed, trophyDelta, TROPHY_LOSS } from "./arenas";
 import { COPIES_OTHER, COPIES_WIN, pickBattleCard, unlockedCards } from "./economy";
+import { loadOwned } from "./owned";
 import { MATCH_TICKS, type Input } from "./core";
 import { MAX_INPUTS, simulate } from "./sim";
 
@@ -87,7 +88,8 @@ export async function settleArena(
   // o jogador insere a própria partida: um baralho adulterado (ex.: 8 Jesus) não conta
   if (!isValidDeck(match.deck)) return { error: "Baralho inválido." };
   const stats = await statsOf(admin, userId);
-  if (!deckAllowed(match.deck, stats.best)) return { error: "Esse baralho tem cartas que você ainda não liberou." };
+  const found = await loadOwned(admin, userId);
+  if (!deckAllowed(match.deck, stats.best, found)) return { error: "Esse baralho tem cartas que você ainda não liberou." };
 
   // níveis: vale o do início da partida, nunca acima do que o jogador tem de fato
   const { data: owned } = await admin.from("arena_card_levels").select("card, level").eq("user_id", userId);
@@ -118,7 +120,7 @@ export async function settleArena(
   const before = stats.trophies;
   // treino numa arena antiga: cópias de derrota, seja qual for o resultado
   const copies = elapsed >= MIN_SECONDS_FOR_XP ? (result === "win" && !match.training ? COPIES_WIN : COPIES_OTHER) : 0;
-  const copyCard = copies > 0 ? pickBattleCard(unlockedCards(stats.best), match.deck) : null;
+  const copyCard = copies > 0 ? pickBattleCard(unlockedCards(stats.best, found), match.deck) : null;
   const delta = match.training ? 0 : trophyDelta(result, result === "win" && elapsed < MIN_SECONDS_FOR_XP);
 
   // fecha UMA vez (condicional): duas chamadas juntas não pagam duas vezes

@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ARENA_CARD_BY_KEY, MAX_CARD_LEVEL, STARTER_DECK, isValidDeck, upgradeCost } from "@/lib/arena/cards";
-import { arenaIndexFor, deckAllowed, isCardUnlocked } from "@/lib/arena/arenas";
+import { arenaIndexFor, chestFinds, deckAllowed, isCardUnlocked } from "@/lib/arena/arenas";
+import { loadOwned } from "@/lib/arena/owned";
 import { CHEST_BY_KIND, rollChest, unlockedCards, type ChestKind, type CopyGrant } from "@/lib/arena/economy";
 import { gateMessage } from "@/lib/arena/gate";
 import { loadGate } from "@/lib/arena/gateServer";
@@ -60,7 +61,8 @@ export async function startArena(arenaChoice?: number): Promise<{ error?: string
   const arena = training ? (arenaChoice as number) : current;
 
   const { data: saved } = await supabase.from("arena_decks").select("deck").eq("user_id", userId).maybeSingle<{ deck: string[] }>();
-  const deck = isValidDeck(saved?.deck) && deckAllowed(saved.deck, stats?.best ?? 0) ? saved.deck : STARTER_DECK;
+  const found = await loadOwned(supabase, userId);
+  const deck = isValidDeck(saved?.deck) && deckAllowed(saved.deck, stats?.best ?? 0, found) ? saved.deck : STARTER_DECK;
 
   const { data: owned } = await supabase.from("arena_card_levels").select("card, level").eq("user_id", userId);
   const levels: Record<string, number> = {};
@@ -82,7 +84,7 @@ export async function saveArenaDeck(deck: string[]): Promise<{ error?: string }>
   const { supabase, userId } = await currentPlayer();
   if (!isValidDeck(deck)) return { error: "Escolha exatamente 8 cartas diferentes." };
   const { data: stats } = await supabase.from("arena_stats").select("best").eq("user_id", userId).maybeSingle<{ best: number }>();
-  if (!deckAllowed(deck, stats?.best ?? 0)) return { error: "Tem carta aí que você ainda não liberou." };
+  if (!deckAllowed(deck, stats?.best ?? 0, await loadOwned(supabase, userId))) return { error: "Tem carta aí que você ainda não liberou." };
   const { error } = await supabase
     .from("arena_decks")
     .upsert({ user_id: userId, deck, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
@@ -95,7 +97,7 @@ export async function upgradeArenaCard(card: string): Promise<{ error?: string; 
   const { supabase, userId } = await currentPlayer();
   if (!ARENA_CARD_BY_KEY.has(card)) return { error: "Carta desconhecida." };
   const { data: stats } = await supabase.from("arena_stats").select("best").eq("user_id", userId).maybeSingle<{ best: number }>();
-  if (!isCardUnlocked(card, stats?.best ?? 0)) return { error: "Você ainda não liberou essa carta." };
+  if (!isCardUnlocked(card, stats?.best ?? 0, await loadOwned(supabase, userId))) return { error: "Você ainda não liberou essa carta." };
   const { data: row } = await supabase.from("arena_card_levels").select("level, copies").eq("user_id", userId).eq("card", card).maybeSingle<{ level: number; copies: number }>();
   const level = row?.level ?? 1;
   const copies = row?.copies ?? 0;
@@ -126,7 +128,7 @@ export async function openArenaChest(kind: ChestKind): Promise<{ error?: string;
 
   const { data: saved } = await supabase.from("arena_decks").select("deck").eq("user_id", userId).maybeSingle<{ deck: string[] }>();
   const deck = isValidDeck(saved?.deck) ? saved.deck : STARTER_DECK;
-  const grants = rollChest(def, unlockedCards(stats?.best ?? 0), deck);
+  const grants = rollChest(def, unlockedCards(stats?.best ?? 0, await loadOwned(supabase, userId)), deck, Math.random, chestFinds(stats?.best ?? 0));
   if (grants.length === 0) return { error: "Não foi possível abrir o baú." };
 
   const { data: res } = await admin.rpc("arena_open_chest", { p_user: userId, p_daily: kind === "daily", p_cost: def.cost, p_grants: grants });

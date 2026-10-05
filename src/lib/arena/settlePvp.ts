@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { isValidDeck } from "./cards";
 import { deckAllowed, TROPHY_LOSS, TROPHY_WIN } from "./arenas";
 import { onRoomFinished } from "./tournamentServer";
+import { loadOwned } from "./owned";
 import { COPIES_OTHER, COPIES_WIN, pickBattleCard, unlockedCards } from "./economy";
 import { PVP_MIN_TICKS_FOR_REWARD, resolvePvp, type PvpReport } from "./pvp";
 
@@ -95,8 +96,9 @@ export async function settleArenaPvp(admin: SupabaseClient, id: string): Promise
 
   const stale = !!row.first_report_at && Date.now() - new Date(row.first_report_at).getTime() >= STALE_MS;
   const [bestC, bestO] = await Promise.all([bestOf(admin, row.challenger_id), bestOf(admin, row.opponent_id)]);
+  const [ownC, ownO] = await Promise.all([loadOwned(admin, row.challenger_id), loadOwned(admin, row.opponent_id)]);
   const decks: [string[], string[]] = [row.challenger_deck, row.opponent_deck];
-  const deckOk = isValidDeck(decks[0]) && isValidDeck(decks[1]) && deckAllowed(decks[0], bestC) && deckAllowed(decks[1], bestO);
+  const deckOk = isValidDeck(decks[0]) && isValidDeck(decks[1]) && deckAllowed(decks[0], bestC, ownC) && deckAllowed(decks[1], bestO, ownO);
   const outcome = deckOk ? resolvePvp(row.seed, decks, row.reports, row.arena, stale) : ({ kind: "disputed" } as const);
   if (outcome.kind === "waiting") return row;
 
@@ -147,17 +149,17 @@ export async function settleArenaPvp(admin: SupabaseClient, id: string): Promise
       .or(`and(challenger_id.eq.${uid},xp_c.gt.0),and(opponent_id.eq.${uid},xp_o.gt.0)`);
     return (count ?? 0) > 0;
   };
-  const side = async (uid: string, mine: "challenger" | "opponent", best: number, deck: string[]) => {
+  const side = async (uid: string, mine: "challenger" | "opponent", best: number, deck: string[], owned: ReadonlySet<string>) => {
     if (!rewarded) return { trophy: 0, copies: 0, card: null as string | null, xp: 0, res: "draw" as const };
     const won = result === mine;
     const res = result === "draw" ? "draw" : won ? "win" : "loss";
     const trophy = res === "win" ? TROPHY_WIN : res === "loss" ? -TROPHY_LOSS : 0;
     const copies = res === "win" ? COPIES_WIN : COPIES_OTHER;
-    const card = pickBattleCard(unlockedCards(best), deck);
+    const card = pickBattleCard(unlockedCards(best, owned), deck);
     const xp = res === "win" && !(await hadXp(uid)) ? 1 : 0;
     return { trophy, copies: card ? copies : 0, card, xp, res };
   };
-  const [pc, po] = await Promise.all([side(row.challenger_id, "challenger", bestC, decks[0]), side(row.opponent_id, "opponent", bestO, decks[1])]);
+  const [pc, po] = await Promise.all([side(row.challenger_id, "challenger", bestC, decks[0], ownC), side(row.opponent_id, "opponent", bestO, decks[1], ownO)]);
 
   // fecha UMA vez (condicional): chamadas juntas não pagam duas vezes
   const { data: closed } = await admin

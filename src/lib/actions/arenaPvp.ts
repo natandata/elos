@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { STARTER_DECK, isValidDeck } from "@/lib/arena/cards";
 import { arenaIndexFor, deckAllowed } from "@/lib/arena/arenas";
+import { loadOwned } from "@/lib/arena/owned";
 import type { PvpReport } from "@/lib/arena/pvp";
 import { settleArenaPvp, viewOf, type PvpRow, type PvpView } from "@/lib/arena/settlePvp";
 import { sendPushToUsers } from "@/lib/push-server";
@@ -29,7 +30,7 @@ async function player() {
 async function myLoadout(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
   const { data: stats } = await supabase.from("arena_stats").select("trophies, best").eq("user_id", userId).maybeSingle<{ trophies: number; best: number }>();
   const { data: saved } = await supabase.from("arena_decks").select("deck").eq("user_id", userId).maybeSingle<{ deck: string[] }>();
-  const deck = isValidDeck(saved?.deck) && deckAllowed(saved.deck, stats?.best ?? 0) ? saved.deck : STARTER_DECK;
+  const deck = isValidDeck(saved?.deck) && deckAllowed(saved.deck, stats?.best ?? 0, await loadOwned(supabase, userId)) ? saved.deck : STARTER_DECK;
   return { deck, arena: arenaIndexFor(stats?.trophies ?? 0) };
 }
 

@@ -5,6 +5,7 @@ import { randomInt, randomUUID } from "node:crypto";
 import { sendPushToUsers } from "@/lib/push-server";
 import { ARENA_CARD_BY_KEY, STARTER_DECK, isValidDeck } from "./cards";
 import { deckAllowed } from "./arenas";
+import { loadOwned } from "./owned";
 import { pickBattleCard, unlockedCards } from "./economy";
 import { advance, buildBracket, isFinished, normalizePrizes, placings, prizeIsEmpty, type TFormat, type TMatch, type TMatchStatus, type TPrize, type TPrizes, type TStatus } from "./tournament";
 
@@ -115,7 +116,7 @@ async function award(admin: SupabaseClient, userId: string, prize: TPrize): Prom
     let card: string | null = prize.card;
     if (card === "random") {
       const { data } = await admin.from("arena_stats").select("best").eq("user_id", userId).maybeSingle<{ best: number }>();
-      card = pickBattleCard(unlockedCards(data?.best ?? 0), []);
+      card = pickBattleCard(unlockedCards(data?.best ?? 0, await loadOwned(admin, userId)), []);
     }
     if (card && ARENA_CARD_BY_KEY.has(card)) {
       await admin.rpc("arena_grant_copies", { p_user: userId, p_grants: [{ card, n: prize.copies }] });
@@ -226,7 +227,7 @@ async function loadout(admin: SupabaseClient, userId: string): Promise<string[]>
     admin.from("arena_stats").select("best").eq("user_id", userId).maybeSingle<{ best: number }>(),
     admin.from("arena_decks").select("deck").eq("user_id", userId).maybeSingle<{ deck: string[] }>(),
   ]);
-  return isValidDeck(saved?.deck) && deckAllowed(saved.deck, stats?.best ?? 0) ? saved.deck : STARTER_DECK;
+  return isValidDeck(saved?.deck) && deckAllowed(saved.deck, stats?.best ?? 0, await loadOwned(admin, userId)) ? saved.deck : STARTER_DECK;
 }
 
 /**

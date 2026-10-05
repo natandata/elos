@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ARENA_CARDS, ARENA_CARD_BY_KEY, MAX_CARD_LEVEL, STARTER_DECK, levelMult, upgradeCost, type ArenaCard } from "@/lib/arena/cards";
-import { ARENAS, CARD_UNLOCK_ARENA, isCardUnlocked } from "@/lib/arena/arenas";
+import { ARENAS, CARD_UNLOCK_ARENA, CHEST_ONLY, isCardUnlocked } from "@/lib/arena/arenas";
 import { CARD_LORE } from "@/lib/arena/cardLore";
 import { CardArt } from "./CardArt";
 
@@ -111,6 +111,9 @@ export function DeckBuilder({
   const [upBusy, setUpBusy] = useState(false);
   const [upMsg, setUpMsg] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
+  // heróis de baú que o jogador já achou (cópias ou nível acima de 1)
+  const owned = new Set([...CHEST_ONLY].filter((k) => (copies[k] ?? 0) > 0 || (levels[k] ?? 1) > 1));
+  const unlocked = (k: string) => isCardUnlocked(k, best, owned);
 
   function show(key: string) {
     setUpMsg(null);
@@ -118,7 +121,7 @@ export function DeckBuilder({
   }
 
   function toggleDeck(key: string) {
-    if (!isCardUnlocked(key, best)) return;
+    if (!unlocked(key)) return;
     setDeck((d) => (d.includes(key) ? d.filter((k) => k !== key) : d.length < SIZE ? [...d, key] : d));
   }
 
@@ -155,7 +158,7 @@ export function DeckBuilder({
           .sort((a, b) => (CARD_UNLOCK_ARENA[a.key] ?? 0) - (CARD_UNLOCK_ARENA[b.key] ?? 0) || a.cost - b.cost)
           .map((c) => (
             <div key={c.key} className={deck.includes(c.key) ? "opacity-45" : ""}>
-              <Tile card={c} locked={!isCardUnlocked(c.key, best)} level={isCardUnlocked(c.key, best) ? (levels[c.key] ?? 1) : undefined} copies={copies[c.key] ?? 0} onClick={() => show(c.key)} />
+              <Tile card={c} locked={!unlocked(c.key)} level={unlocked(c.key) ? (levels[c.key] ?? 1) : undefined} copies={copies[c.key] ?? 0} onClick={() => show(c.key)} />
             </div>
           ))}
       </div>
@@ -176,7 +179,7 @@ export function DeckBuilder({
       {detail ? (
         <CardSheet
           card={detail}
-          unlocked={isCardUnlocked(detail.key, best)}
+          unlocked={unlocked(detail.key)}
           level={levels[detail.key] ?? 1}
           have={copies[detail.key] ?? 0}
           inDeck={deck.includes(detail.key)}
@@ -225,6 +228,7 @@ function CardSheet({
   const need = level < MAX_CARD_LEVEL ? upgradeCost(level + 1) : 0;
   const canUp = unlocked && level < MAX_CARD_LEVEL && have >= need;
   const arena = ARENAS[CARD_UNLOCK_ARENA[card.key] ?? 0];
+  const chestOnly = CHEST_ONLY.has(card.key);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 sm:items-center" onClick={onClose} role="dialog" aria-modal="true" aria-label={card.name}>
@@ -268,9 +272,15 @@ function CardSheet({
             {upMsg ? <p className="mt-1 text-xs font-bold text-rose-600">{upMsg}</p> : null}
           </div>
         ) : (
+          chestOnly ? (
+          <p className="mt-4 rounded-2xl bg-fuchsia-500/10 px-3 py-2 text-sm font-black text-fuchsia-600">
+            🔒 Herói de baú: ainda não achado. Cada baú tem 25% de chance de trazer um herói de baú, a partir da arena {arena.emoji} {arena.name}.
+          </p>
+        ) : (
           <p className="mt-4 rounded-2xl bg-amber-400/15 px-3 py-2 text-sm font-black text-amber-600">
             🔒 Libera na arena {arena.emoji} {arena.name} ({arena.min} 🏆)
           </p>
+        )
         )}
 
         {lore ? (

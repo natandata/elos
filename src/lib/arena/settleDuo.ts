@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { isValidDeck } from "./cards";
 import { TROPHY_LOSS, TROPHY_WIN, deckAllowed } from "./arenas";
 import { onRoomFinished } from "./tournamentServer";
+import { loadOwned } from "./owned";
 import { COPIES_OTHER, COPIES_WIN, pickBattleCard, unlockedCards } from "./economy";
 import { PVP_MIN_TICKS_FOR_REWARD, resolveDuo, type DuoReport } from "./pvp";
 
@@ -85,7 +86,8 @@ export async function settleArenaDuo(admin: SupabaseClient, id: string): Promise
 
   const stale = !!row.first_report_at && Date.now() - new Date(row.first_report_at).getTime() >= STALE_MS;
   const bests = await Promise.all(row.players.map((u) => bestOf(admin, u)));
-  const decksOk = decks.every((d, i) => isValidDeck(d) && deckAllowed(d, bests[i]));
+  const owns = await Promise.all(row.players.map((u) => loadOwned(admin, u)));
+  const decksOk = decks.every((d, i) => isValidDeck(d) && deckAllowed(d, bests[i], owns[i]));
   const outcome = decksOk ? resolveDuo(row.seed, decks, row.reports, stale) : ({ kind: "disputed" } as const);
   if (outcome.kind === "waiting") return row;
 
@@ -160,7 +162,7 @@ export async function settleArenaDuo(admin: SupabaseClient, id: string): Promise
       per[uid] = { res, trophy: 0, copies: 0, card: null, xp: 0 };
       continue;
     }
-    const card = pickBattleCard(unlockedCards(bests[i]), decks[i]);
+    const card = pickBattleCard(unlockedCards(bests[i], owns[i]), decks[i]);
     per[uid] = {
       res,
       trophy: res === "win" ? TROPHY_WIN : res === "loss" ? -TROPHY_LOSS : 0,

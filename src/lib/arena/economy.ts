@@ -37,10 +37,13 @@ export const CHEST_BY_KIND = new Map(CHESTS.map((c) => [c.kind, c]));
 
 export type CopyGrant = { card: string; n: number };
 
-/** Cartas que o jogador já liberou (pelo recorde de troféus). */
-export function unlockedCards(best: number): string[] {
-  return ARENA_CARDS.filter((c) => isCardUnlocked(c.key, best)).map((c) => c.key);
+/** Cartas que o jogador já pode usar (arena pelo recorde de troféus + heróis de baú que já achou). */
+export function unlockedCards(best: number, owned: ReadonlySet<string>): string[] {
+  return ARENA_CARDS.filter((c) => isCardUnlocked(c.key, best, owned)).map((c) => c.key);
 }
+
+/** Chance de um baú trazer um herói de baú (Adão, Eva, Jacó…). */
+export const CHEST_FIND_CHANCE = 0.25;
 
 /** Carta ultra lendária: só sai de baú (1% por baú) e só depois de liberada. */
 export const ULTRA_CARD = "jesus";
@@ -65,12 +68,19 @@ export function pickCards(unlocked: string[], deck: string[], count: number, rnd
 }
 
 /** Divide as cópias do baú entre as cartas sorteadas (o que sobra vai pras primeiras). */
-export function rollChest(def: ChestDef, unlocked: string[], deck: string[], rnd: () => number = Math.random): CopyGrant[] {
+export function rollChest(def: ChestDef, unlocked: string[], deck: string[], rnd: () => number = Math.random, finds: string[] = []): CopyGrant[] {
   const common = unlocked.filter((k) => k !== ULTRA_CARD);
   const cards = pickCards(common, deck, def.stacks, rnd);
   if (cards.length === 0) return [];
   // 1% de chance do baú trazer o Jesus no lugar de uma das cartas
   if (unlocked.includes(ULTRA_CARD) && rnd() < ULTRA_CHEST_CHANCE) cards[cards.length - 1] = ULTRA_CARD;
+  // 25% de chance do baú trazer um herói de baú (na maior pilha), que pode ser um que o jogador ainda não tem
+  if (finds.length > 0 && rnd() < CHEST_FIND_CHANCE) {
+    const pick = finds[Math.min(finds.length - 1, Math.floor(rnd() * finds.length))];
+    const at = cards.indexOf(pick);
+    if (at > 0) [cards[0], cards[at]] = [cards[at], cards[0]];
+    else if (at < 0) cards[0] = pick;
+  }
   const base = Math.floor(def.copies / cards.length);
   let rest = def.copies - base * cards.length;
   return cards.map((card) => ({ card, n: base + (rest-- > 0 ? 1 : 0) }));

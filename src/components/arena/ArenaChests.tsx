@@ -74,7 +74,7 @@ export function ArenaChests({
   return (
     <div>
       <p className="mb-3 text-sm font-semibold text-[var(--muted)]">
-        Cada carta junta cópias pra evoluir (até o nível 15). Baús comprados com troféus trazem mais cartas que o Baú da Arena e que uma vitória.
+        Cada carta junta cópias pra evoluir (até o nível 15). Baús comprados com troféus trazem mais cartas que o Baú da Arena e que uma vitória. Todo baú tem 25% de chance de trazer um herói de baú (Adão, Eva, Jacó, Isaque, Isaías, Jeremias ou Nabucodonosor) e 1% de trazer o Jesus, quando você chegar à Nova Jerusalém.
       </p>
       <ul className="space-y-2">
         {CHESTS.map((c) => {

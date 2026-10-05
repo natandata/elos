@@ -161,18 +161,43 @@ export const CARD_UNLOCK_ARENA: Record<string, number> = {
   miguel: 7, fogo: 7, jesus: 7,
 };
 
+/**
+ * Heróis que só se conseguem em baús: não liberam por arena. `CARD_UNLOCK_ARENA`
+ * diz só a partir de qual arena eles podem aparecer num baú; pra usar, o jogador
+ * precisa já ter achado pelo menos uma cópia (veja `isCardUnlocked`).
+ */
+export const CHEST_ONLY = new Set(["adao", "eva", "jaco", "isaque", "isaias", "jeremias", "nabucodonosor"]);
+
 export function cardsUnlockedIn(arenaIdx: number): string[] {
-  return Object.entries(CARD_UNLOCK_ARENA).filter(([, a]) => a === arenaIdx).map(([k]) => k);
+  return Object.entries(CARD_UNLOCK_ARENA)
+    .filter(([k, a]) => a === arenaIdx && !CHEST_ONLY.has(k))
+    .map(([k]) => k);
 }
 
-/** `best` = maior total de troféus que o jogador já teve (não perde carta ao cair de arena). */
-export function isCardUnlocked(key: string, best: number): boolean {
+/** Heróis de baú que já podem aparecer nos baús de quem chegou a `best` troféus. */
+export function chestFinds(best: number): string[] {
+  const idx = arenaIndexFor(best);
+  return [...CHEST_ONLY].filter((k) => (CARD_UNLOCK_ARENA[k] ?? 0) <= idx);
+}
+
+/**
+ * `best` = maior total de troféus que o jogador já teve (não perde carta ao cair de arena).
+ * `owned` = heróis de baú que o jogador já achou (cópias > 0 ou nível acima de 1).
+ */
+export function isCardUnlocked(key: string, best: number, owned: ReadonlySet<string>): boolean {
   const a = CARD_UNLOCK_ARENA[key];
-  return a !== undefined && arenaIndexFor(best) >= a;
+  if (a === undefined) return false;
+  if (CHEST_ONLY.has(key)) return owned.has(key);
+  return arenaIndexFor(best) >= a;
 }
 
-export function deckAllowed(deck: string[], best: number): boolean {
-  return deck.every((k) => isCardUnlocked(k, best));
+export function deckAllowed(deck: string[], best: number, owned: ReadonlySet<string>): boolean {
+  return deck.every((k) => isCardUnlocked(k, best, owned));
+}
+
+/** Heróis de baú que o jogador já achou, a partir das linhas de nível/cópias. */
+export function ownedFromRows(rows: { card: string; level: number; copies: number }[]): Set<string> {
+  return new Set(rows.filter((r) => CHEST_ONLY.has(r.card) && (r.copies > 0 || r.level > 1)).map((r) => r.card));
 }
 
 export function arenaIndexFor(trophies: number): number {
