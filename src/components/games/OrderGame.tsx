@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useState } from "react";
 import { submitOrder, type OrderResult } from "@/lib/actions/games";
 import { BibleHint } from "./BibleHint";
+import { TimerBar, useCountdown } from "./useCountdown";
 
-export function OrderGame({ items, attemptsLeft: initialAttempts, reference }: { items: string[]; attemptsLeft: number; reference: string }) {
+export function OrderGame({ items, attemptsLeft: initialAttempts, reference, seconds = null }: { items: string[]; attemptsLeft: number; reference: string; seconds?: number | null }) {
   const [seq, setSeq] = useState<number[]>([]);
   const [attemptsLeft, setAttemptsLeft] = useState(initialAttempts);
   const [res, setRes] = useState<OrderResult | null>(null);
@@ -14,12 +15,19 @@ export function OrderGame({ items, attemptsLeft: initialAttempts, reference }: {
 
   const final = res?.finished ? res : null;
 
-  async function send() {
-    if (busy || seq.length !== items.length) return;
+  // relógio (treino nas rodadas altas): estourou = manda a ordem como está, completando com o resto
+  const timeLeft = useCountdown(seconds, attemptsLeft, !!res?.finished || busy, () => {
+    const rest = items.map((_, i) => i).filter((i) => !seq.includes(i));
+    void send([...seq, ...rest]);
+  });
+
+  async function send(forced?: number[]) {
+    const order = forced ?? seq;
+    if (busy || order.length !== items.length) return;
     setBusy(true);
     setError(null);
     try {
-      const r = await submitOrder(seq);
+      const r = await submitOrder(order);
       if (r.error) {
         setError(r.error);
         return;
@@ -72,6 +80,7 @@ export function OrderGame({ items, attemptsLeft: initialAttempts, reference }: {
         Toque nos fatos na ordem em que aconteceram. Você tem {attemptsLeft} {attemptsLeft === 1 ? "tentativa" : "tentativas"}.
       </p>
       <BibleHint reference={reference} className="mb-3" />
+      <TimerBar left={timeLeft} total={seconds} />
 
       {res && !res.finished ? (
         <p className="mb-3 rounded-2xl bg-amber-50 px-4 py-3 text-base font-bold text-amber-900">
@@ -125,7 +134,7 @@ export function OrderGame({ items, attemptsLeft: initialAttempts, reference }: {
         </button>
         <button
           type="button"
-          onClick={send}
+          onClick={() => void send()}
           disabled={seq.length !== items.length || busy}
           className="btn btn-primary flex-1 !py-3 !text-base"
         >

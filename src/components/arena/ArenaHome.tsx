@@ -370,6 +370,7 @@ export function ArenaHome({
               <li>🃏 Cada partida e cada baú dão cartas. Juntando cópias de um herói (50, 100, 200…) ele evolui, até o nível 15. Baús comprados com troféus trazem mais cartas.</li>
               <li>🎁 O Baú da Arena é grátis e abre 1 vez por dia.</li>
               <li>⚔️ No 1x1 e em Duplas você joga em tempo real contra colegas do seu Elo.</li>
+              <li>🏅 No 1x1 não se ganha troféu: quem vence ganha uma medalha de vitória contra aquele colega. Empate (mesmas coroas, até 0x0) não vale nada.</li>
             </ul>
           </div>
         ) : null}

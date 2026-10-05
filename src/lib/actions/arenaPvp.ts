@@ -7,7 +7,7 @@ import { STARTER_DECK, isValidDeck } from "@/lib/arena/cards";
 import { arenaIndexFor, deckAllowed } from "@/lib/arena/arenas";
 import { loadOwned } from "@/lib/arena/owned";
 import type { PvpReport } from "@/lib/arena/pvp";
-import { settleArenaPvp, viewOf, type PvpRow, type PvpView } from "@/lib/arena/settlePvp";
+import { settleArenaPvp, viewOf, viewWithMedals, type PvpRow, type PvpView } from "@/lib/arena/settlePvp";
 import { sendPushToUsers } from "@/lib/push-server";
 
 async function player() {
@@ -90,7 +90,8 @@ export async function checkArenaPvp(id: string): Promise<{ view?: PvpView; statu
     const admin = createAdminClient();
     if (admin) cur = (await settleArenaPvp(admin, id)) ?? row;
   }
-  const view = viewOf(cur, userId);
+  const adminDb = createAdminClient();
+  const view = adminDb ? await viewWithMedals(adminDb, cur, userId) : viewOf(cur, userId);
   if (view.state === "finished") {
     const { data: st } = await supabase.from("arena_stats").select("trophies").eq("user_id", userId).maybeSingle<{ trophies: number }>();
     view.trophies = st?.trophies ?? 0;

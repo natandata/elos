@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isValidDeck } from "./cards";
-import { deckAllowed, TROPHY_LOSS, TROPHY_WIN } from "./arenas";
+import { deckAllowed } from "./arenas";
 import { onRoomFinished } from "./tournamentServer";
 import { loadOwned } from "./owned";
 import { COPIES_OTHER, COPIES_WIN, pickBattleCard, unlockedCards } from "./economy";
@@ -54,7 +54,32 @@ export type PvpView = {
   rewarded?: boolean;
   why?: string | null;
   trophies?: number;
+  /** medalha de vitória deste 1x1 (quem ganhou) e o placar de medalhas entre os dois */
+  medal?: { winner: "me" | "them" | null; mine: number; theirs: number };
 };
+
+/** Placar de medalhas de vitória entre dois jogadores (quantas cada um tem contra o outro). */
+export async function medalScore(client: SupabaseClient, me: string, other: string): Promise<{ mine: number; theirs: number }> {
+  const { data } = await client.from("arena_medals").select("winner_id, wins").or(`and(winner_id.eq.${me},loser_id.eq.${other}),and(winner_id.eq.${other},loser_id.eq.${me})`);
+  let mine = 0;
+  let theirs = 0;
+  for (const r of (data ?? []) as { winner_id: string; wins: number }[]) {
+    if (r.winner_id === me) mine = r.wins;
+    else theirs = r.wins;
+  }
+  return { mine, theirs };
+}
+
+/** A visão do resultado já com as medalhas (precisa de um client que leia as medalhas). */
+export async function viewWithMedals(client: SupabaseClient, row: PvpRow, userId: string): Promise<PvpView> {
+  const view = viewOf(row, userId);
+  if (view.state !== "finished" || row.tournament_match_id) return view;
+  const other = row.challenger_id === userId ? row.opponent_id : row.challenger_id;
+  const { mine, theirs } = await medalScore(client, userId, other);
+  const earned = view.result !== "draw" && (row.ticks ?? 0) >= PVP_MIN_TICKS_FOR_REWARD;
+  view.medal = { winner: earned ? (view.result === "win" ? "me" : "them") : null, mine, theirs };
+  return view;
+}
 
 export function viewOf(row: PvpRow, userId: string): PvpView {
   const iAmC = row.challenger_id === userId;
@@ -153,7 +178,8 @@ export async function settleArenaPvp(admin: SupabaseClient, id: string): Promise
     if (!rewarded) return { trophy: 0, copies: 0, card: null as string | null, xp: 0, res: "draw" as const };
     const won = result === mine;
     const res = result === "draw" ? "draw" : won ? "win" : "loss";
-    const trophy = res === "win" ? TROPHY_WIN : res === "loss" ? -TROPHY_LOSS : 0;
+    // o 1x1 não mexe em troféus: quem vence ganha uma medalha contra o adversário (veja abaixo)
+    const trophy = 0;
     const copies = res === "win" ? COPIES_WIN : COPIES_OTHER;
     const card = pickBattleCard(unlockedCards(best, owned), deck);
     const xp = res === "win" && !(await hadXp(uid)) ? 1 : 0;
@@ -193,6 +219,11 @@ export async function settleArenaPvp(admin: SupabaseClient, id: string): Promise
       await admin.rpc("arena_apply_result", { p_user: uid, p_delta: r.trophy, p_result: r.res, p_copies: r.copies, p_card: r.card });
       if (r.xp > 0) await admin.rpc("game_grant_xp", { p_user: uid, p_amount: r.xp, p_type: "game_arena_pvp" });
     }
+  }
+  // medalha de vitória contra o colega derrotado (partida de verdade, sem empate e fora de torneio)
+  if (closed && closed.length > 0 && !row.tournament_match_id && result !== "draw" && outcome.ticks >= PVP_MIN_TICKS_FOR_REWARD) {
+    const [w, l] = result === "challenger" ? [row.challenger_id, row.opponent_id] : [row.opponent_id, row.challenger_id];
+    await admin.rpc("arena_add_medal", { p_winner: w, p_loser: l });
   }
   if (closed && closed.length > 0 && row.tournament_match_id) {
     const winners = result === "challenger" ? [row.challenger_id] : result === "opponent" ? [row.opponent_id] : [];

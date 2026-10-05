@@ -28,6 +28,15 @@ export default async function ArenaPvpLobbyPage() {
     avatarUrl: m.avatar_url,
   }));
   const nameOf = new Map(mates.map((m) => [m.id, m.name]));
+  // medalhas de vitória (as minhas contra cada colega e as dele contra mim)
+  const { data: medalRows } = await supabase.from("arena_medals").select("winner_id, loser_id, wins");
+  const medals: Record<string, { mine: number; theirs: number }> = {};
+  for (const r of (medalRows ?? []) as { winner_id: string; loser_id: string; wins: number }[]) {
+    const other = r.winner_id === profile.id ? r.loser_id : r.winner_id;
+    medals[other] ??= { mine: 0, theirs: 0 };
+    if (r.winner_id === profile.id) medals[other].mine = r.wins;
+    else medals[other].theirs = r.wins;
+  }
   const dayAgo = Date.now() - 24 * 3_600_000;
 
   const items: PvpItem[] = ((pvpRes.data ?? []) as PvpRow[])
@@ -48,8 +57,8 @@ export default async function ArenaPvpLobbyPage() {
 
   return (
     <>
-      <PageHeader title="⚔️ Arena 1x1" subtitle="Desafie um colega do seu Elo: partida de 3 minutos em tempo real, todo mundo com cartas no nível 1." />
-      <ArenaPvpLobby mates={mates} items={items} />
+      <PageHeader title="⚔️ Arena 1x1" subtitle="Desafie um colega do seu Elo: partida de 3 minutos em tempo real, todo mundo com cartas no nível 1. Quem vence ganha uma 🏅 medalha contra o adversário (não mexe em troféus)." />
+      <ArenaPvpLobby mates={mates} items={items} medals={medals} />
       <Link href="/app/jogos/arena" className="btn btn-ghost mt-4 w-full">
         ← Voltar à Arena
       </Link>

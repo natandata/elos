@@ -3,14 +3,15 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { startPractice } from "@/lib/actions/games";
+import { practiceNote } from "@/lib/games/difficulty";
 
 type PracticeGame = "quiz" | "verse" | "who" | "order";
 
-/** Faixa no topo de uma partida de treino. */
-export function PracticeNote() {
+/** Faixa no topo de uma partida de treino: o que muda nesta rodada. */
+export function PracticeNote({ round, game }: { round: number; game: PracticeGame }) {
   return (
     <p className="mb-3 rounded-2xl border-2 border-sky-300 bg-sky-50 px-4 py-2.5 text-sm font-bold text-sky-900">
-      🏋️ Treino: não dá XP nem carta, mas conta pra destravar a Arena dos Heróis.
+      🏋️ {practiceNote(round, game)} Não dá XP nem carta, mas conta pra destravar a Arena dos Heróis.
     </p>
   );
 }

@@ -27,7 +27,7 @@ function Tile({ card, picked, locked, level, copies, onClick }: { card: ArenaCar
       <div className="flex h-14 items-end justify-center">
         {card.art ? <CardArt card={card} className="h-14" /> : <span className="text-3xl" aria-hidden>{card.emoji}</span>}
       </div>
-      <p className="mt-1 text-[10px] font-bold leading-tight">{card.name}</p>
+      <p className={`mt-1 font-bold leading-tight [overflow-wrap:anywhere] ${card.name.split(" ").some((w) => w.length >= 12) ? "text-[8px]" : "text-[10px]"}`}>{card.name}</p>
       {level ? <p className="text-[9px] font-black text-violet-500">Nv.{level}</p> : null}
       {level && level < MAX_CARD_LEVEL ? (
         <div className="relative mx-auto mt-0.5 h-3 w-full overflow-hidden rounded-full bg-black/25">

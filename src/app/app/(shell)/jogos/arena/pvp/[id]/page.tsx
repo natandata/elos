@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { ArenaPvpRoom } from "@/components/arena/ArenaPvpRoom";
 import { PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
-import { viewOf, type PvpRow } from "@/lib/arena/settlePvp";
+import { viewOf, viewWithMedals, type PvpRow } from "@/lib/arena/settlePvp";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -38,6 +38,8 @@ export default async function ArenaPvpRoomPage({ params }: { params: Promise<{ i
   // convite parado há mais de 1 dia vale como recusado
   const expired = row.status === "invited" && Date.now() - new Date(row.created_at).getTime() > 24 * 3_600_000;
   const status = expired ? "declined" : row.status;
+  const adminDb = createAdminClient();
+  const initial = expired ? ({ state: "declined" } as const) : adminDb ? await viewWithMedals(adminDb, row, profile.id) : viewOf(row, profile.id);
 
   return (
     <>
@@ -50,7 +52,7 @@ export default async function ArenaPvpRoomPage({ params }: { params: Promise<{ i
         seed={row.seed}
         decks={[row.challenger_deck, row.opponent_deck]}
         initialStatus={status}
-        initialView={expired ? { state: "declined" } : viewOf(row, profile.id)}
+        initialView={initial}
         tournamentId={tournamentId}
         myId={profile.id}
       />

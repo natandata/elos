@@ -444,15 +444,20 @@ function Result({ view, status, opponentName, tournamentId }: { view: PvpView; s
           👑 {view.crownsMe ?? 0} x {view.crownsThem ?? 0} 👑
         </p>
       )}
+      {view.medal ? (
+        <div className="mt-2">
+          {view.medal.winner === "me" ? (
+            <p className="text-lg font-black text-amber-500">🏅 +1 medalha de vitória contra {opponentName}!</p>
+          ) : view.medal.winner === "them" ? (
+            <p className="text-sm font-bold text-[var(--muted)]">🏅 {opponentName} ganhou uma medalha de vitória contra você.</p>
+          ) : null}
+          <p className="text-sm font-black">
+            Medalhas: você {view.medal.mine} x {view.medal.theirs} {opponentName}
+          </p>
+        </div>
+      ) : null}
       {view.rewarded ? (
         <>
-          {r !== "draw" ? (
-            <p className={`mt-2 text-xl font-black tabular-nums ${(view.trophyDelta ?? 0) >= 0 ? "text-amber-500" : "text-rose-500"}`}>
-              {(view.trophyDelta ?? 0) >= 0 ? "+" : ""}
-              {view.trophyDelta ?? 0} 🏆
-              {typeof view.trophies === "number" ? <span className="text-sm font-bold text-[var(--muted)]"> (total {view.trophies})</span> : null}
-            </p>
-          ) : null}
           <CopyReward card={view.copyCard} n={view.copies} />
           {(view.xp ?? 0) > 0 ? (
             <p className="mt-2 inline-block rounded-full bg-[var(--accent-soft)] px-4 py-1.5 text-lg font-black text-[var(--accent-strong)]">+{view.xp} XP</p>

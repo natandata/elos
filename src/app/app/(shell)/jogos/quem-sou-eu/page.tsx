@@ -3,7 +3,7 @@ import { DifficultyPicker } from "@/components/games/DifficultyPicker";
 import { WhoGame } from "@/components/games/WhoGame";
 import { PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
-import { DIFFICULTY_INFO, difficultyChip, rules } from "@/lib/games/difficulty";
+import { DIFFICULTY_INFO, difficultyChip, practiceTier, rules } from "@/lib/games/difficulty";
 import { dailyWho, practiceDate, todayBR } from "@/lib/games/engine";
 import { PracticeNote, ReplayButton } from "@/components/games/Practice";
 import { activePlays, playDifficulty } from "@/lib/games/status";
@@ -48,12 +48,13 @@ export default async function QuemSouEuPage() {
         <DifficultyPicker game="who" />
       ) : (
         <>
-          {play?.practice ? <PracticeNote /> : null}
+          {play?.practice ? <PracticeNote round={play.variant} game="who" /> : null}
           <WhoGame
             options={round.options}
             initialHints={round.item.hints.slice(0, Math.min(round.startHints + guesses.length, 4))}
             initialGuesses={guesses}
             reference={round.item.ref}
+            seconds={play?.practice ? practiceTier(play.variant).seconds : null}
           />
         </>
       )}

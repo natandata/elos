@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { answerQuestion, type AnswerResult } from "@/lib/actions/games";
 import { BibleHint } from "./BibleHint";
+import { TimerBar, useCountdown } from "./useCountdown";
 import { CardTile } from "./CardTile";
 
 type Q = { prompt: string; options: string[]; ref: string };
@@ -17,6 +18,7 @@ export function QuestionGame({
   emoji,
   title,
   backHref = "/app/jogos",
+  seconds = null,
 }: {
   game: "quiz" | "verse" | "duel";
   duelId?: string;
@@ -26,6 +28,8 @@ export function QuestionGame({
   emoji: string;
   title: string;
   backHref?: string;
+  /** relógio por pergunta (treino nas rodadas altas); estourou = conta como erro */
+  seconds?: number | null;
 }) {
   const [idx, setIdx] = useState(startIdx);
   const [score, setScore] = useState(startScore);
@@ -38,9 +42,10 @@ export function QuestionGame({
 
   const total = questions.length;
   const q = questions[idx];
+  const timeLeft = useCountdown(seconds, idx, picked !== null || busy || showFinal, () => void pick(-1));
 
   async function pick(choice: number) {
-    if (busy || picked !== null) return;
+    if (busy || picked !== null || showFinal) return;
     setBusy(true);
     setError(null);
     try {
@@ -125,6 +130,7 @@ export function QuestionGame({
         />
       </div>
 
+      <TimerBar left={timeLeft} total={seconds} />
       <div className="card mb-4 p-5">
         <p className="text-xl font-black leading-snug">{q.prompt}</p>
       </div>

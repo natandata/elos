@@ -353,15 +353,10 @@ function separate(state: GameState) {
   }
 }
 
+/** No tempo final vence quem tem mais coroas; coroas iguais (inclusive 0x0) é empate. */
 function finishByTime(state: GameState) {
   state.over = true;
-  if (state.crowns[0] !== state.crowns[1]) {
-    state.winner = state.crowns[0] > state.crowns[1] ? 0 : 1;
-    return;
-  }
-  const hp = [0, 0];
-  for (const e of state.entities) if (e.type === "tower" && e.hp > 0) hp[e.side] += e.hp;
-  state.winner = hp[0] === hp[1] ? null : hp[0] > hp[1] ? 0 : 1;
+  state.winner = state.crowns[0] === state.crowns[1] ? null : state.crowns[0] > state.crowns[1] ? 0 : 1;
 }
 
 /** Avança 1 tick (1/20 s). `bots` = lados controlados pelo computador. */

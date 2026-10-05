@@ -96,3 +96,39 @@ export function xpForWho(attempt: number, d: StoredDifficulty): number {
 export function xpForOrder(d: StoredDifficulty): number {
   return rules(d) === "dificil" ? 2 : 1;
 }
+
+// ------------------------------------------------------------ treino: cada rodada fica mais difícil
+
+export type PracticeTier = {
+  difficulty: Difficulty;
+  /** segundos por pergunta (quiz/versículo) ou por palpite (quem sou eu); null = sem relógio */
+  seconds: number | null;
+  /** segundos pra ordenar os fatos; null = sem relógio */
+  orderSeconds: number | null;
+  /** palpites do Quem Sou Eu (menos que o normal nas rodadas altas); null = o normal */
+  whoGuesses: number | null;
+};
+
+/**
+ * Rodada de treino nº `round` (1 = primeira jogada extra do dia).
+ * 1: Médio · 2: Difícil · 3+: Difícil com relógio que aperta a cada rodada
+ * (e, do 4º em diante, menos palpites no Quem Sou Eu).
+ */
+export function practiceTier(round: number): PracticeTier {
+  const r = Math.max(1, Math.floor(round) || 1);
+  if (r === 1) return { difficulty: "medio", seconds: null, orderSeconds: null, whoGuesses: null };
+  if (r === 2) return { difficulty: "dificil", seconds: null, orderSeconds: null, whoGuesses: null };
+  const p = r - 2;
+  return { difficulty: "dificil", seconds: Math.max(8, 26 - 4 * p), orderSeconds: Math.max(20, 75 - 12 * p), whoGuesses: p >= 2 ? 2 : null };
+}
+
+/** Frase curta pra avisar o jogador do que muda nesta rodada. */
+export function practiceNote(round: number, game: GameKey): string {
+  const t = practiceTier(round);
+  const bits = [`dificuldade ${DIFFICULTY_LABEL[t.difficulty]}`];
+  if (game === "order") {
+    if (t.orderSeconds) bits.push(`${t.orderSeconds}s pra ordenar`);
+  } else if (t.seconds) bits.push(`${t.seconds}s ${game === "who" ? "por palpite" : "por pergunta"}`);
+  if (game === "who" && t.whoGuesses) bits.push(`só ${t.whoGuesses} palpites`);
+  return `Treino nº ${round}: ${bits.join(" · ")}. Cada rodada de treino fica mais difícil.`;
+}

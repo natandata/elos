@@ -10,6 +10,7 @@ import { dailyOrder, dailyQuestions, dailyWho, duelQuestions, practiceDate, toda
 import {
   isDifficulty,
   ORDER_ATTEMPTS,
+  practiceTier,
   rules,
   xpForOrder,
   xpForQuiz,
@@ -183,7 +184,7 @@ export async function startPractice(game: GateGameKey): Promise<{ error?: string
   if (!latest.finished) return {}; // já tem partida em andamento
   const { error } = await c.admin
     .from("game_plays")
-    .insert({ user_id: c.userId, game, play_date: todayBR(), duel_id: null, practice: true, variant: latest.variant + 1 });
+    .insert({ user_id: c.userId, game, play_date: todayBR(), duel_id: null, practice: true, variant: latest.variant + 1, difficulty: practiceTier(latest.variant + 1).difficulty });
   if (error) {
     // outra aba abriu o treino no mesmo instante: vale o que já existe
     const again = await getOrCreatePlay(c, game);
@@ -245,7 +246,8 @@ export async function answerQuestion(input: {
 
   const answers = (play.answers ?? []) as number[];
   if (idx !== answers.length) return { error: "Tela desatualizada.", answered: answers.length };
-  if (choice < 0 || choice >= questions[idx].options.length) return { error: "Resposta inválida." };
+  const timedOut = choice === -1 && play.practice;
+  if (!timedOut && (choice < 0 || choice >= questions[idx].options.length)) return { error: "Resposta inválida." };
 
   const q = questions[idx];
   const correct = choice === q.correctIdx;
@@ -333,15 +335,19 @@ export async function guessWho(choice: number): Promise<WhoResult> {
   if (!diff) return { error: "Escolha a dificuldade antes de jogar." };
 
   const round = dailyWho(diff, drawDate(play));
-  if (choice < 0 || choice >= round.options.length) return { error: "Palpite inválido." };
+  // -1 = tempo esgotado (só no treino): conta como palpite errado
+  const timedOut = choice === -1 && play.practice;
+  if (!timedOut && (choice < 0 || choice >= round.options.length)) return { error: "Palpite inválido." };
 
   const guesses = (play.answers ?? []) as number[];
-  if (guesses.includes(choice)) return { error: "Você já tentou essa opção." };
+  if (!timedOut && guesses.includes(choice)) return { error: "Você já tentou essa opção." };
 
   const attempt = guesses.length + 1;
   const correct = choice === round.correctIdx;
   const score = correct ? 5 - attempt : 0;
-  const finished = correct || attempt >= round.maxGuesses;
+  // nas rodadas altas de treino há menos palpites
+  const maxGuesses = play.practice ? Math.min(round.maxGuesses, practiceTier(play.variant).whoGuesses ?? round.maxGuesses) : round.maxGuesses;
+  const finished = correct || attempt >= maxGuesses;
 
   const { error: upErr } = await c.admin
     .from("game_plays")

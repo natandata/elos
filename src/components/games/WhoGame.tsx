@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { guessWho, type WhoResult } from "@/lib/actions/games";
 import { BibleHint } from "./BibleHint";
+import { TimerBar, useCountdown } from "./useCountdown";
 import { CardTile } from "./CardTile";
 
 export function WhoGame({
@@ -11,11 +12,14 @@ export function WhoGame({
   initialHints,
   initialGuesses,
   reference,
+  seconds = null,
 }: {
   options: string[];
   initialHints: string[];
   initialGuesses: number[];
   reference: string;
+  /** relógio por palpite (treino nas rodadas altas); estourou = palpite errado */
+  seconds?: number | null;
 }) {
   const [hints, setHints] = useState(initialHints);
   const [guessed, setGuessed] = useState(initialGuesses);
@@ -23,8 +27,10 @@ export function WhoGame({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const timeLeft = useCountdown(seconds, guessed.length, !!final || busy, () => void guess(-1));
+
   async function guess(i: number) {
-    if (busy || guessed.includes(i) || final) return;
+    if (busy || (i !== -1 && guessed.includes(i)) || final) return;
     setBusy(true);
     setError(null);
     try {
@@ -58,6 +64,7 @@ export function WhoGame({
       </div>
 
       <BibleHint reference={reference} className="mb-4" />
+      {!final ? <TimerBar left={timeLeft} total={seconds} /> : null}
 
       {final ? (
         <div className="card p-6 text-center">

@@ -16,7 +16,7 @@ export type PvpItem = {
   waiting: boolean;
 };
 
-export function ArenaPvpLobby({ mates, items }: { mates: Mate[]; items: PvpItem[] }) {
+export function ArenaPvpLobby({ mates, items, medals = {} }: { mates: Mate[]; items: PvpItem[]; medals?: Record<string, { mine: number; theirs: number }> }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -90,7 +90,14 @@ export function ArenaPvpLobby({ mates, items }: { mates: Mate[]; items: PvpItem[
             {mates.map((m) => (
               <li key={m.id} className="card flex items-center gap-3 p-3">
                 <Avatar url={m.avatarUrl} name={m.name} size={40} />
-                <span className="min-w-0 flex-1 truncate text-base font-bold">{m.name}</span>
+                <span className="min-w-0 flex-1 leading-tight">
+                  <span className="block truncate text-base font-bold">{m.name}</span>
+                  {medals[m.id] ? (
+                    <span className="block text-xs font-bold text-amber-600">
+                      🏅 você {medals[m.id].mine} x {medals[m.id].theirs} {m.name.split(" ")[0]}
+                    </span>
+                  ) : null}
+                </span>
                 <button type="button" disabled={busy !== null} onClick={() => challenge(m.id)} className="btn btn-primary !px-4 !py-2 !text-sm disabled:opacity-50">
                   {busy === m.id ? "..." : "⚔️ Desafiar"}
                 </button>

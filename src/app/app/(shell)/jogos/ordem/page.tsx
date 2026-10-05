@@ -3,7 +3,7 @@ import { DifficultyPicker } from "@/components/games/DifficultyPicker";
 import { OrderGame } from "@/components/games/OrderGame";
 import { PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
-import { DIFFICULTY_INFO, difficultyChip, ORDER_ATTEMPTS, rules } from "@/lib/games/difficulty";
+import { DIFFICULTY_INFO, difficultyChip, ORDER_ATTEMPTS, practiceTier, rules } from "@/lib/games/difficulty";
 import { dailyOrder, practiceDate, todayBR } from "@/lib/games/engine";
 import { PracticeNote, ReplayButton } from "@/components/games/Practice";
 import { activePlays, playDifficulty } from "@/lib/games/status";
@@ -56,8 +56,8 @@ export default async function OrdemPage() {
         <DifficultyPicker game="order" />
       ) : (
         <>
-          {play?.practice ? <PracticeNote /> : null}
-          <OrderGame items={round.shuffled} attemptsLeft={ORDER_ATTEMPTS[rules(diff)] - attemptsUsed} reference={round.set.ref} />
+          {play?.practice ? <PracticeNote round={play.variant} game="order" /> : null}
+          <OrderGame items={round.shuffled} attemptsLeft={ORDER_ATTEMPTS[rules(diff)] - attemptsUsed} reference={round.set.ref} seconds={play?.practice ? practiceTier(play.variant).orderSeconds : null} />
         </>
       )}
     </>

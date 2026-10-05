@@ -4,7 +4,7 @@ import { QuestionGame } from "@/components/games/QuestionGame";
 import { PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import { dailyQuestions, practiceDate, todayBR, toPublic } from "@/lib/games/engine";
-import { DIFFICULTY_INFO, difficultyChip, rules } from "@/lib/games/difficulty";
+import { DIFFICULTY_INFO, difficultyChip, practiceTier, rules } from "@/lib/games/difficulty";
 import { PracticeNote, ReplayButton } from "@/components/games/Practice";
 import { activePlays, playDifficulty } from "@/lib/games/status";
 import { createClient } from "@/lib/supabase/server";
@@ -46,12 +46,13 @@ export default async function QuizPage() {
         <DifficultyPicker game="quiz" />
       ) : (
         <>
-          {play?.practice ? <PracticeNote /> : null}
+          {play?.practice ? <PracticeNote round={play.variant} game="quiz" /> : null}
           <QuestionGame
           game="quiz"
           questions={questions}
           startIdx={play?.answers?.length ?? 0}
           startScore={play?.score ?? 0}
+          seconds={play?.practice ? practiceTier(play.variant).seconds : null}
           emoji="🧠"
           title="Quiz do Dia"
           />
