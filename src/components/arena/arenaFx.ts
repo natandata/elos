@@ -26,7 +26,8 @@ export type Fx =
   | { k: "ring"; x: number; y: number; t0: number; dur: number; color: string; r: number }
   | { k: "spell"; key: string; x: number; y: number; r: number; t0: number; dur: number }
   | { k: "ghost"; x: number; y: number; card: string; flying: boolean; radius: number; side: number; t0: number; dur: number }
-  | { k: "boom"; x: number; y: number; big: boolean; t0: number; dur: number };
+  | { k: "boom"; x: number; y: number; big: boolean; t0: number; dur: number }
+  | { k: "mark"; x: number; y: number; emoji: string; t0: number; dur: number };
 
 export const newAnim = (born: number, side: number): Anim => ({
   born,
@@ -187,6 +188,25 @@ export function drawFx(ctx: CanvasRenderingContext2D, s: number, list: Fx[], tic
           ctx.fill();
           ctx.restore();
         }
+        break;
+      }
+      case "mark": {
+        // jogada agendada (1x1): marca o lugar até a tropa entrar em campo
+        const pulse = 0.5 + Math.sin(tickF * 0.6) * 0.15;
+        ctx.save();
+        ctx.translate(f.x * s, f.y * s);
+        ctx.strokeStyle = `rgba(255,255,255,${0.55 + pulse * 0.3})`;
+        ctx.lineWidth = Math.max(2, s * 0.1);
+        ctx.setLineDash([s * 0.3, s * 0.2]);
+        ctx.lineDashOffset = -tickF;
+        ctx.beginPath();
+        ctx.arc(0, 0, s * (0.7 + p * 0.25), 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 0.7;
+        ctx.font = `${0.95 * s}px system-ui, "Segoe UI Emoji", sans-serif`;
+        ctx.fillText(f.emoji, 0, 0);
+        ctx.restore();
         break;
       }
       case "slash": {

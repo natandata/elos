@@ -40,6 +40,8 @@ export type GameOpts = {
   levels?: Record<string, number>;
   /** arena em que se joga: define o baralho e o nível do computador */
   arena?: number;
+  /** partida 1x1 entre jogadores: ninguém tem nível extra */
+  pvp?: boolean;
 };
 
 function makeTower(id: number, side: Side, kind: "atalaia" | "santuario", lane: number, x: number, y: number): Entity {
@@ -58,7 +60,7 @@ const unalias = (deck: string[]) => deck.map((k) => CARD_ALIAS[k] ?? k);
 
 export function createGame(seed: number, playerDeck: string[], botDeck?: string[], opts: GameOpts = {}): GameState {
   botDeck ??= pickBotDeck(seed, opts.arena);
-  const botLevel = botLevelForArena(opts.arena ?? 0);
+  const botLevel = opts.pvp ? 1 : botLevelForArena(opts.arena ?? 0);
   const botLevels: Record<string, number> = {};
   for (const c of ARENA_CARDS) botLevels[c.key] = botLevel;
   const decks: [string[], string[]] = [shuffleWith(unalias(playerDeck), seed ^ 0xa5a5), shuffleWith(unalias(botDeck), seed ^ 0x5a5a)];
