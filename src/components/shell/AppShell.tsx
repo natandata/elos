@@ -77,8 +77,13 @@ export function AppShell({
     document.body.scrollLeft = 0;
   }, [pathname]);
 
+  // As Homes ("Início") só marcam em si mesmas: as telas filhas (/app/lider/missoes…)
+  // pertencem a outros itens do menu.
+  const EXACT_ONLY = ["/app/lider", "/app/cria"];
   const isActive = (href?: string) =>
-    !!href && (href === pathname || (href !== "/app" && pathname.startsWith(href + "/")));
+    !!href &&
+    (href === pathname ||
+      (href !== "/app" && !EXACT_ONLY.includes(href) && pathname.startsWith(href + "/")));
 
   const navList = (onNavigate?: () => void) => (
     <ul className="space-y-1">
@@ -113,6 +118,8 @@ export function AppShell({
         const label = (
           <span className="flex flex-1 items-center gap-2.5 px-3 py-2.5">
             {item.label}
+            {/* grupo recolhido: mostra aqui o que há de novo lá dentro (ex.: mensagens do Chat) */}
+            {!isExpanded ? <NavBadge count={item.children!.reduce((n, c) => n + (c.badge ?? 0), 0)} /> : null}
           </span>
         );
 

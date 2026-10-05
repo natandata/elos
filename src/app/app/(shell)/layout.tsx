@@ -47,17 +47,31 @@ const NAV: Record<string, NavItem[]> = {
     { href: "/app/feed", label: "Explorar", icon: "📸" },
   ],
   leader: [
-    { href: "/app/lider", label: "Início", icon: "🏠" },
-    { href: "/app/ranking", label: "Meu Elo", icon: "🏆" },
-    { href: "/app/lider/missoes", label: "Missões", icon: "🎯" },
-    { href: "/app/devocional", label: "Meu Devocional", icon: "📖" },
-    { href: "/app/jogos", label: "Jogos", icon: "🎮" },
-    { href: "/app/agenda", label: "Agenda", icon: "📅" },
-    { href: "/app/eventos", label: "Eventos", icon: "🎬" },
-    { href: "/app/chat", label: "Chat", icon: "💬" },
+    {
+      href: "/app/lider",
+      label: "Início",
+      icon: "🏠",
+      children: [{ href: "/app/devocional", label: "Meu Devocional", icon: "📖" }],
+    },
+    {
+      href: "/app/ranking",
+      label: "Meu Elo",
+      icon: "🏆",
+      children: [
+        { href: "/app/lider/missoes", label: "Missões", icon: "🎯" },
+        { href: "/app/chat", label: "Chat", icon: "💬" },
+        { href: "/app/lider/status-crias", label: "Status Crias", icon: "💛" },
+        { href: "/app/lider/devocional-crias", label: "Devocional Crias", icon: "📖" },
+      ],
+    },
+    {
+      href: "/app/agenda",
+      label: "Agenda",
+      icon: "📅",
+      children: [{ href: "/app/eventos", label: "Eventos", icon: "🎬" }],
+    },
     { href: "/app/feed", label: "Explorar", icon: "📸" },
-    { href: "/app/lider/status-crias", label: "Status Crias", icon: "💛" },
-    { href: "/app/lider/devocional-crias", label: "Devocional Crias", icon: "📖" },
+    { href: "/app/jogos", label: "Jogos", icon: "🎮" },
   ],
   cria: [
     { href: "/app/cria", label: "Início", icon: "🏠" },
@@ -153,9 +167,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   const chatUnread = chatUnreadRes.count ?? 0;
-  const navItems = (NAV[profile.role] ?? NAV.cria).map((item) =>
-    item.href === "/app/chat" ? { ...item, badge: chatUnread } : item,
-  );
+  // selo de mensagens não lidas no Chat, esteja ele no topo ou dentro de um grupo
+  const withChatBadge = (item: NavItem): NavItem => ({
+    ...item,
+    ...(item.href === "/app/chat" ? { badge: chatUnread } : {}),
+    ...(item.children ? { children: item.children.map(withChatBadge) } : {}),
+  });
+  const navItems = (NAV[profile.role] ?? NAV.cria).map(withChatBadge);
 
   // líder homem tem cor própria (vermelho); líder mulher mantém o rosa,
   // igual às crias — só o líder homem sai do amarelo padrão masculino
