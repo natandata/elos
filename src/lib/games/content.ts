@@ -49,7 +49,7 @@ export const QUIZ: QuizItem[] = [
   { q: "Qual livro vem logo depois de Gênesis?", a: "Êxodo", w: ["Levítico", "Números", "Josué"], ref: "Êxodo 1:1" },
   { q: "Qual oração Jesus ensinou aos discípulos?", a: "Pai Nosso", w: ["Salmo 23", "Oração de Jabez", "Cântico de Maria"], ref: "Mateus 6:9-13" },
   { q: "Quem sonhou com uma escada que ligava a terra ao céu?", a: "Jacó", w: ["Abraão", "José", "Daniel"], ref: "Gênesis 28:12" },
-  { q: "Quem recebeu de Deus a promessa de ser pai de uma grande nação?", a: "Abraão", w: ["Isaque", "Jacó", "Ló"], ref: "Gênesis 12:1-2" },
+  { q: "A quem Deus disse primeiro: \"de ti farei uma grande nação\"?", a: "Abraão", w: ["Isaque", "Jacó", "Ló"], ref: "Gênesis 12:1-2" },
   { q: "Quem era o grande amigo de Davi, filho do rei Saul?", a: "Jônatas", w: ["Abner", "Joabe", "Absalão"], ref: "1 Samuel 18:1" },
   { q: "Qual profeta foi levado ao céu num redemoinho sem passar pela morte?", a: "Elias", w: ["Moisés", "Eliseu", "Isaías"], ref: "2 Reis 2:11" },
   { q: "Quem interpretou os sonhos do faraó do Egito?", a: "José", w: ["Daniel", "Moisés", "Arão"], ref: "Gênesis 41" },
@@ -93,7 +93,7 @@ export const VERSES: VerseItem[] = [
 export type WhoItem = { key: string; name: string; hints: [string, string, string, string]; ref: string };
 
 export const WHO: WhoItem[] = [
-  { key: "noe", name: "Noé", ref: "Gênesis 6–9", hints: ["Zombavam de mim por construir algo enorme em terra seca.", "Levei minha família e muitos animais para dentro do que construí.", "Choveu quarenta dias e quarenta noites.", "Uma pomba voltou com um ramo de oliveira."] },
+  { key: "noe", name: "Noé", ref: "Gênesis 6–9", hints: ["Deus me avisou de algo que nunca tinha acontecido e mandou construir algo enorme.", "Levei minha família e muitos animais para dentro do que construí.", "Choveu quarenta dias e quarenta noites.", "Uma pomba voltou com um ramo de oliveira."] },
   { key: "moises", name: "Moisés", ref: "Êxodo 2–20", hints: ["Fui salvo de um rio ainda bebê, dentro de um cesto.", "Cresci na casa do faraó, mas fugi para Midiã.", "Deus falou comigo numa sarça que queimava sem se consumir.", "Abri o Mar Vermelho e recebi os Dez Mandamentos."] },
   { key: "davi", name: "Davi", ref: "1 Samuel 16–17", hints: ["Eu era o mais novo dos irmãos e cuidava de ovelhas.", "Tocava harpa e escrevi muitos Salmos.", "Fui ungido rei por Samuel ainda jovem.", "Derrubei um gigante com uma pedra e uma funda."] },
   { key: "daniel", name: "Daniel", ref: "Daniel 1–6", hints: ["Fui levado para a Babilônia ainda jovem.", "Recusei a comida do rei para me manter fiel a Deus.", "Eu interpretava sonhos de reis.", "Passei uma noite numa cova de leões e nada me aconteceu."] },
@@ -102,7 +102,7 @@ export const WHO: WhoItem[] = [
   { key: "jonas", name: "Jonas", ref: "Livro de Jonas", hints: ["Deus mandou eu ir a Nínive, mas fui para o lado contrário.", "Peguei um barco e veio uma grande tempestade.", "Fui jogado ao mar.", "Passei três dias dentro de um grande peixe."] },
   { key: "pedro", name: "Pedro", ref: "Mateus 4 e 26", hints: ["Eu era pescador na Galileia.", "Jesus me chamou dizendo que eu seria pescador de homens.", "Andei sobre as águas por alguns passos até duvidar.", "Neguei Jesus três vezes antes de o galo cantar."] },
   { key: "paulo", name: "Paulo", ref: "Atos 9", hints: ["No começo, eu perseguia os cristãos.", "Uma luz forte me parou no caminho para Damasco.", "Fiquei cego por três dias até Ananias orar por mim.", "Escrevi cartas do Novo Testamento, como Romanos e Gálatas."] },
-  { key: "rute", name: "Rute", ref: "Livro de Rute", hints: ["Nasci em Moabe, não em Israel.", "Fiquei viúva muito jovem.", "Disse à minha sogra: o teu povo será o meu povo.", "Casei com Boaz e fui bisavó do rei Davi."] },
+  { key: "rute", name: "Rute", ref: "Livro de Rute", hints: ["Nasci em Moabe, não em Israel.", "Meu marido morreu e fiquei viúva.", "Disse à minha sogra: o teu povo será o meu povo.", "Casei com Boaz e fui bisavó do rei Davi."] },
   { key: "salomao", name: "Salomão", ref: "1 Reis 3–6", hints: ["Meu pai foi rei antes de mim.", "Deus perguntou o que eu queria, e eu pedi sabedoria.", "Julguei o caso de duas mulheres que disputavam um bebê.", "Construí o templo em Jerusalém."] },
   { key: "sansao", name: "Sansão", ref: "Juízes 13–16", hints: ["Antes de nascer, um anjo anunciou que eu seria separado para Deus.", "Minha força estava ligada ao cabelo, que nunca foi cortado.", "Matei um leão com as mãos nuas.", "Derrubei as colunas do templo dos filisteus."] },
   { key: "elias", name: "Elias", ref: "1 Reis 17–18; 2 Reis 2", hints: ["Fui profeta no tempo do rei Acabe.", "Corvos me traziam comida junto a um ribeiro.", "Desafiei os profetas de Baal no monte Carmelo.", "Fui levado ao céu num redemoinho, sem morrer."] },

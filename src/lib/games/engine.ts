@@ -70,7 +70,9 @@ function buildQuiz(item: QuizItem, seed: string): Question {
 
 function buildVerse(item: VerseItem, seed: string): Question {
   const options = shuffle([item.a, ...item.w], `${seed}:${item.ref}`);
-  const prompt = [item.before, "_____", item.after].filter(Boolean).join(" ");
+  // pontuação logo depois da lacuna fica colada ("_____;"), não solta ("_____ ;")
+  const glue = /^[;,.:?!]/.test(item.after) ? "" : " ";
+  const prompt = `${item.before ? `${item.before} ` : ""}_____${item.after ? `${glue}${item.after}` : ""}`;
   return { prompt, options, correctIdx: options.indexOf(item.a), ref: item.ref };
 }
 
