@@ -1,0 +1,349 @@
+import { ARENA_CARDS, ARENA_CARD_BY_KEY, ATALAIA, SANTUARIO, type ArenaCard } from "./cards";
+import { botDecide } from "./bot";
+import {
+  BRIDGES,
+  DECK_SIZE,
+  DOUBLE_MANA_TICK,
+  HAND_SIZE,
+  MANA_MAX,
+  MANA_SECS_PER_POINT,
+  MANA_START,
+  MATCH_TICKS,
+  RIVER_BOT,
+  RIVER_TOP,
+  TICKS_PER_SEC,
+  W,
+  H,
+  dist,
+  inDeployZone,
+  inField,
+  nearestBridge,
+  shuffleWith,
+  type Entity,
+  type GameEvent,
+  type GameState,
+  type Input,
+  type Side,
+} from "./core";
+
+const AGGRO = 6;
+
+export function pickBotDeck(seed: number): string[] {
+  return shuffleWith(
+    ARENA_CARDS.map((c) => c.key),
+    (seed ^ 0x77777) | 0,
+  ).slice(0, DECK_SIZE);
+}
+
+function makeTower(id: number, side: Side, kind: "atalaia" | "santuario", lane: number, x: number, y: number): Entity {
+  const t = kind === "atalaia" ? ATALAIA : SANTUARIO;
+  return {
+    id, side, type: "tower", card: kind, lane, x, y, px: x, py: y,
+    hp: t.hp, maxHp: t.hp, radius: t.radius, dmg: t.dmg, atkTicks: Math.round(t.atkSpeed * TICKS_PER_SEC),
+    range: t.range, speed: 0, flying: false, towersOnly: false, canHitAir: true, splash: 0, cd: 0, slowUntil: 0, slowAmount: 0,
+  };
+}
+
+export function createGame(seed: number, playerDeck: string[], botDeck: string[] = pickBotDeck(seed)): GameState {
+  const decks: [string[], string[]] = [shuffleWith(playerDeck, seed ^ 0xa5a5), shuffleWith(botDeck, seed ^ 0x5a5a)];
+  const state: GameState = {
+    tick: 0,
+    seed,
+    nextId: 1,
+    mana: [MANA_START, MANA_START],
+    slots: [decks[0].slice(0, HAND_SIZE), decks[1].slice(0, HAND_SIZE)],
+    queue: [decks[0].slice(HAND_SIZE), decks[1].slice(HAND_SIZE)],
+    entities: [],
+    crowns: [0, 0],
+    rng: [(seed ^ 0x1234567) | 0, (seed ^ 0x7654321) | 0],
+    over: false,
+    winner: null,
+  };
+  const mk = (side: Side, kind: "atalaia" | "santuario", lane: number, x: number, y: number) =>
+    state.entities.push(makeTower(state.nextId++, side, kind, lane, x, y));
+  mk(0, "atalaia", 0, 4, H - 5.5);
+  mk(0, "atalaia", 1, W - 4, H - 5.5);
+  mk(0, "santuario", -1, W / 2, H - 2.5);
+  mk(1, "atalaia", 0, 4, 5.5);
+  mk(1, "atalaia", 1, W - 4, 5.5);
+  mk(1, "santuario", -1, W / 2, 2.5);
+  return state;
+}
+
+function makeUnit(state: GameState, card: ArenaCard, side: Side, x: number, y: number): Entity {
+  return {
+    id: state.nextId++, side, type: "unit", card: card.key, lane: -1, x, y, px: x, py: y,
+    hp: card.hp ?? 100, maxHp: card.hp ?? 100, radius: card.radius ?? 0.5, dmg: card.dmg ?? 10,
+    atkTicks: Math.max(1, Math.round((card.atkSpeed ?? 1) * TICKS_PER_SEC)), range: card.range ?? 0.8,
+    speed: (card.speed ?? 1.5) / TICKS_PER_SEC, flying: !!card.flying, towersOnly: !!card.towersOnly,
+    canHitAir: !!card.canHitAir, splash: card.splash ?? 0, cd: 0, slowUntil: 0, slowAmount: 0,
+  };
+}
+
+function spawnOffsets(n: number, side: Side): [number, number][] {
+  const f = side === 0 ? 1 : -1;
+  if (n === 3) return [[-0.7, 0], [0.7, 0], [0, 0.7 * f]];
+  if (n === 4) return [[-0.6, -0.6], [0.6, -0.6], [-0.6, 0.6], [0.6, 0.6]];
+  if (n === 2) return [[-0.5, 0], [0.5, 0]];
+  return [[0, 0]];
+}
+
+function castSpell(state: GameState, card: ArenaCard, side: Side, x: number, y: number, ev: GameEvent[]) {
+  const r = card.radiusSpell ?? 2;
+  for (const e of state.entities) {
+    if (e.side === side || e.hp <= 0) continue;
+    if (dist(x, y, e.x, e.y) > r + e.radius) continue;
+    e.hp -= (card.spellDmg ?? 0) * (e.type === "tower" ? (card.towerMult ?? 1) : 1);
+    if (card.slow && e.type === "unit") {
+      e.slowUntil = state.tick + Math.round((card.slowSecs ?? 2) * TICKS_PER_SEC);
+      e.slowAmount = card.slow;
+    }
+  }
+  ev.push({ t: "spell", key: card.key, x, y, r });
+}
+
+/** Aplica uma jogada. Devolve false (e não muda nada) se for inválida. */
+export function applyInput(state: GameState, input: Input, ev: GameEvent[] = []): boolean {
+  const { side, slot, x, y } = input;
+  if (state.over || (side !== 0 && side !== 1)) return false;
+  if (!Number.isInteger(slot) || slot < 0 || slot >= HAND_SIZE) return false;
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+  const key = state.slots[side][slot];
+  const card = ARENA_CARD_BY_KEY.get(key);
+  if (!card) return false;
+  if (state.mana[side] + 1e-9 < card.cost) return false;
+  if (card.kind === "unit" ? !inDeployZone(side, x, y) : !inField(x, y)) return false;
+
+  state.mana[side] -= card.cost;
+  state.slots[side][slot] = state.queue[side].shift()!;
+  state.queue[side].push(key);
+
+  if (card.kind === "spell") {
+    castSpell(state, card, side, x, y, ev);
+  } else {
+    for (const [ox, oy] of spawnOffsets(card.count ?? 1, side)) {
+      state.entities.push(makeUnit(state, card, side, Math.min(W - 0.3, Math.max(0.3, x + ox)), y + oy));
+    }
+    ev.push({ t: "spawn", x, y });
+  }
+  return true;
+}
+
+// ------------------------------------------------------------ alvos
+
+function nearestEnemyUnit(state: GameState, e: Entity, maxDist: number): Entity | null {
+  let best: Entity | null = null;
+  let bestD = maxDist;
+  for (const o of state.entities) {
+    if (o.side === e.side || o.type !== "unit" || o.hp <= 0) continue;
+    if (o.flying && !e.canHitAir) continue;
+    const d = dist(e.x, e.y, o.x, o.y);
+    if (d < bestD) {
+      best = o;
+      bestD = d;
+    }
+  }
+  return best;
+}
+
+function laneTower(state: GameState, e: Entity): Entity | null {
+  const lane = e.x < W / 2 ? 0 : 1;
+  let king: Entity | null = null;
+  for (const o of state.entities) {
+    if (o.side === e.side || o.type !== "tower" || o.hp <= 0) continue;
+    if (o.lane === lane) return o;
+    if (o.lane === -1) king = o;
+  }
+  return king;
+}
+
+function chooseTarget(state: GameState, e: Entity): Entity | null {
+  if (!e.towersOnly) {
+    const u = nearestEnemyUnit(state, e, AGGRO);
+    if (u) return u;
+  }
+  return laneTower(state, e);
+}
+
+// ------------------------------------------------------------ movimento
+
+function waypoint(e: Entity, tx: number, ty: number): [number, number] {
+  if (e.flying) return [tx, ty];
+  const above = e.y < RIVER_TOP;
+  const below = e.y > RIVER_BOT;
+  const inRiver = !above && !below;
+  const targetAbove = ty < RIVER_TOP;
+  const targetBelow = ty > RIVER_BOT;
+  const needCross = inRiver || (above && targetBelow) || (below && targetAbove);
+  if (!needCross) return [tx, ty];
+  const bx = nearestBridge(e.x);
+  if (inRiver) return [bx, ty >= e.y ? RIVER_BOT + 0.3 : RIVER_TOP - 0.3];
+  if (Math.abs(e.x - bx) > 0.5) return [bx, above ? RIVER_TOP - 0.3 : RIVER_BOT + 0.3];
+  return [bx, above ? RIVER_BOT + 0.3 : RIVER_TOP - 0.3];
+}
+
+function moveToward(e: Entity, tx: number, ty: number, step: number) {
+  const dx = tx - e.x;
+  const dy = ty - e.y;
+  const d = Math.sqrt(dx * dx + dy * dy);
+  if (d <= step) {
+    e.x = tx;
+    e.y = ty;
+  } else {
+    e.x += (dx / d) * step;
+    e.y += (dy / d) * step;
+  }
+}
+
+function dealAttack(state: GameState, e: Entity, target: Entity, ev: GameEvent[]) {
+  target.hp -= e.dmg;
+  if (e.splash > 0) {
+    for (const o of state.entities) {
+      if (o === target || o.side === e.side || o.type !== "unit" || o.hp <= 0) continue;
+      if (dist(target.x, target.y, o.x, o.y) <= e.splash) o.hp -= e.dmg;
+    }
+  }
+  ev.push({ t: "attack", x1: e.x, y1: e.y, x2: target.x, y2: target.y, ranged: e.range > 1.5, side: e.side });
+  e.cd = e.atkTicks;
+}
+
+function updateTower(state: GameState, e: Entity, ev: GameEvent[]) {
+  if (e.cd > 0) e.cd--;
+  const target = nearestEnemyUnit(state, e, e.range + 1);
+  if (!target) return;
+  if (dist(e.x, e.y, target.x, target.y) > e.range + target.radius) return;
+  if (e.cd <= 0) dealAttack(state, e, target, ev);
+}
+
+function updateUnit(state: GameState, e: Entity, ev: GameEvent[]) {
+  if (e.cd > 0) e.cd--;
+  const target = chooseTarget(state, e);
+  if (!target) return;
+  if (dist(e.x, e.y, target.x, target.y) <= e.range + target.radius) {
+    if (e.cd <= 0) dealAttack(state, e, target, ev);
+    return;
+  }
+  const slowed = state.tick < e.slowUntil ? 1 - e.slowAmount : 1;
+  const [wx, wy] = waypoint(e, target.x, target.y);
+  moveToward(e, wx, wy, e.speed * slowed);
+}
+
+/** Empurra tropas terrestres que se sobrepõem e tira quem caiu no rio fora da ponte. */
+function separate(state: GameState) {
+  const ground = state.entities.filter((e) => e.type === "unit" && !e.flying && e.hp > 0);
+  for (let i = 0; i < ground.length; i++) {
+    for (let j = i + 1; j < ground.length; j++) {
+      const a = ground[i];
+      const b = ground[j];
+      const min = (a.radius + b.radius) * 0.9;
+      let dx = b.x - a.x;
+      let dy = b.y - a.y;
+      let d = Math.sqrt(dx * dx + dy * dy);
+      if (d >= min) continue;
+      if (d < 1e-6) {
+        dx = a.id % 2 === 0 ? 1 : -1;
+        dy = 0;
+        d = 1;
+      }
+      const push = (min - d) / 2;
+      const ux = dx / d;
+      const uy = dy / d;
+      a.x -= ux * push;
+      a.y -= uy * push;
+      b.x += ux * push;
+      b.y += uy * push;
+    }
+  }
+  for (const e of ground) {
+    e.x = Math.min(W - 0.3, Math.max(0.3, e.x));
+    e.y = Math.min(H - 0.3, Math.max(0.3, e.y));
+    if (e.y > RIVER_TOP && e.y < RIVER_BOT) {
+      const onBr = BRIDGES.some((b) => Math.abs(e.x - b) <= 1.2);
+      if (!onBr) e.y = e.py <= (RIVER_TOP + RIVER_BOT) / 2 ? RIVER_TOP : RIVER_BOT;
+    }
+  }
+}
+
+function finishByTime(state: GameState) {
+  state.over = true;
+  if (state.crowns[0] !== state.crowns[1]) {
+    state.winner = state.crowns[0] > state.crowns[1] ? 0 : 1;
+    return;
+  }
+  const hp = [0, 0];
+  for (const e of state.entities) if (e.type === "tower" && e.hp > 0) hp[e.side] += e.hp;
+  state.winner = hp[0] === hp[1] ? null : hp[0] > hp[1] ? 0 : 1;
+}
+
+/** Avança 1 tick (1/20 s). `bots` = lados controlados pelo computador. */
+export function step(state: GameState, inputs: Input[], bots: Side[] = [1]): GameEvent[] {
+  const ev: GameEvent[] = [];
+  if (state.over) return ev;
+  for (const e of state.entities) {
+    e.px = e.x;
+    e.py = e.y;
+  }
+
+  for (const inp of inputs) if (inp.tick === state.tick) applyInput(state, inp, ev);
+  for (const side of bots) {
+    const inp = botDecide(state, side);
+    if (inp) applyInput(state, inp, ev);
+  }
+
+  const rate = (state.tick >= DOUBLE_MANA_TICK ? 2 : 1) / (MANA_SECS_PER_POINT * TICKS_PER_SEC);
+  state.mana[0] = Math.min(MANA_MAX, state.mana[0] + rate);
+  state.mana[1] = Math.min(MANA_MAX, state.mana[1] + rate);
+
+  for (const e of state.entities.slice()) {
+    if (e.hp <= 0) continue;
+    if (e.type === "tower") updateTower(state, e, ev);
+    else updateUnit(state, e, ev);
+  }
+  separate(state);
+
+  const alive: Entity[] = [];
+  for (const e of state.entities) {
+    if (e.hp > 0) {
+      alive.push(e);
+      continue;
+    }
+    ev.push({ t: "death", x: e.x, y: e.y, tower: e.type === "tower" });
+    if (e.type === "tower") {
+      const winner = (1 - e.side) as Side;
+      if (e.card === "santuario") {
+        state.crowns[winner] = 3;
+        if (!state.over) {
+          state.over = true;
+          state.winner = winner;
+        }
+      } else {
+        state.crowns[winner] += 1;
+      }
+    }
+  }
+  state.entities = alive;
+
+  state.tick++;
+  if (!state.over && state.tick >= MATCH_TICKS) finishByTime(state);
+  return ev;
+}
+
+/** Resumo numérico do estado — pra conferir que dois lados chegaram no mesmo lugar. */
+export function stateHash(state: GameState): number {
+  let h = 2166136261 ^ state.tick;
+  const mix = (n: number) => {
+    h ^= Math.round(n * 1000) | 0;
+    h = Math.imul(h, 16777619);
+  };
+  mix(state.crowns[0]);
+  mix(state.crowns[1]);
+  mix(state.mana[0]);
+  mix(state.mana[1]);
+  for (const e of state.entities) {
+    mix(e.id);
+    mix(e.x);
+    mix(e.y);
+    mix(e.hp);
+  }
+  return h >>> 0;
+}
