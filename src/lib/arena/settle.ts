@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isValidDeck } from "./cards";
+import { ARENAS, arenaIndexFor, trophyDelta, TROPHY_LOSS } from "./arenas";
 import { MATCH_TICKS, type Input } from "./core";
 import { MAX_INPUTS, simulate } from "./sim";
 
@@ -14,7 +15,36 @@ export type ArenaFinish = {
   crownsBot?: number;
   xp?: number;
   winsToday?: number;
+  trophyDelta?: number;
+  trophies?: number;
+  /** Nome da arena nova, quando a partida fez o jogador subir de arena. */
+  arenaUp?: string;
 };
+
+async function trophiesOf(admin: SupabaseClient, userId: string): Promise<number> {
+  const { data } = await admin.from("arena_stats").select("trophies").eq("user_id", userId).maybeSingle<{ trophies: number }>();
+  return data?.trophies ?? 0;
+}
+
+/** Partida aberta e deixada pra trás (aba fechada, desistência calada) conta como derrota. */
+export async function abandonOpenMatches(admin: SupabaseClient, userId: string): Promise<void> {
+  const cutoff = new Date(Date.now() - 15_000).toISOString();
+  const { data: open } = await admin
+    .from("arena_matches")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("status", "open")
+    .lt("started_at", cutoff);
+  for (const m of open ?? []) {
+    const { data: closed } = await admin
+      .from("arena_matches")
+      .update({ status: "finished", result: "loss", crowns_me: 0, crowns_bot: 0, trophy_delta: -TROPHY_LOSS, finished_at: new Date().toISOString() })
+      .eq("id", m.id)
+      .eq("status", "open")
+      .select("id");
+    if (closed && closed.length > 0) await admin.rpc("arena_apply_result", { p_user: userId, p_delta: -TROPHY_LOSS, p_result: "loss" });
+  }
+}
 
 function cleanInputs(raw: unknown): Input[] {
   if (!Array.isArray(raw)) return [];
@@ -69,10 +99,13 @@ export async function settleArena(
     .gt("xp_awarded", 0);
   if (result === "win" && elapsed >= MIN_SECONDS_FOR_XP && (winsBefore ?? 0) < MAX_XP_WINS_PER_DAY) xp = 1;
 
+  const before = await trophiesOf(admin, userId);
+  const delta = trophyDelta(result, result === "win" && elapsed < MIN_SECONDS_FOR_XP);
+
   // fecha UMA vez (condicional): duas chamadas juntas não pagam duas vezes
   const { data: closed } = await admin
     .from("arena_matches")
-    .update({ status: "finished", result, crowns_me: crownsMe, crowns_bot: crownsBot, xp_awarded: xp, finished_at: new Date().toISOString() })
+    .update({ status: "finished", result, crowns_me: crownsMe, crowns_bot: crownsBot, xp_awarded: xp, trophy_delta: delta, finished_at: new Date().toISOString() })
     .eq("id", match.id)
     .eq("status", "open")
     .select("id");
@@ -80,5 +113,12 @@ export async function settleArena(
 
   if (xp > 0) await admin.rpc("game_grant_xp", { p_user: userId, p_amount: xp, p_type: "game_arena" });
 
-  return { result, crownsMe, crownsBot, xp, winsToday: (winsBefore ?? 0) + (xp > 0 ? 1 : 0) };
+  let trophies = before;
+  if (result !== "draw") {
+    const { data: n } = await admin.rpc("arena_apply_result", { p_user: userId, p_delta: delta, p_result: result });
+    if (typeof n === "number") trophies = n;
+  }
+  const up = arenaIndexFor(trophies) > arenaIndexFor(before) ? ARENAS[arenaIndexFor(trophies)].name : undefined;
+
+  return { result, crownsMe, crownsBot, xp, winsToday: (winsBefore ?? 0) + (xp > 0 ? 1 : 0), trophyDelta: trophies - before, trophies, arenaUp: up };
 }

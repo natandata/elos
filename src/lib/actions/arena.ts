@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { STARTER_DECK, isValidDeck } from "@/lib/arena/cards";
-import { settleArena, type ArenaFinish } from "@/lib/arena/settle";
+import { arenaIndexFor } from "@/lib/arena/arenas";
+import { abandonOpenMatches, settleArena, type ArenaFinish } from "@/lib/arena/settle";
 
 const MAX_MATCHES_PER_DAY = 15;
 
@@ -28,7 +29,7 @@ async function currentPlayer() {
 }
 
 /** Abre uma partida: o servidor sorteia a semente (o computador e o baralho dependem dela). */
-export async function startArena(): Promise<{ error?: string; matchId?: string; seed?: number; deck?: string[] }> {
+export async function startArena(): Promise<{ error?: string; matchId?: string; seed?: number; deck?: string[]; arena?: number }> {
   const { supabase, userId } = await currentPlayer();
   const date = todayBR();
 
@@ -41,17 +42,22 @@ export async function startArena(): Promise<{ error?: string; matchId?: string; 
     return { error: `Você já jogou ${MAX_MATCHES_PER_DAY} partidas hoje. Volte amanhã!` };
   }
 
+  const admin = createAdminClient();
+  if (admin) await abandonOpenMatches(admin, userId);
+  const { data: stats } = await supabase.from("arena_stats").select("trophies").eq("user_id", userId).maybeSingle<{ trophies: number }>();
+  const arena = arenaIndexFor(stats?.trophies ?? 0);
+
   const { data: saved } = await supabase.from("arena_decks").select("deck").eq("user_id", userId).maybeSingle<{ deck: string[] }>();
   const deck = isValidDeck(saved?.deck) ? saved.deck : STARTER_DECK;
 
   const seed = randomInt(1, 2 ** 31 - 1);
   const { data, error } = await supabase
     .from("arena_matches")
-    .insert({ user_id: userId, seed, deck, play_date: date })
+    .insert({ user_id: userId, seed, deck, play_date: date, arena })
     .select("id")
     .single<{ id: string }>();
   if (error || !data) return { error: "Não foi possível começar a partida. Tente de novo." };
-  return { matchId: data.id, seed, deck };
+  return { matchId: data.id, seed, deck, arena };
 }
 
 /** Salva o baralho do jogador (8 cartas diferentes). */

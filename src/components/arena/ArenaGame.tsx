@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { finishArena, saveArenaDeck, startArena, type ArenaFinish } from "@/lib/actions/arena";
 import { DeckBuilder } from "./DeckBuilder";
 import { ARENA_CARDS, ARENA_CARD_BY_KEY } from "@/lib/arena/cards";
+import { ARENAS, TROPHY_LOSS, TROPHY_WIN, arenaProgress } from "@/lib/arena/arenas";
 import { CardArt } from "./CardArt";
 import { TEAM, buildBackground, drawTower, layoutFor, type Layout } from "./arenaRender";
 import { applyEvent, drawFx, newAnim, type Anim, type Fx } from "./arenaFx";
@@ -67,7 +68,10 @@ function CrownCount({ n, color }: { n: number; color: "red" | "blue" }) {
   );
 }
 
-export function ArenaGame({ winsToday, maxWins, initialDeck }: { winsToday: number; maxWins: number; initialDeck: string[] }) {
+export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies }: { winsToday: number; maxWins: number; initialDeck: string[]; initialTrophies: number }) {
+  const [trophies, setTrophies] = useState(initialTrophies);
+  const [playingArena, setPlayingArena] = useState(0);
+  const arenaRef = useRef(0);
   const [deck, setDeck] = useState<string[]>(initialDeck);
   const [editing, setEditing] = useState(false);
   const [savingDeck, setSavingDeck] = useState(false);
@@ -124,7 +128,7 @@ export function ArenaGame({ winsToday, maxWins, initialDeck }: { winsToday: numb
     canvas.height = Math.round(l.ch * dpr);
     layoutRef.current = l;
     dprRef.current = dpr;
-    bgRef.current = buildBackground(l, dpr);
+    bgRef.current = buildBackground(l, dpr, ARENAS[arenaRef.current]?.theme);
   }, []);
 
   // ------------------------------------------------------------ desenho
@@ -270,6 +274,7 @@ export function ArenaGame({ winsToday, maxWins, initialDeck }: { winsToday: numb
       try {
         const res = await finishArena({ matchId: matchRef.current!, inputs: logRef.current, surrender });
         setVerdict(res);
+        if (typeof res.trophies === "number") setTrophies(res.trophies);
       } catch {
         setVerdict({ error: "Sem conexão. Não foi possível confirmar o resultado." });
       }
@@ -328,7 +333,7 @@ export function ArenaGame({ winsToday, maxWins, initialDeck }: { winsToday: numb
   async function begin() {
     setError(null);
     setVerdict(null);
-    const res: { error?: string; matchId?: string; seed?: number; deck?: string[] } = await startArena().catch(() => ({
+    const res: { error?: string; matchId?: string; seed?: number; deck?: string[]; arena?: number } = await startArena().catch(() => ({
       error: "Sem conexão. Tente de novo.",
     }));
     if (res.error || !res.matchId || res.seed === undefined) {
@@ -336,6 +341,8 @@ export function ArenaGame({ winsToday, maxWins, initialDeck }: { winsToday: numb
       return;
     }
     matchRef.current = res.matchId;
+    arenaRef.current = res.arena ?? 0;
+    setPlayingArena(res.arena ?? 0);
     const game = createGame(res.seed, res.deck ?? deck);
     gameRef.current = game;
     pendingRef.current = [];
@@ -392,6 +399,8 @@ export function ArenaGame({ winsToday, maxWins, initialDeck }: { winsToday: numb
   // ------------------------------------------------------------ telas
   const header = <PageHeader title="🏰 Arena dos Heróis" subtitle="Enfrente o computador com heróis e poderes bíblicos." />;
 
+  const prog = arenaProgress(trophies);
+
   if (phase === "intro" && editing) {
     return (
       <div>
@@ -419,6 +428,43 @@ export function ArenaGame({ winsToday, maxWins, initialDeck }: { winsToday: numb
     return (
       <div>
         {header}
+        <div className="card mb-4 overflow-hidden p-0">
+          <div className="flex items-center gap-3 p-4" style={{ background: `linear-gradient(135deg, ${prog.cur.theme.grass}, ${prog.cur.theme.grassAlt})` }}>
+            <span className="text-5xl drop-shadow" aria-hidden>{prog.cur.emoji}</span>
+            <div className="min-w-0 flex-1 text-slate-900">
+              <p className="text-xs font-black uppercase tracking-wide opacity-70">Arena {prog.idx + 1} de {ARENAS.length}</p>
+              <p className="text-xl font-black leading-tight">{prog.cur.name}</p>
+              <p className="text-xs font-semibold opacity-80">{prog.cur.blurb} <span className="whitespace-nowrap">({prog.cur.ref})</span></p>
+            </div>
+            <p className="rounded-2xl bg-black/65 px-3 py-1.5 text-center text-white">
+              <span className="block text-2xl font-black leading-none tabular-nums">🏆 {trophies}</span>
+            </p>
+          </div>
+          <div className="p-3">
+            {prog.next ? (
+              <>
+                <div className="h-2.5 overflow-hidden rounded-full bg-[var(--line)]">
+                  <div className="h-full rounded-full bg-amber-400" style={{ width: `${prog.pct}%` }} />
+                </div>
+                <p className="mt-1 text-xs font-bold text-[var(--muted)]">
+                  Faltam {prog.next.min - trophies} 🏆 para {prog.next.emoji} {prog.next.name}
+                </p>
+              </>
+            ) : (
+              <p className="text-xs font-bold text-[var(--muted)]">Você chegou à última arena. 🎉</p>
+            )}
+            <p className="mt-1 text-xs text-[var(--muted)]">Vitória: +{TROPHY_WIN} 🏆 · Derrota: −{TROPHY_LOSS} 🏆</p>
+            <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+              {ARENAS.map((a, i) => (
+                <div key={a.key} className={`w-[84px] shrink-0 rounded-xl border-2 p-2 text-center ${i === prog.idx ? "border-amber-400" : "border-[var(--line)]"} ${trophies >= a.min ? "" : "opacity-50"}`}>
+                  <span className="text-2xl" aria-hidden>{trophies >= a.min ? a.emoji : "🔒"}</span>
+                  <p className="text-[10px] font-bold leading-tight">{a.name}</p>
+                  <p className="text-[10px] font-bold text-[var(--muted)]">🏆 {a.min}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
         <div className="card mb-4 p-5">
           <p className="text-lg font-black">Como jogar</p>
           <ul className="mt-2 space-y-1.5 text-sm font-semibold text-[var(--muted)]">
@@ -485,6 +531,15 @@ export function ArenaGame({ winsToday, maxWins, initialDeck }: { winsToday: numb
               <p className="mt-1 text-lg font-bold tabular-nums">
                 👑 {r.crownsMe ?? 0} x {r.crownsBot ?? 0} 👑
               </p>
+              {result !== "draw" ? (
+                <p className={`mt-2 text-xl font-black tabular-nums ${(r.trophyDelta ?? 0) >= 0 ? "text-amber-500" : "text-rose-500"}`}>
+                  {(r.trophyDelta ?? 0) >= 0 ? "+" : ""}
+                  {r.trophyDelta ?? 0} 🏆 <span className="text-sm font-bold text-[var(--muted)]">(total {r.trophies ?? trophies})</span>
+                </p>
+              ) : null}
+              {r.arenaUp ? (
+                <p className="mt-3 rounded-2xl bg-amber-100 px-4 py-2 text-sm font-black text-amber-900">🎉 Você chegou a uma nova arena: {r.arenaUp}!</p>
+              ) : null}
               {(r.xp ?? 0) > 0 ? (
                 <p className="mt-3 inline-block rounded-full bg-[var(--accent-soft)] px-4 py-1.5 text-lg font-black text-[var(--accent-strong)]">
                   +{r.xp} XP
@@ -528,7 +583,7 @@ export function ArenaGame({ winsToday, maxWins, initialDeck }: { winsToday: numb
             <div className="flex h-11 w-11 items-center justify-center rounded-lg border-2 border-amber-300 bg-gradient-to-b from-rose-700 to-rose-950 text-2xl shadow-lg">🛡️</div>
             <div className="leading-tight">
               <p className={`text-base font-black text-fuchsia-300 ${shadow}`}>Computador</p>
-              <p className={`text-xs font-bold text-white ${shadow}`}>Arena dos Heróis</p>
+              <p className={`text-xs font-bold text-white ${shadow}`}>{ARENAS[playingArena]?.name ?? "Arena dos Heróis"}</p>
             </div>
           </div>
           <div className="pointer-events-none absolute right-2 top-2 rounded-lg border-2 border-black/70 bg-[#173a1c]/90 px-3 py-1 text-right shadow-lg">

@@ -1,4 +1,5 @@
 import { BRIDGES, H, RIVER_BOT, RIVER_TOP, W, type Entity } from "@/lib/arena/core";
+import { ARENAS, type ArenaTheme } from "@/lib/arena/arenas";
 
 // Desenho do campo da Arena (arte própria, em canvas). O campo lógico tem
 // W x H tiles; em volta há uma margem de árvores e pedras.
@@ -50,7 +51,7 @@ const TOWER_POS: [number, number, number, number][] = [
 ];
 
 /** Fundo estático (grama, caminhos, rio, pontes, árvores): desenhado uma vez por tamanho. */
-export function buildBackground(l: Layout, dpr: number): HTMLCanvasElement {
+export function buildBackground(l: Layout, dpr: number, th: ArenaTheme = ARENAS[0].theme): HTMLCanvasElement {
   const c = document.createElement("canvas");
   c.width = Math.round(l.cw * dpr);
   c.height = Math.round(l.ch * dpr);
@@ -65,7 +66,7 @@ export function buildBackground(l: Layout, dpr: number): HTMLCanvasElement {
   const bottom = H + l.oy / s;
 
   // grama em xadrez grande e suave
-  g.fillStyle = "#76ba4b";
+  g.fillStyle = th.grass;
   g.fillRect(0, 0, l.cw, l.ch);
   const tile = 2 * s;
   const gx0 = X(0) - tile * Math.ceil(l.ox / tile);
@@ -73,21 +74,21 @@ export function buildBackground(l: Layout, dpr: number): HTMLCanvasElement {
   for (let ix = 0; gx0 + ix * tile < l.cw; ix++) {
     for (let iy = 0; gy0 + iy * tile < l.ch; iy++) {
       if ((ix + iy) % 2 === 0) {
-        g.fillStyle = "#6cb042";
+        g.fillStyle = th.grassAlt;
         g.fillRect(gx0 + ix * tile, gy0 + iy * tile, tile, tile);
       }
     }
   }
   // sombra suave no centro do campo
   const grad = g.createRadialGradient(X(W / 2), Y(H / 2), s, X(W / 2), Y(H / 2), s * 9);
-  grad.addColorStop(0, "rgba(40,90,30,0.16)");
-  grad.addColorStop(1, "rgba(40,90,30,0)");
+  grad.addColorStop(0, th.shade);
+  grad.addColorStop(1, "rgba(0,0,0,0)");
   g.fillStyle = grad;
   g.fillRect(0, 0, l.cw, l.ch);
 
   // caminhos de terra
-  const PATH = "#dcbb7c";
-  const PATH_EDGE = "#c29f60";
+  const PATH = th.path;
+  const PATH_EDGE = th.pathEdge;
   const pathRect = (x: number, y: number, w: number, h: number) => {
     g.fillStyle = PATH_EDGE;
     roundRect(g, X(x) - 2, Y(y) - 2, w * s + 4, h * s + 4, s * 0.3);
@@ -105,13 +106,13 @@ export function buildBackground(l: Layout, dpr: number): HTMLCanvasElement {
   const ry = Y(RIVER_TOP);
   const rh = (RIVER_BOT - RIVER_TOP) * s;
   const water = g.createLinearGradient(0, ry, 0, ry + rh);
-  water.addColorStop(0, "#58b4ea");
-  water.addColorStop(1, "#2f86c8");
-  g.fillStyle = "#1f6aa8";
+  water.addColorStop(0, th.water[0]);
+  water.addColorStop(1, th.water[1]);
+  g.fillStyle = th.waterEdge;
   g.fillRect(0, ry - 2, l.cw, rh + 4);
   g.fillStyle = water;
   g.fillRect(0, ry, l.cw, rh);
-  g.strokeStyle = "rgba(255,255,255,0.55)";
+  g.strokeStyle = th.waterLine;
   g.lineWidth = Math.max(1.5, s * 0.07);
   const r1 = rng(7);
   for (let i = 0; i < 22; i++) {
@@ -128,7 +129,7 @@ export function buildBackground(l: Layout, dpr: number): HTMLCanvasElement {
     for (let x = left + 0.2; x < right; x += 0.8 + r2() * 0.9) {
       if (BRIDGES.some((b) => Math.abs(x - b) < 1.7)) continue;
       const rr = s * (0.22 + r2() * 0.2);
-      g.fillStyle = "#8c96a3";
+      g.fillStyle = th.rock;
       g.beginPath();
       g.ellipse(X(x), Y(edge) + (edge === RIVER_TOP ? -rr * 0.2 : rr * 0.2), rr * 1.3, rr, 0, 0, Math.PI * 2);
       g.fill();
@@ -193,25 +194,25 @@ export function buildBackground(l: Layout, dpr: number): HTMLCanvasElement {
   // árvores e pedras na margem
   const r3 = rng(21);
   const bush = (cx: number, cy: number, rad: number) => {
-    g.fillStyle = "rgba(20,60,20,0.35)";
+    g.fillStyle = th.bushShadow;
     g.beginPath();
     g.ellipse(cx + rad * 0.15, cy + rad * 0.85, rad * 1.05, rad * 0.4, 0, 0, Math.PI * 2);
     g.fill();
-    g.fillStyle = "#2f7d32";
+    g.fillStyle = th.bushDark;
     g.beginPath();
     g.arc(cx, cy, rad, 0, Math.PI * 2);
     g.fill();
-    g.fillStyle = "#43a047";
+    g.fillStyle = th.bushMid;
     g.beginPath();
     g.arc(cx - rad * 0.2, cy - rad * 0.2, rad * 0.75, 0, Math.PI * 2);
     g.fill();
-    g.fillStyle = "#66bb6a";
+    g.fillStyle = th.bushLight;
     g.beginPath();
     g.arc(cx - rad * 0.35, cy - rad * 0.4, rad * 0.4, 0, Math.PI * 2);
     g.fill();
   };
   const rock = (cx: number, cy: number, rr: number) => {
-    g.fillStyle = "#8c96a3";
+    g.fillStyle = th.rock;
     g.beginPath();
     g.ellipse(cx, cy, rr * 1.3, rr, 0, 0, Math.PI * 2);
     g.fill();
@@ -221,7 +222,7 @@ export function buildBackground(l: Layout, dpr: number): HTMLCanvasElement {
     g.fill();
   };
   const scatter = (x: number, y: number) => {
-    if (r3() < 0.2) rock(X(x), Y(y), s * (0.3 + r3() * 0.25));
+    if (r3() < th.rockChance) rock(X(x), Y(y), s * (0.3 + r3() * 0.25));
     else bush(X(x), Y(y), s * (0.5 + r3() * 0.35));
   };
   // laterais (esquerda e direita), de ponta a ponta da tela
