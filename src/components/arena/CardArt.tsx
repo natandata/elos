@@ -4,7 +4,7 @@ import type { ArenaCard } from "@/lib/arena/cards";
 export function CardArt({ card, className = "h-10" }: { card: ArenaCard; className?: string }) {
   if (card.art) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={`/arena/${card.key}.webp`} alt={card.name} className={`mx-auto w-auto object-contain ${className}`} draggable={false} />;
+    return <img src={`/arena/${card.key}.${card.kind === "spell" ? "svg" : "webp"}`} alt={card.name} className={`mx-auto w-auto object-contain ${className}`} draggable={false} />;
   }
   return (
     <span className="block text-center text-2xl leading-none" aria-hidden>

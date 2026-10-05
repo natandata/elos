@@ -31,7 +31,7 @@ export type ArenaCard = {
   canHitAir?: boolean;
   /** Dano em área em volta do alvo (tiles). */
   splash?: number;
-  /** Ilustração em /public/arena/<key>.webp (sem ela, usa o emoji). */
+  /** Ilustração em /public/arena/<key>.webp (poderes: .svg); sem ela, usa o emoji. */
   art?: boolean;
   /** Multiplicador do dano contra construções (tropas). */
   unitTowerMult?: number;
@@ -64,9 +64,9 @@ export const ARENA_CARDS: ArenaCard[] = [
   { key: "maria", name: "Maria", emoji: "💙", art: true, kind: "unit", cost: 3, desc: "Cura os aliados por perto e ataca de leve.", hp: 220, dmg: 14, atkSpeed: 1.2, range: 3.5, speed: 1.3, radius: 0.45, canHitAir: true, heal: { amount: 30, secs: 2, radius: 3.5 } },
   { key: "daniel", name: "Daniel e o Leão", emoji: "🦁", art: true, kind: "unit", cost: 4, desc: "Com o leão ao lado, acerta em área.", hp: 320, dmg: 30, atkSpeed: 1.2, range: 0.9, speed: 1.4, radius: 0.55, splash: 1.0 },
   { key: "joao", name: "João Batista", emoji: "💧", art: true, kind: "unit", cost: 3, desc: "Rápido e valente, corre até a batalha.", hp: 200, dmg: 34, atkSpeed: 0.9, range: 0.9, speed: 1.9, radius: 0.45 },
-  { key: "fogo", name: "Fogo do Céu", emoji: "☄️", kind: "spell", cost: 4, desc: "Dano forte em área.", radiusSpell: 2.5, spellDmg: 175, towerMult: 0.45 },
-  { key: "mar", name: "Mar Vermelho", emoji: "🌊", kind: "spell", cost: 3, desc: "Dano e deixa os inimigos lentos.", radiusSpell: 3, spellDmg: 55, towerMult: 0.4, slow: 0.5, slowSecs: 3 },
-  { key: "trombetas", name: "Trombetas de Jericó", emoji: "📯", kind: "spell", cost: 2, desc: "Pequena área, derruba muros.", radiusSpell: 2, spellDmg: 70, towerMult: 1.5 },
+  { key: "fogo", name: "Fogo do Céu", emoji: "☄️", art: true, kind: "spell", cost: 4, desc: "Dano forte em área.", radiusSpell: 2.5, spellDmg: 175, towerMult: 0.45 },
+  { key: "mar", name: "Mar Vermelho", emoji: "🌊", art: true, kind: "spell", cost: 3, desc: "Dano e deixa os inimigos lentos.", radiusSpell: 3, spellDmg: 55, towerMult: 0.4, slow: 0.5, slowSecs: 3 },
+  { key: "trombetas", name: "Trombetas de Jericó", emoji: "📯", art: true, kind: "spell", cost: 2, desc: "Pequena área, derruba muros.", radiusSpell: 2, spellDmg: 70, towerMult: 1.5 },
 ];
 
 export const ARENA_CARD_BY_KEY = new Map(ARENA_CARDS.map((c) => [c.key, c]));

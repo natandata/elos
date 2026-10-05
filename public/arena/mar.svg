@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 220">
+  <defs>
+    <linearGradient id="w" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7fe3ff"/>
+      <stop offset=".45" stop-color="#1d9bd8"/>
+      <stop offset="1" stop-color="#0b4f9c"/>
+    </linearGradient>
+    <linearGradient id="w2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5ccaf5"/>
+      <stop offset="1" stop-color="#0a3f86"/>
+    </linearGradient>
+    <linearGradient id="sand" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f6dc9a"/>
+      <stop offset="1" stop-color="#c99a52"/>
+    </linearGradient>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff8a5a" stop-opacity=".0"/>
+      <stop offset="1" stop-color="#ff5a3a" stop-opacity=".35"/>
+    </linearGradient>
+  </defs>
+  <!-- caminho de areia entre as águas -->
+  <path d="M70 70 L130 70 L176 214 L24 214 Z" fill="url(#sand)"/>
+  <path d="M100 74 L100 214" stroke="#b78541" stroke-width="2" stroke-dasharray="6 8" opacity=".5"/>
+  <!-- muro de água da esquerda -->
+  <path d="M8 214 L8 92 C8 40 56 14 104 24 C84 34 78 54 80 74 C82 120 72 170 78 214 Z" fill="url(#w)" stroke="#073a74" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M8 92 C8 40 56 14 104 24 C92 28 86 36 82 46 C58 38 24 52 20 92 Z" fill="#e9fbff" opacity=".9"/>
+  <path d="M22 118 C30 106 44 104 54 112 M26 156 C36 146 50 146 60 154" stroke="#bff0ff" stroke-width="4" fill="none" stroke-linecap="round" opacity=".7"/>
+  <!-- muro de água da direita -->
+  <path d="M192 214 L192 92 C192 40 144 14 96 24 C116 34 122 54 120 74 C118 120 128 170 122 214 Z" fill="url(#w2)" stroke="#073a74" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M192 92 C192 40 144 14 96 24 C108 28 114 36 118 46 C142 38 176 52 180 92 Z" fill="#e9fbff" opacity=".9"/>
+  <path d="M178 118 C170 106 156 104 146 112 M174 156 C164 146 150 146 140 154" stroke="#9fe3ff" stroke-width="4" fill="none" stroke-linecap="round" opacity=".6"/>
+  <!-- respingos -->
+  <circle cx="96" cy="14" r="4" fill="#e9fbff"/>
+  <circle cx="108" cy="8" r="3" fill="#e9fbff"/>
+  <circle cx="86" cy="22" r="2.5" fill="#e9fbff"/>
+  <circle cx="30" cy="30" r="3" fill="#e9fbff"/>
+  <circle cx="172" cy="32" r="3" fill="#e9fbff"/>
+</svg>

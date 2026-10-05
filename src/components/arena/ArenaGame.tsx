@@ -98,7 +98,7 @@ export function ArenaGame({ winsToday, maxWins, initialDeck }: { winsToday: numb
   // carrega as ilustrações dos heróis uma vez
   useEffect(() => {
     for (const c of ARENA_CARDS) {
-      if (!c.art || spritesRef.current[c.key]) continue;
+      if (!c.art || c.kind !== "unit" || spritesRef.current[c.key]) continue;
       const img = new Image();
       img.src = `/arena/${c.key}.webp`;
       spritesRef.current[c.key] = img;

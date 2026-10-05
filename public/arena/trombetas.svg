@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 220">
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff0a0"/>
+      <stop offset=".35" stop-color="#f6c11e"/>
+      <stop offset="1" stop-color="#b8760a"/>
+    </linearGradient>
+    <linearGradient id="horn" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f1d9a8"/>
+      <stop offset=".5" stop-color="#b9824a"/>
+      <stop offset="1" stop-color="#6b3f1e"/>
+    </linearGradient>
+    <radialGradient id="aura" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#ffe27a" stop-opacity=".55"/>
+      <stop offset="1" stop-color="#ffe27a" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="100" cy="112" r="96" fill="url(#aura)"/>
+  <!-- ondas de som -->
+  <g fill="none" stroke="#ffe27a" stroke-linecap="round" stroke-width="6">
+    <path d="M142 74 C156 90 156 120 142 136" opacity=".95"/>
+    <path d="M158 56 C182 84 182 128 158 156" opacity=".7"/>
+    <path d="M174 40 C206 80 206 132 174 176" opacity=".4"/>
+  </g>
+  <!-- trombeta dourada (atrás) -->
+  <g transform="rotate(-28 100 120)">
+    <rect x="22" y="112" width="92" height="14" rx="7" fill="url(#gold)" stroke="#7a4a06" stroke-width="3"/>
+    <path d="M112 106 L170 76 C178 72 184 80 184 90 L184 148 C184 158 178 166 170 162 L112 132 Z" fill="url(#gold)" stroke="#7a4a06" stroke-width="3.5" stroke-linejoin="round"/>
+    <ellipse cx="180" cy="119" rx="9" ry="34" fill="#fff6c2" stroke="#7a4a06" stroke-width="3"/>
+    <rect x="62" y="107" width="10" height="24" rx="3" fill="#ffe27a" stroke="#7a4a06" stroke-width="2.5"/>
+    <rect x="14" y="108" width="14" height="22" rx="6" fill="#d9951c" stroke="#7a4a06" stroke-width="3"/>
+  </g>
+  <!-- shofar (chifre de carneiro) na frente -->
+  <g>
+    <path d="M30 168 C24 124 58 92 104 98 C128 101 146 114 150 134 C140 124 124 118 106 118 C74 118 54 140 56 172 C56 186 38 190 30 168 Z" fill="url(#horn)" stroke="#3d220d" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M44 150 C50 128 72 112 98 112" fill="none" stroke="#fff3d6" stroke-width="5" stroke-linecap="round" opacity=".55"/>
+    <path d="M40 176 C42 184 50 186 54 178" fill="none" stroke="#3d220d" stroke-width="3" stroke-linecap="round"/>
+    <rect x="132" y="116" width="22" height="30" rx="8" fill="#3d220d" transform="rotate(32 143 131)"/>
+    <ellipse cx="146" cy="133" rx="6" ry="9" fill="#1d0f08" transform="rotate(32 146 133)"/>
+  </g>
+  <!-- brilhos -->
+  <path d="M40 40 l5 12 12 5 -12 5 -5 12 -5 -12 -12 -5 12 -5 z" fill="#fff6c2"/>
+  <path d="M168 190 l3.5 8 8 3.5 -8 3.5 -3.5 8 -3.5 -8 -8 -3.5 8 -3.5 z" fill="#fff6c2"/>
+</svg>
