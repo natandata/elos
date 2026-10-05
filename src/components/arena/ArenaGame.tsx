@@ -14,7 +14,7 @@ import { createGame, step } from "@/lib/arena/engine";
 
 type Phase = "intro" | "playing" | "finishing" | "result";
 
-export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, initialBest, initialScrolls, initialLevels }: { winsToday: number; maxWins: number; initialDeck: string[]; initialTrophies: number; initialBest: number; initialScrolls: number; initialLevels: Record<string, number> }) {
+export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, initialBest, initialScrolls, initialLevels, eloRanking, myEloId }: { winsToday: number; maxWins: number; initialDeck: string[]; initialTrophies: number; initialBest: number; initialScrolls: number; initialLevels: Record<string, number>; eloRanking: { id: string; name: string; points: number }[]; myEloId: string | null }) {
   const [scrolls, setScrolls] = useState(initialScrolls);
   const [levels, setLevels] = useState<Record<string, number>>(initialLevels);
   const [trophies, setTrophies] = useState(initialTrophies);
@@ -168,6 +168,23 @@ export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, in
             </div>
           </div>
         </div>
+        {eloRanking.length > 0 ? (
+          <div className="card mb-4 p-4">
+            <p className="text-sm font-black uppercase tracking-wide text-[var(--muted)]">🏅 Elo vs Elo da semana</p>
+            <ul className="mt-2 space-y-1">
+              {eloRanking.slice(0, 5).map((r, i) => (
+                <li key={r.id} className={`flex items-center gap-2 rounded-lg px-2 py-1 text-sm font-bold ${r.id === myEloId ? "bg-amber-400/20" : ""}`}>
+                  <span className="w-5 text-center">{["🥇", "🥈", "🥉"][i] ?? i + 1}</span>
+                  <span className="min-w-0 flex-1 truncate">{r.name}</span>
+                  <span className="tabular-nums">{r.points} pts</span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-xs text-[var(--muted)]">
+              Suas vitórias valem pontos pro seu Elo: +1 contra o computador e +2 no 1x1 (até 5 por dia). Esses pontos também entram no ranking dos Jogos.
+            </p>
+          </div>
+        ) : null}
         <div className="card mb-4 p-5">
           <p className="text-lg font-black">Como jogar</p>
           <ul className="mt-2 space-y-1.5 text-sm font-semibold text-[var(--muted)]">

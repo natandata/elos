@@ -6,6 +6,7 @@ import { ARENAS } from "@/lib/arena/arenas";
 import { CardArt } from "./CardArt";
 import { TEAM, buildBackground, drawTower, layoutFor, type Layout } from "./arenaRender";
 import { applyEvent, drawFx, newAnim, type Anim, type Fx } from "./arenaFx";
+import { ArenaSound, readMuted } from "./arenaSound";
 import {
   DOUBLE_MANA_TICK,
   H,
@@ -99,6 +100,8 @@ export function ArenaPlayfield({
   const [hud, setHud] = useState<Hud | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
   const [waiting, setWaiting] = useState(false);
+  const [muted, setMuted] = useState(readMuted);
+  const soundRef = useRef<ArenaSound | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const areaRef = useRef<HTMLDivElement | null>(null);
@@ -117,6 +120,16 @@ export function ArenaPlayfield({
   const vx = useCallback((x: number) => (flip ? W - x : x), [flip]);
   const vy = useCallback((y: number) => (flip ? H - y : y), [flip]);
   const vs = useCallback((s: Side): Side => (flip ? ((1 - s) as Side) : s), [flip]);
+
+  useEffect(() => {
+    const snd = new ArenaSound();
+    soundRef.current = snd;
+    snd.unlock();
+    return () => {
+      snd.close();
+      soundRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     for (const c of ARENA_CARDS) {
@@ -323,6 +336,7 @@ export function ArenaPlayfield({
         for (const e of ev) {
           const m: GameEvent = flip ? mapEvent(e, vs) : e;
           applyEvent(m, game.tick, animsRef.current, fxRef.current, shakeRef.current);
+          soundRef.current?.onEvent(e);
         }
         fxRef.current = fxRef.current.filter((f) => game.tick - f.t0 < f.dur);
         acc -= STEP_MS;
@@ -348,6 +362,8 @@ export function ArenaPlayfield({
       draw(Math.min(1, acc / STEP_MS));
       if (game.over) {
         draw(1);
+        if (game.winner === d.mySide) soundRef.current?.win();
+        else if (game.winner !== null) soundRef.current?.lose();
         onOverRef.current();
         return;
       }
@@ -378,6 +394,7 @@ export function ArenaPlayfield({
 
   function onCanvasPointer(ev: React.PointerEvent<HTMLCanvasElement>) {
     const d = driverRef.current;
+    soundRef.current?.unlock();
     const slot = selectedRef.current;
     const l = layoutRef.current;
     if (d.game.over || slot === null || !l) return;
@@ -422,6 +439,22 @@ export function ArenaPlayfield({
             <CrownCount n={hud?.theirs ?? 0} color="red" />
             <CrownCount n={hud?.mine ?? 0} color="blue" />
           </div>
+          <button
+            type="button"
+            aria-label={muted ? "Ligar o som" : "Desligar o som"}
+            onClick={() => {
+              const m = !muted;
+              setMuted(m);
+              const snd = soundRef.current;
+              if (snd) {
+                snd.setMuted(m);
+                snd.unlock();
+              }
+            }}
+            className="absolute left-2 top-16 flex h-9 w-9 items-center justify-center rounded-full border-2 border-black/60 bg-black/55 text-lg"
+          >
+            {muted ? "🔇" : "🔊"}
+          </button>
           {waiting ? (
             <div className="pointer-events-none absolute inset-x-0 top-20 flex justify-center">
               <p className="rounded-full bg-black/70 px-4 py-1.5 text-sm font-black text-white">⏳ Sincronizando com {d.opponentLabel}…</p>
@@ -457,7 +490,10 @@ export function ArenaPlayfield({
                   <button
                     key={`${i}-${key}`}
                     type="button"
-                    onClick={() => !pending && setSelected(isSel ? null : i)}
+                    onClick={() => {
+                      soundRef.current?.unlock();
+                      if (!pending) setSelected(isSel ? null : i);
+                    }}
                     className={`arena-card-in relative aspect-[3/4] rounded-xl border-[3px] bg-gradient-to-b from-[#4a90e2] to-[#2d62b8] p-1 shadow-md transition active:scale-95 ${
                       isSel ? "-translate-y-3 border-amber-300 shadow-[0_0_16px_#fcd34d]" : "border-[#0f2f6b]"
                     } ${can ? "" : "brightness-50"}`}

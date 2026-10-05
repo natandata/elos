@@ -17,6 +17,12 @@ export default async function ArenaPage() {
     .eq("play_date", today)
     .gt("xp_awarded", 0);
 
+  const { data: eloRows } = await supabase.rpc("arena_week_ranking");
+  const eloRanking = ((eloRows ?? []) as { elo_id: string; elo_name: string; points: number }[]).map((r) => ({
+    id: r.elo_id,
+    name: r.elo_name,
+    points: Number(r.points),
+  }));
   const { data: stats } = await supabase.from("arena_stats").select("trophies, best, scrolls").eq("user_id", profile.id).maybeSingle<{ trophies: number; best: number; scrolls: number }>();
   const { data: owned } = await supabase.from("arena_card_levels").select("card, level").eq("user_id", profile.id);
   const levels: Record<string, number> = {};
@@ -25,6 +31,6 @@ export default async function ArenaPage() {
   const deck = isValidDeck(saved?.deck) && deckAllowed(saved.deck, stats?.best ?? 0) ? saved.deck : STARTER_DECK;
 
   return (
-    <ArenaGame winsToday={count ?? 0} maxWins={MAX_XP_WINS} initialDeck={deck} initialTrophies={stats?.trophies ?? 0} initialBest={stats?.best ?? 0} initialScrolls={stats?.scrolls ?? 0} initialLevels={levels} />
+    <ArenaGame winsToday={count ?? 0} maxWins={MAX_XP_WINS} initialDeck={deck} initialTrophies={stats?.trophies ?? 0} initialBest={stats?.best ?? 0} initialScrolls={stats?.scrolls ?? 0} initialLevels={levels} eloRanking={eloRanking} myEloId={profile.elo_id ?? null} />
   );
 }
