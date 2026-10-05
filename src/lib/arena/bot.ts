@@ -1,5 +1,5 @@
 import { ARENA_CARD_BY_KEY } from "./cards";
-import { BRIDGES, H, RIVER_BOT, RIVER_TOP, W, nextRand, type GameState, type Input, type Side } from "./core";
+import { BRIDGES, H, RIVER_BOT, RIVER_TOP, W, deployRects, nextRand, type GameState, type Input, type Side } from "./core";
 
 /**
  * Computador da Arena: decide a cada meio segundo. Defende quando há inimigos
@@ -70,6 +70,15 @@ export function botDecide(state: GameState, side: Side): Input | null {
   attackers.sort((a, b) => b.card.cost - a.card.cost);
   const pick = attackers[Math.floor(nextRand(state, side) * Math.min(2, attackers.length))];
   const lane = nextRand(state, side) < 0.5 ? BRIDGES[0] : BRIDGES[1];
+
+  // Atalaia inimiga caída: a pista liberada dá pra colocar a tropa perto da torre principal
+  const freed = deployRects(side, state).slice(1);
+  if (freed.length > 0 && nextRand(state, side) < 0.7) {
+    const r = freed[Math.floor(nextRand(state, side) * freed.length)];
+    const x = (r.x0 + r.x1) / 2 < W / 2 ? BRIDGES[0] : BRIDGES[1];
+    return { tick: state.tick, side, slot: pick.slot, x, y: side === 1 ? r.y1 - 0.8 : r.y0 + 0.8 };
+  }
+
   const y = side === 1 ? RIVER_TOP - 1.5 : RIVER_BOT + 1.5;
   return { tick: state.tick, side, slot: pick.slot, x: lane, y };
 }
