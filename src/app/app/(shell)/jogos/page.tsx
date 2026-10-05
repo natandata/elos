@@ -128,7 +128,7 @@ export default async function JogosPage() {
           </span>
           <div>
             <p className="text-lg font-black leading-tight">Duelo 1x1</p>
-            <p className="mt-1 text-xs font-bold opacity-80">Desafie um colega do Elo</p>
+            <p className="mt-1 text-xs font-bold opacity-80">Desafie um colega do Elo · até +2 XP/dia</p>
           </div>
         </Link>
         <Link

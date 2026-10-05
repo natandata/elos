@@ -62,7 +62,7 @@ export default async function DueloPage() {
     <>
       <PageHeader
         title="⚔️ Duelo 1x1"
-        subtitle="Mesmas 5 perguntas pra vocês dois, cada um joga quando puder. Vencedor +2 XP, empate +1 pra cada."
+        subtitle="Mesmas 5 perguntas pra vocês dois, cada um joga quando puder. Vencedor +2 XP, empate +1 pra cada (no máximo 2 XP de duelo por dia)."
       />
 
       {duels.length > 0 ? (
