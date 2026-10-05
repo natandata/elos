@@ -1,5 +1,6 @@
 import { BRIDGES, H, RIVER_BOT, RIVER_TOP, W, type Entity } from "@/lib/arena/core";
 import { ARENAS, type ArenaTheme } from "@/lib/arena/arenas";
+import { drawScenery } from "./arenaScenery";
 
 // Desenho do campo da Arena (arte própria, em canvas). O campo lógico tem
 // W x H tiles; em volta há uma margem de árvores e pedras.
@@ -51,7 +52,7 @@ const TOWER_POS: [number, number, number, number][] = [
 ];
 
 /** Fundo estático (grama, caminhos, rio, pontes, árvores): desenhado uma vez por tamanho. */
-export function buildBackground(l: Layout, dpr: number, th: ArenaTheme = ARENAS[0].theme): HTMLCanvasElement {
+export function buildBackground(l: Layout, dpr: number, th: ArenaTheme = ARENAS[0].theme, key: string = ARENAS[0].key): HTMLCanvasElement {
   const c = document.createElement("canvas");
   c.width = Math.round(l.cw * dpr);
   c.height = Math.round(l.ch * dpr);
@@ -238,9 +239,11 @@ export function buildBackground(l: Layout, dpr: number, th: ArenaTheme = ARENAS[
     const baseY = edge === 0 ? -bandH * 0.5 : H + bandH * 0.5;
     for (let x = left; x < right; x += 1.1 + r3() * 0.7) scatter(x, baseY + (r3() - 0.5) * Math.min(0.8, bandH * 0.5));
   }
+  // cenário próprio de cada arena (a passagem bíblica do lugar)
+  drawScenery({ g, s, X, Y, left, right, r: rng(97) }, key);
   // cercas de madeira no fundo do campo (como na referência)
   g.fillStyle = "#8a5a2b";
-  for (const fy of [0.15, H - 0.15]) {
+  for (const fy of key === "eden" || key === "ela" ? [0.15, H - 0.15] : []) {
     for (const fx of [[0.6, 3.2], [W - 3.2, W - 0.6]]) {
       g.fillRect(X(fx[0]), Y(fy) - s * 0.15, (fx[1] - fx[0]) * s, s * 0.14);
       for (let px = fx[0]; px <= fx[1] + 0.01; px += (fx[1] - fx[0]) / 4) g.fillRect(X(px) - s * 0.07, Y(fy) - s * 0.3, s * 0.14, s * 0.5);

@@ -21,6 +21,8 @@ export type ArenaFinish = {
   /** Cópias de carta ganhas nesta partida e qual carta recebeu. */
   copies?: number;
   copyCard?: string;
+  /** Partida de treino numa arena já vencida: sem troféus e sem XP. */
+  training?: boolean;
   /** Nome da arena nova, quando a partida fez o jogador subir de arena. */
   arenaUp?: string;
 };
@@ -35,18 +37,20 @@ export async function abandonOpenMatches(admin: SupabaseClient, userId: string):
   const cutoff = new Date(Date.now() - 15_000).toISOString();
   const { data: open } = await admin
     .from("arena_matches")
-    .select("id")
+    .select("id, training")
     .eq("user_id", userId)
     .eq("status", "open")
     .lt("started_at", cutoff);
-  for (const m of open ?? []) {
+  for (const m of (open ?? []) as { id: string; training: boolean }[]) {
+    // treino numa arena antiga não mexe em troféus
+    const lost = m.training ? 0 : -TROPHY_LOSS;
     const { data: closed } = await admin
       .from("arena_matches")
-      .update({ status: "finished", result: "loss", crowns_me: 0, crowns_bot: 0, trophy_delta: -TROPHY_LOSS, finished_at: new Date().toISOString() })
+      .update({ status: "finished", result: "loss", crowns_me: 0, crowns_bot: 0, trophy_delta: lost, finished_at: new Date().toISOString() })
       .eq("id", m.id)
       .eq("status", "open")
       .select("id");
-    if (closed && closed.length > 0) await admin.rpc("arena_apply_result", { p_user: userId, p_delta: -TROPHY_LOSS, p_result: "loss" });
+    if (closed && closed.length > 0 && !m.training) await admin.rpc("arena_apply_result", { p_user: userId, p_delta: lost, p_result: "loss" });
   }
 }
 
@@ -75,9 +79,9 @@ export async function settleArena(
 ): Promise<ArenaFinish> {
   const { data: match } = await admin
     .from("arena_matches")
-    .select("id, user_id, seed, deck, status, started_at, play_date, arena, levels")
+    .select("id, user_id, seed, deck, status, started_at, play_date, arena, levels, training")
     .eq("id", input.matchId)
-    .maybeSingle<{ id: string; user_id: string; seed: number; deck: string[]; status: string; started_at: string; play_date: string; arena: number; levels: Record<string, number> | null }>();
+    .maybeSingle<{ id: string; user_id: string; seed: number; deck: string[]; status: string; started_at: string; play_date: string; arena: number; levels: Record<string, number> | null; training: boolean }>();
   if (!match || match.user_id !== userId) return { error: "Partida não encontrada." };
   if (match.status !== "open") return { error: "Essa partida já foi encerrada." };
   // o jogador insere a própria partida: um baralho adulterado (ex.: 8 Jesus) não conta
@@ -109,12 +113,13 @@ export async function settleArena(
     .eq("user_id", userId)
     .eq("play_date", match.play_date)
     .gt("xp_awarded", 0);
-  if (result === "win" && elapsed >= MIN_SECONDS_FOR_XP && (winsBefore ?? 0) < MAX_XP_WINS_PER_DAY) xp = 1;
+  if (!match.training && result === "win" && elapsed >= MIN_SECONDS_FOR_XP && (winsBefore ?? 0) < MAX_XP_WINS_PER_DAY) xp = 1;
 
   const before = stats.trophies;
-  const copies = elapsed >= MIN_SECONDS_FOR_XP ? (result === "win" ? COPIES_WIN : COPIES_OTHER) : 0;
+  // treino numa arena antiga: cópias de derrota, seja qual for o resultado
+  const copies = elapsed >= MIN_SECONDS_FOR_XP ? (result === "win" && !match.training ? COPIES_WIN : COPIES_OTHER) : 0;
   const copyCard = copies > 0 ? pickBattleCard(unlockedCards(stats.best), match.deck) : null;
-  const delta = trophyDelta(result, result === "win" && elapsed < MIN_SECONDS_FOR_XP);
+  const delta = match.training ? 0 : trophyDelta(result, result === "win" && elapsed < MIN_SECONDS_FOR_XP);
 
   // fecha UMA vez (condicional): duas chamadas juntas não pagam duas vezes
   const { data: closed } = await admin
@@ -127,10 +132,10 @@ export async function settleArena(
 
   if (xp > 0) await admin.rpc("game_grant_xp", { p_user: userId, p_amount: xp, p_type: "game_arena" });
 
-  await admin.rpc("arena_apply_result", { p_user: userId, p_delta: delta, p_result: result, p_copies: copies, p_card: copyCard });
+  await admin.rpc("arena_apply_result", { p_user: userId, p_delta: delta, p_result: match.training ? "draw" : result, p_copies: copies, p_card: copyCard });
   const after = await statsOf(admin, userId);
   const trophies = after.trophies;
   const up = arenaIndexFor(trophies) > arenaIndexFor(before) ? ARENAS[arenaIndexFor(trophies)].name : undefined;
 
-  return { result, crownsMe, crownsBot, xp, winsToday: (winsBefore ?? 0) + (xp > 0 ? 1 : 0), trophyDelta: trophies - before, trophies, copies: copyCard ? copies : 0, copyCard: copyCard ?? undefined, arenaUp: up };
+  return { result, crownsMe, crownsBot, xp, winsToday: (winsBefore ?? 0) + (xp > 0 ? 1 : 0), trophyDelta: trophies - before, trophies, copies: copyCard ? copies : 0, copyCard: copyCard ?? undefined, training: match.training || undefined, arenaUp: up };
 }

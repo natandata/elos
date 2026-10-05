@@ -32,7 +32,7 @@ async function currentPlayer() {
 }
 
 /** Abre uma partida: o servidor sorteia a semente (o computador e o baralho dependem dela). */
-export async function startArena(): Promise<{ error?: string; matchId?: string; seed?: number; deck?: string[]; arena?: number; levels?: Record<string, number> }> {
+export async function startArena(arenaChoice?: number): Promise<{ error?: string; matchId?: string; seed?: number; deck?: string[]; arena?: number; levels?: Record<string, number> }> {
   const { supabase, userId } = await currentPlayer();
   const date = todayBR();
 
@@ -51,7 +51,11 @@ export async function startArena(): Promise<{ error?: string; matchId?: string; 
   const gate = await loadGate(supabase, userId);
   if (gate.locked) return { error: gateMessage(gate) };
   const { data: stats } = await supabase.from("arena_stats").select("trophies, best").eq("user_id", userId).maybeSingle<{ trophies: number; best: number }>();
-  const arena = arenaIndexFor(stats?.trophies ?? 0);
+  const current = arenaIndexFor(stats?.trophies ?? 0);
+  // pode treinar em qualquer arena que já alcançou (sem mexer em troféus); fora disso vale a atual
+  const reached = arenaIndexFor(Math.max(stats?.best ?? 0, stats?.trophies ?? 0));
+  const training = Number.isInteger(arenaChoice) && (arenaChoice as number) >= 0 && (arenaChoice as number) <= reached && arenaChoice !== current;
+  const arena = training ? (arenaChoice as number) : current;
 
   const { data: saved } = await supabase.from("arena_decks").select("deck").eq("user_id", userId).maybeSingle<{ deck: string[] }>();
   const deck = isValidDeck(saved?.deck) && deckAllowed(saved.deck, stats?.best ?? 0) ? saved.deck : STARTER_DECK;
@@ -64,7 +68,7 @@ export async function startArena(): Promise<{ error?: string; matchId?: string; 
   // só o servidor cria partida (semente sorteada aqui, limite diário e pausa de jogos valem pra todo mundo)
   const { data, error } = await (admin ?? supabase)
     .from("arena_matches")
-    .insert({ user_id: userId, seed, deck, play_date: date, arena, levels })
+    .insert({ user_id: userId, seed, deck, play_date: date, arena, levels, training })
     .select("id")
     .single<{ id: string }>();
   if (error || !data) return { error: "Não foi possível começar a partida. Tente de novo." };

@@ -190,7 +190,7 @@ export function ArenaPlayfield({
     canvas.height = Math.round(l.ch * dpr);
     layoutRef.current = l;
     dprRef.current = dpr;
-    bgRef.current = buildBackground(l, dpr, ARENAS[driverRef.current.arena]?.theme);
+    bgRef.current = buildBackground(l, dpr, ARENAS[driverRef.current.arena]?.theme, ARENAS[driverRef.current.arena]?.key);
   }, []);
 
   // ------------------------------------------------------------ desenho

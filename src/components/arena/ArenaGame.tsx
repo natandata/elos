@@ -9,7 +9,7 @@ import { DeckBuilder } from "./DeckBuilder";
 import { ArenaHome, type ArenaTab, type RankRow } from "./ArenaHome";
 import type { GateInfo } from "@/lib/arena/gate";
 import { ARENA_CARD_BY_KEY } from "@/lib/arena/cards";
-import { ARENAS, TROPHY_LOSS, TROPHY_WIN, arenaProgress, cardsUnlockedIn } from "@/lib/arena/arenas";
+import { ARENAS, TROPHY_LOSS, TROPHY_WIN, arenaIndexFor, arenaProgress, cardsUnlockedIn } from "@/lib/arena/arenas";
 import { CardArt } from "./CardArt";
 import { CopyReward } from "./CopyReward";
 import { ArenaChests } from "./ArenaChests";
@@ -25,6 +25,7 @@ export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, in
   const [levels, setLevels] = useState<Record<string, number>>(initialLevels);
   const [trophies, setTrophies] = useState(initialTrophies);
   const [best, setBest] = useState(Math.max(initialBest, initialTrophies));
+  const [viewArena, setViewArena] = useState(arenaIndexFor(initialTrophies));
   const [deck, setDeck] = useState<string[]>(initialDeck);
   const router = useRouter();
   const startingRef = useRef(false);
@@ -56,6 +57,8 @@ export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, in
         setCopies((c) => ({ ...c, [card]: (c[card] ?? 0) + n }));
       }
       if (typeof res.trophies === "number") {
+        // volta a mirar a arena atual depois de uma partida valendo troféus
+        if (!res.training) setViewArena(arenaIndexFor(res.trophies));
         setTrophies(res.trophies);
         setBest((b) => Math.max(b, res.trophies as number));
       }
@@ -73,7 +76,7 @@ export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, in
     startingRef.current = true;
     setError(null);
     setVerdict(null);
-    const res: { error?: string; matchId?: string; seed?: number; deck?: string[]; arena?: number; levels?: Record<string, number> } = await startArena().catch(() => ({
+    const res: { error?: string; matchId?: string; seed?: number; deck?: string[]; arena?: number; levels?: Record<string, number> } = await startArena(viewArena).catch(() => ({
       error: "Sem conexão. Tente de novo.",
     }));
     if (res.error || !res.matchId || res.seed === undefined) {
@@ -121,6 +124,9 @@ export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, in
           setTab(t);
         }}
         trophies={trophies}
+        viewArena={viewArena}
+        maxArena={Math.max(arenaIndexFor(best), arenaIndexFor(trophies))}
+        onViewArena={setViewArena}
         dailyChestReady={dailyReady}
         chests={
           <ArenaChests
@@ -212,7 +218,9 @@ export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, in
               <p className="mt-1 text-lg font-bold tabular-nums">
                 👑 {r.crownsMe ?? 0} x {r.crownsBot ?? 0} 👑
               </p>
-              {result !== "draw" ? (
+              {r.training ? (
+                <p className="mt-2 rounded-2xl bg-sky-100 px-4 py-2 text-sm font-black text-sky-900">🏋️ Treino numa arena já vencida: troféus e XP não mudaram.</p>
+              ) : result !== "draw" ? (
                 <p className={`mt-2 text-xl font-black tabular-nums ${(r.trophyDelta ?? 0) >= 0 ? "text-amber-500" : "text-rose-500"}`}>
                   {(r.trophyDelta ?? 0) >= 0 ? "+" : ""}
                   {r.trophyDelta ?? 0} 🏆 <span className="text-sm font-bold text-[var(--muted)]">(total {r.trophies ?? trophies})</span>

@@ -65,6 +65,9 @@ export function ArenaHome({
   tab,
   setTab,
   trophies,
+  viewArena,
+  maxArena,
+  onViewArena,
   dailyChestReady,
   chests,
   winsToday,
@@ -83,6 +86,11 @@ export function ArenaHome({
   tab: ArenaTab;
   setTab: (t: ArenaTab) => void;
   trophies: number;
+  /** arena mostrada (e usada na próxima batalha) */
+  viewArena: number;
+  /** maior arena já alcançada */
+  maxArena: number;
+  onViewArena: (i: number) => void;
   dailyChestReady: boolean;
   chests: ReactNode;
   winsToday: number;
@@ -99,6 +107,8 @@ export function ArenaHome({
   gate: GateInfo;
 }) {
   const prog = arenaProgress(trophies);
+  const shown = ARENAS[Math.min(viewArena, ARENAS.length - 1)];
+  const training = shown.key !== prog.cur.key;
   const [rankTab, setRankTab] = useState<"players" | "elos">("players");
   const myEloIdx = eloRanking.findIndex((r) => r.id === myEloId);
   const myElo = myEloIdx >= 0 ? eloRanking[myEloIdx] : null;
@@ -175,18 +185,39 @@ export function ArenaHome({
                 </MiniBtn>
               </div>
               <div className="px-6">
-                <ArenaHero arena={prog.cur} />
+                <ArenaHero arena={shown} />
               </div>
               <div className="-mt-3 flex flex-col items-center">
-                <p className="cr-text flex items-center gap-1.5 rounded-full border-2 border-[#0b2a5c] bg-gradient-to-b from-[#2c58a8] to-[#173b78] px-4 py-1 text-base shadow-[0_3px_0_#0b2a5c]">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={prog.cur.art} alt="" className="h-6 w-auto" draggable={false} /> {prog.cur.name}
-                </p>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    aria-label="Arena anterior"
+                    disabled={viewArena <= 0}
+                    onClick={() => onViewArena(viewArena - 1)}
+                    className="cr-panel flex h-9 w-9 items-center justify-center text-xl disabled:opacity-35 active:translate-y-[2px]"
+                  >
+                    ‹
+                  </button>
+                  <p className="cr-text flex items-center gap-1.5 rounded-full border-2 border-[#0b2a5c] bg-gradient-to-b from-[#2c58a8] to-[#173b78] px-4 py-1 text-base shadow-[0_3px_0_#0b2a5c]">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={shown.art} alt="" className="h-6 w-auto" draggable={false} /> {shown.name}
+                  </p>
+                  <button
+                    type="button"
+                    aria-label="Próxima arena"
+                    disabled={viewArena >= maxArena}
+                    onClick={() => onViewArena(viewArena + 1)}
+                    className="cr-panel flex h-9 w-9 items-center justify-center text-xl disabled:opacity-35 active:translate-y-[2px]"
+                  >
+                    ›
+                  </button>
+                </div>
                 <p className="cr-text mt-1 flex items-center gap-1.5 text-lg">
                   <span aria-hidden>🏆</span>
                   {trophies}
-                  <span className="text-xs opacity-90">· Arena {prog.idx + 1}/{ARENAS.length}</span>
+                  <span className="text-xs opacity-90">· Arena {viewArena + 1}/{ARENAS.length}</span>
                 </p>
+                {training ? <p className="mt-0.5 rounded-full bg-black/45 px-3 py-0.5 text-[11px] font-black text-sky-200">🏋️ Treino: não ganha nem perde troféus</p> : null}
               </div>
             </div>
 
@@ -219,7 +250,7 @@ export function ArenaHome({
               <Slot icon={prog.next ? prog.next.emoji : "👑"} iconSrc={prog.next?.art} title={prog.next ? "Próx. arena" : "Máxima"} sub={prog.next ? `${prog.next.min - trophies} 🏆` : "🎉"} />
             </div>
             <p className="cr-text mt-2 text-center text-[11px] opacity-90">
-              Vitória +{TROPHY_WIN} 🏆 · Derrota −{TROPHY_LOSS} 🏆{prog.next ? ` · ${prog.next.emoji} libera ${prog.next.name}` : ""}
+              {training ? "Treino numa arena já vencida: troféus e XP não mudam" : <>Vitória +{TROPHY_WIN} 🏆 · Derrota −{TROPHY_LOSS} 🏆{prog.next ? ` · ${prog.next.emoji} libera ${prog.next.name}` : ""}</>}
             </p>
           </>
         ) : null}
