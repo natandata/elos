@@ -17,10 +17,11 @@ import { useArenaPresence } from "./arenaPresence";
 import { ArenaPlayfield, type PlayDriver } from "./ArenaPlayfield";
 import { inDeployZone, inField, type Input } from "@/lib/arena/core";
 import { createGame, step } from "@/lib/arena/engine";
+import { ARENA_LOAD_MS, ArenaLoadingScreen } from "@/components/games/ArenaLoadingScreen";
 
 type Phase = "intro" | "playing" | "finishing" | "result";
 
-export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, initialBest, initialCopies, initialLevels, dailyChestReady, eloRanking, myEloId, trophyRanking, myId, invites, gate, openTournaments }: { winsToday: number; maxWins: number; initialDeck: string[]; initialTrophies: number; initialBest: number; initialCopies: Record<string, number>; initialLevels: Record<string, number>; dailyChestReady: boolean; eloRanking: { id: string; name: string; points: number }[]; myEloId: string | null; trophyRanking: RankRow[]; myId: string; invites: number; gate: GateInfo; openTournaments: number }) {
+function ArenaGameInner({ onLaunching, winsToday, maxWins, initialDeck, initialTrophies, initialBest, initialCopies, initialLevels, dailyChestReady, eloRanking, myEloId, trophyRanking, myId, invites, gate, openTournaments }: { onLaunching: (v: boolean) => void; winsToday: number; maxWins: number; initialDeck: string[]; initialTrophies: number; initialBest: number; initialCopies: Record<string, number>; initialLevels: Record<string, number>; dailyChestReady: boolean; eloRanking: { id: string; name: string; points: number }[]; myEloId: string | null; trophyRanking: RankRow[]; myId: string; invites: number; gate: GateInfo; openTournaments: number }) {
   const [copies, setCopies] = useState<Record<string, number>>(initialCopies);
   const [dailyReady, setDailyReady] = useState(dailyChestReady);
   const [levels, setLevels] = useState<Record<string, number>>(initialLevels);
@@ -78,14 +79,19 @@ export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, in
     startingRef.current = true;
     setError(null);
     setVerdict(null);
+    // tela de carregamento de 5 s na entrada de toda partida (a partida é criada enquanto isso)
+    onLaunching(true);
+    const wait = new Promise<void>((r) => setTimeout(r, ARENA_LOAD_MS));
     const res: { error?: string; matchId?: string; seed?: number; deck?: string[]; arena?: number; levels?: Record<string, number>; botBoost?: number } = await startArena(viewArena).catch(() => ({
       error: "Sem conexão. Tente de novo.",
     }));
     if (res.error || !res.matchId || res.seed === undefined) {
+      onLaunching(false);
       setError(res.error ?? "Não foi possível começar.");
       startingRef.current = false;
       return;
     }
+    await wait;
     matchRef.current = res.matchId;
     const game = createGame(res.seed, res.deck ?? deck, undefined, { levels: res.levels ?? levels, arena: res.arena ?? 0, botBoost: res.botBoost ?? 0 });
     logRef.current = [];
@@ -113,6 +119,7 @@ export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, in
       isPending: () => false,
     });
     setPhase("playing");
+    onLaunching(false);
     startingRef.current = false;
   }
 
@@ -273,5 +280,15 @@ export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, in
         if (window.confirm("Desistir da partida?")) void finish(true);
       }}
     />
+  );
+}
+
+export function ArenaGame(props: Omit<Parameters<typeof ArenaGameInner>[0], "onLaunching">) {
+  const [launching, setLaunching] = useState(false);
+  return (
+    <>
+      <ArenaGameInner {...props} onLaunching={setLaunching} />
+      {launching ? <ArenaLoadingScreen label="Preparando a batalha…" /> : null}
+    </>
   );
 }
