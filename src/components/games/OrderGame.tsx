@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useState } from "react";
 import { submitOrder, type OrderResult } from "@/lib/actions/games";
+import { BibleHint } from "./BibleHint";
 
-export function OrderGame({ items, attemptsLeft: initialAttempts }: { items: string[]; attemptsLeft: number }) {
+export function OrderGame({ items, attemptsLeft: initialAttempts, reference }: { items: string[]; attemptsLeft: number; reference: string }) {
   const [seq, setSeq] = useState<number[]>([]);
   const [attemptsLeft, setAttemptsLeft] = useState(initialAttempts);
   const [res, setRes] = useState<OrderResult | null>(null);
@@ -70,6 +71,7 @@ export function OrderGame({ items, attemptsLeft: initialAttempts }: { items: str
       <p className="mb-3 text-sm font-bold text-[var(--muted)]">
         Toque nos fatos na ordem em que aconteceram. Você tem {attemptsLeft} {attemptsLeft === 1 ? "tentativa" : "tentativas"}.
       </p>
+      <BibleHint reference={reference} className="mb-3" />
 
       {res && !res.finished ? (
         <p className="mb-3 rounded-2xl bg-amber-50 px-4 py-3 text-base font-bold text-amber-900">

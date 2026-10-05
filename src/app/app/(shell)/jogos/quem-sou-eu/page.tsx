@@ -53,6 +53,7 @@ export default async function QuemSouEuPage() {
             options={round.options}
             initialHints={round.item.hints.slice(0, Math.min(round.startHints + guesses.length, 4))}
             initialGuesses={guesses}
+            reference={round.item.ref}
           />
         </>
       )}

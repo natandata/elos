@@ -3,16 +3,19 @@
 import Link from "next/link";
 import { useState } from "react";
 import { guessWho, type WhoResult } from "@/lib/actions/games";
+import { BibleHint } from "./BibleHint";
 import { CardTile } from "./CardTile";
 
 export function WhoGame({
   options,
   initialHints,
   initialGuesses,
+  reference,
 }: {
   options: string[];
   initialHints: string[];
   initialGuesses: number[];
+  reference: string;
 }) {
   const [hints, setHints] = useState(initialHints);
   const [guessed, setGuessed] = useState(initialGuesses);
@@ -53,6 +56,8 @@ export function WhoGame({
           </p>
         ))}
       </div>
+
+      <BibleHint reference={reference} className="mb-4" />
 
       {final ? (
         <div className="card p-6 text-center">

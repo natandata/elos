@@ -70,7 +70,7 @@ function pickDaily<T>(pool: readonly T[], count: number, date: string, salt: str
 // ---------------------------------------------------------------- perguntas
 
 export type Question = { prompt: string; options: string[]; correctIdx: number; ref: string };
-export type PublicQuestion = { prompt: string; options: string[] };
+export type PublicQuestion = { prompt: string; options: string[]; ref: string };
 
 const LEVEL: Record<"facil" | "medio" | "dificil", Level> = { facil: 1, medio: 2, dificil: 3 };
 
@@ -114,7 +114,7 @@ export function duelQuestions(duelId: string): Question[] {
 }
 
 export function toPublic(questions: Question[]): PublicQuestion[] {
-  return questions.map((q) => ({ prompt: q.prompt, options: q.options }));
+  return questions.map((q) => ({ prompt: q.prompt, options: q.options, ref: q.ref }));
 }
 
 // ---------------------------------------------------------------- Quem Sou Eu?

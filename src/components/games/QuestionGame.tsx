@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useState } from "react";
 import { answerQuestion, type AnswerResult } from "@/lib/actions/games";
+import { BibleHint } from "./BibleHint";
 import { CardTile } from "./CardTile";
 
-type Q = { prompt: string; options: string[] };
+type Q = { prompt: string; options: string[]; ref: string };
 
 export function QuestionGame({
   game,
@@ -127,6 +128,7 @@ export function QuestionGame({
       <div className="card mb-4 p-5">
         <p className="text-xl font-black leading-snug">{q.prompt}</p>
       </div>
+      {q.ref ? <BibleHint reference={q.ref} className="mb-4" /> : null}
 
       <div className="grid gap-3">
         {q.options.map((opt, i) => {

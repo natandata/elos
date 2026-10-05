@@ -57,7 +57,7 @@ export default async function OrdemPage() {
       ) : (
         <>
           {play?.practice ? <PracticeNote /> : null}
-          <OrderGame items={round.shuffled} attemptsLeft={ORDER_ATTEMPTS[rules(diff)] - attemptsUsed} />
+          <OrderGame items={round.shuffled} attemptsLeft={ORDER_ATTEMPTS[rules(diff)] - attemptsUsed} reference={round.set.ref} />
         </>
       )}
     </>
