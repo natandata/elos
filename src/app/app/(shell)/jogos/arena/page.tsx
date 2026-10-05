@@ -49,7 +49,6 @@ export default async function ArenaPage() {
     return i > 0 && !Array.isArray(r.decks[i]);
   }).length;
   const gate = await loadGate(supabase, profile.id);
-  const { count: devoCount } = await supabase.from("devotional_entries").select("id", { count: "exact", head: true }).eq("user_id", profile.id).eq("entry_date", today);
   const { count: tournamentCount } = await supabase.from("arena_tournaments").select("id", { count: "exact", head: true }).in("status", ["open", "running"]);
   const { data: stats } = await supabase.from("arena_stats").select("trophies, best, chest_date").eq("user_id", profile.id).maybeSingle<{ trophies: number; best: number; chest_date: string | null }>();
   const { data: owned } = await supabase.from("arena_card_levels").select("card, level, copies").eq("user_id", profile.id);
@@ -64,6 +63,6 @@ export default async function ArenaPage() {
   const deck = isValidDeck(saved?.deck) && deckAllowed(saved.deck, stats?.best ?? 0, ownedFromRows(ownedRows)) ? saved.deck : STARTER_DECK;
 
   return (
-    <ArenaGame winsToday={count ?? 0} maxWins={MAX_XP_WINS} initialDeck={deck} initialTrophies={stats?.trophies ?? 0} initialBest={stats?.best ?? 0} initialCopies={copies} initialLevels={levels} dailyChestReady={stats?.chest_date !== today} eloRanking={eloRanking} myEloId={profile.elo_id ?? null} trophyRanking={trophyRanking} myId={profile.id} invites={(invites ?? 0) + duoInvites} gate={gate} openTournaments={tournamentCount ?? 0} devoToday={(devoCount ?? 0) > 0} />
+    <ArenaGame winsToday={count ?? 0} maxWins={MAX_XP_WINS} initialDeck={deck} initialTrophies={stats?.trophies ?? 0} initialBest={stats?.best ?? 0} initialCopies={copies} initialLevels={levels} dailyChestReady={stats?.chest_date !== today} eloRanking={eloRanking} myEloId={profile.elo_id ?? null} trophyRanking={trophyRanking} myId={profile.id} invites={(invites ?? 0) + duoInvites} gate={gate} openTournaments={tournamentCount ?? 0} />
   );
 }

@@ -54,7 +54,7 @@ export const ARENAS: BiblicalArena[] = [
     art: "/arena/places/ararate.webp",
     name: "Monte Ararate",
     emoji: "⛰️",
-    min: 200,
+    min: 600,
     blurb: "Onde a arca de Noé repousou depois do dilúvio.",
     ref: "Gênesis 8",
     theme: {
@@ -68,7 +68,7 @@ export const ARENAS: BiblicalArena[] = [
     art: "/arena/places/sinai.webp",
     name: "Deserto do Sinai",
     emoji: "🏜️",
-    min: 450,
+    min: 1500,
     blurb: "Onde Moisés recebeu os Dez Mandamentos.",
     ref: "Êxodo 19–20",
     theme: {
@@ -82,7 +82,7 @@ export const ARENAS: BiblicalArena[] = [
     art: "/arena/places/jerico.webp",
     name: "Muralhas de Jericó",
     emoji: "🏰",
-    min: 750,
+    min: 2800,
     blurb: "As muralhas caíram ao som das trombetas.",
     ref: "Josué 6",
     theme: {
@@ -96,7 +96,7 @@ export const ARENAS: BiblicalArena[] = [
     art: "/arena/places/ela.webp",
     name: "Vale de Elá",
     emoji: "🪨",
-    min: 1100,
+    min: 4300,
     blurb: "Onde Davi enfrentou o gigante Golias.",
     ref: "1 Samuel 17",
     theme: {
@@ -110,7 +110,7 @@ export const ARENAS: BiblicalArena[] = [
     art: "/arena/places/galileia.webp",
     name: "Mar da Galileia",
     emoji: "⛵",
-    min: 1500,
+    min: 6000,
     blurb: "Onde Jesus andou sobre as águas.",
     ref: "Mateus 14",
     theme: {
@@ -124,7 +124,7 @@ export const ARENAS: BiblicalArena[] = [
     art: "/arena/places/jerusalem.webp",
     name: "Jerusalém",
     emoji: "🕍",
-    min: 2000,
+    min: 8000,
     blurb: "A cidade do grande Rei, com o Templo de Salomão.",
     ref: "1 Reis 6",
     theme: {
@@ -138,7 +138,7 @@ export const ARENAS: BiblicalArena[] = [
     art: "/arena/places/nova.webp",
     name: "Nova Jerusalém",
     emoji: "✨",
-    min: 2600,
+    min: 10000,
     blurb: "A cidade de ouro, onde Deus enxuga toda lágrima.",
     ref: "Apocalipse 21",
     theme: {

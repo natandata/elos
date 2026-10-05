@@ -109,7 +109,6 @@ export function ArenaHome({
   cards,
   gate,
   openTournaments,
-  devoToday,
 }: {
   tab: ArenaTab;
   setTab: (t: ArenaTab) => void;
@@ -133,7 +132,6 @@ export function ArenaHome({
   cards: ReactNode;
   gate: GateInfo;
   openTournaments: number;
-  devoToday: boolean;
 }) {
   const prog = arenaProgress(trophies);
   const onlineMap = useOnlineMap();
@@ -214,18 +212,6 @@ export function ArenaHome({
               </span>
               {openTournaments > 0 ? <span className="cr-text rounded-full bg-red-600 px-2 py-0.5 text-sm">{openTournaments}</span> : null}
             </Link>
-
-            {/* aviso do devocional: um dia sem anotar tira 25% dos troféus */}
-            {devoToday ? null : (
-              <Link href="/app/devocional" className="mt-2 flex items-center gap-2 rounded-xl border-2 border-amber-300 bg-[#3a1d0a]/90 px-3 py-2 text-white active:translate-y-[2px]">
-                <span className="text-2xl" aria-hidden>
-                  📖
-                </span>
-                <span className="min-w-0 flex-1 text-[12px] font-bold leading-tight">
-                  Faça o devocional hoje! Um dia sem devocional tira <b className="text-amber-300">25% dos seus troféus</b>.
-                </span>
-              </Link>
-            )}
 
             {/* arena + botões laterais */}
             <div className="relative mt-3">
@@ -384,7 +370,6 @@ export function ArenaHome({
               <li>🃏 Cada partida e cada baú dão cartas. Juntando cópias de um herói (50, 100, 200…) ele evolui, até o nível 15. Baús comprados com troféus trazem mais cartas.</li>
               <li>🎁 O Baú da Arena é grátis e abre 1 vez por dia.</li>
               <li>⚔️ No 1x1 e em Duplas você joga em tempo real contra colegas do seu Elo.</li>
-              <li>📖 Todo dia sem anotar no devocional tira 25% dos seus troféus (o recorde e as cartas liberadas ficam).</li>
               <li>🏅 No 1x1 não se ganha troféu: quem vence ganha uma medalha de vitória contra aquele colega. Empate (mesmas coroas, até 0x0) não vale nada.</li>
             </ul>
           </div>

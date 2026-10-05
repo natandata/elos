@@ -20,7 +20,7 @@ import { createGame, step } from "@/lib/arena/engine";
 
 type Phase = "intro" | "playing" | "finishing" | "result";
 
-export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, initialBest, initialCopies, initialLevels, dailyChestReady, eloRanking, myEloId, trophyRanking, myId, invites, gate, openTournaments, devoToday }: { winsToday: number; maxWins: number; initialDeck: string[]; initialTrophies: number; initialBest: number; initialCopies: Record<string, number>; initialLevels: Record<string, number>; dailyChestReady: boolean; eloRanking: { id: string; name: string; points: number }[]; myEloId: string | null; trophyRanking: RankRow[]; myId: string; invites: number; gate: GateInfo; openTournaments: number; devoToday: boolean }) {
+export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, initialBest, initialCopies, initialLevels, dailyChestReady, eloRanking, myEloId, trophyRanking, myId, invites, gate, openTournaments }: { winsToday: number; maxWins: number; initialDeck: string[]; initialTrophies: number; initialBest: number; initialCopies: Record<string, number>; initialLevels: Record<string, number>; dailyChestReady: boolean; eloRanking: { id: string; name: string; points: number }[]; myEloId: string | null; trophyRanking: RankRow[]; myId: string; invites: number; gate: GateInfo; openTournaments: number }) {
   const [copies, setCopies] = useState<Record<string, number>>(initialCopies);
   const [dailyReady, setDailyReady] = useState(dailyChestReady);
   const [levels, setLevels] = useState<Record<string, number>>(initialLevels);
@@ -154,7 +154,6 @@ export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, in
         invites={invites}
         gate={gate}
         openTournaments={openTournaments}
-        devoToday={devoToday}
         onBattle={begin}
         error={error}
         cards={
