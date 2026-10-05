@@ -29,9 +29,9 @@ export type ChestDef = {
 
 export const CHESTS: ChestDef[] = [
   { kind: "daily", name: "Baú da Arena", emoji: "🎁", cost: 0, stacks: 5, copies: 40 },
-  { kind: "cedro", name: "Baú de Cedro", emoji: "🧰", cost: 50, stacks: 5, copies: 70 },
-  { kind: "templo", name: "Baú do Templo", emoji: "🏺", cost: 100, stacks: 6, copies: 160 },
-  { kind: "arca", name: "Arca da Aliança", emoji: "👑", cost: 200, stacks: 8, copies: 400 },
+  { kind: "cedro", name: "Baú de Cedro", emoji: "🧰", cost: 200, stacks: 5, copies: 70 },
+  { kind: "templo", name: "Baú do Templo", emoji: "🏺", cost: 400, stacks: 6, copies: 160 },
+  { kind: "arca", name: "Arca da Aliança", emoji: "👑", cost: 800, stacks: 8, copies: 400 },
 ];
 export const CHEST_BY_KIND = new Map(CHESTS.map((c) => [c.kind, c]));
 
