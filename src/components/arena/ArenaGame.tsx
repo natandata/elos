@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/ui";
 import { useCallback, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { finishArena, saveArenaDeck, startArena, upgradeArenaCard, type ArenaFinish } from "@/lib/actions/arena";
 import { DeckBuilder } from "./DeckBuilder";
 import { ArenaHome, type ArenaTab, type RankRow } from "./ArenaHome";
@@ -22,6 +23,8 @@ export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, in
   const [trophies, setTrophies] = useState(initialTrophies);
   const [best, setBest] = useState(Math.max(initialBest, initialTrophies));
   const [deck, setDeck] = useState<string[]>(initialDeck);
+  const router = useRouter();
+  const startingRef = useRef(false);
   const [tab, setTab] = useState<ArenaTab>("battle");
   const [savingDeck, setSavingDeck] = useState(false);
   const [phase, setPhase] = useState<Phase>("intro");
@@ -32,10 +35,17 @@ export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, in
   const logRef = useRef<Input[]>([]);
   const [driver, setDriver] = useState<PlayDriver | null>(null);
 
+  const lastSurrenderRef = useRef(false);
   const finish = useCallback(async (surrender: boolean) => {
+    lastSurrenderRef.current = surrender;
     setPhase("finishing");
     try {
-      const res = await finishArena({ matchId: matchRef.current!, inputs: logRef.current, surrender });
+      // internet instável: tenta de novo uma vez antes de desistir de confirmar
+      const send = () => finishArena({ matchId: matchRef.current!, inputs: logRef.current, surrender });
+      const res = await send().catch(async () => {
+        await new Promise((r) => setTimeout(r, 1500));
+        return send();
+      });
       setVerdict(res);
       if (typeof res.scrollsTotal === "number") setScrolls(res.scrollsTotal);
       if (typeof res.trophies === "number") {
@@ -46,9 +56,14 @@ export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, in
       setVerdict({ error: "Sem conexão. Não foi possível confirmar o resultado." });
     }
     setPhase("result");
-  }, []);
+    // traz dados novos (pausa de jogos, ranking, XP do dia); a tela de resultado continua montada
+    router.refresh();
+  }, [router]);
 
   async function begin() {
+    // um toque duplo não pode abrir duas partidas (a esquecida viraria derrota)
+    if (startingRef.current) return;
+    startingRef.current = true;
     setError(null);
     setVerdict(null);
     const res: { error?: string; matchId?: string; seed?: number; deck?: string[]; arena?: number; levels?: Record<string, number> } = await startArena().catch(() => ({
@@ -56,6 +71,7 @@ export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, in
     }));
     if (res.error || !res.matchId || res.seed === undefined) {
       setError(res.error ?? "Não foi possível começar.");
+      startingRef.current = false;
       return;
     }
     matchRef.current = res.matchId;
@@ -85,6 +101,7 @@ export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, in
       isPending: () => false,
     });
     setPhase("playing");
+    startingRef.current = false;
   }
 
   // ------------------------------------------------------------ telas
@@ -158,6 +175,11 @@ export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, in
                 ⚠️
               </p>
               <p className="mt-2 font-bold text-rose-700">{r.error}</p>
+              {matchRef.current ? (
+                <button type="button" onClick={() => void finish(lastSurrenderRef.current)} className="btn btn-ghost mt-3">
+                  Tentar confirmar de novo
+                </button>
+              ) : null}
             </>
           ) : (
             <>

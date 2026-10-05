@@ -54,6 +54,8 @@ export function ArenaDuoRoom({ id, me, names, arena, seed, decks, initialStatus,
   const lastForceRef = useRef(0);
   const seenRef = useRef<Set<number>>(new Set());
   const reportedRef = useRef(false);
+  const savedRef = useRef(false);
+  const payloadRef = useRef<unknown>(null);
   const stageRef = useRef(stage);
   stageRef.current = stage;
 
@@ -114,7 +116,9 @@ export function ArenaDuoRoom({ id, me, names, arena, seed, decks, initialStatus,
         sessionStorage.removeItem(startedKey);
       } catch {}
       const payload = { mine: ls?.ownInputs ?? [], seen: ls?.seenBy() ?? {}, tick: ls?.game.tick ?? 0, ...extra };
+      payloadRef.current = payload;
       const r = await reportArenaDuo(id, payload).catch(() => ({ error: "Sem conexão." }) as { error?: string; view?: DuoView });
+      if (!r.error) savedRef.current = true;
       if (r.view) setView(r.view);
       if (r.view && (r.view.state === "finished" || r.view.state === "disputed")) setStage("result");
     },
@@ -132,6 +136,11 @@ export function ArenaDuoRoom({ id, me, names, arena, seed, decks, initialStatus,
         if (f) send("f", f);
       }
       if (n % 3 === 0) {
+        // o relatório pode ter se perdido (internet): reenvia até o servidor confirmar
+        if (!savedRef.current && payloadRef.current) {
+          const again = await reportArenaDuo(id, payloadRef.current as never).catch(() => null);
+          if (again && !again.error) savedRef.current = true;
+        }
         const r = await checkArenaDuo(id).catch(() => null);
         if (r?.view) {
           setView(r.view);

@@ -34,7 +34,7 @@ export default async function ArenaDuoLobbyPage() {
   const dayAgo = Date.now() - 24 * 3_600_000;
 
   const items: DuoItem[] = ((duoRes.data ?? []) as DuoRow[])
-    .filter((r) => r.status !== "declined" && !(r.status === "invited" && new Date(r.created_at).getTime() < dayAgo))
+    .filter((r) => r.status !== "declined" && !((r.status === "invited" || r.status === "accepted") && new Date(r.created_at).getTime() < dayAgo))
     .map((r) => {
       const idx = r.players.indexOf(profile.id);
       const v = viewOfDuo(r, profile.id);

@@ -52,6 +52,8 @@ export function ArenaPvpRoom({ id, meSide, opponentName, arena, seed, decks, ini
   const lastForceRef = useRef(0);
   const peerSeenRef = useRef(false);
   const reportedRef = useRef(false);
+  const savedRef = useRef(false);
+  const payloadRef = useRef<unknown>(null);
   const stageRef = useRef(stage);
   stageRef.current = stage;
 
@@ -108,7 +110,9 @@ export function ArenaPvpRoom({ id, meSide, opponentName, arena, seed, decks, ini
         sessionStorage.removeItem(startedKey);
       } catch {}
       const payload = { mine: ls?.ownInputs ?? [], theirs: ls?.theirInputs ?? [], tick: ls?.game.tick ?? 0, ...extra };
+      payloadRef.current = payload;
       const r = await reportArenaPvp(id, payload).catch(() => ({ error: "Sem conexão." } as { error?: string; view?: PvpView }));
+      if (!r.error) savedRef.current = true;
       if (r.view) setView(r.view);
       if (r.view && (r.view.state === "finished" || r.view.state === "disputed")) setStage("result");
     },
@@ -126,6 +130,11 @@ export function ArenaPvpRoom({ id, meSide, opponentName, arena, seed, decks, ini
         if (f) send("f", f);
       }
       if (n % 3 === 0) {
+        // o relatório pode ter se perdido (internet): reenvia até o servidor confirmar
+        if (!savedRef.current && payloadRef.current) {
+          const again = await reportArenaPvp(id, payloadRef.current as never).catch(() => null);
+          if (again && !again.error) savedRef.current = true;
+        }
         const r = await checkArenaPvp(id).catch(() => null);
         if (r?.view) {
           setView(r.view);

@@ -101,24 +101,24 @@ export function ArenaHome({
   ];
 
   return (
-    <div className="cr-pattern -mx-1 overflow-hidden rounded-[26px] border-[3px] border-[#0b2a5c] shadow-2xl">
+    <div className="cr-pattern mx-auto w-full max-w-[480px] overflow-hidden rounded-[26px] border-[3px] border-[#0b2a5c] shadow-2xl">
       <div className="px-3 pb-4 pt-3">
         {tab === "battle" ? (
           <>
             {/* atalhos de cima */}
             <div className="grid grid-cols-2 gap-2">
-              <Link href={missionsHref} className="cr-panel flex items-center gap-2 px-2 py-2 active:translate-y-[2px]">
-                <span className="flex h-11 w-11 items-center justify-center rounded-md bg-[#1c4f9a] text-2xl shadow-inner" aria-hidden>
+              <Link href={missionsHref} className="cr-panel flex min-w-0 items-center gap-1.5 px-2 py-2 active:translate-y-[2px]">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#1c4f9a] text-lg shadow-inner" aria-hidden>
                   🎯
                 </span>
-                <span className="cr-text text-xl">Missões</span>
+                <span className="cr-text min-w-0 text-[15px] leading-tight">Missões</span>
               </Link>
-              <Link href="/app/jogos" className="cr-panel flex items-center gap-2 px-2 py-2 active:translate-y-[2px]">
+              <Link href="/app/jogos" className="cr-panel flex min-w-0 items-center gap-1 px-2 py-2 active:translate-y-[2px]">
                 <span className="min-w-0 flex-1 leading-tight">
-                  <span className="cr-text block text-[15px] text-[#9be8ff]">Baú do Dia</span>
-                  <span className="cr-text block text-[13px]">Jogos</span>
+                  <span className="cr-text block text-[12px] text-[#9be8ff]">Baú do Dia</span>
+                  <span className="cr-text block truncate text-[12px]">Jogos</span>
                 </span>
-                <span className="text-4xl drop-shadow" aria-hidden>
+                <span className="shrink-0 text-3xl drop-shadow" aria-hidden>
                   🎁
                 </span>
               </Link>

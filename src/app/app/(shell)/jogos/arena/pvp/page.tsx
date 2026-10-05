@@ -34,7 +34,7 @@ export default async function ArenaPvpLobbyPage() {
   const dayAgo = Date.now() - 24 * 3_600_000;
 
   const items: PvpItem[] = ((pvpRes.data ?? []) as PvpRow[])
-    .filter((r) => r.status !== "declined" && !(r.status === "invited" && new Date(r.created_at).getTime() < dayAgo))
+    .filter((r) => r.status !== "declined" && !((r.status === "invited" || r.status === "accepted") && new Date(r.created_at).getTime() < dayAgo))
     .map((r) => {
       const iAmC = r.challenger_id === profile.id;
       const v = viewOf(r, profile.id);

@@ -60,7 +60,8 @@ export async function startArena(): Promise<{ error?: string; matchId?: string; 
   for (const r of (owned ?? []) as { card: string; level: number }[]) if (deck.includes(r.card)) levels[r.card] = r.level;
 
   const seed = randomInt(1, 2 ** 31 - 1);
-  const { data, error } = await supabase
+  // só o servidor cria partida (semente sorteada aqui, limite diário e pausa de jogos valem pra todo mundo)
+  const { data, error } = await (admin ?? supabase)
     .from("arena_matches")
     .insert({ user_id: userId, seed, deck, play_date: date, arena, levels })
     .select("id")
