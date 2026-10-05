@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/ui";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { finishArena, startArena, type ArenaFinish } from "@/lib/actions/arena";
-import { ARENA_CARDS, ARENA_CARD_BY_KEY, STARTER_DECK } from "@/lib/arena/cards";
+import { finishArena, saveArenaDeck, startArena, type ArenaFinish } from "@/lib/actions/arena";
+import { DeckBuilder } from "./DeckBuilder";
+import { ARENA_CARDS, ARENA_CARD_BY_KEY } from "@/lib/arena/cards";
 import { CardArt } from "./CardArt";
 import { TEAM, buildBackground, drawTower, layoutFor, type Layout } from "./arenaRender";
 import { applyEvent, drawFx, newAnim, type Anim, type Fx } from "./arenaFx";
@@ -66,7 +67,10 @@ function CrownCount({ n, color }: { n: number; color: "red" | "blue" }) {
   );
 }
 
-export function ArenaGame({ winsToday, maxWins }: { winsToday: number; maxWins: number }) {
+export function ArenaGame({ winsToday, maxWins, initialDeck }: { winsToday: number; maxWins: number; initialDeck: string[] }) {
+  const [deck, setDeck] = useState<string[]>(initialDeck);
+  const [editing, setEditing] = useState(false);
+  const [savingDeck, setSavingDeck] = useState(false);
   const [phase, setPhase] = useState<Phase>("intro");
   const [error, setError] = useState<string | null>(null);
   const [hud, setHud] = useState<Hud | null>(null);
@@ -324,7 +328,7 @@ export function ArenaGame({ winsToday, maxWins }: { winsToday: number; maxWins: 
   async function begin() {
     setError(null);
     setVerdict(null);
-    const res: { error?: string; matchId?: string; seed?: number } = await startArena().catch(() => ({
+    const res: { error?: string; matchId?: string; seed?: number; deck?: string[] } = await startArena().catch(() => ({
       error: "Sem conexão. Tente de novo.",
     }));
     if (res.error || !res.matchId || res.seed === undefined) {
@@ -332,7 +336,7 @@ export function ArenaGame({ winsToday, maxWins }: { winsToday: number; maxWins: 
       return;
     }
     matchRef.current = res.matchId;
-    const game = createGame(res.seed, STARTER_DECK);
+    const game = createGame(res.seed, res.deck ?? deck);
     gameRef.current = game;
     pendingRef.current = [];
     logRef.current = [];
@@ -388,6 +392,29 @@ export function ArenaGame({ winsToday, maxWins }: { winsToday: number; maxWins: 
   // ------------------------------------------------------------ telas
   const header = <PageHeader title="🏰 Arena dos Heróis" subtitle="Enfrente o computador com heróis e poderes bíblicos." />;
 
+  if (phase === "intro" && editing) {
+    return (
+      <div>
+        {header}
+        <DeckBuilder
+          initial={deck}
+          saving={savingDeck}
+          error={error}
+          onCancel={() => setEditing(false)}
+          onSave={async (d) => {
+            setSavingDeck(true);
+            setError(null);
+            const r = await saveArenaDeck(d).catch(() => ({ error: "Sem conexão. Tente de novo." }));
+            setSavingDeck(false);
+            if (r.error) return setError(r.error);
+            setDeck(d);
+            setEditing(false);
+          }}
+        />
+      </div>
+    );
+  }
+
   if (phase === "intro") {
     return (
       <div>
@@ -401,9 +428,12 @@ export function ArenaGame({ winsToday, maxWins }: { winsToday: number; maxWins: 
             <li>⏱️ São 3 minutos. No último minuto o Maná enche em dobro!</li>
           </ul>
         </div>
-        <p className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">Seu baralho</p>
+        <div className="mb-2 flex items-center justify-between">
+          <p className="text-sm font-bold uppercase tracking-wide text-[var(--muted)]">Seu baralho</p>
+          <button type="button" onClick={() => { setError(null); setEditing(true); }} className="text-sm font-black text-violet-600">✏️ Montar baralho</button>
+        </div>
         <div className="mb-4 grid grid-cols-4 gap-2">
-          {STARTER_DECK.map((k) => {
+          {deck.map((k) => {
             const c = ARENA_CARD_BY_KEY.get(k)!;
             return (
               <div key={k} className="relative rounded-2xl border-2 border-[var(--line)] bg-[var(--card)] p-2 text-center">

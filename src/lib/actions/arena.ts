@@ -4,7 +4,7 @@ import { randomInt } from "node:crypto";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { STARTER_DECK } from "@/lib/arena/cards";
+import { STARTER_DECK, isValidDeck } from "@/lib/arena/cards";
 import { settleArena, type ArenaFinish } from "@/lib/arena/settle";
 
 const MAX_MATCHES_PER_DAY = 15;
@@ -28,7 +28,7 @@ async function currentPlayer() {
 }
 
 /** Abre uma partida: o servidor sorteia a semente (o computador e o baralho dependem dela). */
-export async function startArena(): Promise<{ error?: string; matchId?: string; seed?: number }> {
+export async function startArena(): Promise<{ error?: string; matchId?: string; seed?: number; deck?: string[] }> {
   const { supabase, userId } = await currentPlayer();
   const date = todayBR();
 
@@ -41,14 +41,28 @@ export async function startArena(): Promise<{ error?: string; matchId?: string; 
     return { error: `Você já jogou ${MAX_MATCHES_PER_DAY} partidas hoje. Volte amanhã!` };
   }
 
+  const { data: saved } = await supabase.from("arena_decks").select("deck").eq("user_id", userId).maybeSingle<{ deck: string[] }>();
+  const deck = isValidDeck(saved?.deck) ? saved.deck : STARTER_DECK;
+
   const seed = randomInt(1, 2 ** 31 - 1);
   const { data, error } = await supabase
     .from("arena_matches")
-    .insert({ user_id: userId, seed, deck: STARTER_DECK, play_date: date })
+    .insert({ user_id: userId, seed, deck, play_date: date })
     .select("id")
     .single<{ id: string }>();
   if (error || !data) return { error: "Não foi possível começar a partida. Tente de novo." };
-  return { matchId: data.id, seed };
+  return { matchId: data.id, seed, deck };
+}
+
+/** Salva o baralho do jogador (8 cartas diferentes). */
+export async function saveArenaDeck(deck: string[]): Promise<{ error?: string }> {
+  const { supabase, userId } = await currentPlayer();
+  if (!isValidDeck(deck)) return { error: "Escolha exatamente 8 cartas diferentes." };
+  const { error } = await supabase
+    .from("arena_decks")
+    .upsert({ user_id: userId, deck, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+  if (error) return { error: "Não foi possível salvar o baralho." };
+  return {};
 }
 
 export type { ArenaFinish };

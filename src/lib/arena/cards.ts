@@ -78,5 +78,15 @@ export const ARENA_CARD_BY_KEY = new Map(ARENA_CARDS.map((c) => [c.key, c]));
 /** Baralho inicial do jogador (a fase 1 ainda não tem montador de baralho). */
 export const STARTER_DECK = ["davi", "josue", "sansao", "moises", "miguel", "jesus", "mar", "trombetas"];
 
+/** Baralho válido: 8 cartas diferentes que existem no catálogo. */
+export function isValidDeck(deck: unknown): deck is string[] {
+  return (
+    Array.isArray(deck) &&
+    deck.length === 8 &&
+    new Set(deck).size === 8 &&
+    deck.every((k) => typeof k === "string" && ARENA_CARD_BY_KEY.has(k))
+  );
+}
+
 export const ATALAIA = { hp: 360, dmg: 26, atkSpeed: 0.9, range: 6, radius: 1.1 };
 export const SANTUARIO = { hp: 700, dmg: 30, atkSpeed: 1.0, range: 6.5, radius: 1.5 };

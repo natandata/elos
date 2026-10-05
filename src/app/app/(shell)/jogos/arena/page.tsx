@@ -1,4 +1,5 @@
 import { ArenaGame } from "@/components/arena/ArenaGame";
+import { STARTER_DECK, isValidDeck } from "@/lib/arena/cards";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -15,7 +16,10 @@ export default async function ArenaPage() {
     .eq("play_date", today)
     .gt("xp_awarded", 0);
 
+  const { data: saved } = await supabase.from("arena_decks").select("deck").eq("user_id", profile.id).maybeSingle<{ deck: string[] }>();
+  const deck = isValidDeck(saved?.deck) ? saved.deck : STARTER_DECK;
+
   return (
-    <ArenaGame winsToday={count ?? 0} maxWins={MAX_XP_WINS} />
+    <ArenaGame winsToday={count ?? 0} maxWins={MAX_XP_WINS} initialDeck={deck} />
   );
 }

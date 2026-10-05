@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isValidDeck } from "./cards";
 import { MATCH_TICKS, type Input } from "./core";
 import { MAX_INPUTS, simulate } from "./sim";
 
@@ -45,6 +46,8 @@ export async function settleArena(
     .maybeSingle<{ id: string; user_id: string; seed: number; deck: string[]; status: string; started_at: string; play_date: string }>();
   if (!match || match.user_id !== userId) return { error: "Partida não encontrada." };
   if (match.status !== "open") return { error: "Essa partida já foi encerrada." };
+  // o jogador insere a própria partida: um baralho adulterado (ex.: 8 Jesus) não conta
+  if (!isValidDeck(match.deck)) return { error: "Baralho inválido." };
 
   let result: "win" | "loss" | "draw" = "loss";
   let crownsMe = 0;
