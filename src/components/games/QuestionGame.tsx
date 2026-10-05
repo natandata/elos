@@ -56,7 +56,7 @@ export function QuestionGame({
       if (typeof res.score === "number") setScore(res.score);
       if (res.done) setFinal(res);
     } catch {
-      setError("Sem conexão. Tente de novo.");
+      setError("Sem conexão ou página desatualizada. Atualize a página e tente de novo.");
     } finally {
       setBusy(false);
     }

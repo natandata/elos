@@ -30,7 +30,7 @@ export function OrderGame({ items, attemptsLeft: initialAttempts, reference }: {
         setSeq([]);
       }
     } catch {
-      setError("Sem conexão. Tente de novo.");
+      setError("Sem conexão ou página desatualizada. Atualize a página e tente de novo.");
     } finally {
       setBusy(false);
     }

@@ -30,7 +30,7 @@ export function ReplayButton({ game }: { game: PracticeGame }) {
       if (res.error) setError(res.error);
       else router.refresh();
     } catch {
-      setError("Sem conexão. Tente de novo.");
+      setError("Sem conexão ou página desatualizada. Atualize a página e tente de novo.");
     } finally {
       setBusy(false);
     }

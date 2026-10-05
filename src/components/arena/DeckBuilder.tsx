@@ -20,6 +20,8 @@ function Tile({ card, picked, locked, level, copies, onClick }: { card: ArenaCar
       <span className="absolute -left-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-amber-800 bg-gradient-to-b from-yellow-200 to-amber-500 text-xs font-black text-[#5a2f05]">{card.cost}</span>
       {card.kind === "spell" ? (
         <span className="absolute -right-1 -top-1 rounded-full bg-amber-500 px-1.5 text-[9px] font-black text-white">PODER</span>
+      ) : card.key === "jesus" ? (
+        <span className="absolute -right-1 -top-1 rounded-full bg-gradient-to-r from-fuchsia-500 to-amber-400 px-1.5 text-[9px] font-black text-white">ULTRA</span>
       ) : null}
       {locked ? <span className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-black/55 text-2xl" aria-hidden>🔒</span> : null}
       <div className="flex h-14 items-end justify-center">
@@ -236,6 +238,7 @@ function CardSheet({
             <p className="text-sm font-bold text-amber-600">
               🍞 {card.cost} de Maná {card.kind === "spell" ? "· Poder" : ""}
             </p>
+            {card.key === "jesus" ? <p className="text-xs font-black text-fuchsia-500">👑 Ultra lendária · 1% nos baús</p> : null}
             {unlocked ? <p className="text-sm font-black text-violet-500">Nível {level}{level >= MAX_CARD_LEVEL ? " (máximo)" : ""}</p> : null}
             <p className="mt-1 text-xs font-semibold text-[var(--muted)]">{card.desc}</p>
           </div>

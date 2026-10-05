@@ -86,7 +86,7 @@ export const CARD_LORE: Record<string, CardLore> = {
     story:
       "Jesus é o Filho de Deus. Andou fazendo o bem, curou doentes, ensinou sobre o amor e o Reino de Deus e morreu na cruz pelos nossos pecados. Ressuscitou ao terceiro dia. Ele disse: “Vinde a mim, todos os que estais cansados e sobrecarregados, e eu vos aliviarei”.",
     ref: "Mateus 11:28 · Lucas 24",
-    attack: "Jesus não ataca: cura e protege os aliados num raio grande, mostrando o cuidado dEle com as pessoas.",
+    attack: "Jesus é a carta mais forte do jogo: golpeia em área com enorme poder e cura os aliados num raio grande, mostrando o cuidado dEle com as pessoas.",
   },
   salomao: {
     story:

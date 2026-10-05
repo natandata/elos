@@ -156,9 +156,8 @@ export const CARD_UNLOCK_ARENA: Record<string, number> = {
   moises: 2,
   josue: 3,
   daniel: 4,
-  jesus: 5,
   salomao: 6, ester: 6,
-  miguel: 7, fogo: 7,
+  miguel: 7, fogo: 7, jesus: 7,
 };
 
 export function cardsUnlockedIn(arenaIdx: number): string[] {

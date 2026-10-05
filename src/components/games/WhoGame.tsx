@@ -37,7 +37,7 @@ export function WhoGame({
       if (res.finished) setFinal(res);
       else if (res.nextHint) setHints((h) => [...h, res.nextHint!]);
     } catch {
-      setError("Sem conexão. Tente de novo.");
+      setError("Sem conexão ou página desatualizada. Atualize a página e tente de novo.");
     } finally {
       setBusy(false);
     }

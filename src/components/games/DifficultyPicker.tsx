@@ -36,7 +36,7 @@ export function DifficultyPicker({ game }: { game: GameKey }) {
       }
       router.refresh();
     } catch {
-      setError("Sem conexão. Tente de novo.");
+      setError("Sem conexão ou página desatualizada. Atualize a página e tente de novo.");
     } finally {
       setBusy(null);
     }
