@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { finishArena, saveArenaDeck, startArena, type ArenaFinish } from "@/lib/actions/arena";
 import { DeckBuilder } from "./DeckBuilder";
 import { ARENA_CARDS, ARENA_CARD_BY_KEY } from "@/lib/arena/cards";
-import { ARENAS, TROPHY_LOSS, TROPHY_WIN, arenaProgress } from "@/lib/arena/arenas";
+import { ARENAS, CARD_UNLOCK_ARENA, TROPHY_LOSS, TROPHY_WIN, arenaProgress, cardsUnlockedIn } from "@/lib/arena/arenas";
 import { CardArt } from "./CardArt";
 import { TEAM, buildBackground, drawTower, layoutFor, type Layout } from "./arenaRender";
 import { applyEvent, drawFx, newAnim, type Anim, type Fx } from "./arenaFx";
@@ -68,8 +68,9 @@ function CrownCount({ n, color }: { n: number; color: "red" | "blue" }) {
   );
 }
 
-export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies }: { winsToday: number; maxWins: number; initialDeck: string[]; initialTrophies: number }) {
+export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, initialBest }: { winsToday: number; maxWins: number; initialDeck: string[]; initialTrophies: number; initialBest: number }) {
   const [trophies, setTrophies] = useState(initialTrophies);
+  const [best, setBest] = useState(Math.max(initialBest, initialTrophies));
   const [playingArena, setPlayingArena] = useState(0);
   const arenaRef = useRef(0);
   const [deck, setDeck] = useState<string[]>(initialDeck);
@@ -274,7 +275,10 @@ export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies }: 
       try {
         const res = await finishArena({ matchId: matchRef.current!, inputs: logRef.current, surrender });
         setVerdict(res);
-        if (typeof res.trophies === "number") setTrophies(res.trophies);
+        if (typeof res.trophies === "number") {
+          setTrophies(res.trophies);
+          setBest((b) => Math.max(b, res.trophies as number));
+        }
       } catch {
         setVerdict({ error: "Sem conexão. Não foi possível confirmar o resultado." });
       }
@@ -407,6 +411,7 @@ export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies }: 
         {header}
         <DeckBuilder
           initial={deck}
+          best={best}
           saving={savingDeck}
           error={error}
           onCancel={() => setEditing(false)}
@@ -448,6 +453,9 @@ export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies }: 
                 </div>
                 <p className="mt-1 text-xs font-bold text-[var(--muted)]">
                   Faltam {prog.next.min - trophies} 🏆 para {prog.next.emoji} {prog.next.name}
+                </p>
+                <p className="text-xs font-bold text-violet-500">
+                  🔓 Libera: {cardsUnlockedIn(prog.idx + 1).map((k) => ARENA_CARD_BY_KEY.get(k)?.name).join(" e ")}
                 </p>
               </>
             ) : (
@@ -538,7 +546,14 @@ export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies }: 
                 </p>
               ) : null}
               {r.arenaUp ? (
-                <p className="mt-3 rounded-2xl bg-amber-100 px-4 py-2 text-sm font-black text-amber-900">🎉 Você chegou a uma nova arena: {r.arenaUp}!</p>
+                <p className="mt-3 rounded-2xl bg-amber-100 px-4 py-2 text-sm font-black text-amber-900">
+                  🎉 Nova arena: {r.arenaUp}!
+                  {(() => {
+                    const idx = ARENAS.findIndex((a) => a.name === r.arenaUp);
+                    const names = cardsUnlockedIn(idx).map((k) => ARENA_CARD_BY_KEY.get(k)?.name);
+                    return names.length ? <span className="block text-xs">🔓 Carta nova: {names.join(" e ")}</span> : null;
+                  })()}
+                </p>
               ) : null}
               {(r.xp ?? 0) > 0 ? (
                 <p className="mt-3 inline-block rounded-full bg-[var(--accent-soft)] px-4 py-1.5 text-lg font-black text-[var(--accent-strong)]">

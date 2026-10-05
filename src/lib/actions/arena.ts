@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { STARTER_DECK, isValidDeck } from "@/lib/arena/cards";
-import { arenaIndexFor } from "@/lib/arena/arenas";
+import { arenaIndexFor, deckAllowed } from "@/lib/arena/arenas";
 import { abandonOpenMatches, settleArena, type ArenaFinish } from "@/lib/arena/settle";
 
 const MAX_MATCHES_PER_DAY = 15;
@@ -44,11 +44,11 @@ export async function startArena(): Promise<{ error?: string; matchId?: string; 
 
   const admin = createAdminClient();
   if (admin) await abandonOpenMatches(admin, userId);
-  const { data: stats } = await supabase.from("arena_stats").select("trophies").eq("user_id", userId).maybeSingle<{ trophies: number }>();
+  const { data: stats } = await supabase.from("arena_stats").select("trophies, best").eq("user_id", userId).maybeSingle<{ trophies: number; best: number }>();
   const arena = arenaIndexFor(stats?.trophies ?? 0);
 
   const { data: saved } = await supabase.from("arena_decks").select("deck").eq("user_id", userId).maybeSingle<{ deck: string[] }>();
-  const deck = isValidDeck(saved?.deck) ? saved.deck : STARTER_DECK;
+  const deck = isValidDeck(saved?.deck) && deckAllowed(saved.deck, stats?.best ?? 0) ? saved.deck : STARTER_DECK;
 
   const seed = randomInt(1, 2 ** 31 - 1);
   const { data, error } = await supabase
@@ -64,6 +64,8 @@ export async function startArena(): Promise<{ error?: string; matchId?: string; 
 export async function saveArenaDeck(deck: string[]): Promise<{ error?: string }> {
   const { supabase, userId } = await currentPlayer();
   if (!isValidDeck(deck)) return { error: "Escolha exatamente 8 cartas diferentes." };
+  const { data: stats } = await supabase.from("arena_stats").select("best").eq("user_id", userId).maybeSingle<{ best: number }>();
+  if (!deckAllowed(deck, stats?.best ?? 0)) return { error: "Tem carta aí que você ainda não liberou." };
   const { error } = await supabase
     .from("arena_decks")
     .upsert({ user_id: userId, deck, updated_at: new Date().toISOString() }, { onConflict: "user_id" });

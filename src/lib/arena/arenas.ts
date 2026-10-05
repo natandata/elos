@@ -139,6 +139,32 @@ export const ARENAS: BiblicalArena[] = [
   },
 ];
 
+/** Em qual arena (índice) cada carta é liberada. A arena 0 é o baralho básico. */
+export const CARD_UNLOCK_ARENA: Record<string, number> = {
+  davi: 0, joao: 0, jose: 0, gideao: 0, sansao: 0, maria: 0, trombetas: 0, mar: 0,
+  noe: 1,
+  moises: 2,
+  josue: 3,
+  daniel: 4,
+  jesus: 5,
+  salomao: 6, ester: 6,
+  miguel: 7, fogo: 7,
+};
+
+export function cardsUnlockedIn(arenaIdx: number): string[] {
+  return Object.entries(CARD_UNLOCK_ARENA).filter(([, a]) => a === arenaIdx).map(([k]) => k);
+}
+
+/** `best` = maior total de troféus que o jogador já teve (não perde carta ao cair de arena). */
+export function isCardUnlocked(key: string, best: number): boolean {
+  const a = CARD_UNLOCK_ARENA[key];
+  return a !== undefined && arenaIndexFor(best) >= a;
+}
+
+export function deckAllowed(deck: string[], best: number): boolean {
+  return deck.every((k) => isCardUnlocked(k, best));
+}
+
 export function arenaIndexFor(trophies: number): number {
   let idx = 0;
   ARENAS.forEach((a, i) => {

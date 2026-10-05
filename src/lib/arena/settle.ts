@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isValidDeck } from "./cards";
-import { ARENAS, arenaIndexFor, trophyDelta, TROPHY_LOSS } from "./arenas";
+import { ARENAS, arenaIndexFor, deckAllowed, trophyDelta, TROPHY_LOSS } from "./arenas";
 import { MATCH_TICKS, type Input } from "./core";
 import { MAX_INPUTS, simulate } from "./sim";
 
@@ -21,9 +21,9 @@ export type ArenaFinish = {
   arenaUp?: string;
 };
 
-async function trophiesOf(admin: SupabaseClient, userId: string): Promise<number> {
-  const { data } = await admin.from("arena_stats").select("trophies").eq("user_id", userId).maybeSingle<{ trophies: number }>();
-  return data?.trophies ?? 0;
+async function statsOf(admin: SupabaseClient, userId: string): Promise<{ trophies: number; best: number }> {
+  const { data } = await admin.from("arena_stats").select("trophies, best").eq("user_id", userId).maybeSingle<{ trophies: number; best: number }>();
+  return { trophies: data?.trophies ?? 0, best: data?.best ?? 0 };
 }
 
 /** Partida aberta e deixada pra trás (aba fechada, desistência calada) conta como derrota. */
@@ -78,6 +78,8 @@ export async function settleArena(
   if (match.status !== "open") return { error: "Essa partida já foi encerrada." };
   // o jogador insere a própria partida: um baralho adulterado (ex.: 8 Jesus) não conta
   if (!isValidDeck(match.deck)) return { error: "Baralho inválido." };
+  const stats = await statsOf(admin, userId);
+  if (!deckAllowed(match.deck, stats.best)) return { error: "Esse baralho tem cartas que você ainda não liberou." };
 
   let result: "win" | "loss" | "draw" = "loss";
   let crownsMe = 0;
@@ -99,7 +101,7 @@ export async function settleArena(
     .gt("xp_awarded", 0);
   if (result === "win" && elapsed >= MIN_SECONDS_FOR_XP && (winsBefore ?? 0) < MAX_XP_WINS_PER_DAY) xp = 1;
 
-  const before = await trophiesOf(admin, userId);
+  const before = stats.trophies;
   const delta = trophyDelta(result, result === "win" && elapsed < MIN_SECONDS_FOR_XP);
 
   // fecha UMA vez (condicional): duas chamadas juntas não pagam duas vezes

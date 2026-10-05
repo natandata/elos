@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { ARENA_CARDS, ARENA_CARD_BY_KEY, STARTER_DECK, type ArenaCard } from "@/lib/arena/cards";
+import { ARENAS, CARD_UNLOCK_ARENA, isCardUnlocked } from "@/lib/arena/arenas";
 import { CardArt } from "./CardArt";
 
 const SIZE = 8;
 
-function Tile({ card, picked, onClick }: { card: ArenaCard; picked?: boolean; onClick?: () => void }) {
+function Tile({ card, picked, locked, onClick }: { card: ArenaCard; picked?: boolean; locked?: boolean; onClick?: () => void }) {
   return (
     <button
       type="button"
@@ -19,6 +20,7 @@ function Tile({ card, picked, onClick }: { card: ArenaCard; picked?: boolean; on
       {card.kind === "spell" ? (
         <span className="absolute -right-1 -top-1 rounded-full bg-amber-500 px-1.5 text-[9px] font-black text-white">PODER</span>
       ) : null}
+      {locked ? <span className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-black/55 text-2xl" aria-hidden>🔒</span> : null}
       <div className="flex h-14 items-end justify-center">
         {card.art ? <CardArt card={card} className="h-14" /> : <span className="text-3xl" aria-hidden>{card.emoji}</span>}
       </div>
@@ -43,12 +45,14 @@ function Stats({ c }: { c: ArenaCard }) {
 
 export function DeckBuilder({
   initial,
+  best,
   saving,
   error,
   onSave,
   onCancel,
 }: {
   initial: string[];
+  best: number;
   saving: boolean;
   error: string | null;
   onSave: (deck: string[]) => void;
@@ -59,6 +63,7 @@ export function DeckBuilder({
 
   function toggle(key: string) {
     setInfo(key);
+    if (!isCardUnlocked(key, best)) return;
     setDeck((d) => (d.includes(key) ? d.filter((k) => k !== key) : d.length < SIZE ? [...d, key] : d));
   }
 
@@ -96,16 +101,21 @@ export function DeckBuilder({
           </p>
           <p className="text-sm font-semibold text-[var(--muted)]">{detail.desc}</p>
           <Stats c={detail} />
+          {!isCardUnlocked(detail.key, best) ? (
+            <p className="mt-1 text-xs font-black text-amber-600">
+              🔒 Libera na arena {ARENAS[CARD_UNLOCK_ARENA[detail.key]].emoji} {ARENAS[CARD_UNLOCK_ARENA[detail.key]].name} ({ARENAS[CARD_UNLOCK_ARENA[detail.key]].min} 🏆)
+            </p>
+          ) : null}
         </div>
       ) : null}
 
       <p className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">Todas as cartas · toque para pôr ou tirar</p>
       <div className="mb-4 grid grid-cols-4 gap-2">
         {[...ARENA_CARDS]
-          .sort((a, b) => a.cost - b.cost)
+          .sort((a, b) => (CARD_UNLOCK_ARENA[a.key] ?? 0) - (CARD_UNLOCK_ARENA[b.key] ?? 0) || a.cost - b.cost)
           .map((c) => (
             <div key={c.key} className={deck.includes(c.key) ? "opacity-45" : ""}>
-              <Tile card={c} onClick={() => toggle(c.key)} />
+              <Tile card={c} locked={!isCardUnlocked(c.key, best)} onClick={() => toggle(c.key)} />
             </div>
           ))}
       </div>

@@ -72,7 +72,7 @@ export const ARENA_CARDS: ArenaCard[] = [
 export const ARENA_CARD_BY_KEY = new Map(ARENA_CARDS.map((c) => [c.key, c]));
 
 /** Baralho inicial do jogador (a fase 1 ainda não tem montador de baralho). */
-export const STARTER_DECK = ["davi", "josue", "sansao", "moises", "miguel", "jesus", "mar", "trombetas"];
+export const STARTER_DECK = ["davi", "joao", "jose", "gideao", "sansao", "maria", "mar", "trombetas"];
 
 /** Baralho válido: 8 cartas diferentes que existem no catálogo. */
 export function isValidDeck(deck: unknown): deck is string[] {
