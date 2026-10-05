@@ -31,6 +31,8 @@ export type ArenaCard = {
   canHitAir?: boolean;
   /** Dano em área em volta do alvo (tiles). */
   splash?: number;
+  /** Nome curto (o que aparece em cima do personagem na batalha). */
+  short?: string;
   /** Ilustração em /public/arena/<key>.webp (poderes: .svg); sem ela, usa o emoji. */
   art?: boolean;
   /** Multiplicador do dano contra construções (tropas). */
@@ -52,22 +54,25 @@ export type ArenaCard = {
 export const ARENA_CARDS: ArenaCard[] = [
   { key: "davi", name: "Davi", emoji: "🪨", art: true, kind: "unit", cost: 3, desc: "Atira de longe com a funda.", hp: 130, dmg: 30, atkSpeed: 1.0, range: 5, speed: 1.5, radius: 0.5, canHitAir: true },
   { key: "sansao", name: "Sansão", emoji: "💪", art: true, kind: "unit", cost: 4, desc: "Força enorme: dano alto de perto.", hp: 330, dmg: 60, atkSpeed: 1.3, range: 0.9, speed: 1.5, radius: 0.6 },
-  { key: "gideao", name: "Gideão e os 300", emoji: "🎺", art: true, kind: "unit", cost: 3, desc: "Três guerreiros de uma vez.", count: 3, hp: 75, dmg: 18, atkSpeed: 0.8, range: 0.8, speed: 1.8, radius: 0.4 },
-  { key: "miguel", name: "Arcanjo Miguel", emoji: "👼", art: true, kind: "unit", cost: 4, desc: "Voa por cima do rio e do exército.", hp: 200, dmg: 34, atkSpeed: 1.1, range: 1.0, speed: 1.8, radius: 0.6, flying: true, canHitAir: true },
+  { key: "gideao", short: "Gideão", name: "Gideão e os 300", emoji: "🎺", art: true, kind: "unit", cost: 3, desc: "Três guerreiros de uma vez.", count: 3, hp: 75, dmg: 18, atkSpeed: 0.8, range: 0.8, speed: 1.8, radius: 0.4 },
+  { key: "miguel", short: "Miguel", name: "Arcanjo Miguel", emoji: "👼", art: true, kind: "unit", cost: 4, desc: "Voa por cima do rio e do exército.", hp: 200, dmg: 34, atkSpeed: 1.1, range: 1.0, speed: 1.8, radius: 0.6, flying: true, canHitAir: true },
   { key: "moises", name: "Moisés", emoji: "🌊", art: true, kind: "unit", cost: 5, desc: "Seu cajado deixa os inimigos lentos.", hp: 400, dmg: 32, atkSpeed: 1.4, range: 4.5, speed: 1.1, radius: 0.6, canHitAir: true, hitSlow: { amount: 0.4, secs: 2 } },
   { key: "josue", name: "Josué", emoji: "🔥", art: true, kind: "unit", cost: 4, desc: "Derruba muros: muito dano em construções.", hp: 310, dmg: 36, atkSpeed: 1.2, range: 0.9, speed: 1.5, radius: 0.55, unitTowerMult: 1.8 },
   { key: "noe", name: "Noé", emoji: "🛶", art: true, kind: "unit", cost: 4, desc: "Cura os aliados que estão por perto.", hp: 340, dmg: 20, atkSpeed: 1.2, range: 1.0, speed: 1.2, radius: 0.6, heal: { amount: 40, secs: 2, radius: 3.5 } },
   { key: "jesus", name: "Jesus", emoji: "✝️", art: true, kind: "unit", cost: 6, desc: "Não ataca: cura e protege os aliados.", hp: 450, dmg: 0, atkSpeed: 1, range: 0, speed: 1.3, radius: 0.6, heal: { amount: 55, secs: 2, radius: 4.5 } },
   { key: "salomao", name: "Salomão", emoji: "🏛️", art: true, kind: "unit", cost: 5, desc: "Sábio resistente que ataca de longe.", hp: 330, dmg: 40, atkSpeed: 1.3, range: 5, speed: 1.2, radius: 0.6, canHitAir: true },
-  { key: "ester", name: "Rainha Ester", emoji: "👑", art: true, kind: "unit", cost: 4, desc: "Ataca de longe e deixa os inimigos um pouco lentos.", hp: 230, dmg: 34, atkSpeed: 1.4, range: 5, speed: 1.3, radius: 0.5, canHitAir: true, hitSlow: { amount: 0.25, secs: 1.5 } },
-  { key: "jose", name: "José do Egito", emoji: "🌾", art: true, kind: "unit", cost: 3, desc: "Guardou o grão: resistente e firme.", hp: 360, dmg: 22, atkSpeed: 1.2, range: 0.9, speed: 1.4, radius: 0.5 },
+  { key: "ester", short: "Ester", name: "Rainha Ester", emoji: "👑", art: true, kind: "unit", cost: 4, desc: "Ataca de longe e deixa os inimigos um pouco lentos.", hp: 230, dmg: 34, atkSpeed: 1.4, range: 5, speed: 1.3, radius: 0.5, canHitAir: true, hitSlow: { amount: 0.25, secs: 1.5 } },
+  { key: "jose", short: "José", name: "José do Egito", emoji: "🌾", art: true, kind: "unit", cost: 3, desc: "Guardou o grão: resistente e firme.", hp: 360, dmg: 22, atkSpeed: 1.2, range: 0.9, speed: 1.4, radius: 0.5 },
   { key: "maria", name: "Maria", emoji: "💙", art: true, kind: "unit", cost: 3, desc: "Cura os aliados por perto e ataca de leve.", hp: 220, dmg: 14, atkSpeed: 1.2, range: 3.5, speed: 1.3, radius: 0.45, canHitAir: true, heal: { amount: 30, secs: 2, radius: 3.5 } },
   { key: "daniel", name: "Daniel e o Leão", emoji: "🦁", art: true, kind: "unit", cost: 4, desc: "Com o leão ao lado, acerta em área.", hp: 320, dmg: 30, atkSpeed: 1.2, range: 0.9, speed: 1.4, radius: 0.55, splash: 1.0 },
-  { key: "joao", name: "João Batista", emoji: "💧", art: true, kind: "unit", cost: 3, desc: "Rápido e valente, corre até a batalha.", hp: 200, dmg: 34, atkSpeed: 0.9, range: 0.9, speed: 1.9, radius: 0.45 },
+  { key: "joao", short: "João", name: "João Batista", emoji: "💧", art: true, kind: "unit", cost: 3, desc: "Rápido e valente, corre até a batalha.", hp: 200, dmg: 34, atkSpeed: 0.9, range: 0.9, speed: 1.9, radius: 0.45 },
   { key: "fogo", name: "Fogo do Céu", emoji: "☄️", art: true, kind: "spell", cost: 4, desc: "Dano forte em área.", radiusSpell: 2.5, spellDmg: 175, towerMult: 0.45 },
   { key: "mar", name: "Mar Vermelho", emoji: "🌊", art: true, kind: "spell", cost: 3, desc: "Dano e deixa os inimigos lentos.", radiusSpell: 3, spellDmg: 55, towerMult: 0.4, slow: 0.5, slowSecs: 3 },
   { key: "trombetas", name: "Trombetas de Jericó", emoji: "📯", art: true, kind: "spell", cost: 2, desc: "Pequena área, derruba muros.", radiusSpell: 2, spellDmg: 70, towerMult: 1.5 },
 ];
+
+/** Nome curto da carta pra rótulos pequenos. */
+export const shortName = (c: ArenaCard) => c.short ?? c.name;
 
 export const ARENA_CARD_BY_KEY = new Map(ARENA_CARDS.map((c) => [c.key, c]));
 

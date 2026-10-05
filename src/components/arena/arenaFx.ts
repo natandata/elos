@@ -16,6 +16,13 @@ export type Anim = {
   atkDx: number;
   atkDy: number;
   ranged: boolean;
+  /** direção do último golpe sofrido (pro tranco) */
+  hitDx: number;
+  hitDy: number;
+  /** escala horizontal suavizada (vira de lado sem estalo) */
+  fs: number;
+  /** passos já dados (poeira nos pés) */
+  steps: number;
 };
 
 export type Fx =
@@ -27,7 +34,8 @@ export type Fx =
   | { k: "spell"; key: string; x: number; y: number; r: number; t0: number; dur: number }
   | { k: "ghost"; x: number; y: number; card: string; flying: boolean; radius: number; side: number; t0: number; dur: number }
   | { k: "boom"; x: number; y: number; big: boolean; t0: number; dur: number }
-  | { k: "mark"; x: number; y: number; emoji: string; t0: number; dur: number };
+  | { k: "mark"; x: number; y: number; emoji: string; t0: number; dur: number }
+  | { k: "dust"; x: number; y: number; t0: number; dur: number; big: boolean };
 
 export const newAnim = (born: number, side: number): Anim => ({
   born,
@@ -39,6 +47,10 @@ export const newAnim = (born: number, side: number): Anim => ({
   atkDx: 0,
   atkDy: side === 0 ? -1 : 1,
   ranged: false,
+  hitDx: 0,
+  hitDy: 0,
+  fs: 1,
+  steps: 0,
 });
 
 const PROJ_EMOJI: Record<string, string | null> = {
@@ -62,6 +74,11 @@ export function applyEvent(ev: GameEvent, tick: number, anims: Map<number, Anim>
         a.atkDy = dy / d;
         a.ranged = ev.ranged;
         if (Math.abs(dx) > 0.2) a.face = dx > 0 ? 1 : -1;
+      }
+      const tgt = anims.get(ev.to);
+      if (tgt) {
+        tgt.hitDx = dx / d;
+        tgt.hitDy = dy / d;
       }
       if (ev.ranged) {
         const tower = ev.fromCard === "atalaia" || ev.fromCard === "santuario";
@@ -102,6 +119,7 @@ export function applyEvent(ev: GameEvent, tick: number, anims: Map<number, Anim>
       break;
     case "spawn":
       fx.push({ k: "ring", x: ev.x, y: ev.y + 0.5, t0: tick, dur: 10, color: "rgba(255,255,255,0.9)", r: 1.1 });
+      fx.push({ k: "dust", x: ev.x, y: ev.y + 0.6, t0: tick + 6, dur: 12, big: true });
       break;
     case "death":
       if (ev.tower) {
@@ -125,12 +143,15 @@ function drawGhost(ctx: CanvasRenderingContext2D, s: number, f: Extract<Fx, { k:
   const img = sprites[f.card];
   const x = f.x * s;
   const footY = f.y * s + f.radius * s * 0.9 - (f.flying ? 0.9 * s : 0);
+  // cai de lado (sempre pro mesmo lado do mesmo personagem), quica e some
+  const dir = Math.floor(f.x * 10) % 2 === 0 ? 1 : -1;
+  const fall = ease(Math.min(1, p * 1.5));
+  const hop = Math.sin(Math.min(1, p * 1.4) * Math.PI) * s * 0.3;
   ctx.save();
-  ctx.globalAlpha = 1 - p;
-  ctx.translate(x, footY - p * s * 0.6);
-  ctx.rotate((f.side === 0 ? -1 : 1) * p * 0.5);
-  const sc = 1 - p * 0.35;
-  ctx.scale(sc, sc);
+  ctx.globalAlpha = p < 0.55 ? 1 : Math.max(0, 1 - (p - 0.55) / 0.45);
+  ctx.translate(x, f.flying ? footY + fall * 0.9 * s : footY - hop);
+  ctx.rotate(dir * fall * 1.4);
+  ctx.scale(1 + fall * 0.06, 1 - fall * 0.1);
   if (img && img.complete && img.naturalWidth > 0) {
     const h = f.radius * 4.4 * s;
     const w = (h * img.naturalWidth) / img.naturalHeight;
@@ -207,6 +228,20 @@ export function drawFx(ctx: CanvasRenderingContext2D, s: number, list: Fx[], tic
         ctx.font = `${0.95 * s}px system-ui, "Segoe UI Emoji", sans-serif`;
         ctx.fillText(f.emoji, 0, 0);
         ctx.restore();
+        break;
+      }
+      case "dust": {
+        // nuvenzinha de poeira: três bolinhas que sobem e somem
+        const n = f.big ? 5 : 3;
+        for (let i = 0; i < n; i++) {
+          const k = (i - (n - 1) / 2) / ((n - 1) / 2 || 1);
+          ctx.globalAlpha = 0.55 * (1 - p);
+          ctx.fillStyle = "#e7dcc3";
+          ctx.beginPath();
+          ctx.arc(f.x * s + k * s * (0.25 + 0.55 * p) * (f.big ? 1.5 : 1), f.y * s - p * s * 0.35 - Math.abs(k) * s * 0.05, s * (0.1 + 0.2 * p) * (f.big ? 1.3 : 1), 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
         break;
       }
       case "slash": {

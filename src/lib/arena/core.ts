@@ -88,7 +88,7 @@ export type GameEvent =
   | { t: "heal"; id: number; x: number; y: number; amount: number }
   | { t: "spell"; key: string; x: number; y: number; r: number }
   | { t: "death"; id: number; x: number; y: number; tower: boolean; card: string; side: Side; flying: boolean; radius: number }
-  | { t: "spawn"; x: number; y: number };
+  | { t: "spawn"; x: number; y: number; card: string };
 
 // ------------------------------------------------------------ sorteio
 

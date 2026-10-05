@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { ARENA_CARDS, ARENA_CARD_BY_KEY } from "@/lib/arena/cards";
+import { ARENA_CARDS, ARENA_CARD_BY_KEY, shortName } from "@/lib/arena/cards";
 import { ARENAS } from "@/lib/arena/arenas";
 import { CardArt } from "./CardArt";
 import { TEAM, buildBackground, drawTower, layoutFor, type Layout } from "./arenaRender";
@@ -102,6 +102,8 @@ export function ArenaPlayfield({
   const [waiting, setWaiting] = useState(false);
   const [muted, setMuted] = useState(readMuted);
   const soundRef = useRef<ArenaSound | null>(null);
+  const lastSecRef = useRef(-1);
+  const crownsRef = useRef<[number, number]>([0, 0]);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const areaRef = useRef<HTMLDivElement | null>(null);
@@ -210,6 +212,7 @@ export function ArenaPlayfield({
         flip ? { ...e, x: W - e.x, y: H - e.y, px: W - e.px, py: H - e.py, side: vs(e.side) } : e;
       const lerp = (a: number, b: number) => a + (b - a) * alpha;
       const ordered = game.entities.map(view).sort((a, b) => (a.type === b.type ? a.y - b.y : a.type === "tower" ? -1 : 1));
+      const namesDrawn: { x: number; y: number }[] = [];
       for (const e of ordered) {
         const an = animsRef.current.get(e.id);
         if (e.type === "tower") {
@@ -230,24 +233,75 @@ export function ArenaPlayfield({
         const dropY = spawnP < 1 ? -(1 - spawnP) * 1.3 * s : 0;
         const moving = !!an?.moving;
         const gait = (an?.walk ?? 0) * 3.6;
-        let bob = moving ? Math.abs(Math.sin(gait)) * 0.1 * r * 4 : Math.sin(tickF * 0.16 + e.id) * 0.02 * r * 4;
-        if (e.flying) bob = Math.sin(tickF * 0.2 + e.id) * 0.16 * s;
-        let sway = moving ? Math.sin(gait) * 0.07 : 0;
-        let sx = 1;
-        let sy = 1;
+        const hop = Math.abs(Math.sin(gait));
+        // balanço: caminhada quica e se estica no ar / amassa ao pisar; parado respira
+        let bob = moving ? hop * 0.1 * r * 4 : Math.sin(tickF * 0.16 + e.id) * 0.02 * r * 4;
+        let sx = moving ? 1 - (hop - 0.5) * 0.05 : 1 - Math.sin(tickF * 0.16 + e.id) * 0.012;
+        let sy = moving ? 1 + (hop - 0.5) * 0.07 : 1 + Math.sin(tickF * 0.16 + e.id) * 0.02;
+        // inclina pro lado em que anda e alterna a cada passo
+        let sway = moving ? Math.sin(gait) * 0.07 + (an?.face ?? 1) * 0.04 : Math.sin(tickF * 0.08 + e.id * 3) * 0.012;
+        if (e.flying) {
+          bob = Math.sin(tickF * 0.2 + e.id) * 0.16 * s;
+          sx *= 1 + Math.sin(tickF * 0.9 + e.id) * 0.05; // bater de asas
+          sy *= 1 - Math.sin(tickF * 0.9 + e.id) * 0.025;
+        }
+        // pousa: amassa quando termina a entrada
+        if (spawnP > 0.75 && spawnP < 1) {
+          const k = Math.sin(((spawnP - 0.75) / 0.25) * Math.PI);
+          sx *= 1 + 0.12 * k;
+          sy *= 1 - 0.12 * k;
+        }
         let thrustX = 0;
         let thrustY = 0;
         if (an) {
+          // ataque: prepara (recua), dispara (avança rápido) e volta
           const a = tickF - an.atk;
-          if (a >= 0 && a < 7) {
-            const k = Math.sin((a / 7) * Math.PI);
-            const dist = an.ranged ? -0.18 : 0.55;
-            thrustX = an.atkDx * dist * s * k;
-            thrustY = an.atkDy * dist * s * k * 0.7;
-            sx += 0.07 * k;
-            sy -= 0.08 * k;
-            sway += (an.ranged ? -0.1 : 0.2) * k * an.face;
+          const W_ATK = 9;
+          if (a >= 0 && a < W_ATK) {
+            const t = a / W_ATK;
+            let off: number;
+            if (an.ranged) {
+              off = -0.24 * Math.sin(Math.min(1, t * 1.6) * Math.PI);
+              sway += -0.1 * an.face * Math.sin(t * Math.PI);
+              sx *= 1 - 0.05 * Math.sin(t * Math.PI);
+              sy *= 1 + 0.05 * Math.sin(t * Math.PI);
+            } else if (t < 0.28) {
+              const u = t / 0.28;
+              off = -0.22 * u;
+              sx *= 1 - 0.05 * u;
+              sy *= 1 + 0.06 * u;
+              sway += -0.12 * an.face * u;
+            } else if (t < 0.5) {
+              const u = (t - 0.28) / 0.22;
+              const e3 = 1 - Math.pow(1 - u, 3);
+              off = -0.22 + 0.92 * e3;
+              sx *= 1 + 0.12 * e3;
+              sy *= 1 - 0.1 * e3;
+              sway += 0.28 * an.face * e3 - 0.12 * an.face * (1 - e3);
+            } else {
+              const u = (t - 0.5) / 0.5;
+              const e2 = u * u * (3 - 2 * u);
+              off = 0.7 * (1 - e2);
+              sx *= 1 + 0.12 * (1 - e2);
+              sy *= 1 - 0.1 * (1 - e2);
+              sway += 0.28 * an.face * (1 - e2);
+            }
+            thrustX = an.atkDx * off * s;
+            thrustY = an.atkDy * off * s * 0.7;
           }
+          // apanhou: tranco pra trás e amassa
+          const h = tickF - an.hit;
+          if (h >= 0 && h < 6) {
+            const k = 1 - h / 6;
+            const push = 0.3 * k * k * s;
+            thrustX += an.hitDx * push;
+            thrustY += an.hitDy * push * 0.7;
+            sx *= 1 + 0.1 * k;
+            sy *= 1 - 0.1 * k;
+            sway += an.hitDx * 0.12 * k;
+          }
+          // vira de lado suavemente
+          an.fs += (an.face - an.fs) * 0.3;
         }
         const flash = canFilter && an !== undefined && tickF - an.hit < 3;
 
@@ -265,7 +319,7 @@ export function ArenaPlayfield({
         ctx.save();
         ctx.translate(x + thrustX, footBase - lift - bob + dropY + thrustY);
         ctx.rotate(sway);
-        ctx.scale((an?.face ?? 1) * sx * popScale, sy * popScale);
+        ctx.scale((an?.fs ?? 1) * sx * popScale, sy * popScale);
         if (flash) ctx.filter = "brightness(2.2) saturate(0.7)";
         let topLocal = -r;
         if (hasArt && img) {
@@ -283,13 +337,32 @@ export function ArenaPlayfield({
         }
         ctx.restore();
 
+        const headY = footBase - lift - bob + dropY + topLocal * popScale;
         if (e.hp < e.maxHp) {
           const bw = Math.max(r * 2, 0.9 * s);
-          const by = footBase - lift - bob + dropY + topLocal * popScale - 7;
+          const by = headY - 7;
           ctx.fillStyle = "rgba(0,0,0,0.65)";
           ctx.fillRect(x - bw / 2 - 1, by - 1, bw + 2, 6);
           ctx.fillStyle = TEAM[e.side];
           ctx.fillRect(x - bw / 2, by, Math.max(0, (e.hp / e.maxHp) * bw), 4);
+        }
+        // nome do personagem, pequenininho, em cima dele
+        const card = ARENA_CARD_BY_KEY.get(e.card);
+        // um nome por grupo: tropas coladas (ex.: os 3 Gideões) dividem o mesmo rótulo
+        const crowded = namesDrawn.some((n) => Math.abs(n.x - x) < s * 1.3 && Math.abs(n.y - headY) < s * 0.7);
+        if (card && spawnP >= 1 && !crowded) {
+          namesDrawn.push({ x, y: headY });
+          const fs = Math.max(8, Math.round(s * 0.33));
+          const ny = headY - (e.hp < e.maxHp ? 11 : 3);
+          ctx.font = `800 ${fs}px system-ui, "Segoe UI", sans-serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "alphabetic";
+          ctx.lineJoin = "round";
+          ctx.lineWidth = Math.max(2, fs * 0.28);
+          ctx.strokeStyle = "rgba(10,14,24,0.85)";
+          ctx.strokeText(shortName(card), x, ny);
+          ctx.fillStyle = e.side === 0 ? "#dbeafe" : "#fecaca";
+          ctx.fillText(shortName(card), x, ny);
         }
       }
 
@@ -331,15 +404,38 @@ export function ArenaPlayfield({
           if (an.moving) {
             an.walk += moved;
             if (Math.abs(mdx) > 0.003) an.face = mdx > 0 ? 1 : -1;
+            // a cada passo, uma nuvenzinha de poeira nos pés (só quem anda no chão)
+            const step = Math.floor((an.walk * 3.6) / Math.PI);
+            if (step > an.steps) {
+              an.steps = step;
+              if (!e.flying && e.type === "unit" && fxRef.current.length < 120) {
+                fxRef.current.push({ k: "dust", x: vx(e.x), y: vy(e.y) + e.radius * 0.9, t0: game.tick, dur: 9, big: false });
+              }
+            }
           }
         }
         for (const e of ev) {
           const m: GameEvent = flip ? mapEvent(e, vs) : e;
           applyEvent(m, game.tick, animsRef.current, fxRef.current, shakeRef.current);
-          soundRef.current?.onEvent(e);
+          soundRef.current?.onEvent(m);
         }
         fxRef.current = fxRef.current.filter((f) => game.tick - f.t0 < f.dur);
         acc -= STEP_MS;
+        // sons de marco: maná em dobro, contagem final e coroas
+        const snd = soundRef.current;
+        if (snd) {
+          if (game.tick === DOUBLE_MANA_TICK) snd.doubleMana();
+          const left = Math.ceil((MATCH_TICKS - game.tick) / TICKS_PER_SEC);
+          if (left !== lastSecRef.current) {
+            lastSecRef.current = left;
+            if (left <= 10 && left >= 1 && game.tick % TICKS_PER_SEC === 0) snd.tick(left);
+          }
+          const mc = game.crowns[d.mySide];
+          const tc = game.crowns[1 - d.mySide];
+          if (mc > crownsRef.current[0]) snd.crown(true);
+          if (tc > crownsRef.current[1]) snd.crown(false);
+          crownsRef.current = [mc, tc];
+        }
         if (game.tick % 4 === 0 || game.over) {
           const me = d.mySide;
           setHud({
@@ -370,7 +466,7 @@ export function ArenaPlayfield({
       rafRef.current = requestAnimationFrame(frame);
     };
     rafRef.current = requestAnimationFrame(frame);
-  }, [draw, flip, vs]);
+  }, [draw, flip, vs, vx, vy]);
 
   useEffect(() => {
     const game = driver.game;
@@ -491,8 +587,12 @@ export function ArenaPlayfield({
                     key={`${i}-${key}`}
                     type="button"
                     onClick={() => {
-                      soundRef.current?.unlock();
-                      if (!pending) setSelected(isSel ? null : i);
+                      const snd = soundRef.current;
+                      snd?.unlock();
+                      if (pending) return;
+                      if (mana + 1e-9 < c.cost) snd?.deny();
+                      else snd?.select();
+                      setSelected(isSel ? null : i);
                     }}
                     className={`arena-card-in relative aspect-[3/4] rounded-xl border-[3px] bg-gradient-to-b from-[#4a90e2] to-[#2d62b8] p-1 shadow-md transition active:scale-95 ${
                       isSel ? "-translate-y-3 border-amber-300 shadow-[0_0_16px_#fcd34d]" : "border-[#0f2f6b]"

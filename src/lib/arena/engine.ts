@@ -150,7 +150,7 @@ export function applyInput(state: GameState, input: Input, ev: GameEvent[] = [])
     for (const [ox, oy] of spawnOffsets(card.count ?? 1, side)) {
       state.entities.push(makeUnit(state, card, side, Math.min(W - 0.3, Math.max(0.3, x + ox)), y + oy));
     }
-    ev.push({ t: "spawn", x, y });
+    ev.push({ t: "spawn", x, y, card: card.key });
   }
   return true;
 }
