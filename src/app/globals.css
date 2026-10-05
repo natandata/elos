@@ -478,3 +478,12 @@ input[type="datetime-local"] {
 .mem-pop { animation: mem-pop 0.5s ease-out; }
 .mem-shake { animation: mem-shake 0.4s ease-in-out; }
 @media (prefers-reduced-motion: reduce) { .mem-pop, .mem-shake { animation: none; } }
+
+/* Vista o Herói: o boneco "pula" de leve quando troca uma peça */
+@keyframes dress-pop {
+  0% { transform: scale(0.96); }
+  60% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+.dress-pop { animation: dress-pop 0.28s ease-out; }
+@media (prefers-reduced-motion: reduce) { .dress-pop { animation: none; } }

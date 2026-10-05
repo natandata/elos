@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushToUsers } from "@/lib/push-server";
+import { isReleased } from "@/lib/games/release";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +44,22 @@ export async function GET(request: NextRequest) {
       await sendPushToUsers([p.user_id], { title, body, url: "/app/devocional" });
     } catch {
       // aviso é secundário
+    }
+  }
+
+  // Lançamento do Vista o Herói (09/10/2026): avisa todo mundo uma única vez, no dia da liberação
+  const brToday = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+  if (isReleased("dress") && brToday === "2026-10-09") {
+    const title = "👗 Novo jogo: Vista o Herói!";
+    const body = "Vista os heróis da Bíblia do jeito certo e junte Bilhetes Dourados. Já está liberado na sala de jogos!";
+    const { data: already } = await supabase.from("notifications").select("id").eq("title", title).limit(1);
+    if (!already || already.length === 0) {
+      const { data: users } = await supabase.from("profiles").select("id").in("role", ["cria", "leader"]).eq("approved", true).neq("is_test_account", true);
+      const ids = ((users ?? []) as { id: string }[]).map((u) => u.id);
+      if (ids.length > 0) {
+        await supabase.from("notifications").insert(ids.map((id) => ({ user_id: id, title, body, link: "/app/jogos/vestir", category: "jogos" })));
+        await sendPushToUsers(ids, { title, body, url: "/app/jogos/vestir" }).catch(() => null);
+      }
     }
   }
 

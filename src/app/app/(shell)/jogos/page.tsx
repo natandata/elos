@@ -7,6 +7,8 @@ import { CARDS } from "@/lib/games/cards";
 import { difficultyChip } from "@/lib/games/difficulty";
 import { liveGameStreak, playDifficulty, todaysPlays } from "@/lib/games/status";
 import { createClient } from "@/lib/supabase/server";
+import { DressTeaserText } from "@/components/games/dress/DressTeaser";
+import { gameOpenFor } from "@/lib/games/releaseServer";
 
 type Tile = { href: string; game: string; emoji: string; title: string; hint: string; tone: string };
 
@@ -34,6 +36,7 @@ export default async function JogosPage() {
     supabase.rpc("game_elo_board"),
   ]);
 
+  const dressOpen = await gameOpenFor("dress", profile.id);
   const streak = liveGameStreak(profile.game_streak ?? 0, profile.game_streak_date ?? null);
   const doneCount = TILES.filter((t) => plays.get(t.game)?.finished).length;
   const chestOpened = plays.get("chest")?.finished === true;
@@ -174,6 +177,38 @@ export default async function JogosPage() {
           <span className="block text-xs font-bold opacity-80">Ache os pares das cartas da Arena · desafie um colega: quem termina primeiro?</span>
         </span>
       </Link>
+
+      {dressOpen ? (
+        <Link
+          href="/app/jogos/vestir"
+          className="mb-5 flex items-center gap-4 rounded-2xl border-2 border-fuchsia-300 bg-gradient-to-br from-fuchsia-100 to-violet-100 px-5 py-4 text-fuchsia-900 transition active:scale-[0.99]"
+        >
+          <span className="text-5xl" aria-hidden>
+            👗
+          </span>
+          <span className="min-w-0">
+            <span className="block text-lg font-black leading-tight">
+              Vista o Herói <span className="ml-1 rounded-full bg-rose-600 px-2 py-0.5 align-middle text-[10px] font-black text-white">NOVO</span>
+            </span>
+            <span className="block text-xs font-bold opacity-80">Dress to Impress bíblico · ganhe Bilhetes Dourados 🎫</span>
+          </span>
+        </Link>
+      ) : (
+        <Link
+          href="/app/jogos/vestir"
+          className="mb-5 flex items-center gap-4 rounded-2xl border-2 border-dashed border-fuchsia-300 bg-fuchsia-50 px-5 py-4 text-fuchsia-900 transition active:scale-[0.99]"
+        >
+          <span className="text-5xl opacity-70" aria-hidden>
+            🔒
+          </span>
+          <span className="min-w-0">
+            <span className="block text-lg font-black leading-tight">Vista o Herói · em breve</span>
+            <span className="block text-xs font-bold opacity-80">
+              Abre em <DressTeaserText />
+            </span>
+          </span>
+        </Link>
+      )}
 
       <section className="mb-5">
         <ChestButton opened={chestOpened} />

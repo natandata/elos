@@ -59,7 +59,7 @@ function rng(seed: string): () => number {
   };
 }
 
-function shuffle<T>(items: readonly T[], seed: string): T[] {
+export function shuffle<T>(items: readonly T[], seed: string): T[] {
   const r = rng(seed);
   const out = [...items];
   for (let i = out.length - 1; i > 0; i--) {
@@ -70,7 +70,7 @@ function shuffle<T>(items: readonly T[], seed: string): T[] {
 }
 
 /** Escolhe `count` itens do dia sem repetir dentro de um ciclo da lista. */
-function pickDaily<T>(pool: readonly T[], count: number, date: string, salt: string): T[] {
+export function pickDaily<T>(pool: readonly T[], count: number, date: string, salt: string): T[] {
   const perCycle = Math.max(1, Math.floor(pool.length / count));
   const day = dayIndex(date);
   const cycle = Math.floor(day / perCycle);

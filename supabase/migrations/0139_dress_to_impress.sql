@@ -1,0 +1,2 @@
+-- Vista o Herói (aplicada via MCP): tabelas dress_stats e dress_plays (+ coluna rounds, migração 0140),
+-- funções dress_apply_result (service_role), dress_ticket_ranking e dress_elo_ranking (authenticated).
