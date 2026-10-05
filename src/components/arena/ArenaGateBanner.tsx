@@ -7,7 +7,7 @@ export function ArenaGateBanner({ gate, compact = false }: { gate: GateInfo; com
     const left = GATE_BATTLES - gate.battles;
     return (
       <p className={`cr-text text-center text-[11px] opacity-90 ${compact ? "" : "mt-2"}`}>
-        {Array.from({ length: GATE_BATTLES }).map((_, i) => (i < gate.battles ? "🟡" : "⚪")).join(" ")} · {left === 1 ? "mais 1 batalha" : `mais ${left} batalhas`} contra o computador até a pausa pra jogar outros jogos
+        {Array.from({ length: GATE_BATTLES }).map((_, i) => (i < gate.battles ? "🟡" : "⚪")).join(" ")} · {left === 1 ? "mais 1 batalha" : `mais ${left} batalhas`} contra o computador até a pausa pra vencer outros jogos
       </p>
     );
   }
@@ -16,7 +16,7 @@ export function ArenaGateBanner({ gate, compact = false }: { gate: GateInfo; com
       <p className="text-base font-black">🔒 Arena em pausa</p>
       <p className="mt-1 text-sm font-semibold text-white/90">{gateMessage(gate)}</p>
       <p className="mt-2 text-xs font-black uppercase tracking-wide text-amber-300">
-        Jogos feitos depois da pausa: {gate.games}/{GATE_GAMES}
+        Jogos vencidos depois da pausa: {gate.games}/{GATE_GAMES}
       </p>
       <div className="mt-1 flex gap-1.5">
         {Array.from({ length: GATE_GAMES }).map((_, i) => (

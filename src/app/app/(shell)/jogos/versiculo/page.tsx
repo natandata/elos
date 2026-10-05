@@ -33,7 +33,7 @@ export default async function VersiculoPage() {
           </h2>
           {play.xp_awarded > 0 ? <p className="mt-1 font-bold text-[var(--accent-strong)]">+{play.xp_awarded} XP</p> : null}
           {play.practice ? (
-            <p className="mt-2 text-sm text-[var(--muted)]">Treino: sem XP desta vez, mas conta pra destravar a Arena.</p>
+            <p className="mt-2 text-sm text-[var(--muted)]">Treino: sem XP desta vez. Se você venceu, conta pra destravar a Arena.</p>
           ) : (
             <p className="mt-2 text-sm text-[var(--muted)]">Versículos novos chegam amanhã.</p>
           )}

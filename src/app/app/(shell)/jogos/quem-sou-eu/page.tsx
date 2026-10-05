@@ -35,7 +35,7 @@ export default async function QuemSouEuPage() {
           <h2 className="mt-2 text-2xl font-black">Era {round.item.name}!</h2>
           {play.xp_awarded > 0 ? <p className="mt-1 font-bold text-[var(--accent-strong)]">+{play.xp_awarded} XP</p> : null}
           {play.practice ? (
-            <p className="mt-2 text-sm text-[var(--muted)]">Treino: sem XP desta vez, mas conta pra destravar a Arena.</p>
+            <p className="mt-2 text-sm text-[var(--muted)]">Treino: sem XP desta vez. Se você venceu, conta pra destravar a Arena.</p>
           ) : (
             <p className="mt-2 text-sm text-[var(--muted)]">Um personagem novo chega amanhã.</p>
           )}

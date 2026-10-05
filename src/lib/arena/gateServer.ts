@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { GATE_GAME_KEYS, GATE_START, computeGate, describeGate, type GateEvent, type GateGame, type GateInfo } from "./gate";
+import { GATE_GAME_KEYS, GATE_START, computeGate, describeGate, gameCounts, type GateEvent, type GateGame, type GateInfo } from "./gate";
 
 const todayBR = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 
@@ -13,7 +13,7 @@ export async function loadGate(supabase: SupabaseClient, userId: string): Promis
 
   const [pve, games] = await Promise.all([
     supabase.from("arena_matches").select("finished_at").eq("user_id", userId).eq("status", "finished").gte("finished_at", GATE_START),
-    supabase.from("game_plays").select("game, finished_at, play_date").eq("user_id", userId).eq("finished", true).in("game", [...GATE_GAME_KEYS]).gte("finished_at", GATE_START),
+    supabase.from("game_plays").select("game, score, practice, difficulty, finished_at, play_date").eq("user_id", userId).eq("finished", true).in("game", [...GATE_GAME_KEYS]).gte("finished_at", GATE_START),
   ]);
 
   for (const list of [pve.data]) {
@@ -24,9 +24,10 @@ export async function loadGate(supabase: SupabaseClient, userId: string): Promis
   }
   const today = todayBR();
   const doneToday = new Set<GateGame>();
-  for (const r of (games.data ?? []) as { game: GateGame; finished_at: string; play_date: string }[]) {
+  for (const r of (games.data ?? []) as { game: GateGame; score: number; practice: boolean; difficulty: string | null; finished_at: string; play_date: string }[]) {
     const t = iso(r.finished_at);
-    if (!Number.isNaN(t)) events.push({ t, kind: "game" });
+    // só vitória conta (e treino só no Difícil)
+    if (!Number.isNaN(t) && gameCounts(r.game, r.score, r.practice, r.difficulty)) events.push({ t, kind: "game" });
     if (r.play_date === today) doneToday.add(r.game);
   }
 

@@ -14,7 +14,7 @@ import { abandonOpenMatches, settleArena, type ArenaFinish } from "@/lib/arena/s
 import { MISSION_BY_KEY } from "@/lib/arena/missions";
 import { loadArenaMissions, todayBR as missionDay } from "@/lib/arena/missionsServer";
 
-const MAX_MATCHES_PER_DAY = 100;
+const MAX_MATCHES_PER_DAY = 54;
 
 const todayBR = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 

@@ -43,7 +43,7 @@ export default async function OrdemPage() {
             ))}
           </ol>
           {play.practice ? (
-            <p className="mt-3 text-center text-sm text-[var(--muted)]">Treino: sem XP desta vez, mas conta pra destravar a Arena.</p>
+            <p className="mt-3 text-center text-sm text-[var(--muted)]">Treino: sem XP desta vez. Se você venceu, conta pra destravar a Arena.</p>
           ) : (
             <p className="mt-3 text-center text-sm text-[var(--muted)]">Uma nova linha do tempo chega amanhã.</p>
           )}

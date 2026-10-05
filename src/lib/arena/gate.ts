@@ -1,6 +1,6 @@
 // Trava da Arena: a cada 3 batalhas, o jogador precisa terminar pelo menos 3
 // dos outros jogos (Quiz do Dia, Complete o Versículo, Quem Sou Eu?, Ordene os
-// Fatos) pra continuar jogando. Depois de destravar, a contagem recomeça.
+// Fatos) pra continuar jogando — e só conta quando ele GANHA o jogo. Depois de destravar, a contagem recomeça.
 // Vale só pra batalha contra o computador: desafiar um colega (1x1, duplas e
 // torneios) fica de fora, sem trava e sem limite. Só conta o que aconteceu
 // depois de GATE_START (quem já jogava não fica preso no passado).
@@ -19,6 +19,24 @@ export const GATE_GAME_INFO: Record<GateGame, { name: string; href: string; icon
   who: { name: "Quem Sou Eu?", href: "/app/jogos/quem-sou-eu", icon: "🕵️" },
   order: { name: "Ordene os Fatos", href: "/app/jogos/ordem", icon: "🔢" },
 };
+
+/**
+ * Só VITÓRIA conta como jogo feito pra destravar a Arena (perder de propósito não adianta):
+ * Quiz: 3 de 5 certas · Versículo: 2 de 3 · Quem Sou Eu: acertou o personagem · Ordene os Fatos: acertou a ordem.
+ * O treino (jogar de novo no dia) só conta se for no nível Difícil.
+ */
+export function gameCounts(game: GateGame, score: number, practice: boolean, difficulty: string | null): boolean {
+  if (practice && difficulty !== "dificil") return false;
+  switch (game) {
+    case "quiz":
+      return score >= 3;
+    case "verse":
+      return score >= 2;
+    case "who":
+    case "order":
+      return score > 0;
+  }
+}
 
 export type GateEvent = { t: number; kind: "battle" | "game" };
 
@@ -72,10 +90,10 @@ export function describeGate(state: GateState, doneToday: GateGame[]): GateInfo 
   return { ...state, remaining, doneToday };
 }
 
-export const GATE_LOCKED_MESSAGE = `Você jogou ${GATE_BATTLES} batalhas contra o computador! Jogue pelo menos ${GATE_GAMES} outros jogos (Quiz, Versículo, Quem Sou Eu ou Ordene os Fatos) pra continuar na Arena.`;
+export const GATE_LOCKED_MESSAGE = `Você jogou ${GATE_BATTLES} batalhas contra o computador! Vença pelo menos ${GATE_GAMES} outros jogos (Quiz, Versículo, Quem Sou Eu ou Ordene os Fatos) pra continuar na Arena.`;
 
 /** Texto do bloqueio, já considerando quantos jogos faltam. */
 export function gateMessage(g: GateInfo): string {
   const falta = g.remaining === 1 ? "mais 1 jogo" : `mais ${g.remaining} jogos`;
-  return `Você jogou ${GATE_BATTLES} batalhas contra o computador! Jogue ${falta} (Quiz, Versículo, Quem Sou Eu ou Ordene os Fatos) pra continuar na Arena. Jogar de novo um jogo que já fez hoje vale, só não dá XP.`;
+  return `Você jogou ${GATE_BATTLES} batalhas contra o computador! Vença ${falta} (Quiz, Versículo, Quem Sou Eu ou Ordene os Fatos) pra continuar na Arena. Só conta quando você ganha o jogo. Jogar de novo um jogo que já fez hoje vale como treino (sem XP), mas só no nível Difícil.`;
 }

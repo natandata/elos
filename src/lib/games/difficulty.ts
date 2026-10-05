@@ -110,15 +110,14 @@ export type PracticeTier = {
 };
 
 /**
- * Rodada de treino nº `round` (1 = primeira jogada extra do dia).
- * 1: Médio · 2: Difícil · 3+: Difícil com relógio que aperta a cada rodada
- * (e, do 4º em diante, menos palpites no Quem Sou Eu).
+ * Rodada de treino nº `round` (1 = primeira jogada extra do dia). Todo treino é no
+ * Difícil (é o único que conta pra destravar a Arena); a partir da 2ª rodada entra
+ * um relógio que aperta a cada rodada e, da 3ª em diante, o Quem Sou Eu tem menos palpites.
  */
 export function practiceTier(round: number): PracticeTier {
   const r = Math.max(1, Math.floor(round) || 1);
-  if (r === 1) return { difficulty: "medio", seconds: null, orderSeconds: null, whoGuesses: null };
-  if (r === 2) return { difficulty: "dificil", seconds: null, orderSeconds: null, whoGuesses: null };
-  const p = r - 2;
+  if (r === 1) return { difficulty: "dificil", seconds: null, orderSeconds: null, whoGuesses: null };
+  const p = r - 1;
   return { difficulty: "dificil", seconds: Math.max(8, 26 - 4 * p), orderSeconds: Math.max(20, 75 - 12 * p), whoGuesses: p >= 2 ? 2 : null };
 }
 
