@@ -160,6 +160,21 @@ export default async function JogosPage() {
         </span>
       </Link>
 
+      <Link
+        href="/app/jogos/memoria"
+        className="mb-5 flex items-center gap-4 rounded-2xl border-2 border-teal-300 bg-gradient-to-br from-teal-100 to-emerald-100 px-5 py-4 text-teal-900 transition active:scale-[0.99]"
+      >
+        <span className="text-5xl" aria-hidden>
+          🃏
+        </span>
+        <span className="min-w-0">
+          <span className="block text-lg font-black leading-tight">
+            Memória dos Heróis <span className="ml-1 rounded-full bg-rose-600 px-2 py-0.5 align-middle text-[10px] font-black text-white">NOVO</span>
+          </span>
+          <span className="block text-xs font-bold opacity-80">Ache os pares das cartas da Arena · desafie um colega: quem termina primeiro?</span>
+        </span>
+      </Link>
+
       <section className="mb-5">
         <ChestButton opened={chestOpened} />
       </section>

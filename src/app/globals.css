@@ -461,3 +461,20 @@ input[type="datetime-local"] {
 }
 .arena-float { animation: arena-float 3.4s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .arena-float { animation: none; } }
+
+/* Jogo da Memória: par certo pula e brilha; par errado treme */
+@keyframes mem-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.12); filter: drop-shadow(0 0 10px rgba(52, 211, 153, 0.9)); }
+  100% { transform: scale(1); }
+}
+@keyframes mem-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-5px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+.mem-pop { animation: mem-pop 0.5s ease-out; }
+.mem-shake { animation: mem-shake 0.4s ease-in-out; }
+@media (prefers-reduced-motion: reduce) { .mem-pop, .mem-shake { animation: none; } }
