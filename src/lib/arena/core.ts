@@ -135,10 +135,34 @@ export function dist(ax: number, ay: number, bx: number, by: number): number {
   return Math.sqrt(dx * dx + dy * dy);
 }
 
-/** Onde cada lado pode colocar tropas (poderes valem no campo todo). */
-export function inDeployZone(side: Side, x: number, y: number): boolean {
-  if (x < 0.5 || x > W - 0.5) return false;
-  return side === 0 ? y >= RIVER_BOT + 0.6 && y <= H - 0.5 : y <= RIVER_TOP - 0.6 && y >= 0.5;
+export type Rect = { x0: number; y0: number; x1: number; y1: number };
+
+/** Linha das Atalaias (y do lado 1; as do lado 0 ficam espelhadas). */
+const TOWER_LINE = 5.5;
+
+/**
+ * Onde cada lado pode colocar tropas (poderes valem no campo todo). Sem `state`,
+ * só a metade do próprio lado. Com `state`, derrubar uma Atalaia inimiga libera,
+ * naquela pista, a área até um pouco além de onde ela ficava (como no Clash Royale).
+ */
+export function deployRects(side: Side, state?: GameState): Rect[] {
+  const rects: Rect[] =
+    side === 0
+      ? [{ x0: 0.5, x1: W - 0.5, y0: RIVER_BOT + 0.6, y1: H - 0.5 }]
+      : [{ x0: 0.5, x1: W - 0.5, y0: 0.5, y1: RIVER_TOP - 0.6 }];
+  if (!state) return rects;
+  for (const lane of [0, 1]) {
+    const standing = state.entities.some((e) => e.type === "tower" && e.side !== side && e.lane === lane && e.hp > 0);
+    if (standing) continue;
+    const x0 = lane === 0 ? 0.5 : W / 2;
+    const x1 = lane === 0 ? W / 2 : W - 0.5;
+    rects.push(side === 0 ? { x0, x1, y0: TOWER_LINE - 1.5, y1: RIVER_TOP - 0.6 } : { x0, x1, y0: RIVER_BOT + 0.6, y1: H - TOWER_LINE + 1.5 });
+  }
+  return rects;
+}
+
+export function inDeployZone(side: Side, x: number, y: number, state?: GameState): boolean {
+  return deployRects(side, state).some((r) => x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1);
 }
 
 export function inField(x: number, y: number): boolean {

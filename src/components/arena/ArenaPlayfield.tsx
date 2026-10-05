@@ -9,10 +9,10 @@ import { applyEvent, drawFx, newAnim, type Anim, type Fx } from "./arenaFx";
 import { ArenaSound, readMuted } from "./arenaSound";
 import {
   DOUBLE_MANA_TICK,
+  deployRects,
   H,
   MANA_MAX,
   MATCH_TICKS,
-  RIVER_BOT,
   TICKS_PER_SEC,
   W,
   type Entity,
@@ -211,17 +211,21 @@ export function ArenaPlayfield({
         const card = ARENA_CARD_BY_KEY.get(game.slots[driverRef.current.myPlayer ?? mySide][sel]);
         if (card?.kind === "unit") {
           const pulse = 0.16 + Math.sin(tickF * 0.25) * 0.05;
-          ctx.fillStyle = `rgba(255,255,255,${pulse})`;
-          ctx.fillRect(0, (RIVER_BOT + 0.6) * s, W * s, (H - RIVER_BOT - 0.6) * s);
-          ctx.strokeStyle = "rgba(255,255,255,0.75)";
-          ctx.lineWidth = 2;
-          ctx.setLineDash([8, 6]);
-          ctx.lineDashOffset = -tickF;
-          ctx.beginPath();
-          ctx.moveTo(0, (RIVER_BOT + 0.6) * s);
-          ctx.lineTo(W * s, (RIVER_BOT + 0.6) * s);
-          ctx.stroke();
-          ctx.setLineDash([]);
+          // zona (inclusive a liberada por torre derrubada), já no ponto de vista de quem joga
+          for (const r of deployRects(mySide, game)) {
+            const x0 = flip ? W - r.x1 : r.x0;
+            const x1 = flip ? W - r.x0 : r.x1;
+            const y0 = flip ? H - r.y1 : r.y0;
+            const y1 = flip ? H - r.y0 : r.y1;
+            ctx.fillStyle = `rgba(255,255,255,${pulse})`;
+            ctx.fillRect(x0 * s, y0 * s, (x1 - x0) * s, (y1 - y0) * s);
+            ctx.strokeStyle = "rgba(255,255,255,0.75)";
+            ctx.lineWidth = 2;
+            ctx.setLineDash([8, 6]);
+            ctx.lineDashOffset = -tickF;
+            ctx.strokeRect(x0 * s, y0 * s, (x1 - x0) * s, (y1 - y0) * s);
+            ctx.setLineDash([]);
+          }
         }
       }
 

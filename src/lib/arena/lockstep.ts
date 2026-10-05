@@ -115,7 +115,7 @@ export class Lockstep {
     const card = ARENA_CARD_BY_KEY.get(g.slots[this.me][slot]);
     if (!card) return null;
     if (g.mana[this.me] - this.pendingCost() + 1e-9 < card.cost) return null;
-    if (card.kind === "unit" ? !inDeployZone(this.mySide, x, y) : !inField(x, y)) return null;
+    if (card.kind === "unit" ? !inDeployZone(this.mySide, x, y, g) : !inField(x, y)) return null;
     const input: OwnInput = {
       tick: g.tick + this.delay,
       side: this.mySide,

@@ -156,7 +156,7 @@ export function applyInput(state: GameState, input: Input, ev: GameEvent[] = [])
   const card = ARENA_CARD_BY_KEY.get(key);
   if (!card) return false;
   if (state.mana[player] + 1e-9 < card.cost) return false;
-  if (card.kind === "unit" ? !inDeployZone(side, x, y) : !inField(x, y)) return false;
+  if (card.kind === "unit" ? !inDeployZone(side, x, y, state) : !inField(x, y)) return false;
 
   state.mana[player] -= card.cost;
   state.slots[player][slot] = state.queue[player].shift()!;

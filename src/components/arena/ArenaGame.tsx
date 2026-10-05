@@ -99,7 +99,7 @@ export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, in
       place: (slot, x, y) => {
         const card = ARENA_CARD_BY_KEY.get(game.slots[0][slot]);
         if (!card || game.mana[0] + 1e-9 < card.cost) return false;
-        if (card.kind === "unit" ? !inDeployZone(0, x, y) : !inField(x, y)) return false;
+        if (card.kind === "unit" ? !inDeployZone(0, x, y, game) : !inField(x, y)) return false;
         const input: Input = { tick: game.tick, side: 0, slot, x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 };
         pending.push(input);
         logRef.current.push(input);
