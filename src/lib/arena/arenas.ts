@@ -29,6 +29,8 @@ export type BiblicalArena = {
   key: string;
   name: string;
   emoji: string;
+  /** Ilustração isométrica do lugar (em /public). */
+  art: string;
   /** Troféus necessários pra entrar. */
   min: number;
   blurb: string;
@@ -39,6 +41,7 @@ export type BiblicalArena = {
 export const ARENAS: BiblicalArena[] = [
   {
     key: "eden",
+    art: "/arena/places/eden.webp",
     name: "Jardim do Éden",
     emoji: "🌳",
     min: 0,
@@ -52,6 +55,7 @@ export const ARENAS: BiblicalArena[] = [
   },
   {
     key: "ararate",
+    art: "/arena/places/ararate.webp",
     name: "Monte Ararate",
     emoji: "⛰️",
     min: 200,
@@ -65,6 +69,7 @@ export const ARENAS: BiblicalArena[] = [
   },
   {
     key: "sinai",
+    art: "/arena/places/sinai.webp",
     name: "Deserto do Sinai",
     emoji: "🏜️",
     min: 450,
@@ -78,6 +83,7 @@ export const ARENAS: BiblicalArena[] = [
   },
   {
     key: "jerico",
+    art: "/arena/places/jerico.webp",
     name: "Muralhas de Jericó",
     emoji: "🏰",
     min: 750,
@@ -91,6 +97,7 @@ export const ARENAS: BiblicalArena[] = [
   },
   {
     key: "ela",
+    art: "/arena/places/ela.webp",
     name: "Vale de Elá",
     emoji: "🪨",
     min: 1100,
@@ -104,6 +111,7 @@ export const ARENAS: BiblicalArena[] = [
   },
   {
     key: "galileia",
+    art: "/arena/places/galileia.webp",
     name: "Mar da Galileia",
     emoji: "⛵",
     min: 1500,
@@ -117,6 +125,7 @@ export const ARENAS: BiblicalArena[] = [
   },
   {
     key: "jerusalem",
+    art: "/arena/places/jerusalem.webp",
     name: "Jerusalém",
     emoji: "🕍",
     min: 2000,
@@ -130,6 +139,7 @@ export const ARENAS: BiblicalArena[] = [
   },
   {
     key: "nova",
+    art: "/arena/places/nova.webp",
     name: "Nova Jerusalém",
     emoji: "✨",
     min: 2600,

@@ -365,9 +365,16 @@ export function ArenaDuoRoom({ id, me, names, arena, seed, decks, initialStatus,
   return (
     <div>
       <div className="card p-5">
-        <p className="text-center text-5xl" aria-hidden>
-          {arenaInfo?.emoji ?? "👥"}
-        </p>
+        <div className="flex justify-center">
+          {arenaInfo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={arenaInfo.art} alt="" className="h-20 w-auto drop-shadow" draggable={false} />
+          ) : (
+            <span className="text-5xl" aria-hidden>
+              👥
+            </span>
+          )}
+        </div>
         <h2 className="mt-1 text-center text-xl font-black">👥 Duplas</h2>
         <p className="text-center text-sm text-[var(--muted)]">{arenaInfo?.name} · todos com cartas no nível 1</p>
 

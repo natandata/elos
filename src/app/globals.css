@@ -454,3 +454,10 @@ input[type="datetime-local"] {
   background: linear-gradient(180deg, #17315f 0%, #0c1c3d 100%);
   border-top: 3px solid #3b6fb8;
 }
+
+@keyframes arena-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+.arena-float { animation: arena-float 3.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .arena-float { animation: none; } }

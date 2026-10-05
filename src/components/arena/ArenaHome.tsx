@@ -33,13 +33,18 @@ function MiniBtn({ children, label, badge, onClick, href }: { children: ReactNod
   );
 }
 
-function Slot({ icon, title, sub, open, href }: { icon: string; title: string; sub: string; open?: boolean; href?: string }) {
+function Slot({ icon, iconSrc, title, sub, open, href }: { icon: string; iconSrc?: string; title: string; sub: string; open?: boolean; href?: string }) {
   const body = (
     <div className={`cr-slot ${open ? "cr-slot-open" : ""} flex h-full flex-col items-center justify-between px-1 py-1.5 text-center`}>
       <p className="cr-text text-[10px] leading-none">{title}</p>
-      <span className="text-3xl leading-none drop-shadow" aria-hidden>
-        {icon}
-      </span>
+      {iconSrc ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={iconSrc} alt="" className="h-9 w-auto drop-shadow" draggable={false} />
+      ) : (
+        <span className="text-3xl leading-none drop-shadow" aria-hidden>
+          {icon}
+        </span>
+      )}
       <p className="cr-text text-[11px] leading-none">{sub}</p>
     </div>
   );
@@ -163,11 +168,12 @@ export function ArenaHome({
                 </MiniBtn>
               </div>
               <div className="px-6">
-                <ArenaHero theme={prog.cur.theme} />
+                <ArenaHero arena={prog.cur} />
               </div>
               <div className="-mt-3 flex flex-col items-center">
-                <p className="cr-text rounded-full border-2 border-[#0b2a5c] bg-gradient-to-b from-[#2c58a8] to-[#173b78] px-4 py-1 text-base shadow-[0_3px_0_#0b2a5c]">
-                  {prog.cur.emoji} {prog.cur.name}
+                <p className="cr-text flex items-center gap-1.5 rounded-full border-2 border-[#0b2a5c] bg-gradient-to-b from-[#2c58a8] to-[#173b78] px-4 py-1 text-base shadow-[0_3px_0_#0b2a5c]">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={prog.cur.art} alt="" className="h-6 w-auto" draggable={false} /> {prog.cur.name}
                 </p>
                 <p className="cr-text mt-1 flex items-center gap-1.5 text-lg">
                   <span aria-hidden>🏆</span>
@@ -203,7 +209,7 @@ export function ArenaHome({
               <Slot open icon="🎁" title="Baú do Dia" sub="Abrir" href="/app/jogos" />
               <Slot icon="📜" title="Pergaminhos" sub={String(scrolls)} />
               <Slot icon="⭐" title="XP de hoje" sub={`${winsToday}/${maxWins}`} />
-              <Slot icon={prog.next ? prog.next.emoji : "👑"} title={prog.next ? "Próx. arena" : "Máxima"} sub={prog.next ? `${prog.next.min - trophies} 🏆` : "🎉"} />
+              <Slot icon={prog.next ? prog.next.emoji : "👑"} iconSrc={prog.next?.art} title={prog.next ? "Próx. arena" : "Máxima"} sub={prog.next ? `${prog.next.min - trophies} 🏆` : "🎉"} />
             </div>
             <p className="cr-text mt-2 text-center text-[11px] opacity-90">
               Vitória +{TROPHY_WIN} 🏆 · Derrota −{TROPHY_LOSS} 🏆{prog.next ? ` · ${prog.next.emoji} libera ${prog.next.name}` : ""}
