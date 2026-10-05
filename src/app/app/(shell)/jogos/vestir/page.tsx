@@ -89,6 +89,21 @@ export default async function VestirPage() {
         </div>
       </section>
 
+      <Link
+        href="/app/jogos/vestir/passarela"
+        className="mb-5 flex items-center gap-4 rounded-2xl border-2 border-fuchsia-300 bg-gradient-to-br from-fuchsia-100 to-pink-100 px-5 py-4 text-fuchsia-900 transition active:scale-[0.99]"
+      >
+        <span className="text-5xl" aria-hidden>
+          📸
+        </span>
+        <span className="min-w-0">
+          <span className="block text-lg font-black leading-tight">
+            Passarela <span className="ml-1 rounded-full bg-rose-600 px-2 py-0.5 align-middle text-[10px] font-black text-white">NOVO</span>
+          </span>
+          <span className="block text-xs font-bold opacity-80">Monte o look do dia e vote nos colegas · até 30 🎫</span>
+        </span>
+      </Link>
+
       <section className="mb-5">
         <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">🏆 Ranking dos Bilhetes</h2>
         <div className="card p-3">

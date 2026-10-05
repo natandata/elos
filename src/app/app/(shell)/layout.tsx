@@ -15,6 +15,7 @@ const NAV: Record<string, NavItem[]> = {
     { href: "/app/admin/avisos", label: "Avisos", icon: "📣" },
     { href: "/app/admin/torneios", label: "Torneios da Arena", icon: "🏆" },
     { href: "/app/admin/arena", label: "Arena hoje", icon: "🏰" },
+    { href: "/app/admin/passarela", label: "Passarela", icon: "📸" },
     {
       label: "Status Geral",
       icon: "💛",

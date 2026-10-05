@@ -1,0 +1,2 @@
+-- Passarela do Vista o Herói (aplicada via MCP; 0142 corrige dress_runway_settle):
+-- tabelas dress_runway_looks / dress_runway_votes / dress_runway_days e função dress_runway_settle(date).

@@ -63,6 +63,34 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // Passarela do Vista o Herói: fecha os dias cuja votação já acabou (tema de D vota em D e D+1; fecha em D+2)
+  if (isReleased("dress")) {
+    const base = new Date(`${brToday}T00:00:00Z`);
+    base.setUTCDate(base.getUTCDate() - 2);
+    const cutoff = base.toISOString().slice(0, 10);
+    const { data: pending } = await supabase.from("dress_runway_looks").select("theme_date").lte("theme_date", cutoff);
+    const { data: done } = await supabase.from("dress_runway_days").select("theme_date");
+    const settled = new Set(((done ?? []) as { theme_date: string }[]).map((d) => d.theme_date));
+    const toSettle = [...new Set(((pending ?? []) as { theme_date: string }[]).map((p) => p.theme_date))].filter((d) => !settled.has(d)).sort();
+    for (const day of toSettle) {
+      const { data: res, error: settleErr } = await supabase.rpc("dress_runway_settle", { p_date: day });
+      if (settleErr) {
+        console.error("dress_runway_settle falhou:", settleErr);
+        continue;
+      }
+      for (const r of (res ?? []) as { user_id: string; kind: string; place: number | null; tickets: number }[]) {
+        const title = r.kind === "place" ? `📸 Passarela: você ficou em ${r.place}º!` : "📸 Passarela: obrigado pelos votos!";
+        const body = r.kind === "place" ? `Seu look foi um dos mais votados e rendeu ${r.tickets} 🎫 Bilhetes Dourados.` : `Seus votos na Passarela renderam ${r.tickets} 🎫 Bilhetes Dourados.`;
+        try {
+          await supabase.from("notifications").insert({ user_id: r.user_id, title, body, link: "/app/jogos/vestir/passarela", category: "jogos" });
+          await sendPushToUsers([r.user_id], { title, body, url: "/app/jogos/vestir/passarela" });
+        } catch {
+          // aviso é secundário
+        }
+      }
+    }
+  }
+
   // com a chave de serviço a RLS não se aplica, então dá pra achar os órfãos
   // com uma consulta direta em vez da RPC (que é escopada por usuário).
   const buckets = ["feed", "stories", "profile_gallery"] as const;
