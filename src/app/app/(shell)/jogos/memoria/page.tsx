@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { MemoryChallenge } from "@/components/games/MemoryChallenge";
 import { MemorySolo } from "@/components/games/MemorySolo";
-import { PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import { SOLO_SIZES, fmtMs } from "@/lib/games/memory";
 import { createClient } from "@/lib/supabase/server";
@@ -57,7 +56,11 @@ export default async function MemoriaPage() {
 
   return (
     <>
-      <PageHeader title="🃏 Memória dos Heróis" subtitle="Ache os pares com as cartas da Arena. Treine sozinho ou desafie um colega: vence quem terminar primeiro." />
+      <div className="relative mb-5 overflow-hidden rounded-2xl border-[3px] border-amber-400 shadow-lg">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/memoria/capa.webp" alt="Memória dos Heróis: o jogo de memória da Arena" className="block aspect-[4/3] w-full object-cover" draggable={false} />
+      </div>
+      <p className="mb-5 text-center text-sm text-[var(--muted)]">Ache os pares com as cartas da Arena. Treine sozinho ou desafie um colega: vence quem terminar primeiro.</p>
 
       <section className="mb-6">
         <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">Treino</h2>

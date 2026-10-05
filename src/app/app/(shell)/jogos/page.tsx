@@ -153,18 +153,12 @@ export default async function JogosPage() {
 
       <ArenaCover />
 
-      <Link
-        href="/app/jogos/memoria"
-        className="mb-5 flex items-center gap-4 rounded-2xl border-2 border-teal-300 bg-gradient-to-br from-teal-100 to-emerald-100 px-5 py-4 text-teal-900 transition active:scale-[0.99]"
-      >
-        <span className="text-5xl" aria-hidden>
-          🃏
-        </span>
-        <span className="min-w-0">
-          <span className="block text-lg font-black leading-tight">
-            Memória dos Heróis <span className="ml-1 rounded-full bg-rose-600 px-2 py-0.5 align-middle text-[10px] font-black text-white">NOVO</span>
-          </span>
-          <span className="block text-xs font-bold opacity-80">Ache os pares das cartas da Arena · desafie um colega: quem termina primeiro?</span>
+      <Link href="/app/jogos/memoria" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-amber-400 bg-[#2a2a3a] shadow-lg transition active:scale-[0.99]">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/memoria/capa.webp" alt="Memória dos Heróis" className="block aspect-[4/3] w-full object-cover" draggable={false} />
+        <span className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-black/85 to-transparent px-4 pb-2.5 pt-8">
+          <span className="text-xs font-bold text-amber-100">Ache os pares das cartas da Arena · desafie um colega</span>
+          <span className="shrink-0 rounded-full bg-rose-600 px-2.5 py-0.5 text-[11px] font-black text-white">▶ JOGAR</span>
         </span>
       </Link>
 
