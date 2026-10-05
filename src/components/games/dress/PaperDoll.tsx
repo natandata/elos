@@ -157,6 +157,8 @@ export function PaperDoll({
   const uid = `${skin.slice(1)}${base.hairColor.slice(1)}${only ?? "f"}`;
   const gid = `bg-${uid}-${bg ? bg[0].slice(1) + bg[1].slice(1) : "x"}`;
   const noTunic = !look.tunic;
+  // miniaturas de roupa/calçado/mão não precisam do rosto (deixa a lista de 75 peças leve)
+  const faceOn = !only || only === "head";
   const dressed = !!look.tunic && show("tunic") && look.tunic !== "tunic_leaves" && look.tunic !== "tunic_armor";
   const hairDark = dark(base.hairColor, 0.25);
 
@@ -195,7 +197,7 @@ export function PaperDoll({
       ) : null}
       {!only ? <ellipse cx="100" cy="344" rx="50" ry="7" fill="#000" opacity="0.2" filter={`url(#bl2-${uid})`} /> : null}
 
-      <BackHair base={base} uid={uid} />
+      {faceOn ? <BackHair base={base} uid={uid} /> : null}
       {show("mantle") ? wrap(look.mantle, true) : null}
 
       {/* pernas, pés e braços */}
@@ -232,7 +234,8 @@ export function PaperDoll({
       <ellipse cx="55" cy="208" rx="6.5" ry="8" fill={F(skin)} stroke={shade} strokeWidth="1.3" />
       <ellipse cx="145" cy="208" rx="6.5" ry="8" fill={F(skin)} stroke={shade} strokeWidth="1.3" />
 
-      {/* cabeça */}
+      {faceOn ? (
+        <>
       <path d="M76 58 Q76 34 100 34 Q124 34 124 58 Q124 80 108 88 Q100 92 92 88 Q76 80 76 58 Z" fill={`url(#face-${uid})`} stroke={shade} strokeWidth="1.3" strokeLinejoin="round" />
       <circle cx="75.5" cy="64" r="3.6" fill={skin} stroke={shade} strokeWidth="1" />
       <circle cx="124.5" cy="64" r="3.6" fill={skin} stroke={shade} strokeWidth="1" />
@@ -278,6 +281,9 @@ export function PaperDoll({
       <path d="M92 79.6 Q96 76.6 100 78 Q104 76.6 108 79.6 Q100 81.6 92 79.6 Z" fill={`url(#lip-${uid})`} stroke="#8a2f3a" strokeWidth="0.7" strokeLinejoin="round" />
       <path d="M92.4 80 Q100 88.2 107.6 80 Q100 82.4 92.4 80 Z" fill="#d8606e" stroke="#8a2f3a" strokeWidth="0.7" strokeLinejoin="round" />
       <ellipse cx="100" cy="83.6" rx="2.6" ry="0.9" fill="#fff" opacity="0.55" />
+
+        </>
+      ) : null}
 
       {/* peça de cabeça */}
       {show("head") ? wrap(look.head) : null}

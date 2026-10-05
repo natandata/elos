@@ -2,7 +2,7 @@
 import "server-only";
 import { pickDaily, shuffle } from "../engine";
 import { DRESS_CHARACTER_BY_ID, FEMALE_CHARACTERS, type DressCharacter } from "./characters";
-import { ITEMS_BY_SLOT, SLOTS, type Slot } from "./items";
+import { ITEMS_BY_SLOT, ITEM_BY_ID, SLOTS, type Slot } from "./items";
 import { SOLUTIONS, type Solution } from "./solutions";
 
 export const ROUNDS_PER_DAY = 3;
@@ -27,16 +27,20 @@ export function dailyCharacters(drawDate: string): DressCharacter[] {
 /** 4 opções por espaço: a ideal, uma aceitável (se houver) e o resto distratores, embaralhadas. */
 export function slotOptions(characterId: string, slot: Slot, drawDate: string, solutions: Record<string, Solution> = SOLUTIONS): string[] {
   const sol = solutions[characterId][slot];
-  const taken = new Set([sol.ideal, ...sol.ok]);
+  // distratores nunca são da mesma família (mesmo desenho, outra cor) da resposta ideal ou aceitável
+  const taken = new Set([sol.ideal, ...sol.ok].map(famOf));
   const seed = `${drawDate}:${characterId}:${slot}`;
   const distractors = shuffle(
-    ITEMS_BY_SLOT(slot).filter((i) => !taken.has(i.id)),
+    ITEMS_BY_SLOT(slot).filter((i) => !taken.has(i.family)),
     `d:${seed}`,
   ).map((i) => i.id);
   const picks = [sol.ideal, ...(sol.ok[0] ? [sol.ok[0]] : [])];
   picks.push(...distractors.slice(0, OPTIONS_PER_SLOT - picks.length));
   return shuffle(picks, `o:${seed}`);
 }
+
+/** Família (desenho base) de uma peça: peças da mesma família valem o mesmo na pontuação. */
+export const famOf = (id: string | undefined): string => (id ? (ITEM_BY_ID.get(id)?.family ?? id) : "");
 
 export type RoundOptions = Record<Slot, string[]>;
 
@@ -54,7 +58,8 @@ export function scoreRound(characterId: string, picks: Record<string, string>, s
   const slots: SlotResult[] = SLOTS.map(({ key }) => {
     const s = sol[key];
     const picked = picks[key];
-    const points: 0 | 1 | 2 = picked === s.ideal ? 2 : s.ok.includes(picked) ? 1 : 0;
+    const f = famOf(picked);
+    const points: 0 | 1 | 2 = f === famOf(s.ideal) ? 2 : s.ok.some((o) => famOf(o) === f) ? 1 : 0;
     return { slot: key, picked, ideal: s.ideal, points, note: s.note };
   });
   return { score: slots.reduce((a, r) => a + r.points, 0), slots };

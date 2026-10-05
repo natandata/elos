@@ -3,6 +3,7 @@ import "server-only";
 import { pickDaily } from "../engine";
 import { FEMALE_CHARACTERS, type DressCharacter } from "./characters";
 import { ITEM_BY_ID, SLOTS, type Look, type Slot } from "./items";
+import { famOf } from "./engine";
 import { SOLUTIONS } from "./solutions";
 
 export const MAX_VOTES_PER_DAY = 5;
@@ -42,7 +43,7 @@ export function fidelityOf(characterId: string, look: Look): number {
   for (const s of SLOTS) {
     const x = sol[s.key];
     const id = look[s.key];
-    pts += id === x.ideal ? 2 : id && x.ok.includes(id) ? 1 : 0;
+    pts += famOf(id) === famOf(x.ideal) ? 2 : id && x.ok.some((o) => famOf(o) === famOf(id)) ? 1 : 0;
   }
   return pts;
 }

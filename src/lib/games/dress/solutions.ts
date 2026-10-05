@@ -195,7 +195,7 @@ export const SOLUTIONS: Record<string, Solution> = {
     tunic: { ideal: "tunic_purple", ok: ["tunic_linen"], note: "Lídia era “vendedora de púrpura” (Atos 16:14), o tecido mais caro da época." },
     mantle: { ideal: "mantle_none", ok: ["mantle_blue", "mantle_white"], note: "Nada que a Bíblia descreva por cima." },
     shoes: { ideal: "shoes_sandals", ok: ["shoes_gold"], note: "Sandálias de uma comerciante." },
-    hand: { ideal: "hand_cloth", ok: [], note: "Ela vendia tecido de púrpura (Atos 16:14)." },
+    hand: { ideal: "cloth__roxo", ok: [], note: "Ela vendia tecido de púrpura (Atos 16:14)." },
   },
   raabe: {
     head: { ideal: "head_scarf", ok: ["head_veil"], note: "A Bíblia não descreve; mulher de Jericó cobria a cabeça." },

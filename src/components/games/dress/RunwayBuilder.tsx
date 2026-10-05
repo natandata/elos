@@ -48,7 +48,8 @@ export function RunwayBuilder({ characterId }: { characterId: string }) {
         ))}
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
+      <p className="mb-1 text-[11px] font-bold text-[var(--muted)]">{ITEMS_BY_SLOT(slot).length} peças · role a lista</p>
+      <div className="grid max-h-[420px] grid-cols-3 gap-2 overflow-y-auto pr-1">
         {ITEMS_BY_SLOT(slot).map((item) => {
           const on = look[slot] === item.id;
           return (
