@@ -40,12 +40,17 @@ function makeTower(id: number, side: Side, kind: "atalaia" | "santuario", lane: 
   return {
     id, side, type: "tower", card: kind, lane, x, y, px: x, py: y,
     hp: t.hp, maxHp: t.hp, radius: t.radius, dmg: t.dmg, atkTicks: Math.round(t.atkSpeed * TICKS_PER_SEC),
-    range: t.range, speed: 0, flying: false, towersOnly: false, canHitAir: true, splash: 0, cd: 0, slowUntil: 0, slowAmount: 0,
+    range: t.range, speed: 0, flying: false, towersOnly: false, canHitAir: true, splash: 0, towerMult: 1,
+    hitSlow: 0, hitSlowTicks: 0, healAmount: 0, healTicks: 0, healRadius: 0, cd: 0, slowUntil: 0, slowAmount: 0,
   };
 }
 
+// chaves antigas de cartas renomeadas (partidas abertas antes da troca)
+const CARD_ALIAS: Record<string, string> = { anjo: "miguel" };
+const unalias = (deck: string[]) => deck.map((k) => CARD_ALIAS[k] ?? k);
+
 export function createGame(seed: number, playerDeck: string[], botDeck: string[] = pickBotDeck(seed)): GameState {
-  const decks: [string[], string[]] = [shuffleWith(playerDeck, seed ^ 0xa5a5), shuffleWith(botDeck, seed ^ 0x5a5a)];
+  const decks: [string[], string[]] = [shuffleWith(unalias(playerDeck), seed ^ 0xa5a5), shuffleWith(unalias(botDeck), seed ^ 0x5a5a)];
   const state: GameState = {
     tick: 0,
     seed,
@@ -76,7 +81,10 @@ function makeUnit(state: GameState, card: ArenaCard, side: Side, x: number, y: n
     hp: card.hp ?? 100, maxHp: card.hp ?? 100, radius: card.radius ?? 0.5, dmg: card.dmg ?? 10,
     atkTicks: Math.max(1, Math.round((card.atkSpeed ?? 1) * TICKS_PER_SEC)), range: card.range ?? 0.8,
     speed: (card.speed ?? 1.5) / TICKS_PER_SEC, flying: !!card.flying, towersOnly: !!card.towersOnly,
-    canHitAir: !!card.canHitAir, splash: card.splash ?? 0, cd: 0, slowUntil: 0, slowAmount: 0,
+    canHitAir: !!card.canHitAir, splash: card.splash ?? 0, towerMult: card.unitTowerMult ?? 1,
+    hitSlow: card.hitSlow?.amount ?? 0, hitSlowTicks: Math.round((card.hitSlow?.secs ?? 0) * TICKS_PER_SEC),
+    healAmount: card.heal?.amount ?? 0, healTicks: Math.round((card.heal?.secs ?? 0) * TICKS_PER_SEC), healRadius: card.heal?.radius ?? 0,
+    cd: 0, slowUntil: 0, slowAmount: 0,
   };
 }
 
@@ -196,7 +204,12 @@ function moveToward(e: Entity, tx: number, ty: number, step: number) {
 }
 
 function dealAttack(state: GameState, e: Entity, target: Entity, ev: GameEvent[]) {
-  target.hp -= e.dmg;
+  target.hp -= e.dmg * (target.type === "tower" ? e.towerMult : 1);
+  if (e.hitSlow > 0 && target.type === "unit") {
+    const stillSlow = state.tick < target.slowUntil;
+    target.slowAmount = stillSlow ? Math.max(target.slowAmount, e.hitSlow) : e.hitSlow;
+    target.slowUntil = state.tick + e.hitSlowTicks;
+  }
   if (e.splash > 0) {
     for (const o of state.entities) {
       if (o === target || o.side === e.side || o.type !== "unit" || o.hp <= 0) continue;
@@ -215,8 +228,39 @@ function updateTower(state: GameState, e: Entity, ev: GameEvent[]) {
   if (e.cd <= 0) dealAttack(state, e, target, ev);
 }
 
+/** Cura aliados por perto (Noé, Jesus). Roda a cada `healTicks`. */
+function healAllies(state: GameState, e: Entity) {
+  if (e.healAmount <= 0 || e.healTicks <= 0 || state.tick % e.healTicks !== 0) return;
+  for (const o of state.entities) {
+    if (o === e || o.side !== e.side || o.type !== "unit" || o.hp <= 0 || o.hp >= o.maxHp) continue;
+    if (dist(e.x, e.y, o.x, o.y) <= e.healRadius) o.hp = Math.min(o.maxHp, o.hp + e.healAmount);
+  }
+}
+
+/** Apoio sem ataque (Jesus): acompanha o aliado mais avançado, sempre um pouco atrás dele. */
+function followAlly(state: GameState, e: Entity) {
+  let lead: Entity | null = null;
+  for (const o of state.entities) {
+    if (o === e || o.side !== e.side || o.type !== "unit" || o.hp <= 0 || o.dmg <= 0) continue;
+    if (!lead || (e.side === 0 ? o.y < lead.y : o.y > lead.y)) lead = o;
+  }
+  if (!lead) return;
+  const behind = e.side === 0 ? 1.8 : -1.8;
+  const tx = lead.x;
+  const ty = lead.y + behind;
+  if (dist(e.x, e.y, tx, ty) < 0.8) return;
+  const slowed = state.tick < e.slowUntil ? 1 - e.slowAmount : 1;
+  const [wx, wy] = waypoint(e, tx, ty);
+  moveToward(e, wx, wy, e.speed * slowed);
+}
+
 function updateUnit(state: GameState, e: Entity, ev: GameEvent[]) {
   if (e.cd > 0) e.cd--;
+  healAllies(state, e);
+  if (e.dmg <= 0) {
+    followAlly(state, e);
+    return;
+  }
   const target = chooseTarget(state, e);
   if (!target) return;
   if (dist(e.x, e.y, target.x, target.y) <= e.range + target.radius) {

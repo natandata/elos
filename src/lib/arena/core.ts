@@ -48,6 +48,13 @@ export type Entity = {
   towersOnly: boolean;
   canHitAir: boolean;
   splash: number;
+  /** multiplicador de dano contra construções */
+  towerMult: number;
+  hitSlow: number;
+  hitSlowTicks: number;
+  healAmount: number;
+  healTicks: number;
+  healRadius: number;
   cd: number;
   slowUntil: number;
   slowAmount: number;

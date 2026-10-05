@@ -4,7 +4,8 @@ import Link from "next/link";
 import { PageHeader } from "@/components/ui";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { finishArena, startArena, type ArenaFinish } from "@/lib/actions/arena";
-import { ARENA_CARD_BY_KEY, STARTER_DECK } from "@/lib/arena/cards";
+import { ARENA_CARDS, ARENA_CARD_BY_KEY, STARTER_DECK } from "@/lib/arena/cards";
+import { CardArt } from "./CardArt";
 import {
   BRIDGES,
   DOUBLE_MANA_TICK,
@@ -57,6 +58,17 @@ export function ArenaGame({ winsToday, maxWins }: { winsToday: number; maxWins: 
   const selectedRef = useRef<number | null>(null);
   const rafRef = useRef<number | null>(null);
   const surrenderedRef = useRef(false);
+  const spritesRef = useRef<Record<string, HTMLImageElement>>({});
+
+  // carrega as ilustrações dos heróis uma vez
+  useEffect(() => {
+    for (const c of ARENA_CARDS) {
+      if (!c.art || spritesRef.current[c.key]) continue;
+      const img = new Image();
+      img.src = `/arena/${c.key}.webp`;
+      spritesRef.current[c.key] = img;
+    }
+  }, []);
 
   selectedRef.current = selected;
 
@@ -110,33 +122,55 @@ export function ArenaGame({ winsToday, maxWins }: { winsToday: number; maxWins: 
     const ordered = [...game.entities].sort((a, b) => (a.type === b.type ? a.y - b.y : a.type === "tower" ? -1 : 1));
     for (const e of ordered) {
       const x = lerp(e.px, e.x) * s;
-      const y = lerp(e.py, e.y) * s - (e.flying ? 0.5 * s : 0);
+      const y = lerp(e.py, e.y) * s;
       const r = e.radius * s;
-      if (e.flying) {
-        ctx.fillStyle = "rgba(0,0,0,0.25)";
-        ctx.beginPath();
-        ctx.ellipse(x, y + 0.5 * s + r * 0.6, r * 0.8, r * 0.3, 0, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.fillStyle = e.type === "tower" ? `${SIDE_COLOR[e.side]}55` : `${SIDE_COLOR[e.side]}88`;
-      ctx.strokeStyle = SIDE_COLOR[e.side];
-      ctx.lineWidth = e.type === "tower" ? 3 : 2;
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
+      const img = e.type === "unit" ? spritesRef.current[e.card] : undefined;
+      const hasArt = !!img && img.complete && img.naturalWidth > 0;
+      let topY = y - r;
 
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.font = `${emojiSize(e.radius)}px system-ui, "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
-      const emoji = e.type === "tower" ? (e.card === "santuario" ? "⛪" : "🗼") : (ARENA_CARD_BY_KEY.get(e.card)?.emoji ?? "❔");
-      ctx.fillStyle = "#000";
-      ctx.fillText(emoji, x, y + 1);
+      if (hasArt && img) {
+        // pés do herói no chão; o time aparece como uma elipse colorida debaixo dele
+        const footY = y + r * 0.9;
+        const lift = e.flying ? 0.9 * s : 0;
+        const h = e.radius * 4.4 * s;
+        const w = (h * img.naturalWidth) / img.naturalHeight;
+        ctx.fillStyle = `${SIDE_COLOR[e.side]}66`;
+        ctx.strokeStyle = SIDE_COLOR[e.side];
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.ellipse(x, footY, r * 1.15, r * 0.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.drawImage(img, x - w / 2, footY - lift - h * 0.97, w, h);
+        topY = footY - lift - h - 2;
+      } else {
+        if (e.flying) {
+          ctx.fillStyle = "rgba(0,0,0,0.25)";
+          ctx.beginPath();
+          ctx.ellipse(x, y + 0.5 * s + r * 0.6, r * 0.8, r * 0.3, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        const yy = y - (e.flying ? 0.5 * s : 0);
+        ctx.fillStyle = e.type === "tower" ? `${SIDE_COLOR[e.side]}55` : `${SIDE_COLOR[e.side]}88`;
+        ctx.strokeStyle = SIDE_COLOR[e.side];
+        ctx.lineWidth = e.type === "tower" ? 3 : 2;
+        ctx.beginPath();
+        ctx.arc(x, yy, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = `${emojiSize(e.radius)}px system-ui, "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
+        const emoji = e.type === "tower" ? (e.card === "santuario" ? "⛪" : "🗼") : (ARENA_CARD_BY_KEY.get(e.card)?.emoji ?? "❔");
+        ctx.fillStyle = "#000";
+        ctx.fillText(emoji, x, yy + 1);
+        topY = yy - r;
+      }
 
       // barra de vida
       if (e.hp < e.maxHp || e.type === "tower") {
         const bw = Math.max(r * 2, 0.9 * s);
-        const by = y - r - 6;
+        const by = topY - 6;
         ctx.fillStyle = "rgba(0,0,0,0.55)";
         ctx.fillRect(x - bw / 2, by, bw, 4);
         ctx.fillStyle = e.side === 0 ? "#22c55e" : "#ef4444";
@@ -310,9 +344,9 @@ export function ArenaGame({ winsToday, maxWins }: { winsToday: number; maxWins: 
             return (
               <div key={k} className="relative rounded-2xl border-2 border-[var(--line)] bg-[var(--card)] p-2 text-center">
                 <span className="absolute -left-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-violet-600 text-xs font-black text-white">{c.cost}</span>
-                <p className="text-3xl" aria-hidden>
-                  {c.emoji}
-                </p>
+                <div className="flex h-14 items-end justify-center">
+                  {c.art ? <CardArt card={c} className="h-14" /> : <span className="text-3xl" aria-hidden>{c.emoji}</span>}
+                </div>
                 <p className="mt-1 text-[10px] font-bold leading-tight">{c.name}</p>
               </div>
             );
@@ -428,8 +462,8 @@ export function ArenaGame({ winsToday, maxWins }: { winsToday: number; maxWins: 
                 } ${can ? "" : "opacity-45"}`}
               >
                 <span className="absolute -left-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-violet-600 text-[11px] font-black text-white">{c.cost}</span>
-                <span className="block text-2xl" aria-hidden>
-                  {c.emoji}
+                <span className="flex h-10 items-end justify-center">
+                  {c.art ? <CardArt card={c} className="h-10" /> : <span className="text-2xl leading-none" aria-hidden>{c.emoji}</span>}
                 </span>
                 <span className="block text-[9px] font-bold leading-tight">{c.name}</span>
               </button>
@@ -437,9 +471,10 @@ export function ArenaGame({ winsToday, maxWins }: { winsToday: number; maxWins: 
           })}
           <div className="flex flex-col items-center justify-center rounded-xl bg-[var(--bg)] text-center">
             <span className="text-[9px] font-bold text-[var(--muted)]">Próxima</span>
-            <span className="text-xl" aria-hidden>
-              {ARENA_CARD_BY_KEY.get(hud?.next ?? "")?.emoji ?? ""}
-            </span>
+            {(() => {
+              const nc = ARENA_CARD_BY_KEY.get(hud?.next ?? "");
+              return nc ? nc.art ? <CardArt card={nc} className="h-8" /> : <span className="text-xl" aria-hidden>{nc.emoji}</span> : null;
+            })()}
           </div>
         </div>
         <p className="mt-2 text-center text-xs font-semibold text-[var(--muted)]">

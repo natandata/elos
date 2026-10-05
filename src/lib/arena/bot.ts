@@ -11,7 +11,9 @@ export function botDecide(state: GameState, side: Side): Input | null {
 
   const mana = state.mana[side];
   const hand = state.slots[side].map((key, slot) => ({ slot, card: ARENA_CARD_BY_KEY.get(key)! }));
-  const playable = hand.filter((h) => h.card && h.card.cost <= mana + 1e-9);
+  // apoio sem ataque (Jesus) só entra quando já há aliados em campo pra acompanhar
+  const allies = state.entities.filter((e) => e.side === side && e.type === "unit" && e.hp > 0 && e.dmg > 0).length;
+  const playable = hand.filter((h) => h.card && h.card.cost <= mana + 1e-9 && ((h.card.dmg ?? 1) > 0 || h.card.kind === "spell" || allies >= 2));
   if (playable.length === 0) return null;
 
   const enemy = (1 - side) as Side;
