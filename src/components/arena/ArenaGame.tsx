@@ -6,6 +6,7 @@ import { useCallback, useRef, useState } from "react";
 import { finishArena, saveArenaDeck, startArena, upgradeArenaCard, type ArenaFinish } from "@/lib/actions/arena";
 import { DeckBuilder } from "./DeckBuilder";
 import { ArenaHome, type ArenaTab, type RankRow } from "./ArenaHome";
+import type { GateInfo } from "@/lib/arena/gate";
 import { ARENA_CARD_BY_KEY } from "@/lib/arena/cards";
 import { ARENAS, TROPHY_LOSS, TROPHY_WIN, arenaProgress, cardsUnlockedIn } from "@/lib/arena/arenas";
 import { CardArt } from "./CardArt";
@@ -15,7 +16,7 @@ import { createGame, step } from "@/lib/arena/engine";
 
 type Phase = "intro" | "playing" | "finishing" | "result";
 
-export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, initialBest, initialScrolls, initialLevels, eloRanking, myEloId, trophyRanking, myId, missionsHref, invites }: { winsToday: number; maxWins: number; initialDeck: string[]; initialTrophies: number; initialBest: number; initialScrolls: number; initialLevels: Record<string, number>; eloRanking: { id: string; name: string; points: number }[]; myEloId: string | null; trophyRanking: RankRow[]; myId: string; missionsHref: string; invites: number }) {
+export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, initialBest, initialScrolls, initialLevels, eloRanking, myEloId, trophyRanking, myId, missionsHref, invites, gate }: { winsToday: number; maxWins: number; initialDeck: string[]; initialTrophies: number; initialBest: number; initialScrolls: number; initialLevels: Record<string, number>; eloRanking: { id: string; name: string; points: number }[]; myEloId: string | null; trophyRanking: RankRow[]; myId: string; missionsHref: string; invites: number; gate: GateInfo }) {
   const [scrolls, setScrolls] = useState(initialScrolls);
   const [levels, setLevels] = useState<Record<string, number>>(initialLevels);
   const [trophies, setTrophies] = useState(initialTrophies);
@@ -105,6 +106,7 @@ export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, in
         myId={myId}
         missionsHref={missionsHref}
         invites={invites}
+        gate={gate}
         onBattle={begin}
         error={error}
         cards={

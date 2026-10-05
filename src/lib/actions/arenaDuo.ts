@@ -8,6 +8,8 @@ import { arenaIndexFor, deckAllowed } from "@/lib/arena/arenas";
 import type { DuoReport } from "@/lib/arena/pvp";
 import { settleArenaDuo, viewOfDuo, type DuoRow, type DuoView } from "@/lib/arena/settleDuo";
 import { sendPushToUsers } from "@/lib/push-server";
+import { gateMessage } from "@/lib/arena/gate";
+import { loadGate } from "@/lib/arena/gateServer";
 
 async function player() {
   const supabase = await createClient();
@@ -58,6 +60,8 @@ const friendly = (msg: string | undefined) => {
 /** Convida 1 parceiro e 2 adversários (todos do seu Elo). */
 export async function challengeArenaDuo(partnerId: string, opp1Id: string, opp2Id: string): Promise<{ error?: string; id?: string }> {
   const { supabase, userId, name } = await player();
+  const gate = await loadGate(supabase, userId);
+  if (gate.locked) return { error: gateMessage(gate) };
   const { deck, arena } = await myLoadout(supabase, userId);
   const { data, error } = await supabase.rpc("arena_duo_create", { p_partner: partnerId, p_opp1: opp1Id, p_opp2: opp2Id, p_deck: deck, p_arena: arena });
   if (error || typeof data !== "string") return { error: friendly(error?.message) };
@@ -72,6 +76,8 @@ export async function respondArenaDuo(id: string, accept: boolean): Promise<{ er
     const { error } = await supabase.rpc("arena_duo_decline", { p_id: id });
     return error ? { error: friendly(error.message) } : {};
   }
+  const gate = await loadGate(supabase, userId);
+  if (gate.locked) return { error: gateMessage(gate) };
   const { deck } = await myLoadout(supabase, userId);
   const { error } = await supabase.rpc("arena_duo_accept", { p_id: id, p_deck: deck });
   if (error) return { error: friendly(error.message) };

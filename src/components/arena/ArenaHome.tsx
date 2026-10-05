@@ -5,6 +5,8 @@ import { useState, type ReactNode } from "react";
 import { Avatar } from "@/components/Avatar";
 import { ARENAS, TROPHY_LOSS, TROPHY_WIN, arenaProgress } from "@/lib/arena/arenas";
 import { ArenaHero } from "./ArenaHero";
+import { ArenaGateBanner } from "./ArenaGateBanner";
+import type { GateInfo } from "@/lib/arena/gate";
 
 export type RankRow = { id: string; name: string; avatar: string | null; elo: string | null; trophies: number };
 export type EloRow = { id: string; name: string; points: number };
@@ -66,6 +68,7 @@ export function ArenaHome({
   onBattle,
   error,
   cards,
+  gate,
 }: {
   tab: ArenaTab;
   setTab: (t: ArenaTab) => void;
@@ -82,6 +85,7 @@ export function ArenaHome({
   onBattle: () => void;
   error: string | null;
   cards: ReactNode;
+  gate: GateInfo;
 }) {
   const prog = arenaProgress(trophies);
   const [rankTab, setRankTab] = useState<"players" | "elos">("players");
@@ -174,14 +178,24 @@ export function ArenaHome({
             </div>
 
             {/* botões de batalha */}
-            {error ? <p className="mt-2 rounded-lg bg-black/55 px-3 py-1.5 text-center text-sm font-bold text-rose-200">{error}</p> : null}
+            <ArenaGateBanner gate={gate} />
+            {error && !gate.locked ? <p className="mt-2 rounded-lg bg-black/55 px-3 py-1.5 text-center text-sm font-bold text-rose-200">{error}</p> : null}
             <div className="mt-3 grid grid-cols-2 gap-3">
-              <button type="button" onClick={onBattle} className="cr-btn cr-btn-yellow cr-text py-4 text-[26px] leading-none">
-                Batalha
+              <button
+                type="button"
+                onClick={gate.locked ? undefined : onBattle}
+                disabled={gate.locked}
+                className={`cr-btn cr-btn-yellow cr-text py-4 text-[26px] leading-none ${gate.locked ? "grayscale opacity-60" : ""}`}
+              >
+                {gate.locked ? "🔒 Batalha" : "Batalha"}
               </button>
-              <Link href="/app/jogos/arena/duplas" className="cr-btn cr-btn-blue cr-text flex items-center justify-center py-4 text-[26px] leading-none">
-                Duplas
-              </Link>
+              {gate.locked ? (
+                <span className="cr-btn cr-btn-blue cr-text flex items-center justify-center py-4 text-[26px] leading-none grayscale opacity-60">🔒 Duplas</span>
+              ) : (
+                <Link href="/app/jogos/arena/duplas" className="cr-btn cr-btn-blue cr-text flex items-center justify-center py-4 text-[26px] leading-none">
+                  Duplas
+                </Link>
+              )}
             </div>
 
             {/* espaços de recompensa */}

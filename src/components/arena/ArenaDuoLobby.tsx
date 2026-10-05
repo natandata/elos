@@ -18,7 +18,7 @@ export type DuoItem = {
   host: boolean;
 };
 
-export function ArenaDuoLobby({ mates, items }: { mates: Mate[]; items: DuoItem[] }) {
+export function ArenaDuoLobby({ mates, items, locked = false }: { mates: Mate[]; items: DuoItem[]; locked?: boolean }) {
   const router = useRouter();
   const [partner, setPartner] = useState<string | null>(null);
   const [opps, setOpps] = useState<string[]>([]);
@@ -142,8 +142,8 @@ export function ArenaDuoLobby({ mates, items }: { mates: Mate[]; items: DuoItem[
                 {opps[0] ? nameOf(opps[0]) : "?"} + {opps[1] ? nameOf(opps[1]) : "?"}
               </span>
             </div>
-            <button type="button" disabled={!ready || busy !== null} onClick={challenge} className="btn btn-primary mt-3 w-full !py-3 disabled:opacity-50">
-              {busy === "new" ? "Enviando…" : ready ? "⚔️ Desafiar" : "Escolha 1 parceiro e 2 adversários"}
+            <button type="button" disabled={!ready || busy !== null || locked} onClick={challenge} className="btn btn-primary mt-3 w-full !py-3 disabled:opacity-50">
+              {busy === "new" ? "Enviando…" : locked ? "🔒 Jogue 3 jogos pra continuar" : ready ? "⚔️ Desafiar" : "Escolha 1 parceiro e 2 adversários"}
             </button>
           </>
         )}

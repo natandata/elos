@@ -8,6 +8,8 @@ import { arenaIndexFor, deckAllowed } from "@/lib/arena/arenas";
 import type { PvpReport } from "@/lib/arena/pvp";
 import { settleArenaPvp, viewOf, type PvpRow, type PvpView } from "@/lib/arena/settlePvp";
 import { sendPushToUsers } from "@/lib/push-server";
+import { gateMessage } from "@/lib/arena/gate";
+import { loadGate } from "@/lib/arena/gateServer";
 
 async function player() {
   const supabase = await createClient();
@@ -58,6 +60,8 @@ const friendly = (msg: string | undefined) => {
 
 export async function challengeArenaPvp(opponentId: string): Promise<{ error?: string; id?: string }> {
   const { supabase, userId, name } = await player();
+  const gate = await loadGate(supabase, userId);
+  if (gate.locked) return { error: gateMessage(gate) };
   const { deck, arena } = await myLoadout(supabase, userId);
   const { data, error } = await supabase.rpc("arena_pvp_create", { p_opponent: opponentId, p_deck: deck, p_arena: arena });
   if (error || typeof data !== "string") return { error: friendly(error?.message) };
@@ -71,6 +75,8 @@ export async function respondArenaPvp(id: string, accept: boolean): Promise<{ er
     const { error } = await supabase.rpc("arena_pvp_decline", { p_id: id });
     return error ? { error: friendly(error.message) } : {};
   }
+  const gate = await loadGate(supabase, userId);
+  if (gate.locked) return { error: gateMessage(gate) };
   const { deck } = await myLoadout(supabase, userId);
   const { error } = await supabase.rpc("arena_pvp_accept", { p_id: id, p_deck: deck });
   if (error) return { error: friendly(error.message) };

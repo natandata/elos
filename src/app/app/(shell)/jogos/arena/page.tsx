@@ -1,6 +1,7 @@
 import { ArenaGame } from "@/components/arena/ArenaGame";
 import { STARTER_DECK, isValidDeck } from "@/lib/arena/cards";
 import { deckAllowed } from "@/lib/arena/arenas";
+import { loadGate } from "@/lib/arena/gateServer";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -47,6 +48,7 @@ export default async function ArenaPage() {
     const i = r.players.indexOf(profile.id);
     return i > 0 && !Array.isArray(r.decks[i]);
   }).length;
+  const gate = await loadGate(supabase, profile.id);
   const { data: stats } = await supabase.from("arena_stats").select("trophies, best, scrolls").eq("user_id", profile.id).maybeSingle<{ trophies: number; best: number; scrolls: number }>();
   const { data: owned } = await supabase.from("arena_card_levels").select("card, level").eq("user_id", profile.id);
   const levels: Record<string, number> = {};
@@ -55,6 +57,6 @@ export default async function ArenaPage() {
   const deck = isValidDeck(saved?.deck) && deckAllowed(saved.deck, stats?.best ?? 0) ? saved.deck : STARTER_DECK;
 
   return (
-    <ArenaGame winsToday={count ?? 0} maxWins={MAX_XP_WINS} initialDeck={deck} initialTrophies={stats?.trophies ?? 0} initialBest={stats?.best ?? 0} initialScrolls={stats?.scrolls ?? 0} initialLevels={levels} eloRanking={eloRanking} myEloId={profile.elo_id ?? null} trophyRanking={trophyRanking} myId={profile.id} missionsHref={profile.role === "leader" ? "/app/lider/missoes" : "/app/cria/missoes"} invites={(invites ?? 0) + duoInvites} />
+    <ArenaGame winsToday={count ?? 0} maxWins={MAX_XP_WINS} initialDeck={deck} initialTrophies={stats?.trophies ?? 0} initialBest={stats?.best ?? 0} initialScrolls={stats?.scrolls ?? 0} initialLevels={levels} eloRanking={eloRanking} myEloId={profile.elo_id ?? null} trophyRanking={trophyRanking} myId={profile.id} missionsHref={profile.role === "leader" ? "/app/lider/missoes" : "/app/cria/missoes"} invites={(invites ?? 0) + duoInvites} gate={gate} />
   );
 }

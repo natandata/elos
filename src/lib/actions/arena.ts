@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ARENA_CARD_BY_KEY, MAX_CARD_LEVEL, STARTER_DECK, isValidDeck, upgradeCost } from "@/lib/arena/cards";
 import { arenaIndexFor, deckAllowed, isCardUnlocked } from "@/lib/arena/arenas";
+import { gateMessage } from "@/lib/arena/gate";
+import { loadGate } from "@/lib/arena/gateServer";
 import { abandonOpenMatches, settleArena, type ArenaFinish } from "@/lib/arena/settle";
 
 const MAX_MATCHES_PER_DAY = 15;
@@ -44,6 +46,9 @@ export async function startArena(): Promise<{ error?: string; matchId?: string; 
 
   const admin = createAdminClient();
   if (admin) await abandonOpenMatches(admin, userId);
+  // a cada 3 batalhas: 3 jogos pra continuar
+  const gate = await loadGate(supabase, userId);
+  if (gate.locked) return { error: gateMessage(gate) };
   const { data: stats } = await supabase.from("arena_stats").select("trophies, best").eq("user_id", userId).maybeSingle<{ trophies: number; best: number }>();
   const arena = arenaIndexFor(stats?.trophies ?? 0);
 

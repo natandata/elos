@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { ArenaPvpLobby, type Mate, type PvpItem } from "@/components/arena/ArenaPvpLobby";
+import { ArenaGateBanner } from "@/components/arena/ArenaGateBanner";
+import { loadGate } from "@/lib/arena/gateServer";
 import { PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import { viewOf, type PvpRow } from "@/lib/arena/settlePvp";
@@ -9,6 +11,7 @@ export default async function ArenaPvpLobbyPage() {
   const { profile } = await requireRole("cria", "leader");
   const supabase = await createClient();
 
+  const gate = await loadGate(supabase, profile.id);
   const [matesRes, pvpRes] = await Promise.all([
     profile.elo_id
       ? supabase
@@ -49,7 +52,8 @@ export default async function ArenaPvpLobbyPage() {
   return (
     <>
       <PageHeader title="⚔️ Arena 1x1" subtitle="Desafie um colega do seu Elo: partida de 3 minutos em tempo real, todo mundo com cartas no nível 1." />
-      <ArenaPvpLobby mates={mates} items={items} />
+      {gate.locked ? <ArenaGateBanner gate={gate} /> : null}
+      <ArenaPvpLobby mates={mates} items={items} locked={gate.locked} />
       <Link href="/app/jogos/arena" className="btn btn-ghost mt-4 w-full">
         ← Voltar à Arena
       </Link>
