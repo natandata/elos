@@ -2,7 +2,7 @@ import { ArenaGame } from "@/components/arena/ArenaGame";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
-const MAX_XP_WINS = 3;
+const MAX_XP_WINS = 1;
 
 export default async function ArenaPage() {
   const { profile } = await requireRole("cria", "leader");

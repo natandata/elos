@@ -156,7 +156,7 @@ export default async function JogosPage() {
         </span>
         <span className="min-w-0">
           <span className="block text-lg font-black leading-tight">Arena dos Heróis <span className="ml-1 rounded-full bg-rose-600 px-2 py-0.5 align-middle text-[10px] font-black text-white">NOVO</span></span>
-          <span className="block text-xs font-bold opacity-80">Batalha contra o computador · até +3 XP por dia</span>
+          <span className="block text-xs font-bold opacity-80">Batalha contra o computador · +1 XP por dia</span>
         </span>
       </Link>
 

@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { MATCH_TICKS, type Input } from "./core";
 import { MAX_INPUTS, simulate } from "./sim";
 
-const MAX_XP_WINS_PER_DAY = 3;
+const MAX_XP_WINS_PER_DAY = 1;
 /** Partida terminada mais rápido que isso não paga XP (script/atalho). */
 const MIN_SECONDS_FOR_XP = 75;
 
