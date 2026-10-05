@@ -46,7 +46,7 @@ export default async function ArenaPvpRoomPage({ params }: { params: Promise<{ i
 
   return (
     <>
-      <PageHeader title={tournamentId ? "🏆 Torneio · 1x1" : row.rank_duel ? "👑 Duelo de posição" : "🏰 Arena 1x1"} subtitle={tournamentId ? "Partida do torneio, em tempo real." : row.rank_duel ? "Vizinhos do Top 3: se o de baixo vencer, os dois trocam de lugar e de troféus." : "Partida em tempo real contra um colega do seu Elo."} />
+      <PageHeader title={tournamentId ? "🏆 Torneio · 1x1" : row.rank_duel ? "👑 Duelo de posição" : "🏰 Arena 1x1"} subtitle={tournamentId ? "Partida do torneio, em tempo real." : row.rank_duel ? "Vizinhos do Top 4: se o de baixo vencer, os dois trocam de lugar e de troféus." : "Partida em tempo real contra um colega do seu Elo."} />
       <ArenaPvpRoom
         id={row.id}
         meSide={meSide}

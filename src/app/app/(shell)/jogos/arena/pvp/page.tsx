@@ -45,7 +45,7 @@ export default async function ArenaPvpLobbyPage() {
   const crossNames = new Map<string, string>();
   if (admin) {
     const { data: pos } = await admin.rpc("arena_rank_of", { p_user: profile.id });
-    if (typeof pos === "number" && pos <= 3) {
+    if (typeof pos === "number" && pos <= 4) {
       if (pos === 1) rankCard = { myPos: 1, target: null };
       else {
         const { data: tid } = await admin.rpc("arena_rank_user_at", { p_pos: pos - 1 });

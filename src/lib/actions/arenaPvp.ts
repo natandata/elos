@@ -49,7 +49,7 @@ const ERRORS: Record<string, string> = {
   not_same_elo: "Você só pode desafiar alguém do seu Elo.",
   not_allowed: "Só crias e líderes jogam.",
   limit: "Você já fez muitos desafios hoje. Volte amanhã!",
-  not_rank_neighbors: "Duelo de posição só vale entre vizinhos do Top 3 (o 2º desafia o 1º, o 3º desafia o 2º).",
+  not_rank_neighbors: "Duelo de posição só vale entre vizinhos do Top 4 (o 2º desafia o 1º, o 3º o 2º e o 4º o 3º).",
   rank_limit: "Você já fez um duelo de posição hoje. Tente de novo amanhã.",
   already_open: "Já existe um desafio aberto com essa pessoa.",
   not_found: "Esse desafio não está mais disponível.",

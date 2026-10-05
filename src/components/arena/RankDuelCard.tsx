@@ -22,7 +22,7 @@ export function RankDuelCard({ myPos, target }: { myPos: number; target: { id: s
 
   return (
     <section className="mb-6 rounded-2xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 to-yellow-100 p-4 text-amber-950">
-      <h2 className="text-lg font-black">👑 Duelo de posição · Top 3</h2>
+      <h2 className="text-lg font-black">👑 Duelo de posição · Top 4</h2>
       <p className="mt-1 text-sm font-semibold">
         Você está em <b>{myPos}º</b> no ranking de troféus.
       </p>

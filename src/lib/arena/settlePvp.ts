@@ -194,7 +194,7 @@ export async function settleArenaPvp(admin: SupabaseClient, id: string): Promise
       return typeof data === "number" ? data : null;
     };
     const [rc, ro] = await Promise.all([posOf(row.challenger_id), posOf(row.opponent_id)]);
-    if (rc !== null && ro !== null && ro <= 2 && rc === ro + 1) {
+    if (rc !== null && ro !== null && ro <= 3 && rc === ro + 1) {
       if (result === "challenger") {
         swap = { up: row.opponent_id, down: row.challenger_id, upPos: ro, downPos: rc };
       } else {
