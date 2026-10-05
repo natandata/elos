@@ -42,13 +42,14 @@ type Play = {
   difficulty: StoredDifficulty | null;
   practice: boolean;
   variant: number;
+  created_at: string;
 };
 
-const PLAY_COLUMNS = "id, answers, score, finished, xp_awarded, difficulty, practice, variant";
+const PLAY_COLUMNS = "id, answers, score, finished, xp_awarded, difficulty, practice, variant, created_at";
 
 /** Data do sorteio: o treino usa o de outro dia. */
 function drawDate(play: Play): string {
-  return practiceDate(todayBR(), play.variant);
+  return practiceDate(todayBR(), play.variant, play.created_at);
 }
 
 /** Partida criada antes da dificuldade existir (sem escolha, mas já com respostas) joga como "legacy". */

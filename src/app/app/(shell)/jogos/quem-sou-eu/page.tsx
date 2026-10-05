@@ -14,7 +14,7 @@ export default async function QuemSouEuPage() {
   const supabase = await createClient();
   const play = (await activePlays(supabase, profile.id)).get("who");
   const diff = playDifficulty(play);
-  const round = diff ? dailyWho(diff, practiceDate(todayBR(), play?.variant ?? 0)) : null;
+  const round = diff ? dailyWho(diff, practiceDate(todayBR(), play?.variant ?? 0, play?.created_at)) : null;
   const guesses = ((play?.answers ?? []) as number[]).filter((n) => Number.isInteger(n));
 
   return (

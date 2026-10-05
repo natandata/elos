@@ -12,6 +12,8 @@ export type PlayRow = {
   /** jogada extra do dia: sem XP, mas conta pra destravar a Arena */
   practice: boolean;
   variant: number;
+  /** quando a partida foi criada (congela o sorteio de 3 em 3 horas) */
+  created_at: string;
 };
 
 /** Partida com respostas mas sem escolha (criada antes da dificuldade) joga como "legacy". */
@@ -21,7 +23,7 @@ export function playDifficulty(play: PlayRow | undefined): StoredDifficulty | nu
   return (play.answers?.length ?? 0) > 0 ? "legacy" : null;
 }
 
-const PLAY_COLUMNS = "game, answers, score, finished, xp_awarded, difficulty, practice, variant";
+const PLAY_COLUMNS = "game, answers, score, finished, xp_awarded, difficulty, practice, variant, created_at";
 
 /** Partida do dia que vale XP, uma por jogo (a RLS já limita às próprias). */
 export async function todaysPlays(supabase: SupabaseClient, userId: string): Promise<Map<string, PlayRow>> {

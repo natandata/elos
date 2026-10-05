@@ -13,7 +13,7 @@ export default async function QuizPage() {
   const { profile } = await requireRole("cria", "leader");
   const supabase = await createClient();
   const play = (await activePlays(supabase, profile.id)).get("quiz");
-  const date = practiceDate(todayBR(), play?.variant ?? 0);
+  const date = practiceDate(todayBR(), play?.variant ?? 0, play?.created_at);
   const diff = playDifficulty(play);
   const questions = diff ? toPublic(dailyQuestions("quiz", diff, date)) : [];
 

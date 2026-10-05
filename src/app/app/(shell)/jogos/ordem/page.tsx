@@ -14,7 +14,7 @@ export default async function OrdemPage() {
   const supabase = await createClient();
   const play = (await activePlays(supabase, profile.id)).get("order");
   const diff = playDifficulty(play);
-  const round = diff ? dailyOrder(diff, practiceDate(todayBR(), play?.variant ?? 0)) : null;
+  const round = diff ? dailyOrder(diff, practiceDate(todayBR(), play?.variant ?? 0, play?.created_at)) : null;
   const attemptsUsed = play?.answers?.length ?? 0;
 
   return (

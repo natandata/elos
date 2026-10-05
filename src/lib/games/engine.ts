@@ -16,11 +16,23 @@ export function weekStartBR(): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** Treino (jogar de novo no mesmo dia): usa o sorteio de outro dia, pra não repetir as perguntas. */
-export function practiceDate(date: string, variant: number): string {
-  if (variant <= 0) return date;
+/** Bloco de 3 horas do dia em Brasília (0 a 7) em que a partida foi criada. */
+function blockOf(createdAt?: string | null): number {
+  const at = createdAt ? new Date(createdAt) : new Date();
+  const h = Number(at.toLocaleString("en-GB", { timeZone: "America/Sao_Paulo", hour: "2-digit", hour12: false })) % 24;
+  return Math.floor(h / 3);
+}
+
+/**
+ * Data de sorteio da partida. A cada 3 horas o sorteio muda por completo (outro "dia" na lista),
+ * congelado no momento em que a partida foi criada (`createdAt`) pra as perguntas não trocarem no meio.
+ * Treino (jogar de novo no mesmo dia) também usa o sorteio de outro dia, pra não repetir.
+ */
+export function practiceDate(date: string, variant: number, createdAt?: string | null): string {
+  const shift = blockOf(createdAt) * 53 + (variant > 0 ? variant * 37 + 11 : 0);
+  if (shift === 0) return date;
   const d = new Date(`${date}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + variant * 37 + 11);
+  d.setUTCDate(d.getUTCDate() + shift);
   return d.toISOString().slice(0, 10);
 }
 
