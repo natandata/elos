@@ -16,6 +16,14 @@ export function weekStartBR(): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** Treino (jogar de novo no mesmo dia): usa o sorteio de outro dia, pra não repetir as perguntas. */
+export function practiceDate(date: string, variant: number): string {
+  if (variant <= 0) return date;
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + variant * 37 + 11);
+  return d.toISOString().slice(0, 10);
+}
+
 function dayIndex(date: string): number {
   return Math.floor(new Date(`${date}T00:00:00Z`).getTime() / 86_400_000);
 }

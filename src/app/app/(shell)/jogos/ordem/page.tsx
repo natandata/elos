@@ -4,16 +4,17 @@ import { OrderGame } from "@/components/games/OrderGame";
 import { PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import { DIFFICULTY_INFO, difficultyChip, ORDER_ATTEMPTS, rules } from "@/lib/games/difficulty";
-import { dailyOrder } from "@/lib/games/engine";
-import { playDifficulty, todaysPlays } from "@/lib/games/status";
+import { dailyOrder, practiceDate, todayBR } from "@/lib/games/engine";
+import { PracticeNote, ReplayButton } from "@/components/games/Practice";
+import { activePlays, playDifficulty } from "@/lib/games/status";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function OrdemPage() {
   const { profile } = await requireRole("cria", "leader");
   const supabase = await createClient();
-  const play = (await todaysPlays(supabase, profile.id)).get("order");
+  const play = (await activePlays(supabase, profile.id)).get("order");
   const diff = playDifficulty(play);
-  const round = diff ? dailyOrder(diff) : null;
+  const round = diff ? dailyOrder(diff, practiceDate(todayBR(), play?.variant ?? 0)) : null;
   const attemptsUsed = play?.answers?.length ?? 0;
 
   return (
@@ -41,15 +42,23 @@ export default async function OrdemPage() {
               </li>
             ))}
           </ol>
-          <p className="mt-3 text-center text-sm text-[var(--muted)]">Uma nova linha do tempo chega amanhã.</p>
+          {play.practice ? (
+            <p className="mt-3 text-center text-sm text-[var(--muted)]">Treino: sem XP desta vez, mas conta pra destravar a Arena.</p>
+          ) : (
+            <p className="mt-3 text-center text-sm text-[var(--muted)]">Uma nova linha do tempo chega amanhã.</p>
+          )}
           <Link href="/app/jogos" className="btn btn-primary mt-4 w-full">
             Voltar aos jogos
           </Link>
+          <ReplayButton game="order" />
         </div>
       ) : !round || !diff ? (
         <DifficultyPicker game="order" />
       ) : (
-        <OrderGame items={round.shuffled} attemptsLeft={ORDER_ATTEMPTS[rules(diff)] - attemptsUsed} />
+        <>
+          {play?.practice ? <PracticeNote /> : null}
+          <OrderGame items={round.shuffled} attemptsLeft={ORDER_ATTEMPTS[rules(diff)] - attemptsUsed} />
+        </>
       )}
     </>
   );

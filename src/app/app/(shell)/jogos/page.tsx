@@ -102,7 +102,7 @@ export default async function JogosPage() {
               <div>
                 <p className="text-lg font-black leading-tight">{t.title}</p>
                 <p className="mt-1 text-xs font-bold opacity-80">
-                  {done ? `✔ Feito · ${play?.score ?? 0} pts` : started ? "Continuar →" : t.hint}
+                  {done ? `✔ Feito · ${play?.score ?? 0} pts · de novo sem XP` : started ? "Continuar →" : t.hint}
                 </p>
                 <p className="mt-0.5 text-[11px] font-black uppercase tracking-wide opacity-70">
                   {difficultyChip(playDifficulty(play)) ?? "Escolha a dificuldade"}

@@ -33,18 +33,14 @@ export function ArenaGateBanner({ gate, compact = false }: { gate: GateInfo; com
                 {info.icon}
               </span>
               <span className="min-w-0 flex-1 text-left text-[11px] font-black leading-tight">{info.name}</span>
-              <span className="text-[10px] font-black">{done ? "feito hoje" : "Jogar"}</span>
+              <span className="text-[10px] font-black">{done ? "sem XP" : "Jogar"}</span>
             </>
           );
           return (
             <li key={k}>
-              {done ? (
-                <div className="flex items-center gap-1.5 rounded-xl bg-white/10 px-2 py-2 opacity-60">{inner}</div>
-              ) : (
-                <Link href={info.href} className="flex items-center gap-1.5 rounded-xl bg-amber-400 px-2 py-2 text-slate-900 active:scale-95">
-                  {inner}
-                </Link>
-              )}
+              <Link href={info.href} className={`flex items-center gap-1.5 rounded-xl px-2 py-2 active:scale-95 ${done ? "bg-white/20 text-white" : "bg-amber-400 text-slate-900"}`}>
+                {inner}
+              </Link>
             </li>
           );
         })}

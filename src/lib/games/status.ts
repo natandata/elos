@@ -9,6 +9,9 @@ export type PlayRow = {
   finished: boolean;
   xp_awarded: number;
   difficulty: StoredDifficulty | null;
+  /** jogada extra do dia: sem XP, mas conta pra destravar a Arena */
+  practice: boolean;
+  variant: number;
 };
 
 /** Partida com respostas mas sem escolha (criada antes da dificuldade) joga como "legacy". */
@@ -18,14 +21,29 @@ export function playDifficulty(play: PlayRow | undefined): StoredDifficulty | nu
   return (play.answers?.length ?? 0) > 0 ? "legacy" : null;
 }
 
-/** Partidas do dia de quem está logado (a RLS já limita às próprias). */
+const PLAY_COLUMNS = "game, answers, score, finished, xp_awarded, difficulty, practice, variant";
+
+/** Partida do dia que vale XP, uma por jogo (a RLS já limita às próprias). */
 export async function todaysPlays(supabase: SupabaseClient, userId: string): Promise<Map<string, PlayRow>> {
   const { data } = await supabase
     .from("game_plays")
-    .select("game, answers, score, finished, xp_awarded, difficulty")
+    .select(PLAY_COLUMNS)
     .eq("user_id", userId)
     .eq("play_date", todayBR())
+    .eq("variant", 0)
     .is("duel_id", null);
+  return new Map(((data ?? []) as PlayRow[]).map((p) => [p.game, p]));
+}
+
+/** A partida que a tela do jogo mostra agora: o treino mais recente do dia, ou a do dia se não houve treino. */
+export async function activePlays(supabase: SupabaseClient, userId: string): Promise<Map<string, PlayRow>> {
+  const { data } = await supabase
+    .from("game_plays")
+    .select(PLAY_COLUMNS)
+    .eq("user_id", userId)
+    .eq("play_date", todayBR())
+    .is("duel_id", null)
+    .order("variant", { ascending: true });
   return new Map(((data ?? []) as PlayRow[]).map((p) => [p.game, p]));
 }
 

@@ -4,16 +4,17 @@ import { WhoGame } from "@/components/games/WhoGame";
 import { PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import { DIFFICULTY_INFO, difficultyChip, rules } from "@/lib/games/difficulty";
-import { dailyWho } from "@/lib/games/engine";
-import { playDifficulty, todaysPlays } from "@/lib/games/status";
+import { dailyWho, practiceDate, todayBR } from "@/lib/games/engine";
+import { PracticeNote, ReplayButton } from "@/components/games/Practice";
+import { activePlays, playDifficulty } from "@/lib/games/status";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function QuemSouEuPage() {
   const { profile } = await requireRole("cria", "leader");
   const supabase = await createClient();
-  const play = (await todaysPlays(supabase, profile.id)).get("who");
+  const play = (await activePlays(supabase, profile.id)).get("who");
   const diff = playDifficulty(play);
-  const round = diff ? dailyWho(diff) : null;
+  const round = diff ? dailyWho(diff, practiceDate(todayBR(), play?.variant ?? 0)) : null;
   const guesses = ((play?.answers ?? []) as number[]).filter((n) => Number.isInteger(n));
 
   return (
@@ -33,19 +34,27 @@ export default async function QuemSouEuPage() {
           </p>
           <h2 className="mt-2 text-2xl font-black">Era {round.item.name}!</h2>
           {play.xp_awarded > 0 ? <p className="mt-1 font-bold text-[var(--accent-strong)]">+{play.xp_awarded} XP</p> : null}
-          <p className="mt-2 text-sm text-[var(--muted)]">Um personagem novo chega amanhã.</p>
+          {play.practice ? (
+            <p className="mt-2 text-sm text-[var(--muted)]">Treino: sem XP desta vez, mas conta pra destravar a Arena.</p>
+          ) : (
+            <p className="mt-2 text-sm text-[var(--muted)]">Um personagem novo chega amanhã.</p>
+          )}
           <Link href="/app/jogos" className="btn btn-primary mt-5 w-full">
             Voltar aos jogos
           </Link>
+          <ReplayButton game="who" />
         </div>
       ) : !round ? (
         <DifficultyPicker game="who" />
       ) : (
-        <WhoGame
-          options={round.options}
-          initialHints={round.item.hints.slice(0, Math.min(round.startHints + guesses.length, 4))}
-          initialGuesses={guesses}
-        />
+        <>
+          {play?.practice ? <PracticeNote /> : null}
+          <WhoGame
+            options={round.options}
+            initialHints={round.item.hints.slice(0, Math.min(round.startHints + guesses.length, 4))}
+            initialGuesses={guesses}
+          />
+        </>
       )}
     </>
   );

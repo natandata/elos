@@ -62,27 +62,19 @@ export function computeGate(events: GateEvent[]): GateState {
 export type GateInfo = GateState & {
   /** quantos jogos ainda faltam pra destravar */
   remaining: number;
-  /** jogos já feitos hoje (cada um só vale uma vez por dia) */
+  /** jogos com partida valendo XP já feita hoje (jogar de novo vale como treino, sem XP) */
   doneToday: GateGame[];
-  /** travado e sem jogos suficientes sobrando hoje: só amanhã */
-  waitTomorrow: boolean;
 };
 
 export function describeGate(state: GateState, doneToday: GateGame[]): GateInfo {
   const remaining = state.locked ? GATE_GAMES - state.games : 0;
-  const availableToday = GATE_GAME_KEYS.length - doneToday.length;
-  return { ...state, remaining, doneToday, waitTomorrow: state.locked && availableToday < remaining };
+  return { ...state, remaining, doneToday };
 }
 
 export const GATE_LOCKED_MESSAGE = `Você jogou ${GATE_BATTLES} batalhas! Jogue pelo menos ${GATE_GAMES} outros jogos (Quiz, Versículo, Quem Sou Eu ou Ordene os Fatos) pra continuar na Arena.`;
 
-/** Texto do bloqueio, já considerando quantos jogos faltam e se dá pra fazer hoje. */
+/** Texto do bloqueio, já considerando quantos jogos faltam. */
 export function gateMessage(g: GateInfo): string {
   const falta = g.remaining === 1 ? "mais 1 jogo" : `mais ${g.remaining} jogos`;
-  const sobram = GATE_GAME_KEYS.length - g.doneToday.length;
-  if (g.waitTomorrow) {
-    const hoje = sobram <= 0 ? "você já fez todos os jogos de hoje" : sobram === 1 ? "hoje só dá pra jogar mais 1" : `hoje só dá pra jogar mais ${sobram}`;
-    return `Você jogou ${GATE_BATTLES} batalhas e precisa de ${falta} pra continuar na Arena, mas ${hoje} (cada jogo vale uma vez por dia). Volte amanhã!`;
-  }
-  return `Você jogou ${GATE_BATTLES} batalhas! Jogue ${falta} (Quiz, Versículo, Quem Sou Eu ou Ordene os Fatos) pra continuar na Arena.`;
+  return `Você jogou ${GATE_BATTLES} batalhas! Jogue ${falta} (Quiz, Versículo, Quem Sou Eu ou Ordene os Fatos) pra continuar na Arena. Jogar de novo um jogo que já fez hoje vale, só não dá XP.`;
 }
