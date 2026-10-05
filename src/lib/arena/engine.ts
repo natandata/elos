@@ -20,6 +20,7 @@ import {
   inField,
   nearestBridge,
   shuffleWith,
+  teamOf,
   type Entity,
   type GameEvent,
   type GameState,
@@ -58,23 +59,24 @@ function makeTower(id: number, side: Side, kind: "atalaia" | "santuario", lane: 
 const CARD_ALIAS: Record<string, string> = { anjo: "miguel" };
 const unalias = (deck: string[]) => deck.map((k) => CARD_ALIAS[k] ?? k);
 
-export function createGame(seed: number, playerDeck: string[], botDeck?: string[], opts: GameOpts = {}): GameState {
-  botDeck ??= pickBotDeck(seed, opts.arena);
-  const botLevel = opts.pvp ? 1 : botLevelForArena(opts.arena ?? 0);
-  const botLevels: Record<string, number> = {};
-  for (const c of ARENA_CARDS) botLevels[c.key] = botLevel;
-  const decks: [string[], string[]] = [shuffleWith(unalias(playerDeck), seed ^ 0xa5a5), shuffleWith(unalias(botDeck), seed ^ 0x5a5a)];
+const SHUFFLE_SEEDS = [0xa5a5, 0x5a5a, 0x3c3c3c, 0xc3c3c3];
+const RNG_SEEDS = [0x1234567, 0x7654321, 0x2468ace, 0x13579bd];
+
+function buildState(seed: number, decks: string[][], levels: Record<string, number>[]): GameState {
+  const players = decks.length;
+  const shuffled = decks.map((d, i) => shuffleWith(unalias(d), seed ^ SHUFFLE_SEEDS[i]));
   const state: GameState = {
     tick: 0,
     seed,
     nextId: 1,
-    mana: [MANA_START, MANA_START],
-    slots: [decks[0].slice(0, HAND_SIZE), decks[1].slice(0, HAND_SIZE)],
-    queue: [decks[0].slice(HAND_SIZE), decks[1].slice(HAND_SIZE)],
+    players,
+    mana: decks.map(() => MANA_START),
+    slots: shuffled.map((d) => d.slice(0, HAND_SIZE)),
+    queue: shuffled.map((d) => d.slice(HAND_SIZE)),
     entities: [],
     crowns: [0, 0],
-    levels: [opts.levels ?? {}, botLevels],
-    rng: [(seed ^ 0x1234567) | 0, (seed ^ 0x7654321) | 0],
+    levels,
+    rng: decks.map((_, i) => (seed ^ RNG_SEEDS[i]) | 0),
     over: false,
     winner: null,
   };
@@ -89,8 +91,21 @@ export function createGame(seed: number, playerDeck: string[], botDeck?: string[
   return state;
 }
 
-function makeUnit(state: GameState, card: ArenaCard, side: Side, x: number, y: number): Entity {
-  const m = levelMult(state.levels[side][card.key] ?? 1);
+export function createGame(seed: number, playerDeck: string[], botDeck?: string[], opts: GameOpts = {}): GameState {
+  botDeck ??= pickBotDeck(seed, opts.arena);
+  const botLevel = opts.pvp ? 1 : botLevelForArena(opts.arena ?? 0);
+  const botLevels: Record<string, number> = {};
+  for (const c of ARENA_CARDS) botLevels[c.key] = botLevel;
+  return buildState(seed, [playerDeck, botDeck], [opts.levels ?? {}, botLevels]);
+}
+
+/** Partida em duplas: 4 baralhos (jogadores 0–1 = lado 0, 2–3 = lado 1), todos no nível 1. */
+export function createGameDuo(seed: number, decks: string[][]): GameState {
+  return buildState(seed, decks, decks.map(() => ({})));
+}
+
+function makeUnit(state: GameState, card: ArenaCard, side: Side, player: number, x: number, y: number): Entity {
+  const m = levelMult(state.levels[player][card.key] ?? 1);
   const hp = Math.round((card.hp ?? 100) * m);
   return {
     id: state.nextId++, side, type: "unit", card: card.key, lane: -1, x, y, px: x, py: y,
@@ -112,12 +127,12 @@ function spawnOffsets(n: number, side: Side): [number, number][] {
   return [[0, 0]];
 }
 
-function castSpell(state: GameState, card: ArenaCard, side: Side, x: number, y: number, ev: GameEvent[]) {
+function castSpell(state: GameState, card: ArenaCard, side: Side, player: number, x: number, y: number, ev: GameEvent[]) {
   const r = card.radiusSpell ?? 2;
   for (const e of state.entities) {
     if (e.side === side || e.hp <= 0) continue;
     if (dist(x, y, e.x, e.y) > r + e.radius) continue;
-    const dmg = (card.spellDmg ?? 0) * levelMult(state.levels[side][card.key] ?? 1) * (e.type === "tower" ? (card.towerMult ?? 1) : 1);
+    const dmg = (card.spellDmg ?? 0) * levelMult(state.levels[player][card.key] ?? 1) * (e.type === "tower" ? (card.towerMult ?? 1) : 1);
     e.hp -= dmg;
     ev.push({ t: "hit", id: e.id, x: e.x, y: e.y, dmg, side: e.side });
     if (card.slow && e.type === "unit") {
@@ -130,25 +145,28 @@ function castSpell(state: GameState, card: ArenaCard, side: Side, x: number, y: 
 
 /** Aplica uma jogada. Devolve false (e não muda nada) se for inválida. */
 export function applyInput(state: GameState, input: Input, ev: GameEvent[] = []): boolean {
-  const { side, slot, x, y } = input;
-  if (state.over || (side !== 0 && side !== 1)) return false;
+  const { slot, x, y } = input;
+  const player = input.player ?? input.side;
+  if (state.over || !Number.isInteger(player) || player < 0 || player >= state.players) return false;
+  const side = teamOf(state.players, player);
+  if (input.side !== side) return false;
   if (!Number.isInteger(slot) || slot < 0 || slot >= HAND_SIZE) return false;
   if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
-  const key = state.slots[side][slot];
+  const key = state.slots[player][slot];
   const card = ARENA_CARD_BY_KEY.get(key);
   if (!card) return false;
-  if (state.mana[side] + 1e-9 < card.cost) return false;
+  if (state.mana[player] + 1e-9 < card.cost) return false;
   if (card.kind === "unit" ? !inDeployZone(side, x, y) : !inField(x, y)) return false;
 
-  state.mana[side] -= card.cost;
-  state.slots[side][slot] = state.queue[side].shift()!;
-  state.queue[side].push(key);
+  state.mana[player] -= card.cost;
+  state.slots[player][slot] = state.queue[player].shift()!;
+  state.queue[player].push(key);
 
   if (card.kind === "spell") {
-    castSpell(state, card, side, x, y, ev);
+    castSpell(state, card, side, player, x, y, ev);
   } else {
     for (const [ox, oy] of spawnOffsets(card.count ?? 1, side)) {
-      state.entities.push(makeUnit(state, card, side, Math.min(W - 0.3, Math.max(0.3, x + ox)), y + oy));
+      state.entities.push(makeUnit(state, card, side, player, Math.min(W - 0.3, Math.max(0.3, x + ox)), y + oy));
     }
     ev.push({ t: "spawn", x, y, card: card.key });
   }
@@ -362,8 +380,7 @@ export function step(state: GameState, inputs: Input[], bots: Side[] = [1]): Gam
   }
 
   const rate = (state.tick >= DOUBLE_MANA_TICK ? 2 : 1) / (MANA_SECS_PER_POINT * TICKS_PER_SEC);
-  state.mana[0] = Math.min(MANA_MAX, state.mana[0] + rate);
-  state.mana[1] = Math.min(MANA_MAX, state.mana[1] + rate);
+  for (let i = 0; i < state.mana.length; i++) state.mana[i] = Math.min(MANA_MAX, state.mana[i] + rate);
 
   for (const e of state.entities.slice()) {
     if (e.hp <= 0) continue;
@@ -408,8 +425,7 @@ export function stateHash(state: GameState): number {
   };
   mix(state.crowns[0]);
   mix(state.crowns[1]);
-  mix(state.mana[0]);
-  mix(state.mana[1]);
+  for (const m of state.mana) mix(m);
   for (const e of state.entities) {
     mix(e.id);
     mix(e.x);

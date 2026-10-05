@@ -24,7 +24,10 @@ import {
 /** Quem comanda a partida: contra o computador ou 1x1 (lockstep). */
 export type PlayDriver = {
   game: GameState;
+  /** lado (equipe) de quem joga: define a visão do campo e as coroas */
   mySide: Side;
+  /** número do jogador (só nas duplas, 0–3); no resto é igual ao lado */
+  myPlayer?: number;
   /** índice da arena (cenário) */
   arena: number;
   /** nome de quem está do outro lado */
@@ -190,7 +193,7 @@ export function ArenaPlayfield({
       // zona de colocação quando há uma carta de tropa escolhida (sempre embaixo, na tela)
       const sel = selectedRef.current;
       if (sel !== null) {
-        const card = ARENA_CARD_BY_KEY.get(game.slots[mySide][sel]);
+        const card = ARENA_CARD_BY_KEY.get(game.slots[driverRef.current.myPlayer ?? mySide][sel]);
         if (card?.kind === "unit") {
           const pulse = 0.16 + Math.sin(tickF * 0.25) * 0.05;
           ctx.fillStyle = `rgba(255,255,255,${pulse})`;
@@ -438,13 +441,14 @@ export function ArenaPlayfield({
         }
         if (game.tick % 4 === 0 || game.over) {
           const me = d.mySide;
+          const pl = d.myPlayer ?? me;
           setHud({
-            mana: game.mana[me],
+            mana: game.mana[pl],
             tick: game.tick,
             mine: game.crowns[me],
             theirs: game.crowns[1 - me],
-            slots: [...game.slots[me]],
-            next: game.queue[me][0],
+            slots: [...game.slots[pl]],
+            next: game.queue[pl][0],
           });
         }
       }
@@ -470,7 +474,7 @@ export function ArenaPlayfield({
 
   useEffect(() => {
     const game = driver.game;
-    const me = driver.mySide;
+    const me = driver.myPlayer ?? driver.mySide;
     setHud({ mana: game.mana[me], tick: game.tick, mine: 0, theirs: 0, slots: [...game.slots[me]], next: game.queue[me][0] });
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -502,7 +506,7 @@ export function ArenaPlayfield({
     const gy = vy(y);
     if (!d.place(slot, gx, gy)) return;
     if (d.inputDelay > 0) {
-      const card = ARENA_CARD_BY_KEY.get(d.game.slots[d.mySide][slot]);
+      const card = ARENA_CARD_BY_KEY.get(d.game.slots[d.myPlayer ?? d.mySide][slot]);
       fxRef.current.push({ k: "mark", x, y, emoji: card?.emoji ?? "❔", t0: d.game.tick, dur: d.inputDelay + 1 });
     }
     setSelected(null);

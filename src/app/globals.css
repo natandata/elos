@@ -398,3 +398,59 @@ input[type="datetime-local"] {
 .arena-card-in {
   animation: arena-card-in 0.38s cubic-bezier(0.2, 0.9, 0.3, 1) both;
 }
+
+/* ------------------------------------------------------------ Arena: tela inicial (estilo "lobby" de jogo) */
+.cr-pattern {
+  background-color: #2b6cb0;
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.07) 25%, transparent 25%),
+    linear-gradient(225deg, rgba(255, 255, 255, 0.07) 25%, transparent 25%),
+    linear-gradient(45deg, rgba(0, 20, 60, 0.1) 25%, transparent 25%),
+    linear-gradient(315deg, rgba(0, 20, 60, 0.1) 25%, transparent 25%);
+  background-size: 56px 56px;
+  background-position: 28px 0, 28px 0, 0 0, 0 0;
+}
+.cr-text {
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: 0.01em;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.55), 0 0 8px rgba(0, 0, 0, 0.3);
+  -webkit-text-stroke: 0.6px rgba(0, 0, 0, 0.35);
+}
+.cr-panel {
+  border: 3px solid #123a73;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #4d95de 0%, #2d6dbf 100%);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.45), inset 0 -4px 0 rgba(0, 0, 40, 0.18), 0 3px 0 #0c2a58;
+}
+.cr-btn {
+  border: 3px solid #0b1f44;
+  border-radius: 14px;
+  box-shadow: inset 0 4px 0 rgba(255, 255, 255, 0.55), inset 0 -7px 0 rgba(0, 0, 0, 0.22), 0 5px 0 #0b1f44;
+  transition: transform 0.08s, box-shadow 0.08s;
+}
+.cr-btn:active {
+  transform: translateY(4px);
+  box-shadow: inset 0 4px 0 rgba(255, 255, 255, 0.45), inset 0 -5px 0 rgba(0, 0, 0, 0.2), 0 1px 0 #0b1f44;
+}
+.cr-btn-yellow {
+  background: linear-gradient(180deg, #ffd95a 0%, #ffb21c 60%, #f59e0b 100%);
+}
+.cr-btn-blue {
+  background: linear-gradient(180deg, #5eb0ff 0%, #2f86e8 60%, #2368c9 100%);
+}
+.cr-slot {
+  border: 3px solid #123a73;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #3d7fc9 0%, #2a5fa8 100%);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.35), 0 3px 0 #0c2a58;
+}
+.cr-slot-open {
+  background: linear-gradient(180deg, #7ee27a 0%, #3fae4a 100%);
+  border-color: #1b5e24;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.5), 0 3px 0 #123e18;
+}
+.cr-bar {
+  background: linear-gradient(180deg, #17315f 0%, #0c1c3d 100%);
+  border-top: 3px solid #3b6fb8;
+}

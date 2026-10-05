@@ -18,6 +18,7 @@ const ACTIVITY_LABEL: Record<string, { icon: string; verb: string }> = {
   game_duel: { icon: "⚔️", verb: "terminou um duelo" },
   arena_match: { icon: "🏰", verb: "jogou na Arena dos Heróis" },
   arena_pvp: { icon: "🛡️", verb: "jogou um 1x1 na Arena" },
+  arena_duo: { icon: "👥", verb: "jogou em duplas na Arena" },
 };
 
 export default async function AdminDashboard() {

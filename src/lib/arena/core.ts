@@ -64,22 +64,31 @@ export type GameState = {
   tick: number;
   seed: number;
   nextId: number;
-  mana: [number, number];
+  /** quantos jogadores (2 = 1x1 ou contra o computador; 4 = duplas) */
+  players: number;
+  /** Maná, mão e fila são de cada JOGADOR; as construções e coroas são de cada LADO (equipe) */
+  mana: number[];
   /** cartas na mão (HAND_SIZE) e fila das próximas, por lado */
-  slots: [string[], string[]];
-  queue: [string[], string[]];
+  slots: string[][];
+  queue: string[][];
   entities: Entity[];
   crowns: [number, number];
   /** nível de cada carta, por lado (1 se faltar) */
-  levels: [Record<string, number>, Record<string, number>];
+  levels: Record<string, number>[];
   /** estado dos sorteios do computador e do embaralhar */
-  rng: [number, number];
+  rng: number[];
   over: boolean;
   /** null + over = empate */
   winner: Side | null;
 };
 
-export type Input = { tick: number; side: Side; slot: number; x: number; y: number };
+/** `side` é o lado (equipe); `player` só existe nas duplas (0–3) e, se faltar, vale o próprio lado. */
+export type Input = { tick: number; side: Side; slot: number; x: number; y: number; player?: number };
+
+/** De que lado (equipe) está o jogador. Nas duplas: 0–1 = lado 0, 2–3 = lado 1. */
+export function teamOf(players: number, player: number): Side {
+  return players <= 2 ? (player as Side) : ((player < players / 2 ? 0 : 1) as Side);
+}
 
 /** Eventos só pra animação: não fazem parte do estado do jogo (nem da verificação). */
 export type GameEvent =

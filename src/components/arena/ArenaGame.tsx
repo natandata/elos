@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/ui";
 import { useCallback, useRef, useState } from "react";
 import { finishArena, saveArenaDeck, startArena, upgradeArenaCard, type ArenaFinish } from "@/lib/actions/arena";
 import { DeckBuilder } from "./DeckBuilder";
+import { ArenaHome, type ArenaTab, type RankRow } from "./ArenaHome";
 import { ARENA_CARD_BY_KEY } from "@/lib/arena/cards";
 import { ARENAS, TROPHY_LOSS, TROPHY_WIN, arenaProgress, cardsUnlockedIn } from "@/lib/arena/arenas";
 import { CardArt } from "./CardArt";
@@ -14,13 +15,13 @@ import { createGame, step } from "@/lib/arena/engine";
 
 type Phase = "intro" | "playing" | "finishing" | "result";
 
-export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, initialBest, initialScrolls, initialLevels, eloRanking, myEloId }: { winsToday: number; maxWins: number; initialDeck: string[]; initialTrophies: number; initialBest: number; initialScrolls: number; initialLevels: Record<string, number>; eloRanking: { id: string; name: string; points: number }[]; myEloId: string | null }) {
+export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, initialBest, initialScrolls, initialLevels, eloRanking, myEloId, trophyRanking, myId, missionsHref, invites }: { winsToday: number; maxWins: number; initialDeck: string[]; initialTrophies: number; initialBest: number; initialScrolls: number; initialLevels: Record<string, number>; eloRanking: { id: string; name: string; points: number }[]; myEloId: string | null; trophyRanking: RankRow[]; myId: string; missionsHref: string; invites: number }) {
   const [scrolls, setScrolls] = useState(initialScrolls);
   const [levels, setLevels] = useState<Record<string, number>>(initialLevels);
   const [trophies, setTrophies] = useState(initialTrophies);
   const [best, setBest] = useState(Math.max(initialBest, initialTrophies));
   const [deck, setDeck] = useState<string[]>(initialDeck);
-  const [editing, setEditing] = useState(false);
+  const [tab, setTab] = useState<ArenaTab>("battle");
   const [savingDeck, setSavingDeck] = useState(false);
   const [phase, setPhase] = useState<Phase>("intro");
   const [error, setError] = useState<string | null>(null);
@@ -86,149 +87,59 @@ export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, in
   }
 
   // ------------------------------------------------------------ telas
-  const header = <PageHeader title="🏰 Arena dos Heróis" subtitle="Enfrente o computador com heróis e poderes bíblicos." />;
-
-  const prog = arenaProgress(trophies);
-
-  if (phase === "intro" && editing) {
-    return (
-      <div>
-        {header}
-        <DeckBuilder
-          initial={deck}
-          best={best}
-          levels={levels}
-          scrolls={scrolls}
-          onUpgrade={async (key) => {
-            const r = await upgradeArenaCard(key).catch(() => ({ error: "Sem conexão. Tente de novo." } as { error?: string; level?: number; scrolls?: number }));
-            if (r.error) return r.error;
-            if (typeof r.level === "number") setLevels((l) => ({ ...l, [key]: r.level as number }));
-            if (typeof r.scrolls === "number") setScrolls(r.scrolls);
-            return null;
-          }}
-          saving={savingDeck}
-          error={error}
-          onCancel={() => setEditing(false)}
-          onSave={async (d) => {
-            setSavingDeck(true);
-            setError(null);
-            const r = await saveArenaDeck(d).catch(() => ({ error: "Sem conexão. Tente de novo." }));
-            setSavingDeck(false);
-            if (r.error) return setError(r.error);
-            setDeck(d);
-            setEditing(false);
-          }}
-        />
-      </div>
-    );
-  }
-
   if (phase === "intro") {
     return (
-      <div>
-        {header}
-        <div className="card mb-4 overflow-hidden p-0">
-          <div className="flex items-center gap-3 p-4" style={{ background: `linear-gradient(135deg, ${prog.cur.theme.grass}, ${prog.cur.theme.grassAlt})` }}>
-            <span className="text-5xl drop-shadow" aria-hidden>{prog.cur.emoji}</span>
-            <div className="min-w-0 flex-1 text-slate-900">
-              <p className="text-xs font-black uppercase tracking-wide opacity-70">Arena {prog.idx + 1} de {ARENAS.length}</p>
-              <p className="text-xl font-black leading-tight">{prog.cur.name}</p>
-              <p className="text-xs font-semibold opacity-80">{prog.cur.blurb} <span className="whitespace-nowrap">({prog.cur.ref})</span></p>
-            </div>
-            <p className="rounded-2xl bg-black/65 px-3 py-1.5 text-center text-white">
-              <span className="block text-2xl font-black leading-none tabular-nums">🏆 {trophies}</span>
-              <span className="mt-0.5 block text-xs font-bold tabular-nums text-violet-200">📜 {scrolls}</span>
-            </p>
-          </div>
-          <div className="p-3">
-            {prog.next ? (
-              <>
-                <div className="h-2.5 overflow-hidden rounded-full bg-[var(--line)]">
-                  <div className="h-full rounded-full bg-amber-400" style={{ width: `${prog.pct}%` }} />
-                </div>
-                <p className="mt-1 text-xs font-bold text-[var(--muted)]">
-                  Faltam {prog.next.min - trophies} 🏆 para {prog.next.emoji} {prog.next.name}
-                </p>
-                <p className="text-xs font-bold text-violet-500">
-                  🔓 Libera: {cardsUnlockedIn(prog.idx + 1).map((k) => ARENA_CARD_BY_KEY.get(k)?.name).join(" e ")}
-                </p>
-              </>
-            ) : (
-              <p className="text-xs font-bold text-[var(--muted)]">Você chegou à última arena. 🎉</p>
-            )}
-            <p className="mt-1 text-xs text-[var(--muted)]">Vitória: +{TROPHY_WIN} 🏆 · Derrota: −{TROPHY_LOSS} 🏆</p>
-            <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-              {ARENAS.map((a, i) => (
-                <div key={a.key} className={`w-[84px] shrink-0 rounded-xl border-2 p-2 text-center ${i === prog.idx ? "border-amber-400" : "border-[var(--line)]"} ${trophies >= a.min ? "" : "opacity-50"}`}>
-                  <span className="text-2xl" aria-hidden>{trophies >= a.min ? a.emoji : "🔒"}</span>
-                  <p className="text-[10px] font-bold leading-tight">{a.name}</p>
-                  <p className="text-[10px] font-bold text-[var(--muted)]">🏆 {a.min}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-        {eloRanking.length > 0 ? (
-          <div className="card mb-4 p-4">
-            <p className="text-sm font-black uppercase tracking-wide text-[var(--muted)]">🏅 Elo vs Elo da semana</p>
-            <ul className="mt-2 space-y-1">
-              {eloRanking.slice(0, 5).map((r, i) => (
-                <li key={r.id} className={`flex items-center gap-2 rounded-lg px-2 py-1 text-sm font-bold ${r.id === myEloId ? "bg-amber-400/20" : ""}`}>
-                  <span className="w-5 text-center">{["🥇", "🥈", "🥉"][i] ?? i + 1}</span>
-                  <span className="min-w-0 flex-1 truncate">{r.name}</span>
-                  <span className="tabular-nums">{r.points} pts</span>
-                </li>
-              ))}
-            </ul>
-            <p className="mt-2 text-xs text-[var(--muted)]">
-              Suas vitórias valem pontos pro seu Elo: +1 contra o computador e +2 no 1x1 (até 5 por dia). Esses pontos também entram no ranking dos Jogos.
-            </p>
-          </div>
-        ) : null}
-        <div className="card mb-4 p-5">
-          <p className="text-lg font-black">Como jogar</p>
-          <ul className="mt-2 space-y-1.5 text-sm font-semibold text-[var(--muted)]">
-            <li>💧 O Maná enche sozinho. Cada carta custa um pouco dele.</li>
-            <li>👆 Toque numa carta e depois no campo (na sua metade) pra colocar o herói.</li>
-            <li>🗼 Derrube as Atalaias (1 coroa) e o Santuário (3 coroas) do computador.</li>
-            <li>⏱️ São 3 minutos. No último minuto o Maná enche em dobro!</li>
-          </ul>
-        </div>
-        <div className="mb-2 flex items-center justify-between">
-          <p className="text-sm font-bold uppercase tracking-wide text-[var(--muted)]">Seu baralho</p>
-          <button type="button" onClick={() => { setError(null); setEditing(true); }} className="text-sm font-black text-violet-600">✏️ Montar baralho</button>
-        </div>
-        <div className="mb-4 grid grid-cols-4 gap-2">
-          {deck.map((k) => {
-            const c = ARENA_CARD_BY_KEY.get(k)!;
-            return (
-              <div key={k} className="relative rounded-2xl border-2 border-[var(--line)] bg-[var(--card)] p-2 text-center">
-                <span className="absolute -left-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-violet-600 text-xs font-black text-white">{c.cost}</span>
-                <div className="flex h-14 items-end justify-center">
-                  {c.art ? <CardArt card={c} className="h-14" /> : <span className="text-3xl" aria-hidden>{c.emoji}</span>}
-                </div>
-                <p className="mt-1 text-[10px] font-bold leading-tight">{c.name}</p>
-                <p className="text-[9px] font-black text-violet-500">Nv.{levels[k] ?? 1}</p>
-              </div>
-            );
-          })}
-        </div>
-        <p className="mb-3 text-center text-sm font-bold text-[var(--muted)]">
-          Vitória do dia que vale XP: {winsToday}/{maxWins} · +1 XP
-        </p>
-        {error ? <p className="mb-3 text-center text-sm font-semibold text-rose-600">{error}</p> : null}
-        <button type="button" onClick={begin} className="btn btn-primary w-full !py-4 !text-lg">
-          ⚔️ Jogar contra o computador
-        </button>
-        <Link href="/app/jogos/arena/pvp" className="btn btn-ghost mt-3 w-full !border-2 !border-amber-400 !font-black">
-          ⚔️ Desafiar um colega (1x1)
-        </Link>
-        <Link href="/app/jogos" className="btn btn-ghost mt-3 w-full">
-          ← Voltar aos jogos
-        </Link>
-      </div>
+      <ArenaHome
+        tab={tab}
+        setTab={(t) => {
+          setError(null);
+          setTab(t);
+        }}
+        trophies={trophies}
+        scrolls={scrolls}
+        winsToday={winsToday}
+        maxWins={maxWins}
+        eloRanking={eloRanking}
+        myEloId={myEloId}
+        trophyRanking={trophyRanking}
+        myId={myId}
+        missionsHref={missionsHref}
+        invites={invites}
+        onBattle={begin}
+        error={error}
+        cards={
+          <DeckBuilder
+            key={tab}
+            initial={deck}
+            best={best}
+            levels={levels}
+            scrolls={scrolls}
+            onUpgrade={async (key) => {
+              const r = await upgradeArenaCard(key).catch(() => ({ error: "Sem conexão. Tente de novo." }) as { error?: string; level?: number; scrolls?: number });
+              if (r.error) return r.error;
+              if (typeof r.level === "number") setLevels((l) => ({ ...l, [key]: r.level as number }));
+              if (typeof r.scrolls === "number") setScrolls(r.scrolls);
+              return null;
+            }}
+            saving={savingDeck}
+            error={error}
+            onCancel={() => setTab("battle")}
+            onSave={async (d) => {
+              setSavingDeck(true);
+              setError(null);
+              const r = await saveArenaDeck(d).catch(() => ({ error: "Sem conexão. Tente de novo." }));
+              setSavingDeck(false);
+              if (r.error) return setError(r.error);
+              setDeck(d);
+              setTab("battle");
+            }}
+          />
+        }
+      />
     );
   }
+
+  const header = <PageHeader title="🏰 Arena dos Heróis" subtitle="Enfrente o computador com heróis e poderes bíblicos." />;
 
   if (phase === "result" || phase === "finishing") {
     const r = verdict;
