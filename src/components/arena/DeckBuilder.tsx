@@ -7,7 +7,7 @@ import { CardArt } from "./CardArt";
 
 const SIZE = 8;
 
-function Tile({ card, picked, locked, level, onClick }: { card: ArenaCard; picked?: boolean; locked?: boolean; level?: number; onClick?: () => void }) {
+function Tile({ card, picked, locked, level, copies, onClick }: { card: ArenaCard; picked?: boolean; locked?: boolean; level?: number; copies?: number; onClick?: () => void }) {
   return (
     <button
       type="button"
@@ -26,6 +26,17 @@ function Tile({ card, picked, locked, level, onClick }: { card: ArenaCard; picke
       </div>
       <p className="mt-1 text-[10px] font-bold leading-tight">{card.name}</p>
       {level ? <p className="text-[9px] font-black text-violet-500">Nv.{level}</p> : null}
+      {level && level < MAX_CARD_LEVEL ? (
+        <div className="relative mx-auto mt-0.5 h-3 w-full overflow-hidden rounded-full bg-black/25">
+          <div
+            className={`h-full ${(copies ?? 0) >= upgradeCost(level + 1) ? "bg-emerald-500" : "bg-sky-500"}`}
+            style={{ width: `${Math.min(100, ((copies ?? 0) / upgradeCost(level + 1)) * 100)}%` }}
+          />
+          <span className="absolute inset-0 flex items-center justify-center text-[8px] font-black leading-none text-white [text-shadow:0_0_2px_#000]">
+            {copies ?? 0}/{upgradeCost(level + 1)}
+          </span>
+        </div>
+      ) : null}
     </button>
   );
 }
@@ -49,7 +60,7 @@ export function DeckBuilder({
   initial,
   best,
   levels,
-  scrolls,
+  copies,
   onUpgrade,
   saving,
   error,
@@ -59,7 +70,7 @@ export function DeckBuilder({
   initial: string[];
   best: number;
   levels: Record<string, number>;
-  scrolls: number;
+  copies: Record<string, number>;
   onUpgrade: (key: string) => Promise<string | null>;
   saving: boolean;
   error: string | null;
@@ -89,14 +100,14 @@ export function DeckBuilder({
           Seu baralho · {deck.length}/{SIZE}
         </p>
         <p className="text-sm font-black">
-          💧 {avg.toFixed(1)} <span className="text-xs font-bold text-[var(--muted)]">custo médio</span>
+          🍞 {avg.toFixed(1)} <span className="text-xs font-bold text-[var(--muted)]">custo médio</span>
         </p>
       </div>
       <div className="mb-4 grid grid-cols-4 gap-2">
         {Array.from({ length: SIZE }, (_, i) => {
           const c = deck[i] ? ARENA_CARD_BY_KEY.get(deck[i]) : undefined;
           return c ? (
-            <Tile key={c.key} card={c} picked level={levels[c.key] ?? 1} onClick={() => toggle(c.key)} />
+            <Tile key={c.key} card={c} picked level={levels[c.key] ?? 1} copies={copies[c.key] ?? 0} onClick={() => toggle(c.key)} />
           ) : (
             <div key={i} className="flex h-[104px] items-center justify-center rounded-2xl border-2 border-dashed border-[var(--line)] text-xl font-black text-[var(--muted)]">
               +
@@ -118,7 +129,7 @@ export function DeckBuilder({
             ) : (
               <button
                 type="button"
-                disabled={upBusy || scrolls < upgradeCost((levels[detail.key] ?? 1) + 1)}
+                disabled={upBusy || (copies[detail.key] ?? 0) < upgradeCost((levels[detail.key] ?? 1) + 1)}
                 onClick={async () => {
                   setUpBusy(true);
                   setUpMsg(await onUpgrade(detail.key));
@@ -126,7 +137,7 @@ export function DeckBuilder({
                 }}
                 className="btn btn-ghost mt-2 !py-2 !text-sm disabled:opacity-50"
               >
-                ⬆️ Evoluir para Nv.{(levels[detail.key] ?? 1) + 1} · {upgradeCost((levels[detail.key] ?? 1) + 1)} 📜 <span className="text-[var(--muted)]">(você tem {scrolls})</span>
+                ⬆️ Evoluir para Nv.{(levels[detail.key] ?? 1) + 1} · <span className="text-[var(--muted)]">{copies[detail.key] ?? 0}/{upgradeCost((levels[detail.key] ?? 1) + 1)} cartas</span>
               </button>
             )
           ) : null}
@@ -145,7 +156,7 @@ export function DeckBuilder({
           .sort((a, b) => (CARD_UNLOCK_ARENA[a.key] ?? 0) - (CARD_UNLOCK_ARENA[b.key] ?? 0) || a.cost - b.cost)
           .map((c) => (
             <div key={c.key} className={deck.includes(c.key) ? "opacity-45" : ""}>
-              <Tile card={c} locked={!isCardUnlocked(c.key, best)} level={isCardUnlocked(c.key, best) ? (levels[c.key] ?? 1) : undefined} onClick={() => toggle(c.key)} />
+              <Tile card={c} locked={!isCardUnlocked(c.key, best)} level={isCardUnlocked(c.key, best) ? (levels[c.key] ?? 1) : undefined} copies={copies[c.key] ?? 0} onClick={() => toggle(c.key)} />
             </div>
           ))}
       </div>

@@ -3,10 +3,6 @@
 export const TROPHY_WIN = 30;
 export const TROPHY_LOSS = 20;
 
-/** Pergaminhos 📜 por partida (precisa durar pelo menos 75 s, como o XP). */
-export const SCROLLS_WIN = 30;
-export const SCROLLS_OTHER = 10;
-
 export type ArenaTheme = {
   grass: string;
   grassAlt: string;

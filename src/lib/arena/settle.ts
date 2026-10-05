@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isValidDeck } from "./cards";
-import { ARENAS, SCROLLS_OTHER, SCROLLS_WIN, arenaIndexFor, deckAllowed, trophyDelta, TROPHY_LOSS } from "./arenas";
+import { ARENAS, arenaIndexFor, deckAllowed, trophyDelta, TROPHY_LOSS } from "./arenas";
+import { COPIES_OTHER, COPIES_WIN, pickBattleCard, unlockedCards } from "./economy";
 import { MATCH_TICKS, type Input } from "./core";
 import { MAX_INPUTS, simulate } from "./sim";
 
@@ -17,16 +18,16 @@ export type ArenaFinish = {
   winsToday?: number;
   trophyDelta?: number;
   trophies?: number;
-  /** Pergaminhos ganhos nesta partida e o total depois dela. */
-  scrolls?: number;
-  scrollsTotal?: number;
+  /** Cópias de carta ganhas nesta partida e qual carta recebeu. */
+  copies?: number;
+  copyCard?: string;
   /** Nome da arena nova, quando a partida fez o jogador subir de arena. */
   arenaUp?: string;
 };
 
-async function statsOf(admin: SupabaseClient, userId: string): Promise<{ trophies: number; best: number; scrolls: number }> {
-  const { data } = await admin.from("arena_stats").select("trophies, best, scrolls").eq("user_id", userId).maybeSingle<{ trophies: number; best: number; scrolls: number }>();
-  return { trophies: data?.trophies ?? 0, best: data?.best ?? 0, scrolls: data?.scrolls ?? 0 };
+async function statsOf(admin: SupabaseClient, userId: string): Promise<{ trophies: number; best: number }> {
+  const { data } = await admin.from("arena_stats").select("trophies, best").eq("user_id", userId).maybeSingle<{ trophies: number; best: number }>();
+  return { trophies: data?.trophies ?? 0, best: data?.best ?? 0 };
 }
 
 /** Partida aberta e deixada pra trás (aba fechada, desistência calada) conta como derrota. */
@@ -111,13 +112,14 @@ export async function settleArena(
   if (result === "win" && elapsed >= MIN_SECONDS_FOR_XP && (winsBefore ?? 0) < MAX_XP_WINS_PER_DAY) xp = 1;
 
   const before = stats.trophies;
-  const scrolls = elapsed >= MIN_SECONDS_FOR_XP ? (result === "win" ? SCROLLS_WIN : SCROLLS_OTHER) : 0;
+  const copies = elapsed >= MIN_SECONDS_FOR_XP ? (result === "win" ? COPIES_WIN : COPIES_OTHER) : 0;
+  const copyCard = copies > 0 ? pickBattleCard(unlockedCards(stats.best), match.deck) : null;
   const delta = trophyDelta(result, result === "win" && elapsed < MIN_SECONDS_FOR_XP);
 
   // fecha UMA vez (condicional): duas chamadas juntas não pagam duas vezes
   const { data: closed } = await admin
     .from("arena_matches")
-    .update({ status: "finished", result, crowns_me: crownsMe, crowns_bot: crownsBot, xp_awarded: xp, trophy_delta: delta, scrolls_awarded: scrolls, finished_at: new Date().toISOString() })
+    .update({ status: "finished", result, crowns_me: crownsMe, crowns_bot: crownsBot, xp_awarded: xp, trophy_delta: delta, copies_awarded: copyCard ? copies : 0, reward_card: copyCard, finished_at: new Date().toISOString() })
     .eq("id", match.id)
     .eq("status", "open")
     .select("id");
@@ -125,10 +127,10 @@ export async function settleArena(
 
   if (xp > 0) await admin.rpc("game_grant_xp", { p_user: userId, p_amount: xp, p_type: "game_arena" });
 
-  await admin.rpc("arena_apply_result", { p_user: userId, p_delta: delta, p_result: result, p_scrolls: scrolls });
+  await admin.rpc("arena_apply_result", { p_user: userId, p_delta: delta, p_result: result, p_copies: copies, p_card: copyCard });
   const after = await statsOf(admin, userId);
   const trophies = after.trophies;
   const up = arenaIndexFor(trophies) > arenaIndexFor(before) ? ARENAS[arenaIndexFor(trophies)].name : undefined;
 
-  return { result, crownsMe, crownsBot, xp, winsToday: (winsBefore ?? 0) + (xp > 0 ? 1 : 0), trophyDelta: trophies - before, trophies, scrolls, scrollsTotal: after.scrolls, arenaUp: up };
+  return { result, crownsMe, crownsBot, xp, winsToday: (winsBefore ?? 0) + (xp > 0 ? 1 : 0), trophyDelta: trophies - before, trophies, copies: copyCard ? copies : 0, copyCard: copyCard ?? undefined, arenaUp: up };
 }

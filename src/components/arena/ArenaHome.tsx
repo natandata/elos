@@ -10,7 +10,7 @@ import type { GateInfo } from "@/lib/arena/gate";
 
 export type RankRow = { id: string; name: string; avatar: string | null; elo: string | null; trophies: number };
 export type EloRow = { id: string; name: string; points: number };
-export type ArenaTab = "battle" | "cards" | "ranking" | "info";
+export type ArenaTab = "battle" | "cards" | "chests" | "ranking" | "info";
 
 const MIN_RANK_TROPHIES = 30;
 
@@ -33,7 +33,7 @@ function MiniBtn({ children, label, badge, onClick, href }: { children: ReactNod
   );
 }
 
-function Slot({ icon, iconSrc, title, sub, open, href }: { icon: string; iconSrc?: string; title: string; sub: string; open?: boolean; href?: string }) {
+function Slot({ icon, iconSrc, title, sub, open, href, onClick }: { icon: string; iconSrc?: string; title: string; sub: string; open?: boolean; href?: string; onClick?: () => void }) {
   const body = (
     <div className={`cr-slot ${open ? "cr-slot-open" : ""} flex h-full flex-col items-center justify-between px-1 py-1.5 text-center`}>
       <p className="cr-text text-[10px] leading-none">{title}</p>
@@ -48,7 +48,11 @@ function Slot({ icon, iconSrc, title, sub, open, href }: { icon: string; iconSrc
       <p className="cr-text text-[11px] leading-none">{sub}</p>
     </div>
   );
-  return href ? (
+  return onClick ? (
+    <button type="button" onClick={onClick} className="block h-[92px] w-full active:translate-y-[2px]">
+      {body}
+    </button>
+  ) : href ? (
     <Link href={href} className="block h-[92px]">
       {body}
     </Link>
@@ -61,7 +65,8 @@ export function ArenaHome({
   tab,
   setTab,
   trophies,
-  scrolls,
+  dailyChestReady,
+  chests,
   winsToday,
   maxWins,
   eloRanking,
@@ -78,7 +83,8 @@ export function ArenaHome({
   tab: ArenaTab;
   setTab: (t: ArenaTab) => void;
   trophies: number;
-  scrolls: number;
+  dailyChestReady: boolean;
+  chests: ReactNode;
   winsToday: number;
   maxWins: number;
   eloRanking: EloRow[];
@@ -100,6 +106,7 @@ export function ArenaHome({
 
   const tabs: { key: ArenaTab; icon: string; label: string }[] = [
     { key: "cards", icon: "🃏", label: "Cartas" },
+    { key: "chests", icon: "🎁", label: "Baús" },
     { key: "battle", icon: "⚔️", label: "Batalha" },
     { key: "ranking", icon: "🏆", label: "Ranking" },
     { key: "info", icon: "📜", label: "Regras" },
@@ -206,8 +213,8 @@ export function ArenaHome({
 
             {/* espaços de recompensa */}
             <div className="mt-3 grid grid-cols-4 gap-2">
-              <Slot open icon="🎁" title="Baú do Dia" sub="Abrir" href="/app/jogos" />
-              <Slot icon="📜" title="Pergaminhos" sub={String(scrolls)} />
+              <Slot open={dailyChestReady} icon="🎁" title="Baú da Arena" sub={dailyChestReady ? "Abrir" : "Amanhã"} onClick={() => setTab("chests")} />
+              <Slot icon="🧰" title="Baús" sub="Troféus" onClick={() => setTab("chests")} />
               <Slot icon="⭐" title="XP de hoje" sub={`${winsToday}/${maxWins}`} />
               <Slot icon={prog.next ? prog.next.emoji : "👑"} iconSrc={prog.next?.art} title={prog.next ? "Próx. arena" : "Máxima"} sub={prog.next ? `${prog.next.min - trophies} 🏆` : "🎉"} />
             </div>
@@ -218,6 +225,8 @@ export function ArenaHome({
         ) : null}
 
         {tab === "cards" ? <div className="rounded-2xl bg-[var(--bg)]/95 p-3">{cards}</div> : null}
+
+        {tab === "chests" ? <div className="rounded-2xl bg-[var(--bg)]/95 p-3">{chests}</div> : null}
 
         {tab === "ranking" ? (
           <div className="rounded-2xl bg-[var(--bg)]/95 p-3">
@@ -283,7 +292,8 @@ export function ArenaHome({
               <li>🗼 Derrube as Atalaias (1 coroa) e o Santuário (3 coroas) do adversário.</li>
               <li>⏱️ São 3 minutos. No último minuto o Maná enche em dobro!</li>
               <li>🏆 Vitória dá +{TROPHY_WIN} troféus, derrota tira {TROPHY_LOSS}. Os troféus levam você pelas arenas, que liberam cartas novas.</li>
-              <li>📜 Pergaminhos servem pra evoluir cartas (no 1x1 e em duplas todo mundo joga no nível 1).</li>
+              <li>🃏 Cada partida e cada baú dão cartas. Juntando cópias de um herói (50, 100, 200…) ele evolui, até o nível 15. Baús comprados com troféus trazem mais cartas.</li>
+              <li>🎁 O Baú da Arena é grátis e abre 1 vez por dia.</li>
               <li>⚔️ No 1x1 e em Duplas você joga em tempo real contra colegas do seu Elo.</li>
             </ul>
           </div>
@@ -291,7 +301,7 @@ export function ArenaHome({
       </div>
 
       {/* barra de baixo */}
-      <nav className="cr-bar grid grid-cols-4">
+      <nav className="cr-bar grid grid-cols-5">
         {tabs.map((t) => {
           const on = tab === t.key;
           return (

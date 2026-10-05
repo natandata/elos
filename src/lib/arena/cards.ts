@@ -89,14 +89,15 @@ export function isValidDeck(deck: unknown): deck is string[] {
   );
 }
 
-export const MAX_CARD_LEVEL = 5;
-/** Pergaminhos pra chegar em cada nível (índice = nível de destino). */
-export const UPGRADE_COST = [0, 0, 100, 250, 600, 1200] as const;
+export const MAX_CARD_LEVEL = 15;
+/** Cartas (cópias) pra chegar em cada nível (índice = nível de destino). */
+export const UPGRADE_COST = [0, 0, 50, 100, 200, 400, 800, 1000, 1500, 2000, 3000, 4000, 5000, 6000, 8000, 10000] as const;
 /** +5% de vida e dano por nível. */
 export const levelMult = (level: number) => 1 + 0.05 * (Math.min(MAX_CARD_LEVEL, Math.max(1, Math.floor(level) || 1)) - 1);
+/** Cópias necessárias pra evoluir PARA `toLevel`. */
 export const upgradeCost = (toLevel: number) => UPGRADE_COST[toLevel] ?? 0;
 /** Nível das cartas do computador conforme a arena (0–7). */
-export const botLevelForArena = (arena: number) => Math.min(MAX_CARD_LEVEL, 1 + Math.floor(Math.max(0, arena) / 3));
+export const botLevelForArena = (arena: number) => Math.min(MAX_CARD_LEVEL, 1 + Math.floor(Math.max(0, arena) * 1.3));
 
 export const ATALAIA = { hp: 360, dmg: 26, atkSpeed: 0.9, range: 6, radius: 1.1 };
 export const SANTUARIO = { hp: 700, dmg: 30, atkSpeed: 1.0, range: 6.5, radius: 1.5 };

@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ARENA_CARD_BY_KEY, MAX_CARD_LEVEL, STARTER_DECK, isValidDeck, upgradeCost } from "@/lib/arena/cards";
 import { arenaIndexFor, deckAllowed, isCardUnlocked } from "@/lib/arena/arenas";
+import { CHEST_BY_KIND, rollChest, unlockedCards, type ChestKind, type CopyGrant } from "@/lib/arena/economy";
 import { gateMessage } from "@/lib/arena/gate";
 import { loadGate } from "@/lib/arena/gateServer";
 import { abandonOpenMatches, settleArena, type ArenaFinish } from "@/lib/arena/settle";
@@ -83,22 +84,50 @@ export async function saveArenaDeck(deck: string[]): Promise<{ error?: string }>
   return {};
 }
 
-/** Evolui uma carta (+1 nível) gastando Pergaminhos. */
-export async function upgradeArenaCard(card: string): Promise<{ error?: string; level?: number; scrolls?: number }> {
+/** Evolui uma carta (+1 nível) gastando as cópias que ela juntou. */
+export async function upgradeArenaCard(card: string): Promise<{ error?: string; level?: number; copies?: number }> {
   const { supabase, userId } = await currentPlayer();
   if (!ARENA_CARD_BY_KEY.has(card)) return { error: "Carta desconhecida." };
-  const { data: stats } = await supabase.from("arena_stats").select("best, scrolls").eq("user_id", userId).maybeSingle<{ best: number; scrolls: number }>();
+  const { data: stats } = await supabase.from("arena_stats").select("best").eq("user_id", userId).maybeSingle<{ best: number }>();
   if (!isCardUnlocked(card, stats?.best ?? 0)) return { error: "Você ainda não liberou essa carta." };
-  const { data: row } = await supabase.from("arena_card_levels").select("level").eq("user_id", userId).eq("card", card).maybeSingle<{ level: number }>();
+  const { data: row } = await supabase.from("arena_card_levels").select("level, copies").eq("user_id", userId).eq("card", card).maybeSingle<{ level: number; copies: number }>();
   const level = row?.level ?? 1;
+  const copies = row?.copies ?? 0;
   if (level >= MAX_CARD_LEVEL) return { error: "Essa carta já está no nível máximo." };
   const cost = upgradeCost(level + 1);
-  if ((stats?.scrolls ?? 0) < cost) return { error: `Faltam ${cost - (stats?.scrolls ?? 0)} 📜 pra evoluir.` };
+  if (copies < cost) return { error: `Faltam ${cost - copies} cartas pra evoluir.` };
   const admin = createAdminClient();
   if (!admin) return { error: "Não foi possível evoluir agora." };
   const { data: res } = await admin.rpc("arena_upgrade_card", { p_user: userId, p_card: card, p_cost: cost });
-  if (typeof res !== "number" || res < 0) return { error: "Não foi possível evoluir (Pergaminhos insuficientes)." };
-  return { level: res, scrolls: (stats?.scrolls ?? 0) - cost };
+  if (typeof res !== "number" || res < 0) return { error: "Não foi possível evoluir (faltam cartas)." };
+  return { level: res, copies: copies - cost };
+}
+
+/**
+ * Abre um baú: o da Arena é grátis 1x por dia; os outros custam troféus.
+ * As cartas são sorteadas aqui no servidor.
+ */
+export async function openArenaChest(kind: ChestKind): Promise<{ error?: string; grants?: CopyGrant[]; trophies?: number }> {
+  const { supabase, userId } = await currentPlayer();
+  const def = CHEST_BY_KIND.get(kind);
+  if (!def) return { error: "Baú desconhecido." };
+  const admin = createAdminClient();
+  if (!admin) return { error: "Baús indisponíveis no momento." };
+
+  const { data: stats } = await supabase.from("arena_stats").select("trophies, best").eq("user_id", userId).maybeSingle<{ trophies: number; best: number }>();
+  const trophies = stats?.trophies ?? 0;
+  if (def.cost > 0 && trophies < def.cost) return { error: `Faltam ${def.cost - trophies} 🏆 pra abrir esse baú.` };
+
+  const { data: saved } = await supabase.from("arena_decks").select("deck").eq("user_id", userId).maybeSingle<{ deck: string[] }>();
+  const deck = isValidDeck(saved?.deck) ? saved.deck : STARTER_DECK;
+  const grants = rollChest(def, unlockedCards(stats?.best ?? 0), deck);
+  if (grants.length === 0) return { error: "Não foi possível abrir o baú." };
+
+  const { data: res } = await admin.rpc("arena_open_chest", { p_user: userId, p_daily: kind === "daily", p_cost: def.cost, p_grants: grants });
+  if (res === -1) return { error: "Você já abriu o Baú da Arena hoje. Volte amanhã!" };
+  if (res === -2) return { error: `Faltam troféus pra abrir esse baú.` };
+  if (typeof res !== "number" || res < 0) return { error: "Não foi possível abrir o baú. Tente de novo." };
+  return { grants, trophies: res };
 }
 
 export type { ArenaFinish };

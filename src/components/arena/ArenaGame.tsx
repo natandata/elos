@@ -11,14 +11,17 @@ import type { GateInfo } from "@/lib/arena/gate";
 import { ARENA_CARD_BY_KEY } from "@/lib/arena/cards";
 import { ARENAS, TROPHY_LOSS, TROPHY_WIN, arenaProgress, cardsUnlockedIn } from "@/lib/arena/arenas";
 import { CardArt } from "./CardArt";
+import { CopyReward } from "./CopyReward";
+import { ArenaChests } from "./ArenaChests";
 import { ArenaPlayfield, type PlayDriver } from "./ArenaPlayfield";
 import { inDeployZone, inField, type Input } from "@/lib/arena/core";
 import { createGame, step } from "@/lib/arena/engine";
 
 type Phase = "intro" | "playing" | "finishing" | "result";
 
-export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, initialBest, initialScrolls, initialLevels, eloRanking, myEloId, trophyRanking, myId, missionsHref, invites, gate }: { winsToday: number; maxWins: number; initialDeck: string[]; initialTrophies: number; initialBest: number; initialScrolls: number; initialLevels: Record<string, number>; eloRanking: { id: string; name: string; points: number }[]; myEloId: string | null; trophyRanking: RankRow[]; myId: string; missionsHref: string; invites: number; gate: GateInfo }) {
-  const [scrolls, setScrolls] = useState(initialScrolls);
+export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, initialBest, initialCopies, initialLevels, dailyChestReady, eloRanking, myEloId, trophyRanking, myId, missionsHref, invites, gate }: { winsToday: number; maxWins: number; initialDeck: string[]; initialTrophies: number; initialBest: number; initialCopies: Record<string, number>; initialLevels: Record<string, number>; dailyChestReady: boolean; eloRanking: { id: string; name: string; points: number }[]; myEloId: string | null; trophyRanking: RankRow[]; myId: string; missionsHref: string; invites: number; gate: GateInfo }) {
+  const [copies, setCopies] = useState<Record<string, number>>(initialCopies);
+  const [dailyReady, setDailyReady] = useState(dailyChestReady);
   const [levels, setLevels] = useState<Record<string, number>>(initialLevels);
   const [trophies, setTrophies] = useState(initialTrophies);
   const [best, setBest] = useState(Math.max(initialBest, initialTrophies));
@@ -47,7 +50,11 @@ export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, in
         return send();
       });
       setVerdict(res);
-      if (typeof res.scrollsTotal === "number") setScrolls(res.scrollsTotal);
+      if (res.copyCard && res.copies) {
+        const card = res.copyCard;
+        const n = res.copies;
+        setCopies((c) => ({ ...c, [card]: (c[card] ?? 0) + n }));
+      }
       if (typeof res.trophies === "number") {
         setTrophies(res.trophies);
         setBest((b) => Math.max(b, res.trophies as number));
@@ -114,7 +121,22 @@ export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, in
           setTab(t);
         }}
         trophies={trophies}
-        scrolls={scrolls}
+        dailyChestReady={dailyReady}
+        chests={
+          <ArenaChests
+            trophies={trophies}
+            dailyReady={dailyReady}
+            onOpened={(kind, grants, left) => {
+              setCopies((c) => {
+                const next = { ...c };
+                for (const g of grants) next[g.card] = (next[g.card] ?? 0) + g.n;
+                return next;
+              });
+              setTrophies(left);
+              if (kind === "daily") setDailyReady(false);
+            }}
+          />
+        }
         winsToday={winsToday}
         maxWins={maxWins}
         eloRanking={eloRanking}
@@ -132,12 +154,12 @@ export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, in
             initial={deck}
             best={best}
             levels={levels}
-            scrolls={scrolls}
+            copies={copies}
             onUpgrade={async (key) => {
-              const r = await upgradeArenaCard(key).catch(() => ({ error: "Sem conexão. Tente de novo." }) as { error?: string; level?: number; scrolls?: number });
+              const r = await upgradeArenaCard(key).catch(() => ({ error: "Sem conexão. Tente de novo." }) as { error?: string; level?: number; copies?: number });
               if (r.error) return r.error;
               if (typeof r.level === "number") setLevels((l) => ({ ...l, [key]: r.level as number }));
-              if (typeof r.scrolls === "number") setScrolls(r.scrolls);
+              if (typeof r.copies === "number") setCopies((c) => ({ ...c, [key]: r.copies as number }));
               return null;
             }}
             saving={savingDeck}
@@ -196,9 +218,7 @@ export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, in
                   {r.trophyDelta ?? 0} 🏆 <span className="text-sm font-bold text-[var(--muted)]">(total {r.trophies ?? trophies})</span>
                 </p>
               ) : null}
-              {(r.scrolls ?? 0) > 0 ? (
-                <p className="mt-1 text-sm font-black text-violet-500">+{r.scrolls} 📜 Pergaminhos (total {r.scrollsTotal})</p>
-              ) : null}
+              <CopyReward card={r.copyCard} n={r.copies} />
               {r.arenaUp ? (
                 <p className="mt-3 rounded-2xl bg-amber-100 px-4 py-2 text-sm font-black text-amber-900">
                   🎉 Nova arena: {r.arenaUp}!

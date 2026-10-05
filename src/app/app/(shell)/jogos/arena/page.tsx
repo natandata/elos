@@ -49,14 +49,18 @@ export default async function ArenaPage() {
     return i > 0 && !Array.isArray(r.decks[i]);
   }).length;
   const gate = await loadGate(supabase, profile.id);
-  const { data: stats } = await supabase.from("arena_stats").select("trophies, best, scrolls").eq("user_id", profile.id).maybeSingle<{ trophies: number; best: number; scrolls: number }>();
-  const { data: owned } = await supabase.from("arena_card_levels").select("card, level").eq("user_id", profile.id);
+  const { data: stats } = await supabase.from("arena_stats").select("trophies, best, chest_date").eq("user_id", profile.id).maybeSingle<{ trophies: number; best: number; chest_date: string | null }>();
+  const { data: owned } = await supabase.from("arena_card_levels").select("card, level, copies").eq("user_id", profile.id);
   const levels: Record<string, number> = {};
-  for (const r of (owned ?? []) as { card: string; level: number }[]) levels[r.card] = r.level;
+  const copies: Record<string, number> = {};
+  for (const r of (owned ?? []) as { card: string; level: number; copies: number }[]) {
+    levels[r.card] = r.level;
+    copies[r.card] = r.copies;
+  }
   const { data: saved } = await supabase.from("arena_decks").select("deck").eq("user_id", profile.id).maybeSingle<{ deck: string[] }>();
   const deck = isValidDeck(saved?.deck) && deckAllowed(saved.deck, stats?.best ?? 0) ? saved.deck : STARTER_DECK;
 
   return (
-    <ArenaGame winsToday={count ?? 0} maxWins={MAX_XP_WINS} initialDeck={deck} initialTrophies={stats?.trophies ?? 0} initialBest={stats?.best ?? 0} initialScrolls={stats?.scrolls ?? 0} initialLevels={levels} eloRanking={eloRanking} myEloId={profile.elo_id ?? null} trophyRanking={trophyRanking} myId={profile.id} missionsHref={profile.role === "leader" ? "/app/lider/missoes" : "/app/cria/missoes"} invites={(invites ?? 0) + duoInvites} gate={gate} />
+    <ArenaGame winsToday={count ?? 0} maxWins={MAX_XP_WINS} initialDeck={deck} initialTrophies={stats?.trophies ?? 0} initialBest={stats?.best ?? 0} initialCopies={copies} initialLevels={levels} dailyChestReady={stats?.chest_date !== today} eloRanking={eloRanking} myEloId={profile.elo_id ?? null} trophyRanking={trophyRanking} myId={profile.id} missionsHref={profile.role === "leader" ? "/app/lider/missoes" : "/app/cria/missoes"} invites={(invites ?? 0) + duoInvites} gate={gate} />
   );
 }

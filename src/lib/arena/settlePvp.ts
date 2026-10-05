@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isValidDeck } from "./cards";
-import { deckAllowed, TROPHY_LOSS, TROPHY_WIN, SCROLLS_OTHER, SCROLLS_WIN } from "./arenas";
+import { deckAllowed, TROPHY_LOSS, TROPHY_WIN } from "./arenas";
+import { COPIES_OTHER, COPIES_WIN, pickBattleCard, unlockedCards } from "./economy";
 import { PVP_MIN_TICKS_FOR_REWARD, resolvePvp, type PvpReport } from "./pvp";
 
 /** Passado esse tempo do 1º relatório, vale o que o único jogador presente mandou. */
@@ -28,8 +29,10 @@ export type PvpRow = {
   rewarded: boolean;
   trophy_c: number;
   trophy_o: number;
-  scrolls_c: number;
-  scrolls_o: number;
+  copies_c: number;
+  copies_o: number;
+  card_c: string | null;
+  card_o: string | null;
   xp_c: number;
   xp_o: number;
   created_at: string;
@@ -42,7 +45,8 @@ export type PvpView = {
   crownsMe?: number;
   crownsThem?: number;
   trophyDelta?: number;
-  scrolls?: number;
+  copies?: number;
+  copyCard?: string | null;
   xp?: number;
   rewarded?: boolean;
   why?: string | null;
@@ -59,7 +63,8 @@ export function viewOf(row: PvpRow, userId: string): PvpView {
       crownsMe: (iAmC ? row.crowns_c : row.crowns_o) ?? 0,
       crownsThem: (iAmC ? row.crowns_o : row.crowns_c) ?? 0,
       trophyDelta: iAmC ? row.trophy_c : row.trophy_o,
-      scrolls: iAmC ? row.scrolls_c : row.scrolls_o,
+      copies: iAmC ? row.copies_c : row.copies_o,
+      copyCard: iAmC ? row.card_c : row.card_o,
       xp: iAmC ? row.xp_c : row.xp_o,
       rewarded: row.rewarded,
       why: row.why,
@@ -79,7 +84,7 @@ async function bestOf(admin: SupabaseClient, userId: string): Promise<number> {
 
 /**
  * Tenta fechar uma partida 1x1: confere os relatórios, refaz a partida e,
- * se tudo bate, paga troféus/Pergaminhos/XP. Seguro de chamar várias vezes:
+ * se tudo bate, paga troféus/cartas/XP. Seguro de chamar várias vezes:
  * fecha uma vez só (condicional no status).
  */
 export async function settleArenaPvp(admin: SupabaseClient, id: string): Promise<PvpRow | null> {
@@ -139,16 +144,17 @@ export async function settleArenaPvp(admin: SupabaseClient, id: string): Promise
       .or(`and(challenger_id.eq.${uid},xp_c.gt.0),and(opponent_id.eq.${uid},xp_o.gt.0)`);
     return (count ?? 0) > 0;
   };
-  const side = async (uid: string, mine: "challenger" | "opponent") => {
-    if (!rewarded) return { trophy: 0, scrolls: 0, xp: 0, res: "draw" as const };
+  const side = async (uid: string, mine: "challenger" | "opponent", best: number, deck: string[]) => {
+    if (!rewarded) return { trophy: 0, copies: 0, card: null as string | null, xp: 0, res: "draw" as const };
     const won = result === mine;
     const res = result === "draw" ? "draw" : won ? "win" : "loss";
     const trophy = res === "win" ? TROPHY_WIN : res === "loss" ? -TROPHY_LOSS : 0;
-    const scrolls = res === "win" ? SCROLLS_WIN : SCROLLS_OTHER;
+    const copies = res === "win" ? COPIES_WIN : COPIES_OTHER;
+    const card = pickBattleCard(unlockedCards(best), deck);
     const xp = res === "win" && !(await hadXp(uid)) ? 1 : 0;
-    return { trophy, scrolls, xp, res };
+    return { trophy, copies: card ? copies : 0, card, xp, res };
   };
-  const [pc, po] = await Promise.all([side(row.challenger_id, "challenger"), side(row.opponent_id, "opponent")]);
+  const [pc, po] = await Promise.all([side(row.challenger_id, "challenger", bestC, decks[0]), side(row.opponent_id, "opponent", bestO, decks[1])]);
 
   // fecha UMA vez (condicional): chamadas juntas não pagam duas vezes
   const { data: closed } = await admin
@@ -163,8 +169,10 @@ export async function settleArenaPvp(admin: SupabaseClient, id: string): Promise
       rewarded,
       trophy_c: pc.trophy,
       trophy_o: po.trophy,
-      scrolls_c: pc.scrolls,
-      scrolls_o: po.scrolls,
+      copies_c: pc.copies,
+      copies_o: po.copies,
+      card_c: pc.card,
+      card_o: po.card,
       xp_c: pc.xp,
       xp_o: po.xp,
       finished_at: now,
@@ -177,7 +185,7 @@ export async function settleArenaPvp(admin: SupabaseClient, id: string): Promise
       [row.challenger_id, pc],
       [row.opponent_id, po],
     ] as const) {
-      await admin.rpc("arena_apply_result", { p_user: uid, p_delta: r.trophy, p_result: r.res, p_scrolls: r.scrolls });
+      await admin.rpc("arena_apply_result", { p_user: uid, p_delta: r.trophy, p_result: r.res, p_copies: r.copies, p_card: r.card });
       if (r.xp > 0) await admin.rpc("game_grant_xp", { p_user: uid, p_amount: r.xp, p_type: "game_arena_pvp" });
     }
   }

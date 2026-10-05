@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isValidDeck } from "./cards";
-import { SCROLLS_OTHER, SCROLLS_WIN, TROPHY_LOSS, TROPHY_WIN, deckAllowed } from "./arenas";
+import { TROPHY_LOSS, TROPHY_WIN, deckAllowed } from "./arenas";
+import { COPIES_OTHER, COPIES_WIN, pickBattleCard, unlockedCards } from "./economy";
 import { PVP_MIN_TICKS_FOR_REWARD, resolveDuo, type DuoReport } from "./pvp";
 
 /** Passado esse tempo do 1º relatório, valem só os relatórios que chegaram. */
@@ -8,7 +9,7 @@ const STALE_MS = 60_000;
 const MAX_REWARDED_PER_GROUP = 3;
 const MAX_REWARDED_PER_USER = 10;
 
-type PlayerOutcome = { res: "win" | "loss" | "draw"; trophy: number; scrolls: number; xp: number };
+type PlayerOutcome = { res: "win" | "loss" | "draw"; trophy: number; copies: number; card: string | null; xp: number };
 
 export type DuoRow = {
   id: string;
@@ -36,7 +37,8 @@ export type DuoView = {
   crownsMe?: number;
   crownsThem?: number;
   trophyDelta?: number;
-  scrolls?: number;
+  copies?: number;
+  copyCard?: string | null;
   xp?: number;
   rewarded?: boolean;
   trophies?: number;
@@ -54,7 +56,8 @@ export function viewOfDuo(row: DuoRow, userId: string): DuoView {
       crownsMe: (team === 0 ? row.crowns_0 : row.crowns_1) ?? 0,
       crownsThem: (team === 0 ? row.crowns_1 : row.crowns_0) ?? 0,
       trophyDelta: o?.trophy ?? 0,
-      scrolls: o?.scrolls ?? 0,
+      copies: o?.copies ?? 0,
+      copyCard: o?.card ?? null,
       xp: o?.xp ?? 0,
       rewarded: row.rewarded,
     };
@@ -70,7 +73,7 @@ async function bestOf(admin: SupabaseClient, userId: string): Promise<number> {
 
 /**
  * Tenta fechar uma partida em duplas: confere os relatórios, refaz a partida
- * e, se tudo bate, paga troféus/Pergaminhos/XP. Seguro de chamar várias vezes.
+ * e, se tudo bate, paga troféus/cartas/XP. Seguro de chamar várias vezes.
  */
 export async function settleArenaDuo(admin: SupabaseClient, id: string): Promise<DuoRow | null> {
   const { data: row } = await admin.from("arena_duo").select("*").eq("id", id).maybeSingle<DuoRow>();
@@ -151,13 +154,15 @@ export async function settleArenaDuo(admin: SupabaseClient, id: string): Promise
     // quem saiu no meio conta como derrota, mesmo que a equipe tenha vencido
     const res: PlayerOutcome["res"] = outcome.resigned[i] ? "loss" : outcome.winner === null ? "draw" : outcome.winner === team ? "win" : "loss";
     if (!rewarded) {
-      per[uid] = { res, trophy: 0, scrolls: 0, xp: 0 };
+      per[uid] = { res, trophy: 0, copies: 0, card: null, xp: 0 };
       continue;
     }
+    const card = pickBattleCard(unlockedCards(bests[i]), decks[i]);
     per[uid] = {
       res,
       trophy: res === "win" ? TROPHY_WIN : res === "loss" ? -TROPHY_LOSS : 0,
-      scrolls: res === "win" ? SCROLLS_WIN : SCROLLS_OTHER,
+      copies: card ? (res === "win" ? COPIES_WIN : COPIES_OTHER) : 0,
+      card,
       xp: res === "win" && !(await hadXp(uid)) ? 1 : 0,
     };
   }
@@ -183,7 +188,7 @@ export async function settleArenaDuo(admin: SupabaseClient, id: string): Promise
   if (closed && closed.length > 0 && rewarded) {
     for (const uid of row.players) {
       const r = per[uid];
-      await admin.rpc("arena_apply_result", { p_user: uid, p_delta: r.trophy, p_result: r.res, p_scrolls: r.scrolls });
+      await admin.rpc("arena_apply_result", { p_user: uid, p_delta: r.trophy, p_result: r.res, p_copies: r.copies, p_card: r.card });
       if (r.xp > 0) await admin.rpc("game_grant_xp", { p_user: uid, p_amount: r.xp, p_type: "game_arena_duo" });
     }
   }

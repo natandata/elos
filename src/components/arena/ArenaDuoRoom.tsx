@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { CopyReward } from "./CopyReward";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
@@ -480,7 +481,7 @@ function DuoResult({ view, status }: { view: DuoView; status: string }) {
               {typeof view.trophies === "number" ? <span className="text-sm font-bold text-[var(--muted)]"> (total {view.trophies})</span> : null}
             </p>
           ) : null}
-          {(view.scrolls ?? 0) > 0 ? <p className="text-sm font-black text-violet-500">+{view.scrolls} 📜</p> : null}
+          <CopyReward card={view.copyCard} n={view.copies} />
           {(view.xp ?? 0) > 0 ? (
             <p className="mt-2 inline-block rounded-full bg-[var(--accent-soft)] px-4 py-1.5 text-lg font-black text-[var(--accent-strong)]">+{view.xp} XP</p>
           ) : null}
