@@ -13,6 +13,11 @@ const ACTIVITY_LABEL: Record<string, { icon: string; verb: string }> = {
   story_post: { icon: "⚡", verb: "postou um Story" },
   devotional_entry: { icon: "📖", verb: "escreveu no devocional" },
   prayer_request: { icon: "🙏", verb: "criou um pedido de oração" },
+  game_play: { icon: "🎮", verb: "jogou" },
+  game_chest: { icon: "🎁", verb: "abriu o baú dos Jogos" },
+  game_duel: { icon: "⚔️", verb: "terminou um duelo" },
+  arena_match: { icon: "🏰", verb: "jogou na Arena dos Heróis" },
+  arena_pvp: { icon: "🛡️", verb: "jogou um 1x1 na Arena" },
 };
 
 export default async function AdminDashboard() {
