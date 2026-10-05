@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/ui";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { finishArena, saveArenaDeck, startArena, type ArenaFinish } from "@/lib/actions/arena";
+import { finishArena, saveArenaDeck, startArena, upgradeArenaCard, type ArenaFinish } from "@/lib/actions/arena";
 import { DeckBuilder } from "./DeckBuilder";
 import { ARENA_CARDS, ARENA_CARD_BY_KEY } from "@/lib/arena/cards";
 import { ARENAS, CARD_UNLOCK_ARENA, TROPHY_LOSS, TROPHY_WIN, arenaProgress, cardsUnlockedIn } from "@/lib/arena/arenas";
@@ -68,7 +68,9 @@ function CrownCount({ n, color }: { n: number; color: "red" | "blue" }) {
   );
 }
 
-export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, initialBest }: { winsToday: number; maxWins: number; initialDeck: string[]; initialTrophies: number; initialBest: number }) {
+export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, initialBest, initialScrolls, initialLevels }: { winsToday: number; maxWins: number; initialDeck: string[]; initialTrophies: number; initialBest: number; initialScrolls: number; initialLevels: Record<string, number> }) {
+  const [scrolls, setScrolls] = useState(initialScrolls);
+  const [levels, setLevels] = useState<Record<string, number>>(initialLevels);
   const [trophies, setTrophies] = useState(initialTrophies);
   const [best, setBest] = useState(Math.max(initialBest, initialTrophies));
   const [playingArena, setPlayingArena] = useState(0);
@@ -275,6 +277,7 @@ export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, in
       try {
         const res = await finishArena({ matchId: matchRef.current!, inputs: logRef.current, surrender });
         setVerdict(res);
+        if (typeof res.scrollsTotal === "number") setScrolls(res.scrollsTotal);
         if (typeof res.trophies === "number") {
           setTrophies(res.trophies);
           setBest((b) => Math.max(b, res.trophies as number));
@@ -337,7 +340,7 @@ export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, in
   async function begin() {
     setError(null);
     setVerdict(null);
-    const res: { error?: string; matchId?: string; seed?: number; deck?: string[]; arena?: number } = await startArena().catch(() => ({
+    const res: { error?: string; matchId?: string; seed?: number; deck?: string[]; arena?: number; levels?: Record<string, number> } = await startArena().catch(() => ({
       error: "Sem conexão. Tente de novo.",
     }));
     if (res.error || !res.matchId || res.seed === undefined) {
@@ -347,7 +350,7 @@ export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, in
     matchRef.current = res.matchId;
     arenaRef.current = res.arena ?? 0;
     setPlayingArena(res.arena ?? 0);
-    const game = createGame(res.seed, res.deck ?? deck);
+    const game = createGame(res.seed, res.deck ?? deck, undefined, { levels: res.levels ?? levels, arena: res.arena ?? 0 });
     gameRef.current = game;
     pendingRef.current = [];
     logRef.current = [];
@@ -412,6 +415,15 @@ export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, in
         <DeckBuilder
           initial={deck}
           best={best}
+          levels={levels}
+          scrolls={scrolls}
+          onUpgrade={async (key) => {
+            const r = await upgradeArenaCard(key).catch(() => ({ error: "Sem conexão. Tente de novo." } as { error?: string; level?: number; scrolls?: number }));
+            if (r.error) return r.error;
+            if (typeof r.level === "number") setLevels((l) => ({ ...l, [key]: r.level as number }));
+            if (typeof r.scrolls === "number") setScrolls(r.scrolls);
+            return null;
+          }}
           saving={savingDeck}
           error={error}
           onCancel={() => setEditing(false)}
@@ -443,6 +455,7 @@ export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, in
             </div>
             <p className="rounded-2xl bg-black/65 px-3 py-1.5 text-center text-white">
               <span className="block text-2xl font-black leading-none tabular-nums">🏆 {trophies}</span>
+              <span className="mt-0.5 block text-xs font-bold tabular-nums text-violet-200">📜 {scrolls}</span>
             </p>
           </div>
           <div className="p-3">
@@ -496,6 +509,7 @@ export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, in
                   {c.art ? <CardArt card={c} className="h-14" /> : <span className="text-3xl" aria-hidden>{c.emoji}</span>}
                 </div>
                 <p className="mt-1 text-[10px] font-bold leading-tight">{c.name}</p>
+                <p className="text-[9px] font-black text-violet-500">Nv.{levels[k] ?? 1}</p>
               </div>
             );
           })}
@@ -544,6 +558,9 @@ export function ArenaGame({ winsToday, maxWins, initialDeck, initialTrophies, in
                   {(r.trophyDelta ?? 0) >= 0 ? "+" : ""}
                   {r.trophyDelta ?? 0} 🏆 <span className="text-sm font-bold text-[var(--muted)]">(total {r.trophies ?? trophies})</span>
                 </p>
+              ) : null}
+              {(r.scrolls ?? 0) > 0 ? (
+                <p className="mt-1 text-sm font-black text-violet-500">+{r.scrolls} 📜 Pergaminhos (total {r.scrollsTotal})</p>
               ) : null}
               {r.arenaUp ? (
                 <p className="mt-3 rounded-2xl bg-amber-100 px-4 py-2 text-sm font-black text-amber-900">

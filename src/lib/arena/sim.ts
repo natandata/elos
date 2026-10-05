@@ -1,4 +1,4 @@
-import { createGame, step, stateHash } from "./engine";
+import { createGame, step, stateHash, type GameOpts } from "./engine";
 import { MATCH_TICKS, type GameState, type Input, type Side } from "./core";
 
 export const MAX_INPUTS = 600;
@@ -15,8 +15,8 @@ export type ArenaResult = {
  * jogador (lado 0). O computador (lado 1) decide sozinho, de forma
  * determinística. É isso que o servidor usa pra confirmar o resultado.
  */
-export function simulate(seed: number, deck: string[], inputs: Input[]): ArenaResult {
-  const state: GameState = createGame(seed, deck);
+export function simulate(seed: number, deck: string[], inputs: Input[], opts: GameOpts = {}): ArenaResult {
+  const state: GameState = createGame(seed, deck, undefined, opts);
   // só as jogadas do jogador, em ordem de tick
   const mine = inputs
     .filter((i) => i.side === 0)

@@ -70,6 +70,8 @@ export type GameState = {
   queue: [string[], string[]];
   entities: Entity[];
   crowns: [number, number];
+  /** nível de cada carta, por lado (1 se faltar) */
+  levels: [Record<string, number>, Record<string, number>];
   /** estado dos sorteios do computador e do embaralhar */
   rng: [number, number];
   over: boolean;

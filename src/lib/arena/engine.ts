@@ -1,4 +1,5 @@
-import { ARENA_CARDS, ARENA_CARD_BY_KEY, ATALAIA, SANTUARIO, type ArenaCard } from "./cards";
+import { ARENA_CARDS, ARENA_CARD_BY_KEY, ATALAIA, SANTUARIO, botLevelForArena, levelMult, type ArenaCard } from "./cards";
+import { CARD_UNLOCK_ARENA } from "./arenas";
 import { botDecide } from "./bot";
 import {
   BRIDGES,
@@ -28,12 +29,18 @@ import {
 
 const AGGRO = 6;
 
-export function pickBotDeck(seed: number): string[] {
-  return shuffleWith(
-    ARENA_CARDS.map((c) => c.key),
-    (seed ^ 0x77777) | 0,
-  ).slice(0, DECK_SIZE);
+/** Baralho do computador: só cartas já liberadas na arena (sem `arena`, usa todas). */
+export function pickBotDeck(seed: number, arena?: number): string[] {
+  const pool = ARENA_CARDS.map((c) => c.key).filter((k) => arena === undefined || (CARD_UNLOCK_ARENA[k] ?? 0) <= arena);
+  return shuffleWith(pool, (seed ^ 0x77777) | 0).slice(0, DECK_SIZE);
 }
+
+export type GameOpts = {
+  /** níveis das cartas do jogador (lado 0) */
+  levels?: Record<string, number>;
+  /** arena em que se joga: define o baralho e o nível do computador */
+  arena?: number;
+};
 
 function makeTower(id: number, side: Side, kind: "atalaia" | "santuario", lane: number, x: number, y: number): Entity {
   const t = kind === "atalaia" ? ATALAIA : SANTUARIO;
@@ -49,7 +56,11 @@ function makeTower(id: number, side: Side, kind: "atalaia" | "santuario", lane: 
 const CARD_ALIAS: Record<string, string> = { anjo: "miguel" };
 const unalias = (deck: string[]) => deck.map((k) => CARD_ALIAS[k] ?? k);
 
-export function createGame(seed: number, playerDeck: string[], botDeck: string[] = pickBotDeck(seed)): GameState {
+export function createGame(seed: number, playerDeck: string[], botDeck?: string[], opts: GameOpts = {}): GameState {
+  botDeck ??= pickBotDeck(seed, opts.arena);
+  const botLevel = botLevelForArena(opts.arena ?? 0);
+  const botLevels: Record<string, number> = {};
+  for (const c of ARENA_CARDS) botLevels[c.key] = botLevel;
   const decks: [string[], string[]] = [shuffleWith(unalias(playerDeck), seed ^ 0xa5a5), shuffleWith(unalias(botDeck), seed ^ 0x5a5a)];
   const state: GameState = {
     tick: 0,
@@ -60,6 +71,7 @@ export function createGame(seed: number, playerDeck: string[], botDeck: string[]
     queue: [decks[0].slice(HAND_SIZE), decks[1].slice(HAND_SIZE)],
     entities: [],
     crowns: [0, 0],
+    levels: [opts.levels ?? {}, botLevels],
     rng: [(seed ^ 0x1234567) | 0, (seed ^ 0x7654321) | 0],
     over: false,
     winner: null,
@@ -76,9 +88,11 @@ export function createGame(seed: number, playerDeck: string[], botDeck: string[]
 }
 
 function makeUnit(state: GameState, card: ArenaCard, side: Side, x: number, y: number): Entity {
+  const m = levelMult(state.levels[side][card.key] ?? 1);
+  const hp = Math.round((card.hp ?? 100) * m);
   return {
     id: state.nextId++, side, type: "unit", card: card.key, lane: -1, x, y, px: x, py: y,
-    hp: card.hp ?? 100, maxHp: card.hp ?? 100, radius: card.radius ?? 0.5, dmg: card.dmg ?? 10,
+    hp, maxHp: hp, radius: card.radius ?? 0.5, dmg: Math.round((card.dmg ?? 10) * m),
     atkTicks: Math.max(1, Math.round((card.atkSpeed ?? 1) * TICKS_PER_SEC)), range: card.range ?? 0.8,
     speed: (card.speed ?? 1.5) / TICKS_PER_SEC, flying: !!card.flying, towersOnly: !!card.towersOnly,
     canHitAir: !!card.canHitAir, splash: card.splash ?? 0, towerMult: card.unitTowerMult ?? 1,
@@ -101,7 +115,7 @@ function castSpell(state: GameState, card: ArenaCard, side: Side, x: number, y: 
   for (const e of state.entities) {
     if (e.side === side || e.hp <= 0) continue;
     if (dist(x, y, e.x, e.y) > r + e.radius) continue;
-    const dmg = (card.spellDmg ?? 0) * (e.type === "tower" ? (card.towerMult ?? 1) : 1);
+    const dmg = (card.spellDmg ?? 0) * levelMult(state.levels[side][card.key] ?? 1) * (e.type === "tower" ? (card.towerMult ?? 1) : 1);
     e.hp -= dmg;
     ev.push({ t: "hit", id: e.id, x: e.x, y: e.y, dmg, side: e.side });
     if (card.slow && e.type === "unit") {
