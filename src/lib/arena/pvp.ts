@@ -18,6 +18,8 @@ export const DUO_INPUT_DELAY = 10;
 export const DUO_HEARTBEAT = 6;
 /** Partida mais curta que isso (em ticks) não vale prêmio. */
 export const PVP_MIN_TICKS_FOR_REWARD = 75 * 20;
+/** Troféus que o vencedor de um 1x1 rouba do perdedor. */
+export const PVP_TROPHY_STEAL = 30;
 
 /** Ordem única das jogadas dentro de um tick (igual nos dois aparelhos e no servidor). */
 export function orderInputs(list: Input[]): Input[] {

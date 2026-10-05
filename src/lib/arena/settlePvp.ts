@@ -4,7 +4,7 @@ import { deckAllowed } from "./arenas";
 import { onRoomFinished } from "./tournamentServer";
 import { loadOwned } from "./owned";
 import { COPIES_OTHER, COPIES_WIN, pickBattleCard, unlockedCards } from "./economy";
-import { PVP_MIN_TICKS_FOR_REWARD, resolvePvp, type PvpReport } from "./pvp";
+import { PVP_MIN_TICKS_FOR_REWARD, PVP_TROPHY_STEAL, resolvePvp, type PvpReport } from "./pvp";
 
 /** Passado esse tempo do 1º relatório, vale o que o único jogador presente mandou. */
 const STALE_MS = 60_000;
@@ -174,12 +174,19 @@ export async function settleArenaPvp(admin: SupabaseClient, id: string): Promise
       .or(`and(challenger_id.eq.${uid},xp_c.gt.0),and(opponent_id.eq.${uid},xp_o.gt.0)`);
     return (count ?? 0) > 0;
   };
+  // o vencedor rouba troféus do perdedor (no máximo o que o perdedor tem)
+  const steal = await (async () => {
+    if (!rewarded || result === "draw" || row.tournament_match_id) return 0;
+    const loser = result === "challenger" ? row.opponent_id : row.challenger_id;
+    const { data: st } = await admin.from("arena_stats").select("trophies").eq("user_id", loser).maybeSingle<{ trophies: number }>();
+    return Math.min(PVP_TROPHY_STEAL, Math.max(0, st?.trophies ?? 0));
+  })();
   const side = async (uid: string, mine: "challenger" | "opponent", best: number, deck: string[], owned: ReadonlySet<string>) => {
     if (!rewarded) return { trophy: 0, copies: 0, card: null as string | null, xp: 0, res: "draw" as const };
     const won = result === mine;
     const res = result === "draw" ? "draw" : won ? "win" : "loss";
-    // o 1x1 não mexe em troféus: quem vence ganha uma medalha contra o adversário (veja abaixo)
-    const trophy = 0;
+    // vencedor rouba troféus do perdedor; quem vence também ganha uma medalha contra ele (veja abaixo)
+    const trophy = res === "win" ? steal : res === "loss" ? -steal : 0;
     const copies = res === "win" ? COPIES_WIN : COPIES_OTHER;
     const card = pickBattleCard(unlockedCards(best, owned), deck);
     const xp = res === "win" && !(await hadXp(uid)) ? 1 : 0;

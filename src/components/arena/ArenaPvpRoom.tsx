@@ -474,6 +474,12 @@ function Result({ view, status, opponentName, tournamentId }: { view: PvpView; s
       ) : null}
       {view.rewarded ? (
         <>
+          {r !== "draw" ? (
+            <p className={`mt-2 text-xl font-black tabular-nums ${(view.trophyDelta ?? 0) >= 0 ? "text-amber-500" : "text-rose-500"}`}>
+              {r === "win" ? `Você roubou ${view.trophyDelta ?? 0} 🏆 de ${opponentName}` : `${opponentName} roubou ${Math.abs(view.trophyDelta ?? 0)} 🏆 de você`}
+              {typeof view.trophies === "number" ? <span className="block text-sm font-bold text-[var(--muted)]">Total: {view.trophies} 🏆</span> : null}
+            </p>
+          ) : null}
           <CopyReward card={view.copyCard} n={view.copies} />
           {(view.xp ?? 0) > 0 ? (
             <p className="mt-2 inline-block rounded-full bg-[var(--accent-soft)] px-4 py-1.5 text-lg font-black text-[var(--accent-strong)]">+{view.xp} XP</p>

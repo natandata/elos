@@ -57,7 +57,7 @@ export default async function ArenaPvpLobbyPage() {
 
   return (
     <>
-      <PageHeader title="⚔️ Arena 1x1" subtitle="Desafie um colega do seu Elo: partida de 3 minutos em tempo real, todo mundo com cartas no nível 1. Quem vence ganha uma 🏅 medalha contra o adversário (não mexe em troféus)." />
+      <PageHeader title="⚔️ Arena 1x1" subtitle="Desafie um colega do seu Elo: partida de 3 minutos em tempo real, todo mundo com cartas no nível 1. Quem vence rouba 30 🏆 do adversário e ganha uma 🏅 medalha contra ele." />
       <ArenaPvpLobby mates={mates} items={items} medals={medals} />
       <Link href="/app/jogos/arena" className="btn btn-ghost mt-4 w-full">
         ← Voltar à Arena
