@@ -7,6 +7,7 @@ import { CARDS } from "@/lib/games/cards";
 import { difficultyChip } from "@/lib/games/difficulty";
 import { liveGameStreak, playDifficulty, todaysPlays } from "@/lib/games/status";
 import { createClient } from "@/lib/supabase/server";
+import { ArenaCover } from "@/components/games/ArenaCover";
 import { DressTeaserText } from "@/components/games/dress/DressTeaser";
 import { gameOpenFor } from "@/lib/games/releaseServer";
 
@@ -150,18 +151,7 @@ export default async function JogosPage() {
         </Link>
       </section>
 
-      <Link
-        href="/app/jogos/arena"
-        className="mb-5 flex items-center gap-4 rounded-2xl border-2 border-indigo-300 bg-gradient-to-br from-indigo-100 to-sky-100 px-5 py-4 text-indigo-900 transition active:scale-[0.99]"
-      >
-        <span className="text-5xl" aria-hidden>
-          🏰
-        </span>
-        <span className="min-w-0">
-          <span className="block text-lg font-black leading-tight">Arena dos Heróis <span className="ml-1 rounded-full bg-rose-600 px-2 py-0.5 align-middle text-[10px] font-black text-white">NOVO</span></span>
-          <span className="block text-xs font-bold opacity-80">Batalha contra o computador · +1 XP por dia</span>
-        </span>
-      </Link>
+      <ArenaCover />
 
       <Link
         href="/app/jogos/memoria"

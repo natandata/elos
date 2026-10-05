@@ -487,3 +487,11 @@ input[type="datetime-local"] {
 }
 .dress-pop { animation: dress-pop 0.28s ease-out; }
 @media (prefers-reduced-motion: reduce) { .dress-pop { animation: none; } }
+
+/* Tela de carregamento da Arena: zoom lento na capa durante os 5 s */
+@keyframes arena-load-zoom {
+  from { transform: scale(1); }
+  to { transform: scale(1.14); }
+}
+.arena-load-zoom { animation: arena-load-zoom 5s ease-out forwards; }
+@media (prefers-reduced-motion: reduce) { .arena-load-zoom { animation: none; } }
