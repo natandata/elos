@@ -26,11 +26,13 @@ export type PvpRoomProps = {
   /** convite ainda aberto (aguardando o convidado aceitar) */
   initialStatus: "invited" | "accepted" | "finished" | "declined" | "disputed";
   initialView: PvpView;
+  /** partida de torneio: mostra o caminho de volta e não fala de troféus */
+  tournamentId?: string | null;
 };
 
 const PEER_SILENT_MS = 10_000;
 
-export function ArenaPvpRoom({ id, meSide, opponentName, arena, seed, decks, initialStatus, initialView }: PvpRoomProps) {
+export function ArenaPvpRoom({ id, meSide, opponentName, arena, seed, decks, initialStatus, initialView, tournamentId }: PvpRoomProps) {
   const router = useRouter();
   const startedKey = `arena-pvp-started:${id}`;
   const [stage, setStage] = useState<Stage>(() => {
@@ -401,18 +403,18 @@ export function ArenaPvpRoom({ id, meSide, opponentName, arena, seed, decks, ini
           </>
         ) : null}
 
-        {stage === "result" ? <Result view={view} status={status} opponentName={opponentName} /> : null}
+        {stage === "result" ? <Result view={view} status={status} opponentName={opponentName} tournamentId={tournamentId} /> : null}
 
         {error ? <p className="mt-3 text-sm font-semibold text-rose-600">{error}</p> : null}
       </div>
-      <Link href="/app/jogos/arena/pvp" className="btn btn-ghost mt-3 w-full">
-        ← Voltar aos desafios
+      <Link href={tournamentId ? `/app/jogos/arena/torneios/${tournamentId}` : "/app/jogos/arena/pvp"} className="btn btn-ghost mt-3 w-full">
+        {tournamentId ? "← Voltar ao torneio" : "← Voltar aos desafios"}
       </Link>
     </div>
   );
 }
 
-function Result({ view, status, opponentName }: { view: PvpView; status: string; opponentName: string }) {
+function Result({ view, status, opponentName, tournamentId }: { view: PvpView; status: string; opponentName: string; tournamentId?: string | null }) {
   if (view.state === "declined" || status === "declined") return <p className="mt-4 font-bold">{opponentName} recusou o desafio.</p>;
   if (view.state === "disputed" || status === "disputed") {
     return (
@@ -453,7 +455,13 @@ function Result({ view, status, opponentName }: { view: PvpView; status: string;
           ) : null}
         </>
       ) : (
-        <p className="mt-2 text-xs text-[var(--muted)]">Essa partida não valeu prêmio (muito curta ou limite do dia com esse colega).</p>
+        <p className="mt-2 text-xs text-[var(--muted)]">
+          {tournamentId
+            ? r === "draw"
+              ? "Empate! Volte ao torneio e jogue de novo pra desempatar."
+              : "Partida de torneio: o resultado vai pro chaveamento. Volte ao torneio pra ver o que vem a seguir."
+            : "Essa partida não valeu prêmio (muito curta ou limite do dia com esse colega)."}
+        </p>
       )}
     </>
   );

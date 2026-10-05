@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import { viewOf, type PvpRow } from "@/lib/arena/settlePvp";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export default async function ArenaPvpRoomPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -15,8 +16,24 @@ export default async function ArenaPvpRoomPage({ params }: { params: Promise<{ i
 
   const meSide = row.challenger_id === profile.id ? 0 : 1;
   const otherId = meSide === 0 ? row.opponent_id : row.challenger_id;
-  const { data: other } = await supabase.from("profiles").select("full_name").eq("id", otherId).maybeSingle<{ full_name: string }>();
-  const opponentName = other?.full_name || "seu colega";
+  // partida de torneio pode ser contra alguém de outro Elo (o perfil não é legível pela sessão)
+  let tournamentId: string | null = null;
+  let other: { full_name: string } | null = null;
+  if (row.tournament_match_id) {
+    const admin = createAdminClient();
+    if (admin) {
+      const [{ data: m }, { data: o }] = await Promise.all([
+        admin.from("arena_tournament_matches").select("tournament_id").eq("id", row.tournament_match_id).maybeSingle<{ tournament_id: string }>(),
+        admin.from("profiles").select("full_name").eq("id", otherId).maybeSingle<{ full_name: string }>(),
+      ]);
+      tournamentId = m?.tournament_id ?? null;
+      other = o;
+    }
+  } else {
+    const { data } = await supabase.from("profiles").select("full_name").eq("id", otherId).maybeSingle<{ full_name: string }>();
+    other = data;
+  }
+  const opponentName = other?.full_name || "seu adversário";
 
   // convite parado há mais de 1 dia vale como recusado
   const expired = row.status === "invited" && Date.now() - new Date(row.created_at).getTime() > 24 * 3_600_000;
@@ -24,7 +41,7 @@ export default async function ArenaPvpRoomPage({ params }: { params: Promise<{ i
 
   return (
     <>
-      <PageHeader title="🏰 Arena 1x1" subtitle="Partida em tempo real contra um colega do seu Elo." />
+      <PageHeader title={tournamentId ? "🏆 Torneio · 1x1" : "🏰 Arena 1x1"} subtitle={tournamentId ? "Partida do torneio, em tempo real." : "Partida em tempo real contra um colega do seu Elo."} />
       <ArenaPvpRoom
         id={row.id}
         meSide={meSide}
@@ -34,6 +51,7 @@ export default async function ArenaPvpRoomPage({ params }: { params: Promise<{ i
         decks={[row.challenger_deck, row.opponent_deck]}
         initialStatus={status}
         initialView={expired ? { state: "declined" } : viewOf(row, profile.id)}
+        tournamentId={tournamentId}
       />
     </>
   );

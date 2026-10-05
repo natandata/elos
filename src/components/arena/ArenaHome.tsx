@@ -82,6 +82,7 @@ export function ArenaHome({
   error,
   cards,
   gate,
+  openTournaments,
 }: {
   tab: ArenaTab;
   setTab: (t: ArenaTab) => void;
@@ -105,6 +106,7 @@ export function ArenaHome({
   error: string | null;
   cards: ReactNode;
   gate: GateInfo;
+  openTournaments: number;
 }) {
   const prog = arenaProgress(trophies);
   const shown = ARENAS[Math.min(viewArena, ARENAS.length - 1)];
@@ -124,7 +126,7 @@ export function ArenaHome({
 
   return (
     <div className="cr-pattern mx-auto w-full max-w-[480px] overflow-hidden rounded-[26px] border-[3px] border-[#0b2a5c] shadow-2xl">
-      <div className="min-h-[650px] px-3 pb-4 pt-3">
+      <div className="min-h-[700px] px-3 pb-4 pt-3">
         {tab === "battle" ? (
           <>
             {/* atalhos de cima */}
@@ -165,6 +167,21 @@ export function ArenaHome({
               </span>
               <span className="cr-text rounded-md bg-black/45 px-2 py-1 text-sm">{myElo ? myElo.points : 0}</span>
             </button>
+
+            {/* torneios criados pelo admin */}
+            <Link
+              href="/app/jogos/arena/torneios"
+              className="cr-panel mt-2 flex items-center gap-2 px-3 py-2 active:translate-y-[2px]"
+            >
+              <span className="text-2xl" aria-hidden>
+                🏆
+              </span>
+              <span className="min-w-0 flex-1 leading-tight">
+                <span className="cr-text block text-[15px]">Torneios</span>
+                <span className="cr-text block truncate text-[11px] opacity-90">{openTournaments > 0 ? `${openTournaments} ${openTournaments === 1 ? "aberto" : "abertos"} · inscreva-se e ganhe prêmios` : "Campeonatos com prêmios, 1x1 e em duplas"}</span>
+              </span>
+              {openTournaments > 0 ? <span className="cr-text rounded-full bg-red-600 px-2 py-0.5 text-sm">{openTournaments}</span> : null}
+            </Link>
 
             {/* arena + botões laterais */}
             <div className="relative mt-3">

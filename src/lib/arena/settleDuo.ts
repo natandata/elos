@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isValidDeck } from "./cards";
 import { TROPHY_LOSS, TROPHY_WIN, deckAllowed } from "./arenas";
+import { onRoomFinished } from "./tournamentServer";
 import { COPIES_OTHER, COPIES_WIN, pickBattleCard, unlockedCards } from "./economy";
 import { PVP_MIN_TICKS_FOR_REWARD, resolveDuo, type DuoReport } from "./pvp";
 
@@ -26,6 +27,7 @@ export type DuoRow = {
   crowns_1: number | null;
   ticks: number | null;
   rewarded: boolean;
+  tournament_match_id: string | null;
   winners: string[];
   outcome: Record<string, PlayerOutcome>;
   created_at: string;
@@ -98,7 +100,8 @@ export async function settleArenaDuo(admin: SupabaseClient, id: string): Promise
   const since = new Date(Date.now() - 24 * 3_600_000).toISOString();
 
   // prêmio: precisa ter durado e respeitar os limites do dia
-  let rewarded = outcome.ticks >= PVP_MIN_TICKS_FOR_REWARD;
+  // partida de torneio não paga troféu/XP/cartas: só vale pro chaveamento
+  let rewarded = outcome.ticks >= PVP_MIN_TICKS_FOR_REWARD && !row.tournament_match_id;
   const rewardedToday = async (uid: string) => {
     const { count: pv } = await admin
       .from("arena_pvp")
@@ -191,6 +194,10 @@ export async function settleArenaDuo(admin: SupabaseClient, id: string): Promise
       await admin.rpc("arena_apply_result", { p_user: uid, p_delta: r.trophy, p_result: r.res, p_copies: r.copies, p_card: r.card });
       if (r.xp > 0) await admin.rpc("game_grant_xp", { p_user: uid, p_amount: r.xp, p_type: "game_arena_duo" });
     }
+  }
+  if (closed && closed.length > 0 && row.tournament_match_id) {
+    // quem desistiu no meio não conta como vencedor, mesmo com a equipe ganhando
+    await onRoomFinished(admin, row.tournament_match_id, id, winners);
   }
   const { data: fresh } = await admin.from("arena_duo").select("*").eq("id", id).maybeSingle<DuoRow>();
   return fresh;

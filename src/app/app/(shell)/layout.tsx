@@ -13,6 +13,7 @@ const NAV: Record<string, NavItem[]> = {
     { href: "/app/mural", label: "Mural de Sugestões", icon: "💡" },
     { href: "/app/admin/ajuda", label: "Pedidos de Ajuda", icon: "🆘" },
     { href: "/app/admin/avisos", label: "Avisos", icon: "📣" },
+    { href: "/app/admin/torneios", label: "Torneios da Arena", icon: "🏆" },
     {
       label: "Status Geral",
       icon: "💛",

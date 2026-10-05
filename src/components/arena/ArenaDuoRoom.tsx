@@ -27,11 +27,13 @@ export type DuoRoomProps = {
   decks: (string[] | null)[];
   initialStatus: Status;
   initialView: DuoView;
+  /** partida de torneio: mostra o caminho de volta e não fala de troféus */
+  tournamentId?: string | null;
 };
 
 const PEER_SILENT_MS = 10_000;
 
-export function ArenaDuoRoom({ id, me, names, arena, seed, decks, initialStatus, initialView }: DuoRoomProps) {
+export function ArenaDuoRoom({ id, me, names, arena, seed, decks, initialStatus, initialView, tournamentId }: DuoRoomProps) {
   const router = useRouter();
   const startedKey = `arena-duo-started:${id}`;
   const mySide = teamOf(4, me) as Side;
@@ -440,17 +442,17 @@ export function ArenaDuoRoom({ id, me, names, arena, seed, decks, initialStatus,
           </>
         ) : null}
 
-        {stage === "result" ? <DuoResult view={view} status={status} /> : null}
+        {stage === "result" ? <DuoResult view={view} status={status} tournamentId={tournamentId} /> : null}
         {error ? <p className="mt-3 text-center text-sm font-semibold text-rose-600">{error}</p> : null}
       </div>
-      <Link href="/app/jogos/arena/duplas" className="btn btn-ghost mt-3 w-full">
-        ← Voltar às duplas
+      <Link href={tournamentId ? `/app/jogos/arena/torneios/${tournamentId}` : "/app/jogos/arena/duplas"} className="btn btn-ghost mt-3 w-full">
+        {tournamentId ? "← Voltar ao torneio" : "← Voltar às duplas"}
       </Link>
     </div>
   );
 }
 
-function DuoResult({ view, status }: { view: DuoView; status: string }) {
+function DuoResult({ view, status, tournamentId }: { view: DuoView; status: string; tournamentId?: string | null }) {
   if (view.state === "declined" || status === "declined") return <p className="mt-4 text-center font-bold">Alguém recusou o desafio.</p>;
   if (view.state === "disputed" || status === "disputed") {
     return (
@@ -487,7 +489,13 @@ function DuoResult({ view, status }: { view: DuoView; status: string }) {
           ) : null}
         </>
       ) : (
-        <p className="mt-2 text-xs text-[var(--muted)]">Essa partida não valeu prêmio (muito curta ou limite do dia com esse grupo).</p>
+        <p className="mt-2 text-xs text-[var(--muted)]">
+          {tournamentId
+            ? view.result === "draw"
+              ? "Empate! Voltem ao torneio e joguem de novo pra desempatar."
+              : "Partida de torneio: o resultado vai pro chaveamento. Voltem ao torneio pra ver o que vem a seguir."
+            : "Essa partida não valeu prêmio (muito curta ou limite do dia com esse grupo)."}
+        </p>
       )}
     </div>
   );
