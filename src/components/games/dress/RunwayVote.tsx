@@ -29,35 +29,34 @@ export function RunwayVote({ looks, votesLeft }: { looks: RunwayLookCard[]; vote
     router.refresh();
   }
 
-  if (looks.length === 0) return <p className="card p-4 text-center text-sm text-[var(--muted)]">Ninguém publicou um look ainda neste dia.</p>;
+  if (looks.length === 0) return <p className="vh-panel text-center text-sm text-purple-100">Ninguém publicou um look ainda neste dia.</p>;
 
   return (
     <div>
-      <p className="mb-2 text-xs font-bold text-[var(--muted)]">
-        Votos que você ainda tem neste dia: <b>{left}</b>
+      <p className="mb-2 text-xs font-bold text-amber-200">
+        Votos que você ainda tem neste dia: <b className="text-base">{left}</b>
       </p>
       <div className="grid grid-cols-2 gap-3">
         {looks.map((l) => {
           const ch = DRESS_CHARACTER_BY_ID.get(l.characterId);
           const done = voted.has(l.id);
           return (
-            <div key={l.id} className="card overflow-hidden p-2 text-center">
-              {ch ? <PaperDoll base={ch.base} look={l.items} bg={ch.bg} title={`Look de ${l.name}`} className="mx-auto h-48 w-auto" /> : null}
-              <p className="mt-1 truncate text-sm font-black">{l.name}</p>
-              {l.elo ? <p className="truncate text-[10px] text-[var(--muted)]">{l.elo}</p> : null}
-              <button
-                type="button"
-                disabled={done || busy !== null || left === 0}
-                onClick={() => vote(l.id)}
-                className={`btn mt-2 w-full !py-2 !text-sm ${done ? "btn-ghost" : "btn-primary"} disabled:opacity-60`}
-              >
+            <div key={l.id} className="vh-card !cursor-default text-center" data-on={done}>
+              {ch ? (
+                <div className="relative mx-auto mb-1 rounded-xl py-1" style={{ background: `linear-gradient(180deg, ${ch.bg[0]}, ${ch.bg[1]})` }}>
+                  <PaperDoll base={ch.base} look={l.items} title={`Look de ${l.name}`} className="mx-auto h-44 w-auto" />
+                </div>
+              ) : null}
+              <p className="truncate text-sm font-black">{l.name}</p>
+              {l.elo ? <p className="truncate text-[10px] font-bold text-amber-900/70">{l.elo}</p> : null}
+              <button type="button" disabled={done || busy !== null || left === 0} onClick={() => vote(l.id)} className={`vh-btn vh-btn-sm mt-2 w-full ${done ? "vh-btn-dark" : "vh-btn-purple"}`}>
                 {done ? "✓ Votado" : busy === l.id ? "..." : "💛 Votar"}
               </button>
             </div>
           );
         })}
       </div>
-      {error ? <p className="mt-3 text-sm font-semibold text-rose-600">{error}</p> : null}
+      {error ? <p className="mt-3 rounded-xl bg-rose-900/70 px-3 py-2 text-sm font-bold text-rose-100">{error}</p> : null}
     </div>
   );
 }

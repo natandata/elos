@@ -169,31 +169,24 @@ export default async function JogosPage() {
       </Link>
 
       {dressOpen ? (
-        <Link
-          href="/app/jogos/vestir"
-          className="mb-5 flex items-center gap-4 rounded-2xl border-2 border-fuchsia-300 bg-gradient-to-br from-fuchsia-100 to-violet-100 px-5 py-4 text-fuchsia-900 transition active:scale-[0.99]"
-        >
-          <span className="text-5xl" aria-hidden>
-            👗
-          </span>
-          <span className="min-w-0">
-            <span className="block text-lg font-black leading-tight">
-              Vista o Herói <span className="ml-1 rounded-full bg-rose-600 px-2 py-0.5 align-middle text-[10px] font-black text-white">NOVO</span>
-            </span>
-            <span className="block text-xs font-bold opacity-80">Dress to Impress bíblico · ganhe Bilhetes Dourados 🎫</span>
+        <Link href="/app/jogos/vestir" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-amber-300 bg-[#34104f] shadow-lg transition active:scale-[0.99]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/dress/capa.webp" alt="Vista o Herói" className="block aspect-[16/8] w-full object-cover object-top" draggable={false} />
+          <span className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-black/85 to-transparent px-4 pb-2.5 pt-8">
+            <span className="text-xs font-bold text-amber-100">Jogo de vestir bíblico · ganhe Bilhetes Dourados 🎫</span>
+            <span className="shrink-0 rounded-full bg-rose-600 px-2.5 py-0.5 text-[11px] font-black text-white">NOVO</span>
           </span>
         </Link>
       ) : (
-        <Link
-          href="/app/jogos/vestir"
-          className="mb-5 flex items-center gap-4 rounded-2xl border-2 border-dashed border-fuchsia-300 bg-fuchsia-50 px-5 py-4 text-fuchsia-900 transition active:scale-[0.99]"
-        >
-          <span className="text-5xl opacity-70" aria-hidden>
-            🔒
-          </span>
-          <span className="min-w-0">
-            <span className="block text-lg font-black leading-tight">Vista o Herói · em breve</span>
-            <span className="block text-xs font-bold opacity-80">
+        <Link href="/app/jogos/vestir" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-amber-300 bg-[#34104f] shadow-lg transition active:scale-[0.99]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/dress/capa.webp" alt="Vista o Herói em breve" className="block aspect-[16/8] w-full object-cover object-top brightness-50" draggable={false} />
+          <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-center text-white">
+            <span className="text-3xl" aria-hidden>
+              🔒
+            </span>
+            <span className="text-lg font-black [text-shadow:0_2px_6px_#000]">Vista o Herói · em breve</span>
+            <span className="rounded-full bg-black/60 px-3 py-0.5 text-xs font-black text-amber-200">
               Abre em <DressTeaserText />
             </span>
           </span>

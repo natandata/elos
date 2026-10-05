@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { DressGame } from "@/components/games/dress/DressGame";
-import { PageHeader } from "@/components/ui";
+import { VhStage } from "@/components/games/dress/Vh";
 import { requireRole } from "@/lib/auth";
 import { todayBR } from "@/lib/games/engine";
 import { gameOpenFor } from "@/lib/games/releaseServer";
@@ -31,25 +31,25 @@ export default async function VestirJogarPage() {
 
   if (play.finished) {
     return (
-      <>
-        <PageHeader title="👗 Vista o Herói" subtitle={practice ? "Treino concluído" : "Desafio de hoje concluído"} />
-        <div className="card p-6 text-center">
-          <p className="text-5xl" aria-hidden>
+      <VhStage>
+        <div className="vh-panel vh-pop text-center">
+          <p className="text-6xl" aria-hidden>
             {play.score >= MAX_SCORE ? "🏆" : "✅"}
           </p>
-          <h2 className="mt-2 text-2xl font-black">
-            {play.score}/{MAX_SCORE} pontos
-          </h2>
+          <p className="vh-h2 mt-1">{practice ? "Treino concluído" : "Desafio de hoje concluído"}</p>
+          <p className="vh-title mt-1 text-5xl tabular-nums">
+            {play.score}/{MAX_SCORE}
+          </p>
           {practice ? (
-            <p className="mt-2 text-sm text-[var(--muted)]">Treino não dá bilhetes. O desafio de hoje já valeu!</p>
+            <p className="mt-2 text-sm text-purple-100">Treino não dá bilhetes. O desafio de hoje já valeu!</p>
           ) : (
-            <p className="mt-2 font-black text-amber-600">+{play.tickets_awarded} 🎫 Bilhetes Dourados</p>
+            <p className="mt-2 text-lg font-black text-amber-200">+{play.tickets_awarded} 🎫 Bilhetes Dourados</p>
           )}
-          <Link href="/app/jogos/vestir" className="btn btn-primary mt-5 w-full">
+          <Link href="/app/jogos/vestir" className="vh-btn vh-btn-gold mt-5">
             Ver o ranking
           </Link>
         </div>
-      </>
+      </VhStage>
     );
   }
 
@@ -60,7 +60,6 @@ export default async function VestirJogarPage() {
 
   return (
     <>
-      <PageHeader title="👗 Vista o Herói" subtitle="Escolha a roupa mais fiel ao texto bíblico." />
       <DressGame key={`${play.variant}-${idx}`} characterId={character.id} options={roundOptions(character.id, drawDate)} index={idx} total={ROUNDS_PER_DAY} practice={practice} />
     </>
   );

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Avatar } from "@/components/Avatar";
 import { DressActions } from "@/components/games/dress/DressActions";
 import { DressCountdown } from "@/components/games/dress/DressTeaser";
-import { PageHeader } from "@/components/ui";
+import { VhStage } from "@/components/games/dress/Vh";
 import { requireRole } from "@/lib/auth";
 import { todayBR } from "@/lib/games/engine";
 import { gameOpenFor } from "@/lib/games/releaseServer";
@@ -11,27 +11,35 @@ import { createClient } from "@/lib/supabase/server";
 
 type PlayRow = { variant: number; finished: boolean; score: number; tickets_awarded: number };
 
+/** Banner do jogo: a ilustração de capa com o título, num fecho dourado. */
+function Cover({ tall = false }: { tall?: boolean }) {
+  return (
+    <div className="relative mb-4 overflow-hidden rounded-3xl border-[3px] border-amber-300 shadow-[0_8px_24px_rgba(0,0,0,0.55)]">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/dress/capa.webp" alt="Vista o Herói: jogo de vestir feminino" className={`block w-full object-cover object-top ${tall ? "h-[430px]" : "h-[300px]"}`} draggable={false} />
+      <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[#34104f] to-transparent" />
+    </div>
+  );
+}
+
 export default async function VestirPage() {
   const { profile } = await requireRole("cria", "leader", "admin");
 
   if (!(await gameOpenFor("dress", profile.id))) {
     return (
-      <>
-        <PageHeader title="👗 Vista o Herói" subtitle="Dress to Impress bíblico: vista os personagens da Bíblia do jeito certo." />
-        <div className="card bg-gradient-to-br from-fuchsia-50 to-violet-100 p-6 text-center">
-          <p className="text-5xl" aria-hidden>
-            🎟️
-          </p>
-          <h2 className="mt-2 text-2xl font-black">Em breve!</h2>
-          <p className="mt-1 text-sm text-[var(--muted)]">Um jogo novo chega no dia 09 de outubro. Vista heróis da Bíblia, descubra as roupas certas e junte Bilhetes Dourados.</p>
-          <div className="mt-5">
+      <VhStage>
+        <Cover tall />
+        <div className="vh-panel text-center">
+          <p className="vh-title text-3xl">Em breve!</p>
+          <p className="mt-2 text-sm text-purple-100">Um jogo novo chega no dia 09 de outubro. Vista heroínas da Bíblia, descubra as roupas certas e junte Bilhetes Dourados.</p>
+          <div className="mt-4">
             <DressCountdown />
           </div>
         </div>
-        <Link href="/app/jogos" className="btn btn-ghost mt-4 w-full">
+        <Link href="/app/jogos" className="vh-btn vh-btn-dark mt-4">
           ← Voltar aos jogos
         </Link>
-      </>
+      </VhStage>
     );
   }
 
@@ -55,99 +63,90 @@ export default async function VestirPage() {
   const myPos = ranking.findIndex((r) => r.user_id === profile.id) + 1;
 
   return (
-    <>
-      <PageHeader title="👗 Vista o Herói" subtitle="Dress to Impress bíblico: vista os personagens da Bíblia do jeito certo e junte Bilhetes Dourados." />
+    <VhStage>
+      <Cover />
 
       <section className="mb-5 grid grid-cols-2 gap-3">
-        <div className="rounded-2xl bg-gradient-to-br from-amber-300 to-yellow-400 p-4 text-amber-950">
-          <p className="text-3xl" aria-hidden>
+        <div className="vh-panel text-center">
+          <p className="text-4xl" aria-hidden>
             🎫
           </p>
-          <p className="mt-1 text-3xl font-black tabular-nums leading-none">{tickets}</p>
-          <p className="mt-1 text-xs font-bold opacity-80">Bilhetes Dourados</p>
+          <p className="vh-title mt-1 text-4xl tabular-nums">{tickets}</p>
+          <p className="mt-1 text-[11px] font-black uppercase tracking-wide text-amber-200">Bilhetes Dourados</p>
         </div>
-        <div className="card p-4">
-          <p className="text-3xl" aria-hidden>
+        <div className="vh-panel text-center">
+          <p className="text-4xl" aria-hidden>
             🏅
           </p>
-          <p className="mt-1 text-lg font-black leading-tight">{t.title}</p>
-          <p className="mt-1 text-xs font-bold text-[var(--muted)]">{t.next ? `${t.next.min - tickets} 🎫 pra ${t.next.title}` : "Topo da passarela!"}</p>
+          <p className="mt-1 text-lg font-black leading-tight text-amber-100">{t.title}</p>
+          <p className="mt-1 text-[11px] font-bold text-purple-200">{t.next ? `${t.next.min - tickets} 🎫 pra ${t.next.title}` : "Topo da passarela!"}</p>
         </div>
       </section>
 
-      <section className="card mb-5 p-4">
-        <h2 className="text-lg font-black">Desafio de hoje</h2>
+      <section className="vh-panel mb-5">
+        <h2 className="vh-h2">Desafio de hoje</h2>
         {daily?.finished ? (
-          <p className="mt-1 text-sm text-[var(--muted)]">
-            Você fez <b>{daily.score}/30</b> pontos e ganhou <b>{daily.tickets_awarded} 🎫</b>. Volte amanhã para novos personagens!
+          <p className="mt-1 text-sm text-purple-100">
+            Você fez <b className="text-amber-200">{daily.score}/30</b> pontos e ganhou <b className="text-amber-200">{daily.tickets_awarded} 🎫</b>. Volte amanhã para novas heroínas!
           </p>
         ) : (
-          <p className="mt-1 text-sm text-[var(--muted)]">3 personagens da Bíblia. Escolha a roupa mais fiel ao texto em cada espaço. 1 🎫 por ponto (máx. 30) + 10 🎫 se acertar tudo.</p>
+          <p className="mt-1 text-sm text-purple-100">3 heroínas da Bíblia. Escolha a roupa mais fiel ao texto em cada espaço. 1 🎫 por ponto (máx. 30) + 10 🎫 se acertar tudo.</p>
         )}
-        <div className="mt-3">
+        <div className="mt-4">
           <DressActions state={state} />
         </div>
       </section>
 
-      <Link
-        href="/app/jogos/vestir/passarela"
-        className="mb-5 flex items-center gap-4 rounded-2xl border-2 border-fuchsia-300 bg-gradient-to-br from-fuchsia-100 to-pink-100 px-5 py-4 text-fuchsia-900 transition active:scale-[0.99]"
-      >
-        <span className="text-5xl" aria-hidden>
+      <Link href="/app/jogos/vestir/passarela" className="vh-btn vh-btn-purple mb-5 !justify-start !gap-3 !rounded-3xl !py-3 !text-left">
+        <span className="text-4xl" aria-hidden>
           📸
         </span>
-        <span className="min-w-0">
-          <span className="block text-lg font-black leading-tight">
-            Passarela <span className="ml-1 rounded-full bg-rose-600 px-2 py-0.5 align-middle text-[10px] font-black text-white">NOVO</span>
-          </span>
-          <span className="block text-xs font-bold opacity-80">Monte o look do dia e vote nos colegas · até 30 🎫</span>
+        <span className="min-w-0 normal-case">
+          <span className="block text-lg leading-tight">Passarela</span>
+          <span className="block text-[11px] font-bold leading-tight opacity-90">Monte o look do dia e vote nos colegas · até 30 🎫</span>
         </span>
       </Link>
 
-      <section className="mb-5">
-        <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">🏆 Ranking dos Bilhetes</h2>
-        <div className="card p-3">
-          {ranking.length === 0 ? (
-            <p className="p-2 text-sm text-[var(--muted)]">Ninguém pontuou ainda. Seja o primeiro!</p>
-          ) : (
-            <ol className="space-y-1.5">
-              {ranking.slice(0, 10).map((r, i) => (
-                <li key={r.user_id} className={`flex items-center gap-2 rounded-xl px-2 py-1.5 ${r.user_id === profile.id ? "bg-[var(--accent-soft)]" : ""}`}>
-                  <span className="w-6 text-center text-sm font-black">{["🥇", "🥈", "🥉"][i] ?? i + 1}</span>
-                  <Avatar url={r.avatar_url} name={r.full_name} size={30} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-bold">{r.full_name}</span>
-                    {r.elo_name ? <span className="block truncate text-[11px] text-[var(--muted)]">{r.elo_name}</span> : null}
-                  </span>
-                  <span className="text-sm font-black tabular-nums">{r.tickets} 🎫</span>
-                </li>
-              ))}
-            </ol>
-          )}
-          {myPos > 10 ? <p className="mt-2 text-center text-xs font-bold text-[var(--muted)]">Você está em {myPos}º lugar</p> : null}
-        </div>
+      <section className="vh-panel mb-5">
+        <h2 className="vh-h2 mb-2">🏆 Ranking dos Bilhetes</h2>
+        {ranking.length === 0 ? (
+          <p className="p-2 text-sm text-purple-200">Ninguém pontuou ainda. Seja a primeira!</p>
+        ) : (
+          <ol className="space-y-1.5">
+            {ranking.slice(0, 10).map((r, i) => (
+              <li key={r.user_id} className="vh-row" data-me={r.user_id === profile.id}>
+                <span className="w-7 text-center text-base font-black">{["🥇", "🥈", "🥉"][i] ?? i + 1}</span>
+                <Avatar url={r.avatar_url} name={r.full_name} size={30} />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-bold text-amber-50">{r.full_name}</span>
+                  {r.elo_name ? <span className="block truncate text-[11px] text-purple-200">{r.elo_name}</span> : null}
+                </span>
+                <span className="text-sm font-black tabular-nums text-amber-200">{r.tickets} 🎫</span>
+              </li>
+            ))}
+          </ol>
+        )}
+        {myPos > 10 ? <p className="mt-2 text-center text-xs font-bold text-purple-200">Você está em {myPos}º lugar</p> : null}
       </section>
 
       {elos.length > 0 ? (
-        <section className="mb-5">
-          <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">Elo vs Elo</h2>
-          <div className="card p-3">
-            <ol className="space-y-1">
-              {elos.slice(0, 5).map((e, i) => (
-                <li key={e.elo_id} className="flex items-center gap-2 text-sm">
-                  <span className="w-6 text-center font-black">{["🥇", "🥈", "🥉"][i] ?? i + 1}</span>
-                  <span className="min-w-0 flex-1 truncate font-bold">{e.elo_name}</span>
-                  <span className="font-black tabular-nums">{e.tickets} 🎫</span>
-                </li>
-              ))}
-            </ol>
-          </div>
+        <section className="vh-panel mb-5">
+          <h2 className="vh-h2 mb-2">Elo vs Elo</h2>
+          <ol className="space-y-1.5">
+            {elos.slice(0, 5).map((e, i) => (
+              <li key={e.elo_id} className="vh-row">
+                <span className="w-7 text-center font-black">{["🥇", "🥈", "🥉"][i] ?? i + 1}</span>
+                <span className="min-w-0 flex-1 truncate text-sm font-bold text-amber-50">{e.elo_name}</span>
+                <span className="text-sm font-black tabular-nums text-amber-200">{e.tickets} 🎫</span>
+              </li>
+            ))}
+          </ol>
         </section>
       ) : null}
 
-      <Link href="/app/jogos" className="btn btn-ghost w-full">
+      <Link href="/app/jogos" className="vh-btn vh-btn-dark">
         ← Voltar aos jogos
       </Link>
-    </>
+    </VhStage>
   );
 }

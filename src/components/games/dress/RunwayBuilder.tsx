@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { PaperDoll } from "./PaperDoll";
+import { RARITY_ICON, SparkleBurst, rarityOf } from "./Vh";
 import { submitRunwayLook } from "@/lib/actions/runway";
 import { DRESS_CHARACTER_BY_ID } from "@/lib/games/dress/characters";
 import { ITEMS_BY_SLOT, SLOTS, type Look, type Slot } from "@/lib/games/dress/items";
@@ -15,6 +16,7 @@ export function RunwayBuilder({ characterId }: { characterId: string }) {
   const [slot, setSlot] = useState<Slot>("head");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [burst, setBurst] = useState(0);
   if (!ch) return null;
 
   const filled = SLOTS.every((s) => look[s.key]);
@@ -31,46 +33,54 @@ export function RunwayBuilder({ characterId }: { characterId: string }) {
 
   return (
     <div>
-      <div className="mb-3 flex justify-center">
-        <PaperDoll key={JSON.stringify(look)} base={ch.base} look={look} bg={ch.bg} title={ch.name} className="dress-pop h-[300px] w-auto" />
+      <div className="vh-scene pb-9 pt-4">
+        <div className="vh-arch" />
+        <div className="vh-pedestal" />
+        <PaperDoll key={JSON.stringify(look)} base={ch.base} look={look} title={ch.name} className="vh-doll h-[300px] w-auto" />
+        {burst > 0 ? <SparkleBurst key={burst} /> : null}
       </div>
 
-      <div className="mb-2 flex gap-1.5 overflow-x-auto pb-1">
+      <div className="mb-3 flex justify-between gap-1 px-1">
         {SLOTS.map((s) => (
-          <button
-            key={s.key}
-            type="button"
-            onClick={() => setSlot(s.key)}
-            className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-black ${slot === s.key ? "bg-[var(--accent)] text-[var(--accent-ink)]" : "bg-[var(--card)] ring-1 ring-[var(--line)]"}`}
-          >
-            {s.emoji} {s.label} {look[s.key] ? "✓" : ""}
-          </button>
+          <div key={s.key} className="flex w-[19%] flex-col items-center">
+            <button type="button" aria-label={s.label} onClick={() => setSlot(s.key)} className="vh-medal" data-on={slot === s.key} data-done={!!look[s.key]}>
+              {s.emoji}
+            </button>
+            <span className="vh-medal-label">{s.label}</span>
+          </div>
         ))}
       </div>
 
-      <p className="mb-1 text-[11px] font-bold text-[var(--muted)]">{ITEMS_BY_SLOT(slot).length} peças · role a lista</p>
-      <div className="grid max-h-[420px] grid-cols-3 gap-2 overflow-y-auto pr-1">
+      <p className="mb-1 text-[11px] font-bold text-amber-200">{ITEMS_BY_SLOT(slot).length} peças · role a lista</p>
+      <div className="grid max-h-[420px] grid-cols-3 gap-2.5 overflow-y-auto p-1 pr-1.5">
         {ITEMS_BY_SLOT(slot).map((item) => {
           const on = look[slot] === item.id;
+          const rare = rarityOf(item.family);
           return (
             <button
               key={item.id}
               type="button"
-              onClick={() => setLook((l) => ({ ...l, [slot]: item.id }))}
-              className={`card flex flex-col items-center p-1.5 text-center transition active:scale-[0.97] ${on ? "!border-[var(--accent)] ring-2 ring-[var(--accent)]" : ""}`}
+              onClick={() => {
+                setLook((l) => ({ ...l, [slot]: item.id }));
+                setBurst((b) => b + 1);
+              }}
+              className="vh-card !px-1"
+              data-on={on}
+              data-rare={rare === "common" ? undefined : rare}
             >
+              {rare !== "common" ? <span className="vh-rarity">{RARITY_ICON[rare]}</span> : null}
               <PaperDoll base={ch.base} look={{ [slot]: item.id }} only={slot} className="h-16 w-full" title={item.name} />
-              <span className="mt-0.5 text-[10px] font-bold leading-tight">{item.name}</span>
+              <span className="vh-card-name block !text-[10px]">{item.name}</span>
             </button>
           );
         })}
       </div>
 
-      <button type="button" disabled={!filled || busy} onClick={publish} className="btn btn-primary mt-4 w-full !py-3 disabled:opacity-50">
+      <button type="button" disabled={!filled || busy} onClick={publish} className="vh-btn vh-btn-gold mt-5">
         {busy ? "..." : filled ? "📸 Publicar na Passarela" : `Faltam ${SLOTS.filter((s) => !look[s.key]).length} peça(s)`}
       </button>
-      <p className="mt-2 text-center text-xs text-[var(--muted)]">Você publica um look por dia e não dá pra trocar depois.</p>
-      {error ? <p className="mt-2 text-sm font-semibold text-rose-600">{error}</p> : null}
+      <p className="mt-2 text-center text-xs text-purple-200">Você publica um look por dia e não dá pra trocar depois.</p>
+      {error ? <p className="mt-2 rounded-xl bg-rose-900/70 px-3 py-2 text-sm font-bold text-rose-100">{error}</p> : null}
     </div>
   );
 }

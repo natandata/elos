@@ -41,9 +41,9 @@ export function DressCountdown({ game = "dress" }: { game?: ReleasedGame }) {
           ["seg", p.s],
         ] as const
       ).map(([label, n]) => (
-        <div key={label} className="rounded-2xl bg-white/80 px-1 py-3 ring-1 ring-fuchsia-200">
-          <p className="text-3xl font-black tabular-nums text-fuchsia-700">{String(n).padStart(2, "0")}</p>
-          <p className="text-[10px] font-black uppercase tracking-wide text-fuchsia-500">{label}</p>
+        <div key={label} className="vh-digit">
+          <b>{String(n).padStart(2, "0")}</b>
+          <span>{label}</span>
         </div>
       ))}
     </div>

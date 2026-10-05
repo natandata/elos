@@ -23,21 +23,21 @@ export function DressActions({ state }: { state: "new" | "playing" | "done" | "p
   return (
     <div>
       {state === "new" ? (
-        <button type="button" disabled={busy} onClick={() => go(false)} className="btn btn-primary w-full !py-3 !text-lg">
+        <button type="button" disabled={busy} onClick={() => go(false)} className="vh-btn">
           {busy ? "..." : "👗 Jogar o desafio de hoje"}
         </button>
       ) : null}
       {state === "playing" || state === "practicing" ? (
-        <button type="button" disabled={busy} onClick={() => router.push("/app/jogos/vestir/jogar")} className="btn btn-primary w-full !py-3 !text-lg">
+        <button type="button" disabled={busy} onClick={() => router.push("/app/jogos/vestir/jogar")} className="vh-btn">
           ▶️ Continuar {state === "practicing" ? "o treino" : "o desafio de hoje"}
         </button>
       ) : null}
       {state === "done" ? (
-        <button type="button" disabled={busy} onClick={() => go(true)} className="btn btn-ghost w-full !py-3">
+        <button type="button" disabled={busy} onClick={() => go(true)} className="vh-btn vh-btn-purple">
           {busy ? "..." : "🏋️ Treinar de novo (sem bilhetes)"}
         </button>
       ) : null}
-      {error ? <p className="mt-2 text-sm font-semibold text-rose-600">{error}</p> : null}
+      {error ? <p className="mt-2 rounded-xl bg-rose-900/70 px-3 py-2 text-sm font-bold text-rose-100">{error}</p> : null}
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { HeroCover } from "@/components/games/dress/HeroCover";
 import { PaperDoll } from "@/components/games/dress/PaperDoll";
 import { RunwayBuilder } from "@/components/games/dress/RunwayBuilder";
 import { RunwayVote, type RunwayLookCard } from "@/components/games/dress/RunwayVote";
-import { PageHeader } from "@/components/ui";
+import { VhStage, VhTitle } from "@/components/games/dress/Vh";
 import { requireRole } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { todayBR } from "@/lib/games/engine";
@@ -70,24 +70,31 @@ export default async function PassarelaPage() {
   const results = resultsRes.data ?? [];
 
   return (
-    <>
-      <PageHeader title="📸 Passarela" subtitle="Monte o look do dia, vote nos looks dos colegas e ganhe Bilhetes Dourados." />
+    <VhStage>
+      <div className="mb-4 text-center">
+        <VhTitle className="text-4xl">Passarela</VhTitle>
+        <p className="mt-2 text-sm text-purple-100">Monte o look do dia, vote nos looks das colegas e ganhe Bilhetes Dourados.</p>
+      </div>
 
       <HeroCover ch={theme} label="Tema de hoje" />
-      <section className="card mb-5 bg-gradient-to-br from-fuchsia-50 to-violet-100 p-4">
-        <p className="text-xs text-[var(--muted)]">
+      <section className="vh-panel mb-5">
+        <p className="text-xs text-purple-100">
           🎫 1º lugar {RUNWAY_PRIZES[0]}, 2º {RUNWAY_PRIZES[1]}, 3º {RUNWAY_PRIZES[2]} · quem vota ganha 1 🎫 por voto (até {MAX_VOTES_PER_DAY}). A votação de cada dia fica aberta hoje e amanhã. Empate: vence o look mais fiel à Bíblia.
         </p>
       </section>
 
       <section className="mb-6">
-        <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">Seu look de hoje</h2>
+        <h2 className="vh-h2 mb-2">Seu look de hoje</h2>
         {mineToday ? (
-          <div className="card p-3 text-center">
+          <div>
             {DRESS_CHARACTER_BY_ID.get(mineToday.theme_character) ? (
-              <PaperDoll base={DRESS_CHARACTER_BY_ID.get(mineToday.theme_character)!.base} look={mineToday.items} bg={DRESS_CHARACTER_BY_ID.get(mineToday.theme_character)!.bg} className="mx-auto h-56 w-auto" title="Seu look" />
+              <div className="vh-scene pb-9 pt-4">
+                <div className="vh-arch" />
+                <div className="vh-pedestal" />
+                <PaperDoll base={DRESS_CHARACTER_BY_ID.get(mineToday.theme_character)!.base} look={mineToday.items} className="vh-doll h-[280px] w-auto" title="Seu look" />
+              </div>
             ) : null}
-            <p className="mt-2 text-sm font-bold">✅ Publicado! Os colegas já podem votar.</p>
+            <p className="text-center text-sm font-black text-amber-200">✅ Publicado! As colegas já podem votar.</p>
           </div>
         ) : (
           <RunwayBuilder characterId={theme.id} />
@@ -96,7 +103,7 @@ export default async function PassarelaPage() {
 
       {days.map((d) => (
         <section key={d} className="mb-6">
-          <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">
+          <h2 className="vh-h2 mb-2">
             Votar · looks de {dayLabel(d, today)} ({DRESS_CHARACTER_BY_ID.get(runwayTheme(d).id)?.name})
           </h2>
           <RunwayVote looks={cardsFor(d)} votesLeft={votesLeft(d)} />
@@ -105,16 +112,20 @@ export default async function PassarelaPage() {
 
       {results.length > 0 ? (
         <section className="mb-6">
-          <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">🏆 Últimos vencedores</h2>
+          <h2 className="vh-h2 mb-2">🏆 Últimos vencedores</h2>
           <div className="grid grid-cols-3 gap-2">
             {results.map((l) => {
               const ch = DRESS_CHARACTER_BY_ID.get(l.theme_character);
               return (
-                <div key={l.id} className="card p-1.5 text-center">
-                  {ch ? <PaperDoll base={ch.base} look={l.items} bg={ch.bg} className="mx-auto h-28 w-auto" title={`Look de ${l.profiles?.full_name}`} /> : null}
-                  <p className="mt-1 text-sm font-black">{["🥇", "🥈", "🥉"][(l.place ?? 1) - 1]}</p>
-                  <p className="truncate text-[11px] font-bold">{l.profiles?.full_name}</p>
-                  <p className="text-[10px] text-[var(--muted)]">{ch?.name}</p>
+                <div key={l.id} className="vh-card !cursor-default !px-1 !pb-2" data-rare={l.place === 1 ? "legend" : "epic"}>
+                  {ch ? (
+                    <div className="rounded-lg py-0.5" style={{ background: `linear-gradient(180deg, ${ch.bg[0]}, ${ch.bg[1]})` }}>
+                      <PaperDoll base={ch.base} look={l.items} className="mx-auto h-28 w-auto" title={`Look de ${l.profiles?.full_name}`} />
+                    </div>
+                  ) : null}
+                  <p className="mt-1 text-base font-black">{["🥇", "🥈", "🥉"][(l.place ?? 1) - 1]}</p>
+                  <p className="truncate text-[11px] font-black">{l.profiles?.full_name}</p>
+                  <p className="text-[10px] font-bold text-amber-900/70">{ch?.name}</p>
                 </div>
               );
             })}
@@ -122,9 +133,9 @@ export default async function PassarelaPage() {
         </section>
       ) : null}
 
-      <Link href="/app/jogos/vestir" className="btn btn-ghost w-full">
+      <Link href="/app/jogos/vestir" className="vh-btn vh-btn-dark">
         ← Voltar ao Vista o Herói
       </Link>
-    </>
+    </VhStage>
   );
 }
