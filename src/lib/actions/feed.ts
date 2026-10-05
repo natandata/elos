@@ -147,27 +147,31 @@ export async function toggleFeedLike(_prev: Result | null, formData: FormData): 
   if (existing?.kind === kind) {
     await supabase.from("feed_likes").delete().eq("post_id", postId).eq("user_id", profile.id);
   } else if (existing) {
-    await supabase
-      .from("feed_likes")
-      .update({ kind })
-      .eq("post_id", postId)
-      .eq("user_id", profile.id);
+    const { error } = await supabase.from("feed_likes").update({ kind }).eq("post_id", postId).eq("user_id", profile.id);
+    if (error) return { error: "Não foi possível trocar a reação. Tente de novo." };
   } else {
     const { error } = await supabase
       .from("feed_likes")
       .insert({ post_id: postId, user_id: profile.id, kind });
-    if (error) return { error: "Não foi possível reagir." };
-    const { data: authorId } = await supabase.rpc("notify_feed_interaction", {
-      p_post_id: postId,
-      p_kind: "like",
-    });
-    if (authorId) {
-      await sendPushToUsers([authorId as string], {
-        title: "Reagiram na sua foto",
-        body: `${REACTION_EMOJI[kind] ?? "👍"} Alguém reagiu à sua foto no Explorar.`,
-        url: "/app/feed",
-      });
+    if (error) {
+      // 23503 = a foto já expirou (24h) e foi apagada enquanto a tela estava aberta
+      return { error: error.code === "23503" ? "Essa foto já saiu do ar. Atualize a página." : "Não foi possível reagir. Tente de novo." };
     }
+    // aviso e push saem depois da resposta: a reação aparece na hora, sem esperar o envio
+    after(async () => {
+      try {
+        const { data: authorId } = await supabase.rpc("notify_feed_interaction", { p_post_id: postId, p_kind: "like" });
+        if (authorId) {
+          await sendPushToUsers([authorId as string], {
+            title: "Reagiram na sua foto",
+            body: `${REACTION_EMOJI[kind] ?? "👍"} Alguém reagiu à sua foto no Explorar.`,
+            url: "/app/feed",
+          });
+        }
+      } catch {
+        // aviso é secundário
+      }
+    });
   }
 
   revalidateFeed();

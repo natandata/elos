@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useOptimistic, useState, useTransition } from "react";
 import Link from "next/link";
 import {
   addFeedComment,
@@ -83,7 +83,31 @@ export function FeedPostCard({
   isAdmin: boolean;
   canPost: boolean;
 }) {
-  const [likeState, likeAction] = useActionState(toggleFeedLike, null);
+  // a reação aparece na hora (otimista) e volta atrás sozinha se o servidor recusar
+  const [reaction, setReactionOptimistic] = useOptimistic({ my: post.myReaction, counts: post.reactionCounts }, (cur, kind: string) => {
+    const bump = (counts: { kind: string; count: number }[], k: string, d: number) => {
+      const has = counts.some((c) => c.kind === k);
+      const next = has ? counts.map((c) => (c.kind === k ? { ...c, count: Math.max(0, c.count + d) } : c)) : [...counts, { kind: k, count: Math.max(0, d) }];
+      return next;
+    };
+    if (cur.my === kind) return { my: null, counts: bump(cur.counts, kind, -1) };
+    const base = cur.my ? bump(cur.counts, cur.my, -1) : cur.counts;
+    return { my: kind, counts: bump(base, kind, 1) };
+  });
+  const [likePending, startLike] = useTransition();
+  const [likeError, setLikeError] = useState<string | null>(null);
+  function react(kind: string) {
+    if (likePending) return;
+    setLikeError(null);
+    startLike(async () => {
+      setReactionOptimistic(kind);
+      const fd = new FormData();
+      fd.set("post_id", post.id);
+      fd.set("kind", kind);
+      const r = await toggleFeedLike(null, fd).catch(() => ({ error: "Sem conexão. Tente de novo." }) as { error?: string });
+      if (r.error) setLikeError(r.error);
+    });
+  }
   const [commentState, commentAction] = useActionState(addFeedComment, null);
   const [deleteState, deleteAction] = useActionState(deleteFeedPost, null);
   const [captionState, captionAction] = useActionState(updateFeedCaption, null);
@@ -264,14 +288,14 @@ export function FeedPostCard({
           <div className="flex flex-wrap items-center gap-1.5">
             {canPost ? (
               REACTION_ORDER.map((kind) => {
-                const count = post.reactionCounts.find((r) => r.kind === kind)?.count ?? 0;
-                const active = post.myReaction === kind;
+                const count = reaction.counts.find((r) => r.kind === kind)?.count ?? 0;
+                const active = reaction.my === kind;
                 return (
-                  <form key={kind} action={likeAction} className="inline-block">
-                    <input type="hidden" name="post_id" value={post.id} />
-                    <input type="hidden" name="kind" value={kind} />
+                  <span key={kind} className="inline-block">
                     <button
-                      type="submit"
+                      type="button"
+                      onClick={() => react(kind)}
+                      disabled={likePending}
                       className={`flex items-center gap-1 rounded-full border px-2.5 py-1.5 text-base leading-none shadow-sm transition active:scale-90 ${
                         active
                           ? "border-[var(--accent)] bg-[var(--accent-soft)]"
@@ -288,7 +312,7 @@ export function FeedPostCard({
                         </span>
                       ) : null}
                     </button>
-                  </form>
+                  </span>
                 );
               })
             ) : post.reactionCounts.length > 0 ? (
@@ -296,7 +320,7 @@ export function FeedPostCard({
                 {post.reactionCounts.map((r) => `${REACTION_EMOJI[r.kind]} ${r.count}`).join("  ")}
               </span>
             ) : null}
-            <Feedback state={likeState} />
+            {likeError ? <p className="w-full text-xs font-semibold text-rose-600">{likeError}</p> : null}
 
             <button
               type="button"
