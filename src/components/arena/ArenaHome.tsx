@@ -6,6 +6,8 @@ import { Avatar } from "@/components/Avatar";
 import { ARENAS, TROPHY_LOSS, TROPHY_WIN, arenaProgress } from "@/lib/arena/arenas";
 import { ArenaHero } from "./ArenaHero";
 import { ArenaGateBanner } from "./ArenaGateBanner";
+import { ChestIcon, LampIcon } from "./ArenaIcons";
+import { useNow, useOnlineMap, type Presence } from "./arenaPresence";
 import type { GateInfo } from "@/lib/arena/gate";
 
 export type RankRow = { id: string; name: string; avatar: string | null; elo: string | null; trophies: number };
@@ -13,6 +15,29 @@ export type EloRow = { id: string; name: string; points: number };
 export type ArenaTab = "battle" | "cards" | "chests" | "ranking" | "info";
 
 const MIN_RANK_TROPHIES = 30;
+
+const MODE_LABEL: Record<string, string> = { cpu: "contra o computador", pvp: "1x1", duo: "em duplas", tournament: "no torneio" };
+const clock = (ms: number) => {
+  const s = Math.max(0, Math.round(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+};
+
+/** Linha de situação de um jogador no ranking: offline, online ou jogando (arena, placar e tempo). */
+function LiveLine({ p, now }: { p: Presence | undefined; now: number }) {
+  if (!p) return <span className="block truncate text-[11px] text-[var(--muted)]">⚪ Offline</span>;
+  if (p.s !== "playing") return <span className="block truncate text-[11px] font-bold text-emerald-500">🟢 Online</span>;
+  const arena = p.arena !== undefined ? ARENAS[p.arena] : undefined;
+  const lead = p.lead === "win" ? { t: "ganhando", c: "text-emerald-500" } : p.lead === "lose" ? { t: "perdendo", c: "text-rose-500" } : { t: "empatado", c: "text-amber-500" };
+  const left = p.endsAt ? clock(p.endsAt - now) : null;
+  return (
+    <span className="block truncate text-[11px] font-bold">
+      <span className="text-sky-500">⚔️ Jogando {MODE_LABEL[p.mode ?? "cpu"]}</span>
+      {arena ? <span className="text-[var(--muted)]"> · {arena.name}</span> : null}
+      <span className={`${lead.c}`}> · {lead.t}{p.crowns ? ` (${p.crowns[0]}x${p.crowns[1]})` : ""}</span>
+      {left ? <span className="text-[var(--muted)]"> · ⏱ {left}</span> : null}
+    </span>
+  );
+}
 
 function MiniBtn({ children, label, badge, onClick, href }: { children: ReactNode; label: string; badge?: number; onClick?: () => void; href?: string }) {
   const cls = "cr-panel relative flex h-12 w-12 items-center justify-center text-2xl active:translate-y-[2px]";
@@ -33,11 +58,13 @@ function MiniBtn({ children, label, badge, onClick, href }: { children: ReactNod
   );
 }
 
-function Slot({ icon, iconSrc, title, sub, open, href, onClick }: { icon: string; iconSrc?: string; title: string; sub: string; open?: boolean; href?: string; onClick?: () => void }) {
+function Slot({ icon, iconSrc, iconNode, title, sub, open, href, onClick }: { icon: string; iconSrc?: string; iconNode?: ReactNode; title: string; sub: string; open?: boolean; href?: string; onClick?: () => void }) {
   const body = (
     <div className={`cr-slot ${open ? "cr-slot-open" : ""} flex h-full flex-col items-center justify-between px-1 py-1.5 text-center`}>
       <p className="cr-text text-[10px] leading-none">{title}</p>
-      {iconSrc ? (
+      {iconNode ? (
+        <span className="flex h-9 items-center justify-center drop-shadow">{iconNode}</span>
+      ) : iconSrc ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={iconSrc} alt="" className="h-9 w-auto drop-shadow" draggable={false} />
       ) : (
@@ -76,7 +103,6 @@ export function ArenaHome({
   myEloId,
   trophyRanking,
   myId,
-  missionsHref,
   invites,
   onBattle,
   error,
@@ -100,7 +126,6 @@ export function ArenaHome({
   myEloId: string | null;
   trophyRanking: RankRow[];
   myId: string;
-  missionsHref: string;
   invites: number;
   onBattle: () => void;
   error: string | null;
@@ -109,6 +134,8 @@ export function ArenaHome({
   openTournaments: number;
 }) {
   const prog = arenaProgress(trophies);
+  const onlineMap = useOnlineMap();
+  const now = useNow();
   const shown = ARENAS[Math.min(viewArena, ARENAS.length - 1)];
   const training = shown.key !== prog.cur.key;
   const [rankTab, setRankTab] = useState<"players" | "elos">("players");
@@ -131,11 +158,14 @@ export function ArenaHome({
           <>
             {/* atalhos de cima */}
             <div className="grid grid-cols-2 gap-2">
-              <Link href={missionsHref} className="cr-panel flex min-w-0 items-center gap-1.5 px-2 py-2 active:translate-y-[2px]">
+              <Link href="/app/jogos/arena/missoes" className="cr-panel flex min-w-0 items-center gap-1.5 px-2 py-2 active:translate-y-[2px]">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#1c4f9a] text-lg shadow-inner" aria-hidden>
                   🎯
                 </span>
-                <span className="cr-text min-w-0 text-[15px] leading-tight">Missões</span>
+                <span className="min-w-0 leading-tight">
+                  <span className="cr-text block text-[15px]">Missões</span>
+                  <span className="cr-text block text-[10px] opacity-90">da Arena</span>
+                </span>
               </Link>
               <Link href="/app/jogos" className="cr-panel flex min-w-0 items-center gap-1 px-2 py-2 active:translate-y-[2px]">
                 <span className="min-w-0 flex-1 leading-tight">
@@ -250,20 +280,16 @@ export function ArenaHome({
               >
                 {gate.locked ? "🔒 Batalha" : "Batalha"}
               </button>
-              {gate.locked ? (
-                <span className="cr-btn cr-btn-blue cr-text flex items-center justify-center py-4 text-[26px] leading-none grayscale opacity-60">🔒 Duplas</span>
-              ) : (
-                <Link href="/app/jogos/arena/duplas" className="cr-btn cr-btn-blue cr-text flex items-center justify-center py-4 text-[26px] leading-none">
-                  Duplas
-                </Link>
-              )}
+              <Link href="/app/jogos/arena/duplas" className="cr-btn cr-btn-blue cr-text flex items-center justify-center py-4 text-[26px] leading-none">
+                Duplas
+              </Link>
             </div>
 
             {/* espaços de recompensa */}
             <div className="mt-3 grid grid-cols-4 gap-2">
-              <Slot open={dailyChestReady} icon="🎁" title="Baú da Arena" sub={dailyChestReady ? "Abrir" : "Amanhã"} onClick={() => setTab("chests")} />
-              <Slot icon="🧰" title="Baús" sub="Troféus" onClick={() => setTab("chests")} />
-              <Slot icon="⭐" title="XP de hoje" sub={`${winsToday}/${maxWins}`} />
+              <Slot open={dailyChestReady} icon="🎁" iconNode={<ChestIcon variant="wood" open={dailyChestReady} className="h-9 w-auto" />} title="Baú da Arena" sub={dailyChestReady ? "Abrir" : "Amanhã"} onClick={() => setTab("chests")} />
+              <Slot icon="🧰" iconNode={<ChestIcon variant="gold" className="h-9 w-auto" />} title="Baús" sub="Troféus" onClick={() => setTab("chests")} />
+              <Slot icon="⭐" iconNode={<LampIcon className="h-9 w-auto" />} title="XP de hoje" sub={`${winsToday}/${maxWins}`} />
               <Slot icon={prog.next ? prog.next.emoji : "👑"} iconSrc={prog.next?.art} title={prog.next ? "Próx. arena" : "Máxima"} sub={prog.next ? `${prog.next.min - trophies} 🏆` : "🎉"} />
             </div>
             <p className="cr-text mt-2 text-center text-[11px] opacity-90">
@@ -309,6 +335,7 @@ export function ArenaHome({
                         <span className="min-w-0 flex-1 leading-tight">
                           <span className="block truncate text-sm font-black">{r.name}</span>
                           {r.elo ? <span className="block truncate text-[11px] text-[var(--muted)]">{r.elo}</span> : null}
+                          <LiveLine p={onlineMap.get(r.id)} now={now} />
                         </span>
                         <span className="rounded-full bg-black/60 px-2.5 py-1 text-sm font-black tabular-nums text-white">🏆 {r.trophies}</span>
                       </li>

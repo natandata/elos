@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { CopyReward } from "./CopyReward";
+import { useArenaPresence } from "./arenaPresence";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
@@ -28,11 +29,13 @@ export type PvpRoomProps = {
   initialView: PvpView;
   /** partida de torneio: mostra o caminho de volta e não fala de troféus */
   tournamentId?: string | null;
+  /** quem está jogando (pra aparecer como "jogando" no ranking) */
+  myId: string;
 };
 
 const PEER_SILENT_MS = 10_000;
 
-export function ArenaPvpRoom({ id, meSide, opponentName, arena, seed, decks, initialStatus, initialView, tournamentId }: PvpRoomProps) {
+export function ArenaPvpRoom({ id, meSide, opponentName, arena, seed, decks, initialStatus, initialView, tournamentId, myId }: PvpRoomProps) {
   const router = useRouter();
   const startedKey = `arena-pvp-started:${id}`;
   const [stage, setStage] = useState<Stage>(() => {
@@ -45,6 +48,7 @@ export function ArenaPvpRoom({ id, meSide, opponentName, arena, seed, decks, ini
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [driver, setDriver] = useState<PlayDriver | null>(null);
+  useArenaPresence(myId, tournamentId ? "tournament" : "pvp", driver, stage === "playing");
   const [peerGone, setPeerGone] = useState(false);
   const [peerLeft, setPeerLeft] = useState(false);
   const [oppDeck, setOppDeck] = useState<string[] | null>(decks[1]);

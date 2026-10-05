@@ -5,6 +5,9 @@ import { openArenaChest } from "@/lib/actions/arena";
 import { ARENA_CARD_BY_KEY } from "@/lib/arena/cards";
 import { CHESTS, type ChestDef, type CopyGrant } from "@/lib/arena/economy";
 import { CardArt } from "./CardArt";
+import { ChestIcon } from "./ArenaIcons";
+
+const VARIANT = { daily: "wood", cedro: "wood", templo: "gold", arca: "ark" } as const;
 
 /** Baú da Arena (grátis, 1x por dia) e baús comprados com troféus. */
 export function ArenaChests({
@@ -42,9 +45,9 @@ export function ArenaChests({
   if (opened) {
     return (
       <div className="text-center">
-        <p className="text-5xl" aria-hidden>
-          {opened.chest.emoji}
-        </p>
+        <div className="flex justify-center">
+          <ChestIcon variant={VARIANT[opened.chest.kind]} open className="h-20 w-auto" />
+        </div>
         <p className="mt-1 text-lg font-black">{opened.chest.name} aberto!</p>
         <ul className="mt-3 grid grid-cols-2 gap-2">
           {opened.grants.map((g) => {
@@ -79,9 +82,7 @@ export function ArenaChests({
           const can = free ? dailyReady : trophies >= c.cost;
           return (
             <li key={c.kind} className="card flex items-center gap-3 p-3">
-              <span className="text-4xl" aria-hidden>
-                {c.emoji}
-              </span>
+              <ChestIcon variant={VARIANT[c.kind]} className="h-12 w-auto shrink-0" />
               <span className="min-w-0 flex-1 leading-tight">
                 <span className="block text-sm font-black">{c.name}</span>
                 <span className="block text-xs font-bold text-[var(--muted)]">

@@ -52,6 +52,7 @@ export default async function ArenaDuoRoomPage({ params }: { params: Promise<{ i
         initialStatus={status}
         initialView={expired ? { state: "declined" } : viewOfDuo(row, profile.id)}
         tournamentId={tournamentId}
+        myId={profile.id}
       />
     </>
   );

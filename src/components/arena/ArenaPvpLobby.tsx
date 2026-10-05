@@ -16,7 +16,7 @@ export type PvpItem = {
   waiting: boolean;
 };
 
-export function ArenaPvpLobby({ mates, items, locked = false }: { mates: Mate[]; items: PvpItem[]; locked?: boolean }) {
+export function ArenaPvpLobby({ mates, items }: { mates: Mate[]; items: PvpItem[] }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -91,7 +91,7 @@ export function ArenaPvpLobby({ mates, items, locked = false }: { mates: Mate[];
               <li key={m.id} className="card flex items-center gap-3 p-3">
                 <Avatar url={m.avatarUrl} name={m.name} size={40} />
                 <span className="min-w-0 flex-1 truncate text-base font-bold">{m.name}</span>
-                <button type="button" disabled={busy !== null || locked} onClick={() => challenge(m.id)} className="btn btn-primary !px-4 !py-2 !text-sm disabled:opacity-50">
+                <button type="button" disabled={busy !== null} onClick={() => challenge(m.id)} className="btn btn-primary !px-4 !py-2 !text-sm disabled:opacity-50">
                   {busy === m.id ? "..." : "⚔️ Desafiar"}
                 </button>
               </li>

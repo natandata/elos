@@ -1,7 +1,5 @@
 import Link from "next/link";
 import { ArenaDuoLobby, type DuoItem, type Mate } from "@/components/arena/ArenaDuoLobby";
-import { ArenaGateBanner } from "@/components/arena/ArenaGateBanner";
-import { loadGate } from "@/lib/arena/gateServer";
 import { PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import { viewOfDuo, type DuoRow } from "@/lib/arena/settleDuo";
@@ -11,7 +9,6 @@ export default async function ArenaDuoLobbyPage() {
   const { profile } = await requireRole("cria", "leader");
   const supabase = await createClient();
 
-  const gate = await loadGate(supabase, profile.id);
   const [matesRes, duoRes] = await Promise.all([
     profile.elo_id
       ? supabase
@@ -53,8 +50,7 @@ export default async function ArenaDuoLobbyPage() {
   return (
     <>
       <PageHeader title="👥 Arena em duplas" subtitle="Monte uma dupla com um colega do seu Elo e enfrente outra dupla em tempo real (2x2). Todo mundo joga com cartas no nível 1." />
-      {gate.locked ? <ArenaGateBanner gate={gate} /> : null}
-      <ArenaDuoLobby mates={mates} items={items} locked={gate.locked} />
+      <ArenaDuoLobby mates={mates} items={items} />
       <Link href="/app/jogos/arena" className="btn btn-ghost mt-4 w-full">
         ← Voltar à Arena
       </Link>

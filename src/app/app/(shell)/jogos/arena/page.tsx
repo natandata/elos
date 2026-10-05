@@ -62,6 +62,6 @@ export default async function ArenaPage() {
   const deck = isValidDeck(saved?.deck) && deckAllowed(saved.deck, stats?.best ?? 0) ? saved.deck : STARTER_DECK;
 
   return (
-    <ArenaGame winsToday={count ?? 0} maxWins={MAX_XP_WINS} initialDeck={deck} initialTrophies={stats?.trophies ?? 0} initialBest={stats?.best ?? 0} initialCopies={copies} initialLevels={levels} dailyChestReady={stats?.chest_date !== today} eloRanking={eloRanking} myEloId={profile.elo_id ?? null} trophyRanking={trophyRanking} myId={profile.id} missionsHref={profile.role === "leader" ? "/app/lider/missoes" : "/app/cria/missoes"} invites={(invites ?? 0) + duoInvites} gate={gate} openTournaments={tournamentCount ?? 0} />
+    <ArenaGame winsToday={count ?? 0} maxWins={MAX_XP_WINS} initialDeck={deck} initialTrophies={stats?.trophies ?? 0} initialBest={stats?.best ?? 0} initialCopies={copies} initialLevels={levels} dailyChestReady={stats?.chest_date !== today} eloRanking={eloRanking} myEloId={profile.elo_id ?? null} trophyRanking={trophyRanking} myId={profile.id} invites={(invites ?? 0) + duoInvites} gate={gate} openTournaments={tournamentCount ?? 0} />
   );
 }

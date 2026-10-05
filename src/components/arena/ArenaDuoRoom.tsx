@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { CopyReward } from "./CopyReward";
+import { useArenaPresence } from "./arenaPresence";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
@@ -29,11 +30,13 @@ export type DuoRoomProps = {
   initialView: DuoView;
   /** partida de torneio: mostra o caminho de volta e não fala de troféus */
   tournamentId?: string | null;
+  /** quem está jogando (pra aparecer como "jogando" no ranking) */
+  myId: string;
 };
 
 const PEER_SILENT_MS = 10_000;
 
-export function ArenaDuoRoom({ id, me, names, arena, seed, decks, initialStatus, initialView, tournamentId }: DuoRoomProps) {
+export function ArenaDuoRoom({ id, me, names, arena, seed, decks, initialStatus, initialView, tournamentId, myId }: DuoRoomProps) {
   const router = useRouter();
   const startedKey = `arena-duo-started:${id}`;
   const mySide = teamOf(4, me) as Side;
@@ -48,6 +51,7 @@ export function ArenaDuoRoom({ id, me, names, arena, seed, decks, initialStatus,
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [driver, setDriver] = useState<PlayDriver | null>(null);
+  useArenaPresence(myId, tournamentId ? "tournament" : "duo", driver, stage === "playing");
   const [silent, setSilent] = useState<number[]>([]);
   const [leftNames, setLeftNames] = useState<number[]>([]);
 

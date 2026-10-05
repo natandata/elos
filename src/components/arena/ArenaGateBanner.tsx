@@ -7,7 +7,7 @@ export function ArenaGateBanner({ gate, compact = false }: { gate: GateInfo; com
     const left = GATE_BATTLES - gate.battles;
     return (
       <p className={`cr-text text-center text-[11px] opacity-90 ${compact ? "" : "mt-2"}`}>
-        {Array.from({ length: GATE_BATTLES }).map((_, i) => (i < gate.battles ? "🟡" : "⚪")).join(" ")} · {left === 1 ? "mais 1 batalha" : `mais ${left} batalhas`} até a pausa pra jogar outros jogos
+        {Array.from({ length: GATE_BATTLES }).map((_, i) => (i < gate.battles ? "🟡" : "⚪")).join(" ")} · {left === 1 ? "mais 1 batalha" : `mais ${left} batalhas`} contra o computador até a pausa pra jogar outros jogos
       </p>
     );
   }

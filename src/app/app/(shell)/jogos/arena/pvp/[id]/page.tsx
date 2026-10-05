@@ -52,6 +52,7 @@ export default async function ArenaPvpRoomPage({ params }: { params: Promise<{ i
         initialStatus={status}
         initialView={expired ? { state: "declined" } : viewOf(row, profile.id)}
         tournamentId={tournamentId}
+        myId={profile.id}
       />
     </>
   );

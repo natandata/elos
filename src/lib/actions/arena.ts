@@ -10,6 +10,8 @@ import { CHEST_BY_KIND, rollChest, unlockedCards, type ChestKind, type CopyGrant
 import { gateMessage } from "@/lib/arena/gate";
 import { loadGate } from "@/lib/arena/gateServer";
 import { abandonOpenMatches, settleArena, type ArenaFinish } from "@/lib/arena/settle";
+import { MISSION_BY_KEY } from "@/lib/arena/missions";
+import { loadArenaMissions, todayBR as missionDay } from "@/lib/arena/missionsServer";
 
 const MAX_MATCHES_PER_DAY = 100;
 
@@ -146,4 +148,21 @@ export async function finishArena(input: {
   const admin = createAdminClient();
   if (!admin) return { error: "Não foi possível confirmar o resultado agora." };
   return settleArena(admin, userId, input);
+}
+
+/** Resgata o prêmio (troféus) de uma missão da Arena já completa hoje. */
+export async function claimArenaMission(key: string): Promise<{ error?: string; reward?: number; trophies?: number }> {
+  const { supabase, userId } = await currentPlayer();
+  const def = MISSION_BY_KEY.get(key);
+  if (!def) return { error: "Missão desconhecida." };
+  const admin = createAdminClient();
+  if (!admin) return { error: "Missões indisponíveis no momento." };
+  const state = (await loadArenaMissions(supabase, userId)).find((m) => m.def.key === key);
+  if (!state || !state.done) return { error: "Essa missão ainda não foi completada." };
+  if (state.claimed) return { error: "Você já resgatou essa missão hoje." };
+  // a chave (jogador, missão, dia) garante um resgate só, mesmo com dois toques juntos
+  const { error } = await admin.from("arena_mission_claims").insert({ user_id: userId, mission: key, day: missionDay(), trophies: def.reward });
+  if (error) return { error: "Você já resgatou essa missão hoje." };
+  const { data: total } = await admin.rpc("arena_apply_result", { p_user: userId, p_delta: def.reward, p_result: "draw", p_copies: 0, p_card: null });
+  return { reward: def.reward, trophies: typeof total === "number" ? total : undefined };
 }

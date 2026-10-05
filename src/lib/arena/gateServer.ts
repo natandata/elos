@@ -11,14 +11,12 @@ export async function loadGate(supabase: SupabaseClient, userId: string): Promis
   const events: GateEvent[] = [];
   const iso = (v: string | null | undefined) => (v ? new Date(v).getTime() : NaN);
 
-  const [pve, pvp, duo, games] = await Promise.all([
+  const [pve, games] = await Promise.all([
     supabase.from("arena_matches").select("finished_at").eq("user_id", userId).eq("status", "finished").gte("finished_at", GATE_START),
-    supabase.from("arena_pvp").select("finished_at").eq("status", "finished").is("tournament_match_id", null).or(`challenger_id.eq.${userId},opponent_id.eq.${userId}`).gte("finished_at", GATE_START),
-    supabase.from("arena_duo").select("finished_at").eq("status", "finished").is("tournament_match_id", null).contains("players", [userId]).gte("finished_at", GATE_START),
     supabase.from("game_plays").select("game, finished_at, play_date").eq("user_id", userId).eq("finished", true).in("game", [...GATE_GAME_KEYS]).gte("finished_at", GATE_START),
   ]);
 
-  for (const list of [pve.data, pvp.data, duo.data]) {
+  for (const list of [pve.data]) {
     for (const r of (list ?? []) as { finished_at: string }[]) {
       const t = iso(r.finished_at);
       if (!Number.isNaN(t)) events.push({ t, kind: "battle" });
