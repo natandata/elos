@@ -278,7 +278,7 @@ export function ArenaHome({
           <div className="rounded-2xl bg-[var(--bg)]/95 p-4">
             <p className="text-lg font-black">Como jogar</p>
             <ul className="mt-2 space-y-1.5 text-sm font-semibold text-[var(--muted)]">
-              <li>💧 O Maná enche sozinho. Cada carta custa um pouco dele.</li>
+              <li>🍞 O Maná (pão do céu) enche sozinho. Cada carta custa um pouco dele.</li>
               <li>👆 Toque numa carta e depois no campo (na sua metade) pra colocar o herói.</li>
               <li>🗼 Derrube as Atalaias (1 coroa) e o Santuário (3 coroas) do adversário.</li>
               <li>⏱️ São 3 minutos. No último minuto o Maná enche em dobro!</li>

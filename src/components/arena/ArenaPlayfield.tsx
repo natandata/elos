@@ -51,14 +51,29 @@ function fmtTime(ticks: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
-/** Gota de Maná (custo das cartas e Maná atual). */
-function Drop({ n, size = 28 }: { n: number; size?: number }) {
+/** Pãozinho de Maná (custo das cartas e Maná atual). */
+function ManaBread({ n, size = 28 }: { n: number; size?: number }) {
   return (
-    <span
-      className="flex items-center justify-center border-2 border-fuchsia-200 bg-gradient-to-b from-fuchsia-400 to-purple-700 shadow"
-      style={{ width: size, height: size, borderRadius: "0 50% 50% 50%", transform: "rotate(45deg)" }}
-    >
-      <span className="font-black leading-none text-white" style={{ transform: "rotate(-45deg)", fontSize: size * 0.5 }}>
+    <span className="relative inline-flex items-center justify-center drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]" style={{ width: size, height: size }}>
+      <svg viewBox="0 0 40 40" className="absolute inset-0 h-full w-full" aria-hidden>
+        <defs>
+          <radialGradient id="mana-bread" cx="0.4" cy="0.28" r="0.9">
+            <stop offset="0" stopColor="#ffe27a" />
+            <stop offset="0.5" stopColor="#f5b50f" />
+            <stop offset="1" stopColor="#d9820a" />
+          </radialGradient>
+        </defs>
+        <path d="M4 24 C4 11 12 5.5 20 5.5 C28 5.5 36 11 36 24 C36 31.5 29 35.5 20 35.5 C11 35.5 4 31.5 4 24 Z" fill="url(#mana-bread)" stroke="#7a3f08" strokeWidth="2.4" strokeLinejoin="round" />
+        <g fill="none" strokeLinecap="round">
+          <path d="M12 13.5 L15.5 19.5 M19 11.5 L22.5 17.5 M26 13.5 L29.5 19.5" stroke="#a65a0b" strokeWidth="2.6" />
+          <path d="M13.2 13 L16.5 18.6 M20.2 11 L23.5 16.6 M27.2 13 L30.5 18.6" stroke="#ffe9a0" strokeWidth="1" opacity="0.8" />
+        </g>
+        <ellipse cx="11" cy="22" rx="3.2" ry="1.6" fill="#fff4b8" opacity="0.5" transform="rotate(-50 11 22)" />
+        </svg>
+      <span
+        className="relative font-black leading-none text-[#5a2f05]"
+        style={{ fontSize: size * 0.5, marginTop: size * 0.2, textShadow: "0 0 3px #fff3b0, 0 0 2px #fff3b0" }}
+      >
         {n}
       </span>
     </span>
@@ -532,7 +547,7 @@ export function ArenaPlayfield({
             </div>
           </div>
           <div className="pointer-events-none absolute right-2 top-2 rounded-lg border-2 border-black/70 bg-[#173a1c]/90 px-3 py-1 text-right shadow-lg">
-            <p className={`text-[11px] font-black ${doubled ? "text-fuchsia-300" : "text-white/90"}`}>{doubled ? "Maná em dobro!" : "Tempo:"}</p>
+            <p className={`text-[11px] font-black ${doubled ? "text-amber-300" : "text-white/90"}`}>{doubled ? "Maná em dobro!" : "Tempo:"}</p>
             <p className="text-2xl font-black leading-none tabular-nums text-white">{fmtTime(hud?.tick ?? 0)}</p>
           </div>
           <div className="pointer-events-none absolute right-1 top-1/2 flex -translate-y-1/2 flex-col gap-4">
@@ -606,7 +621,7 @@ export function ArenaPlayfield({
                       {c.art ? <CardArt card={c} className="h-full max-h-[72px]" /> : <span className="text-3xl" aria-hidden>{c.emoji}</span>}
                     </span>
                     <span className="absolute -bottom-3 left-1/2 -translate-x-1/2">
-                      <Drop n={c.cost} size={26} />
+                      <ManaBread n={c.cost} size={26} />
                     </span>
                   </button>
                 );
@@ -616,11 +631,11 @@ export function ArenaPlayfield({
 
           <div className="mt-1 flex items-center gap-2">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center">
-              <Drop n={Math.floor(mana)} size={32} />
+              <ManaBread n={Math.floor(mana)} size={32} />
             </div>
-            <div className="relative h-5 flex-1 overflow-hidden rounded-full border-2 border-[#0f2f6b] bg-[#1a1040]">
+            <div className="relative h-5 flex-1 overflow-hidden rounded-full border-2 border-[#0f2f6b] bg-[#3b2208]">
               <div
-                className="h-full bg-gradient-to-b from-fuchsia-400 to-fuchsia-700 transition-[width] duration-200 ease-linear"
+                className="h-full bg-gradient-to-b from-yellow-200 via-amber-400 to-amber-600 transition-[width] duration-200 ease-linear"
                 style={{ width: `${(Math.min(MANA_MAX, mana) / MANA_MAX) * 100}%` }}
               />
               {Array.from({ length: MANA_MAX - 1 }).map((_, i) => (

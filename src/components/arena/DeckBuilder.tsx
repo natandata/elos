@@ -16,7 +16,7 @@ function Tile({ card, picked, locked, level, onClick }: { card: ArenaCard; picke
         picked ? "border-violet-500 ring-2 ring-violet-400/40" : "border-[var(--line)]"
       }`}
     >
-      <span className="absolute -left-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-violet-600 text-xs font-black text-white">{card.cost}</span>
+      <span className="absolute -left-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-amber-800 bg-gradient-to-b from-yellow-200 to-amber-500 text-xs font-black text-[#5a2f05]">{card.cost}</span>
       {card.kind === "spell" ? (
         <span className="absolute -right-1 -top-1 rounded-full bg-amber-500 px-1.5 text-[9px] font-black text-white">PODER</span>
       ) : null}
@@ -108,7 +108,7 @@ export function DeckBuilder({
       {detail ? (
         <div className="card mb-4 p-3">
           <p className="font-black">
-            {detail.emoji} {detail.name} <span className="text-sm font-bold text-violet-600">· {detail.cost} de Maná</span>
+            {detail.emoji} {detail.name} <span className="text-sm font-bold text-amber-600">· {detail.cost} de Maná</span>
           </p>
           <p className="text-sm font-semibold text-[var(--muted)]">{detail.desc}</p>
           <Stats c={detail} level={levels[detail.key] ?? 1} />
