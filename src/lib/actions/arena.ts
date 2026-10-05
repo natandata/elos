@@ -11,7 +11,7 @@ import { gateMessage } from "@/lib/arena/gate";
 import { loadGate } from "@/lib/arena/gateServer";
 import { abandonOpenMatches, settleArena, type ArenaFinish } from "@/lib/arena/settle";
 
-const MAX_MATCHES_PER_DAY = 15;
+const MAX_MATCHES_PER_DAY = 100;
 
 const todayBR = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 
