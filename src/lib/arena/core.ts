@@ -79,10 +79,13 @@ export type GameState = {
 
 export type Input = { tick: number; side: Side; slot: number; x: number; y: number };
 
+/** Eventos só pra animação: não fazem parte do estado do jogo (nem da verificação). */
 export type GameEvent =
-  | { t: "attack"; x1: number; y1: number; x2: number; y2: number; ranged: boolean; side: Side }
+  | { t: "attack"; from: number; to: number; fromCard: string; x1: number; y1: number; x2: number; y2: number; ranged: boolean; side: Side; dmg: number }
+  | { t: "hit"; id: number; x: number; y: number; dmg: number; side: Side }
+  | { t: "heal"; id: number; x: number; y: number; amount: number }
   | { t: "spell"; key: string; x: number; y: number; r: number }
-  | { t: "death"; x: number; y: number; tower: boolean }
+  | { t: "death"; id: number; x: number; y: number; tower: boolean; card: string; side: Side; flying: boolean; radius: number }
   | { t: "spawn"; x: number; y: number };
 
 // ------------------------------------------------------------ sorteio

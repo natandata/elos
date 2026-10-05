@@ -249,7 +249,7 @@ export function buildBackground(l: Layout, dpr: number): HTMLCanvasElement {
 }
 
 /** Torre de pedra com bandeira do time, ícone, coroa dourada e barra de vida. */
-export function drawTower(g: CanvasRenderingContext2D, s: number, e: Entity) {
+export function drawTower(g: CanvasRenderingContext2D, s: number, e: Entity, t = 0, hitAge = 99, atkAge = 99) {
   const cx = e.x * s;
   const cy = e.y * s;
   const king = e.card === "santuario";
@@ -259,6 +259,11 @@ export function drawTower(g: CanvasRenderingContext2D, s: number, e: Entity) {
   const y0 = cy - bh / 2 - e.radius * 0.1 * s;
   const team = TEAM[e.side];
   const dark = TEAM_DARK[e.side];
+
+  g.save();
+  // tremor ao apanhar e leve coice ao atirar
+  if (hitAge < 5) g.translate(Math.sin(hitAge * 2.6) * s * 0.09 * (1 - hitAge / 5), 0);
+  if (atkAge < 3) g.translate(0, -s * 0.06);
 
   // sombra
   g.fillStyle = "rgba(0,0,0,0.25)";
@@ -277,6 +282,11 @@ export function drawTower(g: CanvasRenderingContext2D, s: number, e: Entity) {
   g.strokeStyle = "#4b5563";
   g.lineWidth = Math.max(1.5, s * 0.07);
   g.stroke();
+  if (hitAge < 3) {
+    g.fillStyle = `rgba(255,255,255,${0.55 * (1 - hitAge / 3)})`;
+    roundRect(g, x0, y0, bw, bh, s * 0.12);
+    g.fill();
+  }
   // tijolos
   g.strokeStyle = "rgba(75,85,99,0.45)";
   g.lineWidth = 1;
@@ -316,10 +326,11 @@ export function drawTower(g: CanvasRenderingContext2D, s: number, e: Entity) {
   g.lineTo(cx, y0 - bh * 0.62);
   g.stroke();
   g.fillStyle = team;
+  const wave = Math.sin(t * 0.3 + e.id) * bw * 0.07;
   g.beginPath();
   g.moveTo(cx, y0 - bh * 0.62);
-  g.lineTo(cx + bw * 0.32, y0 - bh * 0.5);
-  g.lineTo(cx, y0 - bh * 0.38);
+  g.quadraticCurveTo(cx + bw * 0.16, y0 - bh * 0.62 + wave, cx + bw * 0.32 + wave, y0 - bh * 0.5);
+  g.quadraticCurveTo(cx + bw * 0.16, y0 - bh * 0.5 - wave, cx, y0 - bh * 0.38);
   g.closePath();
   g.fill();
   // ícone
@@ -359,6 +370,7 @@ export function drawTower(g: CanvasRenderingContext2D, s: number, e: Entity) {
   g.strokeText(String(Math.max(0, Math.ceil(e.hp))), cx, barY - s * 0.32);
   g.fillStyle = "#fff";
   g.fillText(String(Math.max(0, Math.ceil(e.hp))), cx, barY - s * 0.32);
+  g.restore();
 }
 
 export { H, W };

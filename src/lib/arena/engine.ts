@@ -101,7 +101,9 @@ function castSpell(state: GameState, card: ArenaCard, side: Side, x: number, y: 
   for (const e of state.entities) {
     if (e.side === side || e.hp <= 0) continue;
     if (dist(x, y, e.x, e.y) > r + e.radius) continue;
-    e.hp -= (card.spellDmg ?? 0) * (e.type === "tower" ? (card.towerMult ?? 1) : 1);
+    const dmg = (card.spellDmg ?? 0) * (e.type === "tower" ? (card.towerMult ?? 1) : 1);
+    e.hp -= dmg;
+    ev.push({ t: "hit", id: e.id, x: e.x, y: e.y, dmg, side: e.side });
     if (card.slow && e.type === "unit") {
       e.slowUntil = state.tick + Math.round((card.slowSecs ?? 2) * TICKS_PER_SEC);
       e.slowAmount = card.slow;
@@ -204,19 +206,24 @@ function moveToward(e: Entity, tx: number, ty: number, step: number) {
 }
 
 function dealAttack(state: GameState, e: Entity, target: Entity, ev: GameEvent[]) {
-  target.hp -= e.dmg * (target.type === "tower" ? e.towerMult : 1);
+  const dmg = e.dmg * (target.type === "tower" ? e.towerMult : 1);
+  target.hp -= dmg;
   if (e.hitSlow > 0 && target.type === "unit") {
     const stillSlow = state.tick < target.slowUntil;
     target.slowAmount = stillSlow ? Math.max(target.slowAmount, e.hitSlow) : e.hitSlow;
     target.slowUntil = state.tick + e.hitSlowTicks;
   }
+  ev.push({ t: "attack", from: e.id, to: target.id, fromCard: e.card, x1: e.x, y1: e.y, x2: target.x, y2: target.y, ranged: e.range > 1.5, side: e.side, dmg });
+  ev.push({ t: "hit", id: target.id, x: target.x, y: target.y, dmg, side: target.side });
   if (e.splash > 0) {
     for (const o of state.entities) {
       if (o === target || o.side === e.side || o.type !== "unit" || o.hp <= 0) continue;
-      if (dist(target.x, target.y, o.x, o.y) <= e.splash) o.hp -= e.dmg;
+      if (dist(target.x, target.y, o.x, o.y) <= e.splash) {
+        o.hp -= e.dmg;
+        ev.push({ t: "hit", id: o.id, x: o.x, y: o.y, dmg: e.dmg, side: o.side });
+      }
     }
   }
-  ev.push({ t: "attack", x1: e.x, y1: e.y, x2: target.x, y2: target.y, ranged: e.range > 1.5, side: e.side });
   e.cd = e.atkTicks;
 }
 
@@ -229,11 +236,15 @@ function updateTower(state: GameState, e: Entity, ev: GameEvent[]) {
 }
 
 /** Cura aliados por perto (Noé, Jesus). Roda a cada `healTicks`. */
-function healAllies(state: GameState, e: Entity) {
+function healAllies(state: GameState, e: Entity, ev: GameEvent[]) {
   if (e.healAmount <= 0 || e.healTicks <= 0 || state.tick % e.healTicks !== 0) return;
   for (const o of state.entities) {
     if (o === e || o.side !== e.side || o.type !== "unit" || o.hp <= 0 || o.hp >= o.maxHp) continue;
-    if (dist(e.x, e.y, o.x, o.y) <= e.healRadius) o.hp = Math.min(o.maxHp, o.hp + e.healAmount);
+    if (dist(e.x, e.y, o.x, o.y) <= e.healRadius) {
+      const before = o.hp;
+      o.hp = Math.min(o.maxHp, o.hp + e.healAmount);
+      ev.push({ t: "heal", id: o.id, x: o.x, y: o.y, amount: Math.round(o.hp - before) });
+    }
   }
 }
 
@@ -256,7 +267,7 @@ function followAlly(state: GameState, e: Entity) {
 
 function updateUnit(state: GameState, e: Entity, ev: GameEvent[]) {
   if (e.cd > 0) e.cd--;
-  healAllies(state, e);
+  healAllies(state, e, ev);
   if (e.dmg <= 0) {
     followAlly(state, e);
     return;
@@ -351,7 +362,7 @@ export function step(state: GameState, inputs: Input[], bots: Side[] = [1]): Gam
       alive.push(e);
       continue;
     }
-    ev.push({ t: "death", x: e.x, y: e.y, tower: e.type === "tower" });
+    ev.push({ t: "death", id: e.id, x: e.x, y: e.y, tower: e.type === "tower", card: e.card, side: e.side, flying: e.flying, radius: e.radius });
     if (e.type === "tower") {
       const winner = (1 - e.side) as Side;
       if (e.card === "santuario") {

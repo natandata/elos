@@ -7,6 +7,7 @@ import { finishArena, startArena, type ArenaFinish } from "@/lib/actions/arena";
 import { ARENA_CARDS, ARENA_CARD_BY_KEY, STARTER_DECK } from "@/lib/arena/cards";
 import { CardArt } from "./CardArt";
 import { TEAM, buildBackground, drawTower, layoutFor, type Layout } from "./arenaRender";
+import { applyEvent, drawFx, newAnim, type Anim, type Fx } from "./arenaFx";
 import {
   DOUBLE_MANA_TICK,
   H,
@@ -24,11 +25,6 @@ import {
 import { createGame, step } from "@/lib/arena/engine";
 
 type Phase = "intro" | "playing" | "finishing" | "result";
-
-type Fx =
-  | { kind: "line"; x1: number; y1: number; x2: number; y2: number; ranged: boolean; side: number; ttl: number }
-  | { kind: "spell"; emoji: string; x: number; y: number; r: number; ttl: number; max: number }
-  | { kind: "puff"; x: number; y: number; big: boolean; ttl: number };
 
 type Hud = { mana: number; tick: number; crowns: [number, number]; slots: string[]; next: string };
 
@@ -87,6 +83,8 @@ export function ArenaGame({ winsToday, maxWins }: { winsToday: number; maxWins: 
   const pendingRef = useRef<Input[]>([]);
   const logRef = useRef<Input[]>([]);
   const fxRef = useRef<Fx[]>([]);
+  const animsRef = useRef<Map<number, Anim>>(new Map());
+  const shakeRef = useRef({ until: -1, amp: 0 });
   const selectedRef = useRef<number | null>(null);
   const rafRef = useRef<number | null>(null);
   const spritesRef = useRef<Record<string, HTMLImageElement>>({});
@@ -135,22 +133,31 @@ export function ArenaGame({ winsToday, maxWins }: { winsToday: number; maxWins: 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     const s = l.s;
+    const tickF = game.tick + alpha;
+    const canFilter = "filter" in ctx;
     ctx.setTransform(dprRef.current, 0, 0, dprRef.current, 0, 0);
     ctx.clearRect(0, 0, l.cw, l.ch);
     ctx.drawImage(bg, 0, 0, l.cw, l.ch);
     ctx.save();
-    ctx.translate(l.ox, l.oy);
+    // tremor de tela (poderes fortes e torres caindo)
+    const sh = shakeRef.current;
+    const left = sh.until - tickF;
+    const shx = left > 0 ? Math.sin(tickF * 53) * sh.amp * Math.min(1, left / 6) : 0;
+    const shy = left > 0 ? Math.cos(tickF * 41) * sh.amp * Math.min(1, left / 6) : 0;
+    ctx.translate(l.ox + shx, l.oy + shy);
 
     // zona de colocação quando há uma carta de tropa escolhida
     const sel = selectedRef.current;
     if (sel !== null) {
       const card = ARENA_CARD_BY_KEY.get(game.slots[0][sel]);
       if (card?.kind === "unit") {
-        ctx.fillStyle = "rgba(255,255,255,0.2)";
+        const pulse = 0.16 + Math.sin(tickF * 0.25) * 0.05;
+        ctx.fillStyle = `rgba(255,255,255,${pulse})`;
         ctx.fillRect(0, (RIVER_BOT + 0.6) * s, W * s, (H - RIVER_BOT - 0.6) * s);
-        ctx.strokeStyle = "rgba(255,255,255,0.7)";
+        ctx.strokeStyle = "rgba(255,255,255,0.75)";
         ctx.lineWidth = 2;
         ctx.setLineDash([8, 6]);
+        ctx.lineDashOffset = -tickF;
         ctx.beginPath();
         ctx.moveTo(0, (RIVER_BOT + 0.6) * s);
         ctx.lineTo(W * s, (RIVER_BOT + 0.6) * s);
@@ -162,8 +169,9 @@ export function ArenaGame({ winsToday, maxWins }: { winsToday: number; maxWins: 
     const lerp = (a: number, b: number) => a + (b - a) * alpha;
     const ordered = [...game.entities].sort((a, b) => (a.type === b.type ? a.y - b.y : a.type === "tower" ? -1 : 1));
     for (const e of ordered) {
+      const an = animsRef.current.get(e.id);
       if (e.type === "tower") {
-        drawTower(ctx, s, e);
+        drawTower(ctx, s, e, tickF, an ? tickF - an.hit : 99, an ? tickF - an.atk : 99);
         continue;
       }
       const x = lerp(e.px, e.x) * s;
@@ -171,40 +179,74 @@ export function ArenaGame({ winsToday, maxWins }: { winsToday: number; maxWins: 
       const r = e.radius * s;
       const img = spritesRef.current[e.card];
       const hasArt = !!img && img.complete && img.naturalWidth > 0;
-      let topY = y - r;
-      const footY = y + r * 0.9;
+      const footBase = y + r * 0.9;
+      const lift = e.flying ? 0.9 * s : 0;
 
-      // sombra no chão + anel do time
+      // --- animação desta tropa
+      const age = an ? tickF - an.born : 99;
+      const spawnP = Math.min(1, age / 9);
+      const popScale = spawnP < 1 ? 0.35 + 0.65 * (1 - Math.pow(1 - spawnP, 3) + Math.sin(spawnP * Math.PI) * 0.12) : 1;
+      const dropY = spawnP < 1 ? -(1 - spawnP) * 1.3 * s : 0;
+      const moving = !!an?.moving;
+      const gait = (an?.walk ?? 0) * 3.6;
+      let bob = moving ? Math.abs(Math.sin(gait)) * 0.1 * r * 4 : Math.sin(tickF * 0.16 + e.id) * 0.02 * r * 4;
+      if (e.flying) bob = Math.sin(tickF * 0.2 + e.id) * 0.16 * s;
+      let sway = moving ? Math.sin(gait) * 0.07 : 0;
+      let sx = 1;
+      let sy = 1;
+      let thrustX = 0;
+      let thrustY = 0;
+      if (an) {
+        const a = tickF - an.atk;
+        if (a >= 0 && a < 7) {
+          const k = Math.sin((a / 7) * Math.PI);
+          const dist = an.ranged ? -0.18 : 0.55;
+          thrustX = an.atkDx * dist * s * k;
+          thrustY = an.atkDy * dist * s * k * 0.7;
+          sx += 0.07 * k;
+          sy -= 0.08 * k;
+          sway += (an.ranged ? -0.1 : 0.2) * k * an.face;
+        }
+      }
+      const flash = canFilter && an !== undefined && tickF - an.hit < 3;
+
+      // sombra no chão + anel do time (não acompanham o pulinho)
+      const lowFactor = 1 - Math.min(0.3, Math.abs(bob) / (s * 1.2));
       ctx.fillStyle = "rgba(0,0,0,0.28)";
       ctx.beginPath();
-      ctx.ellipse(x, footY, r * 1.05, r * 0.42, 0, 0, Math.PI * 2);
+      ctx.ellipse(x, footBase, r * 1.05 * lowFactor * popScale, r * 0.42 * lowFactor * popScale, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.strokeStyle = TEAM[e.side];
       ctx.lineWidth = 2.5;
       ctx.beginPath();
-      ctx.ellipse(x, footY, r * 1.15, r * 0.5, 0, 0, Math.PI * 2);
+      ctx.ellipse(x, footBase, r * 1.15 * popScale, r * 0.5 * popScale, 0, 0, Math.PI * 2);
       ctx.stroke();
 
-      const lift = e.flying ? 0.9 * s : 0;
+      ctx.save();
+      ctx.translate(x + thrustX, footBase - lift - bob + dropY + thrustY);
+      ctx.rotate(sway);
+      ctx.scale((an?.face ?? 1) * sx * popScale, sy * popScale);
+      if (flash) ctx.filter = "brightness(2.2) saturate(0.7)";
+      let topLocal = -r;
       if (hasArt && img) {
         const h = e.radius * 4.4 * s;
         const w = (h * img.naturalWidth) / img.naturalHeight;
-        ctx.drawImage(img, x - w / 2, footY - lift - h * 0.97, w, h);
-        topY = footY - lift - h - 2;
+        ctx.drawImage(img, -w / 2, -h * 0.97, w, h);
+        topLocal = -h - 2;
       } else {
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.font = `${Math.max(14, e.radius * 2.4 * s)}px system-ui, "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
         ctx.fillStyle = "#000";
-        const yy = footY - lift - r * 0.9;
-        ctx.fillText(ARENA_CARD_BY_KEY.get(e.card)?.emoji ?? "❔", x, yy);
-        topY = yy - r;
+        ctx.fillText(ARENA_CARD_BY_KEY.get(e.card)?.emoji ?? "❔", 0, -r * 0.9);
+        topLocal = -r * 1.9;
       }
+      ctx.restore();
 
       // barra de vida (azul = seu time, vermelha = computador)
       if (e.hp < e.maxHp) {
         const bw = Math.max(r * 2, 0.9 * s);
-        const by = topY - 7;
+        const by = footBase - lift - bob + dropY + topLocal * popScale - 7;
         ctx.fillStyle = "rgba(0,0,0,0.65)";
         ctx.fillRect(x - bw / 2 - 1, by - 1, bw + 2, 6);
         ctx.fillStyle = TEAM[e.side];
@@ -212,36 +254,7 @@ export function ArenaGame({ winsToday, maxWins }: { winsToday: number; maxWins: 
       }
     }
 
-    // efeitos
-    for (const f of fxRef.current) {
-      if (f.kind === "line") {
-        ctx.strokeStyle = f.ranged ? "rgba(255,255,255,0.9)" : "rgba(255,240,150,0.95)";
-        ctx.lineWidth = f.ranged ? 2 : 4;
-        ctx.beginPath();
-        ctx.moveTo(f.x1 * s, f.y1 * s);
-        ctx.lineTo(f.x2 * s, f.y2 * s);
-        ctx.stroke();
-      } else if (f.kind === "spell") {
-        const t = 1 - f.ttl / f.max;
-        ctx.fillStyle = `rgba(255,200,60,${0.5 * (1 - t)})`;
-        ctx.beginPath();
-        ctx.arc(f.x * s, f.y * s, f.r * s * (0.6 + 0.4 * t), 0, Math.PI * 2);
-        ctx.fill();
-        ctx.font = `${f.r * s}px system-ui, "Segoe UI Emoji", sans-serif`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.globalAlpha = 1 - t;
-        ctx.fillText(f.emoji, f.x * s, f.y * s);
-        ctx.globalAlpha = 1;
-      } else {
-        ctx.font = `${(f.big ? 2.4 : 1.3) * s}px system-ui, "Segoe UI Emoji", sans-serif`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.globalAlpha = Math.min(1, f.ttl / 6);
-        ctx.fillText("💥", f.x * s, f.y * s);
-        ctx.globalAlpha = 1;
-      }
-    }
+    drawFx(ctx, s, fxRef.current, tickF, spritesRef.current);
     ctx.restore();
   }, []);
 
@@ -274,12 +287,24 @@ export function ArenaGame({ winsToday, maxWins }: { winsToday: number; maxWins: 
         const inputs = pendingRef.current;
         pendingRef.current = [];
         const ev: GameEvent[] = step(game, inputs, [1]);
-        for (const e of ev) {
-          if (e.t === "attack") fxRef.current.push({ kind: "line", x1: e.x1, y1: e.y1, x2: e.x2, y2: e.y2, ranged: e.ranged, side: e.side, ttl: e.ranged ? 3 : 2 });
-          else if (e.t === "spell") fxRef.current.push({ kind: "spell", emoji: ARENA_CARD_BY_KEY.get(e.key)?.emoji ?? "✨", x: e.x, y: e.y, r: e.r, ttl: 14, max: 14 });
-          else if (e.t === "death") fxRef.current.push({ kind: "puff", x: e.x, y: e.y, big: e.tower, ttl: e.tower ? 20 : 8 });
+        // animações de entidades: criar, andar e virar o rosto
+        for (const e of game.entities) {
+          let an = animsRef.current.get(e.id);
+          if (!an) {
+            an = newAnim(game.tick - (e.type === "tower" ? 999 : 0), e.side);
+            animsRef.current.set(e.id, an);
+          }
+          const mdx = e.x - e.px;
+          const mdy = e.y - e.py;
+          const moved = Math.sqrt(mdx * mdx + mdy * mdy);
+          an.moving = moved > 0.004;
+          if (an.moving) {
+            an.walk += moved;
+            if (Math.abs(mdx) > 0.003) an.face = mdx > 0 ? 1 : -1;
+          }
         }
-        fxRef.current = fxRef.current.map((f) => ({ ...f, ttl: f.ttl - 1 })).filter((f) => f.ttl > 0);
+        for (const e of ev) applyEvent(e, game.tick, animsRef.current, fxRef.current, shakeRef.current);
+        fxRef.current = fxRef.current.filter((f) => game.tick - f.t0 < f.dur);
         acc -= STEP_MS;
         if (game.tick % 4 === 0 || game.over) {
           setHud({ mana: game.mana[0], tick: game.tick, crowns: [game.crowns[0], game.crowns[1]], slots: [...game.slots[0]], next: game.queue[0][0] });
@@ -312,6 +337,8 @@ export function ArenaGame({ winsToday, maxWins }: { winsToday: number; maxWins: 
     pendingRef.current = [];
     logRef.current = [];
     fxRef.current = [];
+    animsRef.current = new Map();
+    shakeRef.current = { until: -1, amp: 0 };
     setSelected(null);
     setHud({ mana: game.mana[0], tick: 0, crowns: [0, 0], slots: [...game.slots[0]], next: game.queue[0][0] });
     setPhase("playing");
@@ -508,10 +535,10 @@ export function ArenaGame({ winsToday, maxWins }: { winsToday: number; maxWins: 
                 const isSel = selected === i;
                 return (
                   <button
-                    key={i}
+                    key={`${i}-${key}`}
                     type="button"
                     onClick={() => setSelected(isSel ? null : i)}
-                    className={`relative aspect-[3/4] rounded-xl border-[3px] bg-gradient-to-b from-[#4a90e2] to-[#2d62b8] p-1 shadow-md transition active:scale-95 ${
+                    className={`arena-card-in relative aspect-[3/4] rounded-xl border-[3px] bg-gradient-to-b from-[#4a90e2] to-[#2d62b8] p-1 shadow-md transition active:scale-95 ${
                       isSel ? "-translate-y-3 border-amber-300 shadow-[0_0_16px_#fcd34d]" : "border-[#0f2f6b]"
                     } ${can ? "" : "brightness-50"}`}
                   >
