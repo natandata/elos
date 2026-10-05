@@ -4,7 +4,7 @@ import { dayStartISO, todayBR } from "@/lib/arena/missionsServer";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /** Mesmo limite de startArena (partidas contra o computador por dia). */
-const DAILY_LIMIT = 54;
+const DAILY_LIMIT = 45;
 
 type Row = { id: string; name: string; elo: string; cpu: number; training: number; pvp: number; duo: number };
 
