@@ -5,12 +5,12 @@
 const TAU = Math.PI * 2;
 
 /** Duração (ticks) do golpe corpo a corpo de cada herói; o resto usa a padrão. */
-export const MELEE_DUR: Record<string, number> = { sansao: 10, noe: 9, joao: 8, josue: 8, daniel: 7, miguel: 7, gideao: 6, jose: 6 };
+export const MELEE_DUR: Record<string, number> = { sansao: 10, noe: 9, joao: 8, isaque: 8, josue: 8, daniel: 7, miguel: 7, gideao: 6, jose: 6, adao: 7, jaco: 7, nabucodonosor: 10 };
 /** Heróis à distância que ganham efeito ao acertar, e quanto ele dura. */
 export const IMPACT_DUR = 9;
-export const IMPACT_CARDS = new Set(["davi", "moises", "salomao", "ester", "maria"]);
+export const IMPACT_CARDS = new Set(["davi", "moises", "salomao", "ester", "maria", "eva", "isaias", "jeremias"]);
 /** Heróis à distância com projétil próprio (os outros usam o padrão). */
-export const CUSTOM_PROJ = new Set(["moises", "salomao", "ester", "maria"]);
+export const CUSTOM_PROJ = new Set(["moises", "salomao", "ester", "maria", "isaias"]);
 
 function star(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, points: number, rot: number, fill: string) {
   ctx.fillStyle = fill;
@@ -138,7 +138,8 @@ export function drawMelee(ctx: CanvasRenderingContext2D, s: number, card: string
       ripple(ctx, s, 0, s * 0.25, p, 1.5, "rgba(147,205,255,0.9)");
       break;
     }
-    case "joao": {
+    case "joao":
+    case "isaque": {
       // respingo de água do batismo
       droplets(ctx, s, 0, -s * 0.1, p, 9, 1.15, "#74c0fc");
       droplets(ctx, s, 0, -s * 0.1, Math.min(1, p * 1.2), 5, 0.6, "#e7f5ff");
@@ -244,10 +245,55 @@ export function drawMelee(ctx: CanvasRenderingContext2D, s: number, card: string
       ctx.globalAlpha = 1;
       break;
     }
+    case "adao": {
+      // golpe da terra: arco verde e folhas voando
+      arc(ctx, s, ang, p, "rgba(74,168,76,1)", 0.24);
+      for (let i = 0; i < 7; i++) {
+        const a = ang - 1 + (i * 2) / 6;
+        const d = s * (0.4 + p * 1.1);
+        ctx.globalAlpha = Math.max(0, 1 - p);
+        ctx.fillStyle = i % 2 ? "#4aa84c" : "#86d46a";
+        ctx.save();
+        ctx.translate(Math.cos(a) * d, Math.sin(a) * d - p * s * 0.3);
+        ctx.rotate(a + p * 3);
+        ctx.beginPath();
+        ctx.ellipse(0, 0, s * 0.14, s * 0.07, 0, 0, TAU);
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.globalAlpha = 1;
+      break;
+    }
+    case "jaco": {
+      // cajado e bênção dourada
+      arc(ctx, s, ang, p, "rgba(160,110,60,1)", 0.26);
+      star(ctx, 0, -s * 0.2, s * (0.1 + 0.35 * Math.sin(Math.min(1, p) * Math.PI)), 5, p * 3, `rgba(253,224,71,${1 - p * 0.6})`);
+      for (let i = 0; i < 3; i++) {
+        ctx.globalAlpha = Math.max(0, 1 - p);
+        circ2(ctx, (i - 1) * s * 0.5 * (0.5 + p), -p * s * 0.8 - i * s * 0.1, s * 0.07, "#fde68a");
+      }
+      ctx.globalAlpha = 1;
+      break;
+    }
+    case "nabucodonosor": {
+      // golpe real: roxo e dourado, com onda de choque
+      arc(ctx, s, ang, p, "rgba(168,85,247,1)", 0.34, 1.05);
+      arc(ctx, s, ang, p * 1.1, "rgba(250,204,21,1)", 0.14, 1.05);
+      ripple(ctx, s, 0, s * 0.2, p, 1.4, "rgba(250,204,21,0.9)");
+      star(ctx, 0, -s * 0.15, s * 0.4 * Math.sin(Math.min(1, p) * Math.PI), 5, p * 2, "rgba(255,255,255,0.9)");
+      break;
+    }
     default:
       arc(ctx, s, ang, p, "rgba(255,248,200,1)", 0.26);
   }
   ctx.restore();
+}
+
+function circ2(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, color: string) {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, TAU);
+  ctx.fill();
 }
 
 // ------------------------------------------------------------ projéteis próprios
@@ -315,6 +361,25 @@ export function drawProjectile(ctx: CanvasRenderingContext2D, s: number, card: s
       }
       star(ctx, hx, hy, s * 0.3, 5, tickF * 0.5, "#f472b6");
       star(ctx, hx, hy, s * 0.14, 5, tickF * 0.5, "#fde68a");
+      break;
+    }
+    case "isaias": {
+      // brasa ardente do altar
+      for (let i = 4; i >= 1; i--) {
+        const q = Math.max(0, p - i * 0.06);
+        ctx.fillStyle = `rgba(251,146,60,${0.55 - i * 0.1})`;
+        ctx.beginPath();
+        ctx.arc(x1 + (x2 - x1) * q, y1 + (y2 - y1) * q, s * (0.17 - i * 0.025), 0, TAU);
+        ctx.fill();
+      }
+      const g = ctx.createRadialGradient(hx, hy, 0, hx, hy, s * 0.3);
+      g.addColorStop(0, "rgba(255,247,190,1)");
+      g.addColorStop(0.5, "rgba(251,146,60,0.95)");
+      g.addColorStop(1, "rgba(220,38,38,0)");
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(hx, hy, s * 0.3, 0, TAU);
+      ctx.fill();
       break;
     }
     case "maria": {
@@ -386,6 +451,48 @@ export function drawImpact(ctx: CanvasRenderingContext2D, s: number, card: strin
         ctx.beginPath();
         ctx.ellipse(0, 0, s * 0.14, s * 0.07, 0, 0, TAU);
         ctx.fill();
+        ctx.restore();
+      }
+      ctx.globalAlpha = 1;
+      break;
+    }
+    case "isaias": {
+      // explosão de brasas
+      for (let i = 0; i < 9; i++) {
+        const a = (i * TAU) / 9;
+        ctx.globalAlpha = Math.max(0, 1 - p);
+        ctx.fillStyle = i % 2 ? "#fde047" : "#fb923c";
+        ctx.beginPath();
+        ctx.arc(Math.cos(a) * s * 0.8 * p, Math.sin(a) * s * 0.6 * p - p * s * 0.2, s * 0.1 * (1 - p * 0.5), 0, TAU);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      ripple(ctx, s, 0, s * 0.1, p, 1.0, "rgba(251,146,60,0.9)");
+      break;
+    }
+    case "eva": {
+      // pedaços de maçã e pétalas
+      for (let i = 0; i < 6; i++) {
+        const a = (i * TAU) / 6 + p;
+        ctx.globalAlpha = Math.max(0, 1 - p);
+        ctx.fillStyle = i % 2 ? "#ef4444" : "#fda4af";
+        ctx.beginPath();
+        ctx.arc(Math.cos(a) * s * 0.7 * p, Math.sin(a) * s * 0.7 * p + p * s * 0.3, s * 0.09, 0, TAU);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      break;
+    }
+    case "jeremias": {
+      // cacos de barro
+      for (let i = 0; i < 7; i++) {
+        const a = -Math.PI * (0.1 + 0.8 * (i / 6));
+        ctx.globalAlpha = Math.max(0, 1 - p);
+        ctx.fillStyle = i % 2 ? "#b45309" : "#92400e";
+        ctx.save();
+        ctx.translate(Math.cos(a) * s * 0.8 * p, Math.sin(a) * s * 0.8 * p + p * p * s * 0.7);
+        ctx.rotate(i + p * 4);
+        ctx.fillRect(-s * 0.06, -s * 0.04, s * 0.12, s * 0.08);
         ctx.restore();
       }
       ctx.globalAlpha = 1;

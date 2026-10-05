@@ -58,6 +58,8 @@ export const newAnim = (born: number, side: number): Anim => ({
 // projétil em emoji (os heróis em CUSTOM_PROJ desenham o próprio)
 const PROJ_EMOJI: Record<string, string | null> = {
   davi: "🪨",
+  eva: "🍎",
+  jeremias: "🏺",
 };
 
 /** Transforma um evento do motor em animações. `anims` guarda o estado por entidade. */

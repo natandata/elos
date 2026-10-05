@@ -106,6 +106,48 @@ export const CARD_LORE: Record<string, CardLore> = {
     ref: "Daniel 10 e 12 · Apocalipse 12:7-9",
     attack: "Miguel voa: passa por cima do rio e do exército e ataca onde mais precisam dele.",
   },
+  adao: {
+    story:
+      "Adão foi o primeiro homem. Deus o formou do pó da terra e soprou nele o fôlego de vida. Ele viveu no jardim do Éden, cuidando dele, e deu nome aos animais. Quando Adão e Eva desobedeceram a Deus, saíram do jardim, mas Deus prometeu um Salvador que venceria o mal.",
+    ref: "Gênesis 1–3",
+    attack: "Adão tem a força do primeiro homem: golpes firmes e diretos, de perto.",
+  },
+  eva: {
+    story:
+      "Eva foi a primeira mulher. Deus a criou para estar ao lado de Adão, e ele a chamou de “mãe de todos os viventes”. No jardim, a serpente a enganou, e ela e Adão comeram do fruto proibido. Mesmo assim, Deus continuou cuidando deles e prometeu que da descendência da mulher viria a vitória sobre o mal.",
+    ref: "Gênesis 2–4",
+    attack: "Eva atira maçãs de longe, lembrando o fruto do jardim, e acerta até quem voa.",
+  },
+  jaco: {
+    story:
+      "Jacó era filho de Isaque e neto de Abraão. Sonhou com uma escada que ia da terra ao céu, com anjos subindo e descendo. Numa noite, lutou com um homem enviado por Deus até o amanhecer e não o soltou sem ser abençoado. Seu nome foi mudado para Israel, e ele ficou mancando daquela luta. De seus doze filhos vieram as doze tribos de Israel.",
+    ref: "Gênesis 28 e 32",
+    attack: "Jacó luta com o cajado, e seus golpes deixam o alvo lento, como ele mesmo ficou depois de lutar a noite toda.",
+  },
+  isaque: {
+    story:
+      "Isaque foi o filho da promessa, que Abraão e Sara receberam já idosos. Deus provou a fé de Abraão, e Isaque caminhou obediente com o pai ao monte; na hora certa, Deus providenciou um carneiro no lugar dele. Já adulto, Isaque cavou poços e, mesmo quando outros brigavam por eles, continuou em paz, e Deus o abençoou.",
+    ref: "Gênesis 21–26",
+    attack: "Isaque é resistente e paciente: cura os aliados por perto, como quem cava poços de água boa.",
+  },
+  isaias: {
+    story:
+      "Isaías foi um grande profeta. Num momento marcante, viu o Senhor no templo, e um serafim tocou seus lábios com uma brasa do altar. Então Deus perguntou quem iria por Ele, e Isaías respondeu: “Eis-me aqui, envia-me a mim”. Ele anunciou a vinda do Messias muito antes de acontecer.",
+    ref: "Isaías 6 e 53",
+    attack: "Isaías lança brasas do altar, que queimam em área, lembrando a brasa que purificou os seus lábios.",
+  },
+  jeremias: {
+    story:
+      "Jeremias foi chamado por Deus ainda jovem para ser profeta e avisar o povo de Judá a voltar para Deus. Por isso é lembrado como o profeta que chorava pelo seu povo. Deus o mandou ao oleiro, e ele viu que o barro estragado podia ser refeito; depois quebrou um vaso de barro como aviso. Também anunciou uma nova aliança, em que Deus escreveria a lei no coração.",
+    ref: "Jeremias 1, 18–19 e 31",
+    attack: "Jeremias atira cacos do vaso quebrado de longe, e seus lamentos deixam os inimigos lentos.",
+  },
+  nabucodonosor: {
+    story:
+      "Nabucodonosor foi o poderoso rei da Babilônia. Conquistou Jerusalém e levou muita gente para o exílio, entre eles Daniel. Teve sonhos que só Deus podia explicar pela boca de Daniel. Por causa do orgulho, perdeu o juízo por um tempo; ao recuperá-lo, reconheceu e louvou o Deus Altíssimo.",
+    ref: "Daniel 2–4",
+    attack: "Nabucodonosor é o rei mais poderoso da Babilônia: golpes pesados, que acertam em área e derrubam muros.",
+  },
   fogo: {
     story:
       "No monte Carmelo, o profeta Elias desafiou os profetas de Baal. Ele orou ao Senhor e caiu fogo do céu, que consumiu o sacrifício, a lenha e até as pedras. O povo viu e declarou: “O Senhor é Deus!”.",

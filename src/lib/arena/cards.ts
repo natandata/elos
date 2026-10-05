@@ -68,6 +68,13 @@ export const ARENA_CARDS: ArenaCard[] = [
   { key: "joao", short: "João", name: "João Batista", emoji: "💧", art: true, kind: "unit", cost: 3, desc: "Rápido e valente, corre até a batalha.", hp: 200, dmg: 34, atkSpeed: 0.9, range: 0.9, speed: 1.9, radius: 0.45 },
   { key: "fogo", name: "Fogo do Céu", emoji: "☄️", art: true, kind: "spell", cost: 4, desc: "Dano forte em área.", radiusSpell: 2.5, spellDmg: 175, towerMult: 0.45 },
   { key: "mar", name: "Mar Vermelho", emoji: "🌊", art: true, kind: "spell", cost: 3, desc: "Dano e deixa os inimigos lentos.", radiusSpell: 3, spellDmg: 55, towerMult: 0.4, slow: 0.5, slowSecs: 3 },
+  { key: "adao", name: "Adão", emoji: "🌿", art: true, kind: "unit", cost: 4, desc: "O primeiro homem: forte e firme no corpo a corpo.", hp: 310, dmg: 40, atkSpeed: 1.2, range: 0.9, speed: 1.4, radius: 0.55 },
+  { key: "eva", name: "Eva", emoji: "🍎", art: true, kind: "unit", cost: 3, desc: "Atira maçãs de longe, até em quem voa.", hp: 150, dmg: 24, atkSpeed: 1.0, range: 4.5, speed: 1.4, radius: 0.45, canHitAir: true },
+  { key: "jaco", name: "Jacó", emoji: "🐑", art: true, kind: "unit", cost: 4, desc: "Lutador: cada golpe deixa o alvo mais lento.", hp: 340, dmg: 34, atkSpeed: 1.2, range: 0.9, speed: 1.3, radius: 0.55, hitSlow: { amount: 0.25, secs: 1.5 } },
+  { key: "isaque", name: "Isaque", emoji: "💧", art: true, kind: "unit", cost: 3, desc: "Obediente e resistente: cura os aliados por perto.", hp: 300, dmg: 18, atkSpeed: 1.2, range: 0.9, speed: 1.3, radius: 0.5, heal: { amount: 30, secs: 2, radius: 3 } },
+  { key: "isaias", name: "Isaías", emoji: "🔥", art: true, kind: "unit", cost: 4, desc: "Lança brasas do altar e acerta em área, de longe.", hp: 190, dmg: 36, atkSpeed: 1.4, range: 5, speed: 1.2, radius: 0.5, canHitAir: true, splash: 0.8 },
+  { key: "jeremias", name: "Jeremias", emoji: "🏺", art: true, kind: "unit", cost: 3, desc: "Joga cacos do vaso quebrado e deixa os inimigos lentos.", hp: 260, dmg: 22, atkSpeed: 1.3, range: 4, speed: 1.2, radius: 0.5, canHitAir: true, hitSlow: { amount: 0.35, secs: 2 } },
+  { key: "nabucodonosor", short: "Nabucodonosor", name: "Rei Nabucodonosor", emoji: "👑", art: true, kind: "unit", cost: 6, desc: "Rei da Babilônia: muita vida e golpes em área que derrubam muros.", hp: 640, dmg: 56, atkSpeed: 1.5, range: 1.0, speed: 1.0, radius: 0.65, splash: 1.0, unitTowerMult: 1.3 },
   { key: "trombetas", name: "Trombetas de Jericó", emoji: "📯", art: true, kind: "spell", cost: 2, desc: "Pequena área, derruba muros.", radiusSpell: 2, spellDmg: 70, towerMult: 1.5 },
 ];
 

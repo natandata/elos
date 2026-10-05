@@ -61,6 +61,9 @@ const ATK_BODY: Record<string, { wind: number; lunge: number; hop: number }> = {
   miguel: { wind: 1.1, lunge: 1.2, hop: 0.3 },
   josue: { wind: 1.4, lunge: 1.1, hop: 0.15 },
   noe: { wind: 1.2, lunge: 0.9, hop: 0.15 },
+  adao: { wind: 1.1, lunge: 1.1, hop: 0.1 },
+  jaco: { wind: 1.2, lunge: 1.15, hop: 0 },
+  nabucodonosor: { wind: 1.5, lunge: 1.0, hop: 0.2 },
 };
 
 /** Pãozinho de Maná (custo das cartas e Maná atual). */

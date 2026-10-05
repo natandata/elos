@@ -151,12 +151,13 @@ export const ARENAS: BiblicalArena[] = [
 
 /** Em qual arena (índice) cada carta é liberada. A arena 0 é o baralho básico. */
 export const CARD_UNLOCK_ARENA: Record<string, number> = {
-  davi: 0, joao: 0, jose: 0, gideao: 0, sansao: 0, maria: 0, trombetas: 0, mar: 0,
-  noe: 1,
-  moises: 2,
+  davi: 0, joao: 0, jose: 0, gideao: 0, sansao: 0, maria: 0, trombetas: 0, mar: 0, adao: 0, eva: 0,
+  noe: 1, isaque: 1,
+  moises: 2, jaco: 2,
   josue: 3,
-  daniel: 4,
-  salomao: 6, ester: 6,
+  daniel: 4, nabucodonosor: 4,
+  isaias: 5,
+  salomao: 6, ester: 6, jeremias: 6,
   miguel: 7, fogo: 7, jesus: 7,
 };
 
