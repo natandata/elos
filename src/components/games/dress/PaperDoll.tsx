@@ -1,44 +1,61 @@
 import type { DollBase } from "@/lib/games/dress/characters";
-import type { Look, Slot } from "@/lib/games/dress/items";
-import { F, Grads, INK, dark, light, line, thin } from "./ArtKit";
-import { ITEM_ART } from "./ItemArt";
+import { ITEM_BY_ID, type Look, type Slot } from "@/lib/games/dress/items";
+import { F, Grads, TORSO, dark, edge, light } from "./ArtKit";
+import { ITEM_ART, ITEM_BACK } from "./ItemArt";
 
 /** Área do boneco que cada espaço ocupa (pra mostrar só a peça em miniatura). */
 export const SLOT_VIEWBOX: Record<Slot, string> = {
-  head: "34 22 132 128",
-  tunic: "28 118 144 190",
-  mantle: "28 118 144 190",
-  shoes: "50 280 100 72",
-  hand: "118 96 92 170",
+  head: "38 10 124 118",
+  tunic: "36 96 128 236",
+  mantle: "22 96 156 236",
+  shoes: "56 296 88 56",
+  hand: "88 80 112 200",
 };
 
 const FULL = "0 0 200 360";
 
+// As peças de cabeça e de mão foram desenhadas numa escala maior: aqui elas encaixam na boneca esguia.
+const HEAD_T = "translate(100 60) scale(0.6) translate(-100 -98)";
+const HAND_T = "translate(-12 -24)";
+
+/** Cabelo atrás do corpo: longo e ondulado, com mechas. */
 function BackHair({ base }: { base: DollBase }) {
   if (base.hair !== "long" && base.hair !== "braids") return null;
-  return (
-    <path
-      d="M54 96 Q48 44 100 42 Q152 44 146 96 L152 162 Q140 176 132 150 L68 150 Q60 176 48 162 Z"
-      fill={F(base.hairColor)}
-      {...line}
-    />
-  );
-}
-
-function FrontHair({ base }: { base: DollBase }) {
   const c = base.hairColor;
   return (
     <g>
-      {base.hair === "short" || base.hair === "long" || base.hair === "braids" ? (
-        <path d="M56 92 Q52 48 100 48 Q148 48 144 92 Q136 70 118 66 Q100 76 82 66 Q64 70 56 92 Z" fill={F(c)} {...line} />
+      <path d="M72 50 Q68 28 100 26 Q132 28 128 50 Q138 92 130 130 Q138 168 124 204 Q116 176 118 150 L82 150 Q84 176 76 204 Q62 168 70 130 Q62 92 72 50 Z" fill={F(c)} stroke={dark(c, 0.5)} strokeWidth="1.4" strokeLinejoin="round" />
+      <g fill="none" stroke={light(c, 0.35)} strokeWidth="1.4" strokeLinecap="round" opacity="0.7">
+        <path d="M76 70 Q70 110 78 150 M124 70 Q130 110 122 150 M82 90 Q78 130 84 170 M118 90 Q122 130 116 170" />
+      </g>
+    </g>
+  );
+}
+
+/** Cabelo na frente: repartido de lado, caindo sobre os ombros. */
+function FrontHair({ base }: { base: DollBase }) {
+  const c = base.hairColor;
+  if (base.hair === "bald") return null;
+  return (
+    <g>
+      <path d="M74 62 Q70 32 100 30 Q130 32 126 62 Q122 44 106 40 Q96 52 84 54 Q76 58 74 62 Z" fill={F(c)} stroke={dark(c, 0.5)} strokeWidth="1.3" strokeLinejoin="round" />
+      <path d="M80 50 Q92 36 112 40" fill="none" stroke={light(c, 0.45)} strokeWidth="1.8" strokeLinecap="round" opacity="0.8" />
+      {base.hair === "long" || base.hair === "braids" ? (
+        <g>
+          <path d="M74 62 Q66 96 72 134 Q76 150 70 168 Q84 150 82 130 Q78 96 80 70 Z" fill={F(c)} stroke={dark(c, 0.5)} strokeWidth="1.2" strokeLinejoin="round" />
+          <path d="M126 62 Q134 96 128 134 Q124 150 130 168 Q116 150 118 130 Q122 96 120 70 Z" fill={F(c)} stroke={dark(c, 0.5)} strokeWidth="1.2" strokeLinejoin="round" />
+        </g>
       ) : null}
       {base.hair === "braids" ? (
         <g>
-          {[58, 74, 126, 142].map((x) => (
+          {[
+            [74, 180],
+            [126, 180],
+          ].map(([x, y]) => (
             <g key={x}>
-              <path d={`M${x} 140 L${x < 100 ? x - 4 : x + 4} 184`} stroke={INK} strokeWidth="13" strokeLinecap="round" />
-              <path d={`M${x} 140 L${x < 100 ? x - 4 : x + 4} 184`} stroke={c} strokeWidth="8" strokeLinecap="round" />
-              <path d={`M${x < 100 ? x - 4 : x + 4} 180 l0 8`} stroke="#caa56a" strokeWidth="5" strokeLinecap="round" />
+              <path d={`M${x} 110 Q${x + (x < 100 ? -6 : 6)} 150 ${x} ${y}`} stroke={dark(c, 0.5)} strokeWidth="11" strokeLinecap="round" fill="none" />
+              <path d={`M${x} 110 Q${x + (x < 100 ? -6 : 6)} 150 ${x} ${y}`} stroke={c} strokeWidth="8" strokeLinecap="round" fill="none" />
+              <path d={`M${x} ${y - 2} l0 8`} stroke="#caa56a" strokeWidth="5" strokeLinecap="round" />
             </g>
           ))}
         </g>
@@ -47,19 +64,29 @@ function FrontHair({ base }: { base: DollBase }) {
   );
 }
 
-function Beard({ base }: { base: DollBase }) {
-  if (base.beard === "none") return null;
-  const c = base.hairColor;
-  return base.beard === "long" ? (
-    <path d="M58 100 Q56 150 100 184 Q144 150 142 100 Q132 126 100 124 Q68 126 58 100 Z" fill={F(c)} {...line} />
-  ) : (
-    <path d="M60 104 Q62 138 100 142 Q138 138 140 104 Q130 124 100 122 Q70 124 60 104 Z" fill={F(c)} {...line} />
+/** Combinação simples (aparece quando nenhuma roupa foi escolhida ainda). */
+function Slip() {
+  return (
+    <g>
+      <Grads colors={["#efe7d6"]} />
+      <path d="M74 112 Q86 118 100 116 Q114 118 126 112 L124 150 Q122 164 121 172 L134 250 Q100 260 66 250 L79 172 Q78 164 76 150 Z" fill={F("#efe7d6")} {...edge("#efe7d6", 1.3)} />
+    </g>
+  );
+}
+
+function limb(path: string, w: number, skin: string) {
+  return (
+    <g fill="none" strokeLinecap="round">
+      <path d={path} stroke={dark(skin, 0.4)} strokeWidth={w + 2.4} />
+      <path d={path} stroke={skin} strokeWidth={w} />
+      <path d={path} stroke={light(skin, 0.45)} strokeWidth={w * 0.3} opacity="0.6" transform="translate(-1.5 0)" />
+    </g>
   );
 }
 
 /**
- * Boneco do "Vista o Herói" (estilo fofo da Arena: cabeça grande, contorno escuro, degradê e brilho).
- * `look` diz a peça de cada espaço; sem `look`, só o corpo.
+ * Boneca do "Vista o Herói": figura esguia e feminina, com cabelo longo, rosto detalhado e roupas que seguem o corpo.
+ * `look` diz a peça de cada espaço; sem `look`, só o corpo com uma combinação.
  * `only` mostra só uma peça (miniatura da opção) com o zoom do espaço.
  */
 export function PaperDoll({
@@ -77,20 +104,26 @@ export function PaperDoll({
   className?: string;
   title?: string;
 }) {
-  const art = (slot: Slot) => {
-    const id = look[slot];
-    const Art = id ? ITEM_ART[id] : undefined;
-    return Art ? <Art /> : null;
+  const wrap = (id: string | undefined, back = false) => {
+    if (!id) return null;
+    const Art = (back ? ITEM_BACK : ITEM_ART)[id];
+    if (!Art) return null;
+    const kind = ITEM_BY_ID.get(id)?.slot;
+    const t = kind === "head" ? HEAD_T : kind === "hand" ? HAND_T : undefined;
+    return t ? (
+      <g transform={t}>
+        <Art />
+      </g>
+    ) : (
+      <Art />
+    );
   };
+  const show = (slot: Slot) => !only || only === slot;
   const skin = base.skin;
+  const shade = dark(skin, 0.4);
   const gid = `bg-${skin.slice(1)}-${bg ? bg[0].slice(1) + bg[1].slice(1) : "x"}`;
-  const limb = (d: string, w: number) => (
-    <g fill="none" strokeLinecap="round">
-      <path d={d} stroke={INK} strokeWidth={w + 6} />
-      <path d={d} stroke={skin} strokeWidth={w} />
-      <path d={d} stroke={light(skin, 0.45)} strokeWidth={w * 0.28} opacity="0.7" transform="translate(-3 0)" />
-    </g>
-  );
+  const lipC = "#cc4f5d";
+  const noTunic = !look.tunic;
 
   return (
     <svg viewBox={only ? SLOT_VIEWBOX[only] : FULL} className={className} role="img" aria-label={title ?? "Personagem"} xmlns="http://www.w3.org/2000/svg">
@@ -100,69 +133,68 @@ export function PaperDoll({
           <defs>
             <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0" stopColor={light(bg[0], 0.25)} />
-              <stop offset="0.74" stopColor={bg[0]} />
-              <stop offset="0.74" stopColor={bg[1]} />
+              <stop offset="0.78" stopColor={bg[0]} />
+              <stop offset="0.78" stopColor={bg[1]} />
               <stop offset="1" stopColor={dark(bg[1], 0.25)} />
             </linearGradient>
           </defs>
           <rect x="0" y="0" width="200" height="360" rx="18" fill={`url(#${gid})`} />
         </>
       ) : null}
-      {!only ? <ellipse cx="100" cy="342" rx="62" ry="9" fill="#000" opacity="0.2" /> : null}
+      {!only ? <ellipse cx="100" cy="344" rx="50" ry="7" fill="#000" opacity="0.18" /> : null}
 
       <BackHair base={base} />
+      {show("mantle") ? wrap(look.mantle, true) : null}
 
-      {/* pernas e pés */}
-      {limb("M88 258 L88 320", 20)}
-      {limb("M112 258 L112 320", 20)}
-      <ellipse cx="88" cy="332" rx="17" ry="8" fill={F(skin)} {...line} />
-      <ellipse cx="112" cy="332" rx="17" ry="8" fill={F(skin)} {...line} />
+      {/* pernas, pés e braços */}
+      {limb("M91 196 L89 330", 15, skin)}
+      {limb("M109 196 L111 330", 15, skin)}
+      <ellipse cx="88" cy="336" rx="12" ry="5" fill={skin} stroke={shade} strokeWidth="1.4" />
+      <ellipse cx="112" cy="336" rx="12" ry="5" fill={skin} stroke={shade} strokeWidth="1.4" />
+      {limb("M70 114 Q58 150 56 204", 11, skin)}
+      {limb("M130 114 Q142 150 144 204", 11, skin)}
 
-      {/* tronco e braços */}
-      <path d="M62 142 Q100 128 138 142 L142 252 Q100 266 58 252 Z" fill={F(skin)} {...line} />
-      {limb("M56 152 Q38 192 40 230", 20)}
-      {limb("M144 152 Q162 192 160 230", 20)}
+      {/* tronco e pescoço */}
+      <path d="M92 84 L92 108 L108 108 L108 84 Z" fill={F(skin)} stroke={shade} strokeWidth="1.3" strokeLinejoin="round" />
+      <path d="M92 96 Q100 104 108 96" fill="none" stroke={shade} strokeWidth="1.4" opacity="0.5" />
+      <path d={TORSO} fill={F(skin)} stroke={shade} strokeWidth="1.3" strokeLinejoin="round" />
 
-      {only ? (
-        <>
-          {only !== "head" ? art(only) : null}
-          {only === "hand" ? <circle cx="160" cy="232" r="12" fill={F(skin)} {...line} /> : null}
-        </>
-      ) : (
-        <>
-          {art("shoes")}
-          {art("tunic")}
-          {art("mantle")}
-          {art("hand")}
-          <circle cx="40" cy="232" r="12" fill={F(skin)} {...line} />
-          <circle cx="160" cy="232" r="12" fill={F(skin)} {...line} />
-        </>
-      )}
+      {/* roupas e calçado */}
+      {show("shoes") ? wrap(look.shoes) : null}
+      {noTunic && !only ? <Slip /> : null}
+      {show("tunic") ? wrap(look.tunic) : null}
+      {show("mantle") ? wrap(look.mantle) : null}
+      {show("hand") ? wrap(look.hand) : null}
+
+      {/* mãos */}
+      <ellipse cx="55" cy="208" rx="6.5" ry="8" fill={F(skin)} stroke={shade} strokeWidth="1.4" />
+      <ellipse cx="145" cy="208" rx="6.5" ry="8" fill={F(skin)} stroke={shade} strokeWidth="1.4" />
 
       {/* cabeça */}
-      <circle cx="57" cy="104" r="8" fill={F(skin)} {...thin} />
-      <circle cx="143" cy="104" r="8" fill={F(skin)} {...thin} />
-      <ellipse cx="100" cy="98" rx="43" ry="41" fill={F(skin)} {...line} />
+      <path d="M76 58 Q76 34 100 34 Q124 34 124 58 Q124 80 108 88 Q100 92 92 88 Q76 80 76 58 Z" fill={F(skin)} stroke={shade} strokeWidth="1.4" strokeLinejoin="round" />
+      <circle cx="75.5" cy="64" r="3.6" fill={skin} stroke={shade} strokeWidth="1" />
+      <circle cx="124.5" cy="64" r="3.6" fill={skin} stroke={shade} strokeWidth="1" />
       <FrontHair base={base} />
-      {/* rosto */}
-      <ellipse cx="76" cy="112" rx="9" ry="6" fill="#e86a6a" opacity="0.32" />
-      <ellipse cx="124" cy="112" rx="9" ry="6" fill="#e86a6a" opacity="0.32" />
-      {[84, 116].map((x) => (
+      <ellipse cx="85" cy="72" rx="6" ry="3.4" fill="#e86a6a" opacity="0.28" />
+      <ellipse cx="115" cy="72" rx="6" ry="3.4" fill="#e86a6a" opacity="0.28" />
+      {/* olhos */}
+      {[90, 110].map((x, i) => (
         <g key={x}>
-          <ellipse cx={x} cy="99" rx="8.5" ry="10" fill="#fff" stroke={INK} strokeWidth="1.8" />
-          <circle cx={x + 0.5} cy="101" r="6" fill="#4a2c14" />
-          <circle cx={x + 0.5} cy="101" r="3.2" fill={INK} />
-          <circle cx={x + 3} cy="97" r="2.4" fill="#fff" />
-          {base.female ? <path d={`M${x - 9} 94 Q${x} 86 ${x + 9} 94`} fill="none" stroke={INK} strokeWidth="2.4" strokeLinecap="round" /> : null}
+          <path d={`M${x - 8} 62 Q${x} 54 ${x + 8} 62 Q${x} 68 ${x - 8} 62 Z`} fill="#fff" />
+          <circle cx={x} cy="61.4" r="4.6" fill="#7a4a24" />
+          <circle cx={x} cy="61.4" r="2.2" fill="#1d120b" />
+          <circle cx={x + 1.6} cy="59.6" r="1.3" fill="#fff" />
+          <path d={`M${x - 8.6} 62 Q${x} 53 ${x + 8.6} 62`} fill="none" stroke="#1d120b" strokeWidth="1.7" strokeLinecap="round" />
+          <path d={i === 0 ? `M${x - 8.6} 62 l-2.6 -2` : `M${x + 8.6} 62 l2.6 -2`} stroke="#1d120b" strokeWidth="1.4" strokeLinecap="round" />
+          <path d={i === 0 ? `M${x - 7} 50.5 Q${x - 1} 45.5 ${x + 6} 48` : `M${x - 6} 48 Q${x + 1} 45.5 ${x + 7} 50.5`} fill="none" stroke={dark(base.hairColor, 0.2)} strokeWidth="1.3" strokeLinecap="round" />
         </g>
       ))}
-      <path d="M72 84 Q84 78 94 84 M106 84 Q116 78 128 84" fill="none" stroke={base.hair === "bald" ? dark(skin, 0.4) : dark(base.hairColor, 0.1)} strokeWidth="3.4" strokeLinecap="round" />
-      <path d="M97 108 Q100 112 103 108" fill="none" stroke={dark(skin, 0.4)} strokeWidth="2" strokeLinecap="round" />
-      <Beard base={base} />
-      <path d="M88 118 Q100 130 112 118 Q100 122 88 118 Z" fill={base.female ? "#d8505a" : "#8a3b30"} stroke={INK} strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M100 64 Q102.5 70 99.5 72 Q98 72.5 96.5 71.6" fill="none" stroke={shade} strokeWidth="1.2" strokeLinecap="round" opacity="0.8" />
+      <path d="M93 79 Q100 76.6 107 79 Q100 85 93 79 Z" fill={lipC} stroke="#8a2f3a" strokeWidth="0.9" strokeLinejoin="round" />
+      <path d="M96 79.4 Q100 78 104 79.4" fill="none" stroke="#fff" strokeWidth="0.9" opacity="0.6" strokeLinecap="round" />
 
-      {/* cabeça: peça por cima de tudo */}
-      {!only || only === "head" ? art("head") : null}
+      {/* peça de cabeça */}
+      {show("head") ? wrap(look.head) : null}
     </svg>
   );
 }

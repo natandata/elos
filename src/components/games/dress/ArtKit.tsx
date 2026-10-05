@@ -48,3 +48,13 @@ export function Gem({ x, y, r = 4, c = "#e5484d" }: { x: number; y: number; r?: 
     </g>
   );
 }
+
+/** Traço fino da cor da própria peça (mais suave que o contorno preto). */
+export const edge = (c: string, w = 1.5) => ({ stroke: dark(c, 0.55), strokeWidth: w, strokeLinejoin: "round", strokeLinecap: "round" }) as const;
+
+// Silhueta do corpo (viewBox 0 0 200 360): cabeça (100,62), ombros y 108, cintura y 172, quadril y 200, pés y 336.
+/** Vestido: corpete + saia até acima do tornozelo. */
+export const DRESS = "M71 108 Q85 114 93 107 L107 107 Q115 114 129 108 L128 150 Q126 164 124 172 L152 310 Q100 326 48 310 L76 172 Q74 164 72 150 Z";
+export const SLEEVE_L = "M71 108 Q58 118 55 160 L67 162 Q70 134 80 120 Z";
+export const SLEEVE_R = "M129 108 Q142 118 145 160 L133 162 Q130 134 120 120 Z";
+export const TORSO = "M72 108 Q100 102 128 108 L126 150 Q124 164 122 172 L120 200 L80 200 L78 172 Q76 164 74 150 Z";
