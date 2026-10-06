@@ -73,10 +73,18 @@ function run<T>(db: IDBDatabase, mode: IDBTransactionMode, fn: (s: IDBObjectStor
 
 export async function listWorlds(): Promise<WorldSave[]> {
   const db = await open();
-  if (!db) return [...memory.values()].sort((a, b) => b.updatedAt - a.updatedAt);
+  if (!db) return [...memory.values()].filter((w) => w.id !== "visitante").sort((a, b) => b.updatedAt - a.updatedAt);
   const all = (await run(db, "readonly", (s) => s.getAll() as IDBRequest<WorldSave[]>)) ?? [];
   db.close();
-  return all.sort((a, b) => b.updatedAt - a.updatedAt);
+  return all.filter((w) => w.id !== "visitante").sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+export async function getWorld(id: string): Promise<WorldSave | null> {
+  const db = await open();
+  if (!db) return memory.get(id) ?? null;
+  const w = (await run(db, "readonly", (s) => s.get(id) as IDBRequest<WorldSave | undefined>)) ?? null;
+  db.close();
+  return w ?? null;
 }
 
 export async function putWorld(w: WorldSave): Promise<void> {

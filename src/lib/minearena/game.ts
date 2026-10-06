@@ -2,6 +2,9 @@
 import * as THREE from "three";
 import { B, BLOCKS, type BlockKey, FLUID_MAX, blockDef, breakInfo, fluidId, isFluid } from "./blocks/blocks";
 import { FluidSim } from "./world/fluids";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { MAX_PLAYERS, type NetMsg, type Peer, RoomNet, announceRoom } from "./net/room";
+import { RemotePlayers } from "./net/remote";
 import { AUTOSAVE_S, DAY_SECONDS, PLAYER, REACH, RENDER_DISTANCE } from "./config/config";
 import { Sound } from "./audio/audio";
 import { MOB_BY_ID } from "./entities/definitions";
@@ -44,6 +47,8 @@ export interface HudState {
   hurt: number;
   allies: string[];
   coords: string;
+  /** Co-op: papel e nomes de quem está na sala. */
+  coop: { role: "host" | "guest"; names: string[] } | null;
   /** 0–1: escurecimento da tela ao dormir ou atravessar o portal. */
   fade: number;
   fadeText: string;
@@ -68,6 +73,8 @@ export interface GameCallbacks {
   onOpenCrafting(): void;
   onOpenContainer(kind: "chest" | "furnace"): void;
   onPauseRequest(): void;
+  /** Co-op: a sala acabou (anfitrião saiu ou conexão caiu). */
+  onRoomEnded(reason: string): void;
 }
 
 export interface Input {
@@ -84,6 +91,10 @@ export interface Input {
 export interface GameOptions {
   mobile: boolean;
   settings?: Settings;
+  /** Co-op: quem sou eu, o cliente do Supabase e (convidado) a sala já conectada. */
+  me?: Peer;
+  sb?: SupabaseClient;
+  net?: RoomNet;
 }
 
 const rarityTone = (r: string): "info" | "good" | "rare" => (r === "comum" ? "info" : r === "incomum" ? "good" : "rare");
@@ -96,6 +107,15 @@ export class MineArena {
   private scene = new THREE.Scene();
   private camera: THREE.PerspectiveCamera;
   private world: World;
+  private role: "solo" | "host" | "guest" = "solo";
+  private net: RoomNet | null = null;
+  private me: Peer | null = null;
+  private sb: SupabaseClient | null = null;
+  private remotes: RemotePlayers;
+  private peers = new Map<string, string>();
+  private ann: { update: (i: { hostId: string; hostName: string; name: string; players: number }) => void; close: () => void } | null = null;
+  private worldName = "";
+  private netLast = { x: 0, y: 0, z: 0, yaw: 0, t: 0 };
   private quality = 1;
   private adaptive = true;
   private adaptStep = 0;
@@ -250,6 +270,16 @@ export class MineArena {
     this.inventory.subscribe(() => this.rebuildHand());
     this.rebuildHand();
     this.applySettings(opts.settings ?? DEFAULT_SETTINGS);
+    this.remotes = new RemotePlayers(this.scene);
+    this.me = opts.me ?? null;
+    this.sb = opts.sb ?? null;
+    this.worldName = save.name;
+    if (opts.net) {
+      this.role = "guest";
+      this.net = opts.net;
+      this.entities.clientMode = true;
+      this.attachNet();
+    }
   }
 
   // ---------- ciclo de vida ----------
@@ -387,13 +417,22 @@ export class MineArena {
   }
   async saveNow(): Promise<void> {
     if (!this.ready) return;
-    await putWorld(this.snapshot());
+    const snap = this.snapshot();
+    if (this.role === "guest") {
+      // convidado: guarda só o personagem (mochila, vida), nunca o mundo do anfitrião
+      await putWorld({ ...snap, id: "visitante", name: "Visitante", mods: {}, modsGeena: {}, containers: {}, crops: {}, spawned: [] });
+      return;
+    }
+    await putWorld(snap);
   }
 
   async dispose(): Promise<void> {
     this.running = false;
     cancelAnimationFrame(this.raf);
     await this.saveNow();
+    // o convidado só fecha a conexão ao sair de verdade (quem fecha é a tela, que também sobrevive a remontagens)
+    if (this.role !== "guest") this.closeRoom(true);
+    this.remotes.dispose();
     this.cleanup.forEach((f) => f());
     if (document.pointerLockElement) document.exitPointerLock();
     this.entities.dispose();
@@ -488,7 +527,15 @@ export class MineArena {
   // ---------- ganchos das criaturas ----------
   private hooks() {
     return {
-      damagePlayer: (amount: number, fx: number, fz: number) => this.damagePlayer(amount, fx, fz),
+      damagePlayer: (amount: number, fx: number, fz: number, pid?: string) => {
+        if (pid && this.net) this.net.send("dmg", { amount, fx, fz }, pid);
+        else this.damagePlayer(amount, fx, fz);
+      },
+      netHit: (id: number, amount: number, kx: number, kz: number) => this.net?.send("hit", { id, amount, kx, kz }),
+      giveRemote: (pid: string, item: string, count: number) => this.net?.send("loot", { item, count }, pid),
+      net: (kind: string, data: Record<string, number>) => {
+        if (this.role === "host") this.net?.send("fx", { k: kind, d: data });
+      },
       healPlayer: (n: number) => {
         this.health = Math.min(PLAYER.maxHealth, this.health + n);
       },
@@ -614,11 +661,12 @@ export class MineArena {
     }
     this.syncCamera();
 
-    this.entities.update(dt, { px: b.x, py: b.y, pz: b.z, alive: this.alive, daylight: this.sky.daylight, mobile: this.mobile, dim: this.dimension, cull: this.cullDist, cap: this.entCap, spawnMul: this.spawnMul * (this.dimension === "geena" ? 1.5 : 1) });
+    this.entities.update(dt, { px: b.x, py: b.y, pz: b.z, alive: this.alive, daylight: this.sky.daylight, mobile: this.mobile, dim: this.dimension, others: this.role === "solo" ? undefined : this.remotes.positions(), cull: this.cullDist, cap: this.entCap, spawnMul: this.spawnMul * (this.dimension === "geena" ? 1.5 : 1) });
     this.particles.update(dt);
     this.tickFurnaces(dt);
     this.tickCrops(dt);
-    this.fluids.update(dt);
+    if (this.role !== "guest") this.fluids.update(dt);
+    this.netTick(dt);
     if (this.sleepT > 0) {
       const prev = this.sleepT;
       this.sleepT = Math.max(0, this.sleepT - dt);
@@ -907,6 +955,10 @@ export class MineArena {
     const tgt = hit && onPlant ? { x: hit.x, y: hit.y - 1, z: hit.z, id: this.world.getBlock(hit.x, hit.y - 1, hit.z) } : hit;
     // acender o portal do Abismo com o tição do altar
     if (held.key === "ember_brand" && hit && hit.id === B.obsidian) {
+      if (this.role !== "solo") {
+        this.cb.onMessage("O portal do Abismo só funciona no modo solo.", "warn");
+        return;
+      }
       if (this.tryLightPortal(hit.x + hit.nx, hit.y + hit.ny, hit.z + hit.nz)) {
         this.sfx.play("fire");
         this.cb.onMessage("O portal do Abismo se abriu…", "rare");
@@ -928,6 +980,7 @@ export class MineArena {
     if (held.key === "seeds" && tgt && tgt.id === B.farmland && (this.world.getBlock(tgt.x, tgt.y + 1, tgt.z) === B.air || onPlant)) {
       this.world.setBlock(tgt.x, tgt.y + 1, tgt.z, B.wheat_0);
       this.crops.set(`${tgt.x},${tgt.y + 1},${tgt.z}`, 0);
+      if (this.role === "guest") this.net?.send("crop", { x: tgt.x, y: tgt.y + 1, z: tgt.z });
       this.inventory.consumeHeld(1);
       this.sfx.play("place");
       return;
@@ -1010,6 +1063,7 @@ export class MineArena {
   }
 
   private portalTick(dt: number): void {
+    if (this.role !== "solo") return;
     const b = this.body;
     const inPortal = this.world.getBlock(Math.floor(b.x), Math.floor(b.y + 0.3), Math.floor(b.z)) === B.portal || this.world.getBlock(Math.floor(b.x), Math.floor(b.y + 1.2), Math.floor(b.z)) === B.portal;
     if (!inPortal || this.portalCd > 0 || !this.alive) {
@@ -1125,6 +1179,179 @@ export class MineArena {
     void this.saveNow();
   }
 
+  // ---------- co-op (multijogador) ----------
+  get coopRole(): "solo" | "host" | "guest" {
+    return this.role;
+  }
+
+  /** Solo → anfitrião: abre uma sala e anuncia no lobby. */
+  async openRoom(): Promise<boolean> {
+    if (this.role !== "solo" || !this.me || !this.sb) return false;
+    if (this.dimension !== "overworld") {
+      this.cb.onMessage("Abra a sala no mundo normal (saia de Geena primeiro).", "warn");
+      return false;
+    }
+    const net = new RoomNet(this.sb, this.me, this.me.id, "host");
+    try {
+      await net.connect();
+    } catch {
+      this.cb.onMessage("Não consegui abrir a sala. Verifique a conexão.", "warn");
+      return false;
+    }
+    this.net = net;
+    this.role = "host";
+    this.attachNet();
+    this.ann = announceRoom(this.sb, { hostId: this.me.id, hostName: this.me.name, name: this.worldName, players: 1 });
+    this.cb.onMessage("Sala aberta! Colegas já podem entrar pela Sala de Jogos.", "good");
+    return true;
+  }
+
+  /** Fecha a sala (anfitrião) ou sai dela (convidado). */
+  closeRoom(silent = false): void {
+    if (this.role === "solo") return;
+    const was = this.role;
+    this.ann?.close();
+    this.ann = null;
+    this.net?.close();
+    this.net = null;
+    this.role = "solo";
+    this.entities.clientMode = false;
+    this.world.onLocalSet = null;
+    for (const id of [...this.remotes.list.keys()]) this.remotes.remove(id);
+    this.peers.clear();
+    if (!silent) this.cb.onMessage(was === "host" ? "Sala fechada." : "Você saiu da sala.", "info");
+  }
+
+  sendChat(text: string): void {
+    const t = text.trim().slice(0, 140);
+    if (!t || !this.net) return;
+    this.net.send("chat", { text: t, name: this.me?.name ?? "Jogador" });
+    this.cb.onMessage(`Você: ${t}`, "info");
+  }
+
+  private announceCount(): void {
+    if (this.role === "host" && this.ann && this.me) this.ann.update({ hostId: this.me.id, hostName: this.me.name, name: this.worldName, players: 1 + this.remotes.list.size });
+  }
+
+  private broadcastPeers(): void {
+    if (this.role !== "host" || !this.net || !this.me) return;
+    const list = [{ id: this.me.id, name: this.me.name }, ...[...this.peers].map(([id, name]) => ({ id, name }))];
+    this.net.send("peers", { list });
+  }
+
+  private applyMods(batch: [number, number[]][]): void {
+    for (const [k, flat] of batch) {
+      const cx = k >> 16;
+      const cz = (k << 16) >> 16;
+      for (let i = 0; i + 1 < flat.length; i += 2) {
+        const idx = flat[i];
+        this.world.setBlockRemote(cx * 16 + (idx & 15), idx >> 8, cz * 16 + ((idx >> 4) & 15), flat[i + 1]);
+      }
+    }
+  }
+
+  private attachNet(): void {
+    const net = this.net;
+    if (!net) return;
+    // blocos que eu altero (jogador ou simulação do anfitrião) vão pra todos
+    this.world.onLocalSet = (x, y, z, id) => net.send("blk", { x, y, z, id });
+    net.on("blk", (m) => this.world.setBlockRemote(m.x as number, m.y as number, m.z as number, m.id as number));
+    net.on("pos", (m) => {
+      if (!this.remotes.list.has(m.from)) this.remotes.add(m.from, this.peers.get(m.from) ?? "Jogador", m.x as number, m.y as number, m.z as number);
+      this.remotes.setTarget(m.from, m.x as number, m.y as number, m.z as number, m.yaw as number);
+    });
+    net.on("chat", (m) => this.cb.onMessage(`${m.name as string}: ${m.text as string}`, "info"));
+    net.on("bye", (m) => this.onPeerLeft(m));
+    if (this.role === "host") {
+      net.on("hello", (m) => this.onHello(m));
+      net.on("hit", (m) => {
+        const e = this.entities.list.find((o) => o.id === (m.id as number));
+        if (e) this.entities.hurt(e, m.amount as number, m.kx as number, m.kz as number, true, m.from);
+      });
+      net.on("crop", (m) => this.crops.set(`${m.x as number},${m.y as number},${m.z as number}`, 0));
+    } else {
+      net.on("ents", (m) => this.entities.applySnapshot(m.l as (number | string)[][]));
+      net.on("time", (m) => {
+        this.time = m.v as number;
+      });
+      net.on("dmg", (m) => this.damagePlayer(m.amount as number, m.fx as number, m.fz as number));
+      net.on("loot", (m) => this.give(m.item as string, m.count as number));
+      net.on("fx", (m) => this.entities.visualEvent(m.k as string, m.d as Record<string, number>));
+      net.on("mods", (m) => this.applyMods(m.c as [number, number[]][]));
+      net.on("peers", (m) => {
+        const list = m.list as Peer[];
+        this.peers.clear();
+        for (const p of list) if (p.id !== this.me?.id) this.peers.set(p.id, p.name);
+        for (const [id, name] of this.peers) if (!this.remotes.list.has(id)) this.remotes.add(id, name, this.body.x, this.body.y, this.body.z);
+        for (const id of [...this.remotes.list.keys()]) if (!this.peers.has(id)) this.remotes.remove(id);
+      });
+    }
+  }
+
+  private onHello(m: NetMsg): void {
+    const net = this.net;
+    if (!net || !this.me) return;
+    if (this.remotes.list.size + 1 >= MAX_PLAYERS && !this.peers.has(m.from)) {
+      net.send("full", {}, m.from);
+      return;
+    }
+    const name = String(m.name ?? "Jogador").slice(0, 24);
+    this.peers.set(m.from, name);
+    if (!this.remotes.list.has(m.from)) this.remotes.add(m.from, name, this.body.x, this.body.y, this.body.z);
+    net.send("welcome", { seed: this.baseSeed, time: this.time, spawn: this.spawn, host: { x: this.body.x, y: this.body.y, z: this.body.z }, peers: [{ id: this.me.id, name: this.me.name }] }, m.from);
+    // blocos já alterados: manda em lotes pequenos
+    const mods = this.world.exportMods();
+    let batch: [number, number[]][] = [];
+    let size = 0;
+    for (const [k, flat] of Object.entries(mods)) {
+      batch.push([Number(k), flat]);
+      size += flat.length;
+      if (size > 2400) {
+        net.send("mods", { c: batch }, m.from);
+        batch = [];
+        size = 0;
+      }
+    }
+    if (batch.length) net.send("mods", { c: batch }, m.from);
+    this.broadcastPeers();
+    this.announceCount();
+    this.cb.onMessage(`${name} entrou na sala.`, "good");
+  }
+
+  private onPeerLeft(m: NetMsg): void {
+    if (this.role === "guest" && m.from === this.net?.hostId) {
+      this.cb.onRoomEnded("O anfitrião fechou a sala.");
+      return;
+    }
+    const name = this.peers.get(m.from);
+    this.peers.delete(m.from);
+    this.remotes.remove(m.from);
+    if (name) this.cb.onMessage(`${name} saiu da sala.`, "info");
+    if (this.role === "host") {
+      this.broadcastPeers();
+      this.announceCount();
+    }
+  }
+
+  /** A cada quadro: manda a minha posição e (anfitrião) as criaturas e a hora; move os outros jogadores. */
+  private netTick(dt: number): void {
+    this.remotes.update(dt);
+    const net = this.net;
+    if (!net || this.role === "solo") return;
+    const b = this.body;
+    // economiza mensagens: só manda a posição quando ela muda (ou a cada 2 s, como sinal de vida)
+    const now = performance.now();
+    const moved = Math.hypot(b.x - this.netLast.x, b.y - this.netLast.y, b.z - this.netLast.z) > 0.08 || Math.abs(this.yaw - this.netLast.yaw) > 0.05;
+    if ((moved && now - this.netLast.t > 300) || now - this.netLast.t > 2000) {
+      this.netLast = { x: b.x, y: b.y, z: b.z, yaw: this.yaw, t: now };
+      net.send("pos", { x: +b.x.toFixed(2), y: +b.y.toFixed(2), z: +b.z.toFixed(2), yaw: +this.yaw.toFixed(2) });
+    }
+    if (this.role === "host") {
+      net.sendEvery("ents", 420, () => ({ l: this.entities.snapshot() }));
+      net.sendEvery("time", 3000, () => ({ v: this.time }));
+    }
+  }
+
   // ---------- cama e plantações ----------
   private useBed(x: number, y: number, z: number): void {
     if (this.dimension === "geena") {
@@ -1134,6 +1361,10 @@ export class MineArena {
     this.spawn = { x: x + 0.5, y: y + 1.1, z: z + 0.5 };
     if (this.sky.daylight >= 0.35) {
       this.cb.onMessage("Ponto de renascimento definido. Só dá pra dormir à noite.", "info");
+      return;
+    }
+    if (this.role === "guest") {
+      this.cb.onMessage("Ponto de renascimento definido. Só o anfitrião pula a noite.", "info");
       return;
     }
     const enemy = this.entities.list.some((e) => !e.dead && (e.def.behavior === "hostile" || e.def.behavior === "boss") && Math.hypot(e.body.x - this.body.x, e.body.z - this.body.z) < 14);
@@ -1152,7 +1383,7 @@ export class MineArena {
   }
 
   private tickCrops(dt: number): void {
-    if (this.dimension !== "overworld") return;
+    if (this.dimension !== "overworld" || this.role === "guest") return;
     this.cropT -= dt;
     if (this.cropT > 0) return;
     this.cropT = 1;
@@ -1260,7 +1491,7 @@ export class MineArena {
           else c.slots[2] = { item: res, count: 1 };
         }
       } else if (c.cook > 0) c.cook = Math.max(0, c.cook - dt * 2);
-      if (sync) {
+      if (sync && this.role !== "guest") {
         const [x, y, z] = key.replace("g:", "").split(",").map(Number);
         if (this.world.hasChunkAt(x, z)) {
           const cur = this.world.getBlock(x, y, z);
@@ -1291,7 +1522,9 @@ export class MineArena {
 
   dialogAct(act: "follow" | "stay" | "close"): void {
     const e = this.dialogEnt;
-    if (e && act === "follow") {
+    if (e && act === "follow" && this.role === "guest") {
+      this.cb.onMessage("Só o anfitrião recruta heróis.", "warn");
+    } else if (e && act === "follow") {
       const r = this.entities.recruit(e);
       this.cb.onMessage(r.message || "Não foi possível.", r.ok ? "good" : "warn");
     }
@@ -1347,6 +1580,7 @@ export class MineArena {
         this.cb.onMessage(`✦ Descoberta: ${name}`, "rare");
       } else this.cb.onMessage(name, "info");
     }
+    if (this.role === "guest") return;
     for (const sp of structuresNear(this.world.seed, this.body.x, this.body.z, 70)) {
       const def = STRUCTURE_BY_ID[sp.id];
       const d = Math.hypot(sp.ox - this.body.x, sp.oz - this.body.z);
@@ -1500,6 +1734,7 @@ export class MineArena {
       allies: this.entities.list.filter((e) => e.ally && !e.dead).map((e) => e.def.name),
       fadeText: this.sleepT <= 0 && this.portalT > 0 ? "🔥 Atravessando o portal…" : "💤 Dormindo…",
       fade: Math.max(this.sleepT > 0 ? Math.max(0, Math.min(1, 1 - Math.abs(this.sleepT - 1.4) / 1.4)) : 0, Math.min(0.85, this.portalT / 2.4)),
+      coop: this.role === "solo" ? null : { role: this.role, names: [this.me?.name ?? "Você", ...[...this.remotes.list.values()].map((p) => p.name)] },
       coords: !this.showCoords ? "" : `${Math.floor(this.body.x)}, ${Math.floor(this.body.y)}, ${Math.floor(this.body.z)}`,
     };
     // só avisa a interface quando algo visível mudou (evita redesenhar o HUD à toa)

@@ -41,7 +41,7 @@ export function HeroDialog({ d, onAct }: { d: DialogInfo; onAct: (a: "follow" | 
   );
 }
 
-export function PauseMenu({ onResume, onOptions, onExit }: { onResume: () => void; onOptions: () => void; onExit: () => void }) {
+export function PauseMenu({ onResume, onOptions, onExit, coop, canHost, onOpenRoom, onCloseRoom }: { onResume: () => void; onOptions: () => void; onExit: () => void; coop: { role: "host" | "guest"; names: string[] } | null; canHost: boolean; onOpenRoom: () => void; onCloseRoom: () => void }) {
   return (
     <div className="ma-modal">
       <div className="ma-dialog ma-pause">
@@ -49,6 +49,21 @@ export function PauseMenu({ onResume, onOptions, onExit }: { onResume: () => voi
         <button type="button" className="ma-btn ma-btn-gold" onClick={onResume}>
           ▶ Continuar
         </button>
+        {coop ? (
+          <p className="ma-coop-list">
+            👥 {coop.names.length}/4 na sala: {coop.names.join(", ")}
+          </p>
+        ) : null}
+        {!coop && canHost ? (
+          <button type="button" className="ma-btn" onClick={onOpenRoom}>
+            👥 Abrir sala co-op
+          </button>
+        ) : null}
+        {coop ? (
+          <button type="button" className="ma-btn" onClick={onCloseRoom}>
+            {coop.role === "host" ? "🚪 Fechar a sala" : "🚪 Sair da sala"}
+          </button>
+        ) : null}
         <button type="button" className="ma-btn" onClick={onOptions}>
           ⚙ Opções
         </button>

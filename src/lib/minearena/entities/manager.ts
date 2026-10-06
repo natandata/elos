@@ -46,10 +46,24 @@ export interface Entity {
   breedCd: number;
   baby: boolean;
   growT: number;
+  /** Quem deu o último golpe ("host" ou id do jogador). */
+  lastHit?: string;
+  tx?: number;
+  ty?: number;
+  tz?: number;
+  tyaw?: number;
+  netSpeed?: number;
 }
 
 export interface ManagerHooks {
-  damagePlayer(amount: number, fromX: number, fromZ: number): void;
+  /** `pid`: jogador remoto atingido (co-op); sem ele, é o jogador local. */
+  damagePlayer(amount: number, fromX: number, fromZ: number, pid?: string): void;
+  /** Co-op (convidado): avisa o anfitrião que acertou uma criatura. */
+  netHit?(id: number, amount: number, kbx: number, kbz: number): void;
+  /** Co-op (anfitrião): entrega o saque a quem deu o golpe final. */
+  giveRemote?(pid: string, item: string, count: number): void;
+  /** Co-op (anfitrião): eventos só visuais para os convidados. */
+  net?(kind: string, data: Record<string, number>): void;
   healPlayer(n: number): void;
   give(item: string, count: number): void;
   say(text: string): void;
@@ -64,6 +78,8 @@ export interface Env {
   daylight: number;
   mobile: boolean;
   dim?: "overworld" | "geena";
+  /** Outros jogadores da sala (co-op). */
+  others?: { id: string; x: number; y: number; z: number }[];
   /** Distância (blocos) além da qual a criatura não é desenhada. */
   cull?: number;
   /** Máximo de criaturas vivas. */
@@ -84,6 +100,8 @@ interface Proj {
   life: number;
   owner: "player" | "ally" | "hostile";
   gravity: number;
+  /** Só visual (co-op: quem simula é o anfitrião). */
+  visual?: boolean;
 }
 
 interface Hazard {
@@ -94,6 +112,7 @@ interface Hazard {
   dmg: number;
   r: number;
   tick: number;
+  visual?: boolean;
 }
 
 const isHostile = (e: Entity) => !e.dead && (e.def.behavior === "hostile" || e.def.behavior === "boss");
@@ -104,6 +123,10 @@ export class EntityManager {
   private projs: Proj[] = [];
   private hazards: Hazard[] = [];
   private playerPos = { x: 0, y: 0, z: 0 };
+  /** Jogadores vivos (o local + os da sala) pra alvos e dano em área. */
+  private players: { pid?: string; x: number; y: number; z: number }[] = [];
+  /** Convidado: as criaturas são só "bonecos" que seguem o anfitrião. */
+  clientMode = false;
   private fireGeo = new THREE.BoxGeometry(0.34, 0.34, 0.34);
   private fireMat = new THREE.MeshBasicMaterial({ color: 0xff8a1f });
   private nextId = 1;
@@ -239,8 +262,21 @@ export class EntityManager {
   }
 
   // ---------- dano ----------
-  hurt(e: Entity, amount: number, kbx: number, kbz: number, byPlayer: boolean): boolean {
+  hurt(e: Entity, amount: number, kbx: number, kbz: number, byPlayer: boolean, by?: string): boolean {
     if (e.dead || e.invuln > 0) return false;
+    if (this.clientMode) {
+      if (e.def.behavior === "hero" && byPlayer) {
+        this.hooks.say("Não ataque os heróis!");
+        return false;
+      }
+      this.hooks.netHit?.(e.id, amount, kbx, kbz);
+      e.hurtT = 0.3;
+      e.invuln = 0.1;
+      this.fx.burst(e.body.x, e.body.y + e.body.h * 0.6, e.body.z, 0xc23030, 8, 3, 0.1);
+      this.sfx.play("hit");
+      return true;
+    }
+    if (byPlayer) e.lastHit = by ?? "host";
     if (e.def.behavior === "hero" && byPlayer) {
       this.hooks.say("Não ataque os heróis!");
       return false;
@@ -272,7 +308,10 @@ export class EntityManager {
     for (const l of e.baby ? [] : e.def.loot) {
       if (Math.random() > l.chance) continue;
       const n = l.min + Math.floor(Math.random() * (l.max - l.min + 1));
-      if (n > 0) this.hooks.give(l.item, n);
+      if (n > 0) {
+        if (e.lastHit && e.lastHit !== "host" && this.hooks.giveRemote) this.hooks.giveRemote(e.lastHit, l.item, n);
+        else this.hooks.give(l.item, n);
+      }
     }
     if (e.def.behavior === "boss") this.hooks.say(`${e.def.name} foi derrotado!`);
     this.hooks.onKill(e.def);
@@ -305,12 +344,12 @@ export class EntityManager {
   }
 
   // ---------- projéteis ----------
-  shoot(shape: "arrow" | "stone" | "fire", ox: number, oy: number, oz: number, dx: number, dy: number, dz: number, speed: number, dmg: number, gravity: number, owner: "player" | "ally" | "hostile"): void {
+  shoot(shape: "arrow" | "stone" | "fire", ox: number, oy: number, oz: number, dx: number, dy: number, dz: number, speed: number, dmg: number, gravity: number, owner: "player" | "ally" | "hostile", visual = false): void {
     const mesh = new THREE.Mesh(shape === "arrow" ? this.arrowGeo : shape === "fire" ? this.fireGeo : this.stoneGeo, shape === "arrow" ? this.arrowMat : shape === "fire" ? this.fireMat : this.stoneMat);
     mesh.position.set(ox, oy, oz);
     this.scene.add(mesh);
     const n = Math.hypot(dx, dy, dz) || 1;
-    this.projs.push({ mesh, x: ox, y: oy, z: oz, vx: (dx / n) * speed, vy: (dy / n) * speed, vz: (dz / n) * speed, dmg, life: 4, owner, gravity });
+    this.projs.push({ mesh, x: ox, y: oy, z: oz, vx: (dx / n) * speed, vy: (dy / n) * speed, vz: (dz / n) * speed, dmg, life: 4, owner, gravity, visual });
   }
 
   private updateProjectiles(dt: number): void {
@@ -327,11 +366,15 @@ export class EntityManager {
         continue;
       }
       if (p.owner === "hostile") {
-        const pp = this.playerPos;
-        if (Math.hypot(p.x - pp.x, p.z - pp.z) < 0.9 && p.y > pp.y - 0.2 && p.y < pp.y + 2) {
-          this.hooks.damagePlayer(p.dmg, p.x - p.vx * 0.1, p.z - p.vz * 0.1);
-          this.fx.burst(p.x, p.y, p.z, 0xff8a1f, 10, 3, 0.16);
-          p.life = 0;
+        if (!p.visual) {
+          for (const pp of this.players) {
+            if (Math.hypot(p.x - pp.x, p.z - pp.z) < 0.9 && p.y > pp.y - 0.2 && p.y < pp.y + 2) {
+              this.hooks.damagePlayer(p.dmg, p.x - p.vx * 0.1, p.z - p.vz * 0.1, pp.pid);
+              this.fx.burst(p.x, p.y, p.z, 0xff8a1f, 10, 3, 0.16);
+              p.life = 0;
+              break;
+            }
+          }
         }
         if (Math.random() < 0.5) this.fx.burst(p.x, p.y, p.z, 0xff7a1a, 1, 0.5, 0.1, 0);
         continue;
@@ -444,8 +487,15 @@ export class EntityManager {
   // ---------- atualização ----------
   update(dt: number, env: Env): void {
     this.playerPos = { x: env.px, y: env.py, z: env.pz };
+    this.players = [];
+    if (env.alive) this.players.push({ x: env.px, y: env.py, z: env.pz });
+    for (const o of env.others ?? []) this.players.push({ pid: o.id, x: o.x, y: o.y, z: o.z });
+    if (this.clientMode) {
+      this.updateClient(dt, env);
+      return;
+    }
     this.spawnTick(dt, env);
-    this.updateHazards(dt, env);
+    this.updateHazards(dt);
     for (const e of [...this.list]) this.updateEntity(e, dt, env);
     this.updateProjectiles(dt);
   }
@@ -499,12 +549,15 @@ export class EntityManager {
     }
 
     // ---- escolhe alvo ----
-    let target: { x: number; y: number; z: number; ent: Entity | null; r: number } | null = null;
+    let target: { x: number; y: number; z: number; ent: Entity | null; r: number; pid?: string } | null = null;
     let tdist = Infinity;
     if (isHostile(e) && e.pacified <= 0) {
-      if (env.alive && dPlayer <= def.chaseRange) {
-        target = { x: env.px, y: env.py, z: env.pz, ent: null, r: 0.3 };
-        tdist = dPlayer;
+      for (const pl of this.players) {
+        const d = Math.hypot(b.x - pl.x, b.z - pl.z);
+        if (d <= def.chaseRange && d < tdist) {
+          target = { x: pl.x, y: pl.y, z: pl.z, ent: null, r: 0.3, pid: pl.pid };
+          tdist = d;
+        }
       }
       for (const o of this.list) {
         if (!o.ally || o.dead) continue;
@@ -625,7 +678,7 @@ export class EntityManager {
         e.atkCd = def.attackCooldown;
         e.atkAnim = 0.01;
         if (target.ent) this.hurt(target.ent, def.dmg, Math.sin(e.yaw) * 0.6, Math.cos(e.yaw) * 0.6, false);
-        else this.hooks.damagePlayer(def.dmg, b.x, b.z);
+        else this.hooks.damagePlayer(def.dmg, b.x, b.z, target.pid);
       }
     }
 
@@ -642,7 +695,7 @@ export class EntityManager {
     flash(e.rig, e.hurtT > 0 ? 0.55 : 0);
   }
 
-  private updateHazards(dt: number, env: Env): void {
+  private updateHazards(dt: number): void {
     for (const h of this.hazards) {
       h.t -= dt;
       h.tick -= dt;
@@ -656,7 +709,7 @@ export class EntityManager {
       if (h.t <= 0) {
         this.fx.burst(h.x, h.y + 0.6, h.z, 0xff8a1f, 22, 6, 0.22, 3);
         this.sfx.play("fire");
-        if (env.alive && Math.hypot(env.px - h.x, env.pz - h.z) < h.r && Math.abs(env.py - h.y) < 3) this.hooks.damagePlayer(h.dmg, h.x, h.z);
+        if (!h.visual) for (const pl of this.players) if (Math.hypot(pl.x - h.x, pl.z - h.z) < h.r && Math.abs(pl.y - h.y) < 3) this.hooks.damagePlayer(h.dmg, h.x, h.z, pl.pid);
         this.aoeOnEntities(h.x, h.y, h.z, h.r, h.dmg, (o) => o.ally, 3);
       }
     }
@@ -690,11 +743,12 @@ export class EntityManager {
     if ("phase" in ab && ab.phase && phase < ab.phase) return;
     const cdMul = phase === 3 ? 0.6 : 1;
     if (ab.type === "firebolt") {
-      if (e.cds[i] <= 0 && env.alive && target && tdist <= ab.range) {
+      if (e.cds[i] <= 0 && target && tdist <= ab.range) {
         e.cds[i] = ab.cooldown * cdMul;
         e.atkAnim = 0.01;
         const sy = b.y + e.body.h * 0.7;
-        this.shoot("fire", b.x, sy, b.z, env.px - b.x, env.py + 1.1 - sy, env.pz - b.z, 14, ab.dmg, 0, "hostile");
+        this.shoot("fire", b.x, sy, b.z, target.x - b.x, target.y + 1.1 - sy, target.z - b.z, 14, ab.dmg, 0, "hostile");
+        this.hooks.net?.("proj", { x: +b.x.toFixed(1), y: +sy.toFixed(1), z: +b.z.toFixed(1), dx: +(target.x - b.x).toFixed(2), dy: +(target.y + 1.1 - sy).toFixed(2), dz: +(target.z - b.z).toFixed(2) });
         this.sfx.play("fire");
       }
       return;
@@ -723,7 +777,10 @@ export class EntityManager {
         for (let k = 0; k < ab.count; k++) {
           const a = Math.random() * Math.PI * 2;
           const rr = k === 0 ? 0 : 2 + Math.random() * 7;
-          this.hazards.push({ x: env.px + Math.cos(a) * rr, y: env.py, z: env.pz + Math.sin(a) * rr, t: 1.4 + k * 0.12, dmg: ab.dmg, r: 2.4, tick: 0 });
+          const pl = this.players[k % Math.max(1, this.players.length)] ?? { x: env.px, y: env.py, z: env.pz };
+          const hz = { x: pl.x + Math.cos(a) * rr, y: pl.y, z: pl.z + Math.sin(a) * rr, t: 1.4 + k * 0.12, dmg: ab.dmg, r: 2.4, tick: 0 };
+          this.hazards.push(hz);
+          this.hooks.net?.("haz", { x: +hz.x.toFixed(1), y: +hz.y.toFixed(1), z: +hz.z.toFixed(1), t: hz.t });
         }
         this.hooks.say("Chuva de fogo! Saia do círculo!");
       }
@@ -740,7 +797,7 @@ export class EntityManager {
         b.vy = 0;
         this.fx.burst(b.x, b.y + 2, b.z, 0x8a2be2, 24, 6, 0.2);
         this.sfx.play("boss");
-        if (Math.hypot(env.px - b.x, env.pz - b.z) < 7) this.hooks.damagePlayer(ab.dmg, b.x, b.z);
+        for (const pl of this.players) if (Math.hypot(pl.x - b.x, pl.z - b.z) < 7) this.hooks.damagePlayer(ab.dmg, b.x, b.z, pl.pid);
       }
       return;
     }
@@ -755,7 +812,7 @@ export class EntityManager {
             const a = (k / 24) * Math.PI * 2;
             this.fx.burst(b.x + Math.cos(a) * ab.radius * 0.7, b.y + 0.2, b.z + Math.sin(a) * ab.radius * 0.7, 0xb39a6a, 1, 2, 0.2);
           }
-          if (env.alive && Math.hypot(env.px - b.x, env.pz - b.z) < ab.radius && Math.abs(env.py - b.y) < 2.2) this.hooks.damagePlayer(ab.dmg, b.x, b.z);
+          for (const pl of this.players) if (Math.hypot(pl.x - b.x, pl.z - b.z) < ab.radius && Math.abs(pl.y - b.y) < 2.2) this.hooks.damagePlayer(ab.dmg, b.x, b.z, pl.pid);
           this.aoeOnEntities(b.x, b.y, b.z, ab.radius, ab.dmg, (o) => o.ally, 6);
         }
       } else if (e.cds[i] <= 0 && target && tdist < ab.radius + 2.5) {
@@ -825,6 +882,97 @@ export class EntityManager {
         }
         break;
     }
+  }
+
+  // ---------- co-op ----------
+  /** Anfitrião: fotografia compacta das criaturas perto de algum jogador. */
+  snapshot(): (number | string)[][] {
+    const out: (number | string)[][] = [];
+    for (const e of this.list) {
+      if (!this.players.some((p) => Math.hypot(p.x - e.body.x, p.z - e.body.z) < 90)) continue;
+      const flags = (e.dead ? 1 : 0) | (e.baby ? 2 : 0) | (e.ally ? 4 : 0) | (e.atkAnim > 0 ? 8 : 0) | (e.windup > 0 ? 16 : 0);
+      out.push([e.id, e.def.id, +e.body.x.toFixed(2), +e.body.y.toFixed(2), +e.body.z.toFixed(2), +e.yaw.toFixed(2), Math.round((e.hp / e.maxHp) * 100), flags]);
+    }
+    return out;
+  }
+
+  /** Convidado: cria, move e remove os "bonecos" conforme a fotografia do anfitrião. */
+  applySnapshot(list: (number | string)[][]): void {
+    const seen = new Set<number>();
+    for (const r of list) {
+      const id = r[0] as number;
+      seen.add(id);
+      let e = this.list.find((o) => o.id === id);
+      const flags = r[7] as number;
+      if (!e) {
+        const def = MOB_BY_ID.get(r[1] as string);
+        if (!def || (flags & 1)) continue;
+        e = this.spawn(def, r[2] as number, r[3] as number, r[4] as number);
+        e.id = id;
+        if (flags & 2) this.makeBaby(e);
+      }
+      e.tx = r[2] as number;
+      e.ty = r[3] as number;
+      e.tz = r[4] as number;
+      e.tyaw = r[5] as number;
+      e.hp = ((r[6] as number) / 100) * e.maxHp;
+      e.ally = !!(flags & 4);
+      if (flags & 8) e.atkAnim = Math.max(e.atkAnim, 0.01);
+      e.windup = flags & 16 ? 0.6 : 0;
+      if ((flags & 1) && !e.dead) {
+        e.dead = true;
+        e.deadT = 0;
+        this.sfx.play("death");
+      }
+    }
+    for (const e of [...this.list]) if (!seen.has(e.id) && !e.dead) this.remove(e);
+  }
+
+  /** Eventos visuais do anfitrião (bola de fogo, chuva de fogo). */
+  visualEvent(kind: string, d: Record<string, number>): void {
+    if (kind === "proj") this.shoot("fire", d.x, d.y, d.z, d.dx, d.dy, d.dz, 14, 0, 0, "hostile", true);
+    if (kind === "haz") this.hazards.push({ x: d.x, y: d.y, z: d.z, t: d.t, dmg: 0, r: 2.4, tick: 0, visual: true });
+  }
+
+  private updateClient(dt: number, env: Env): void {
+    for (const e of [...this.list]) {
+      e.anim += dt;
+      e.hurtT = Math.max(0, e.hurtT - dt);
+      e.invuln = Math.max(0, e.invuln - dt);
+      if (e.atkAnim > 0) e.atkAnim = e.atkAnim + dt / 0.35 >= 1 ? 0 : e.atkAnim + dt / 0.35;
+      if (e.dead) {
+        e.deadT += dt;
+        animate(e.rig, { t: e.anim, speed: 0, attack: 0, windup: 0, dead: e.deadT * 2 });
+        if (e.deadT > 1.1) this.remove(e);
+        continue;
+      }
+      const b = e.body;
+      const k = Math.min(1, dt * 8);
+      const ox = b.x;
+      const oz = b.z;
+      if (e.tx !== undefined) {
+        b.x += (e.tx - b.x) * k;
+        b.y += ((e.ty ?? b.y) - b.y) * k;
+        b.z += ((e.tz ?? b.z) - b.z) * k;
+      }
+      if (e.tyaw !== undefined) {
+        let dy = e.tyaw - e.yaw;
+        dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+        e.yaw += dy * k;
+      }
+      const sp = Math.hypot(b.x - ox, b.z - oz) / Math.max(dt, 0.001);
+      e.netSpeed = (e.netSpeed ?? 0) * 0.7 + sp * 0.3;
+      const dP = Math.hypot(b.x - env.px, b.z - env.pz);
+      const shown = dP < (env.cull ?? 60);
+      if (e.rig.root.visible !== shown) e.rig.root.visible = shown;
+      if (!shown) continue;
+      e.rig.root.position.set(b.x, b.y, b.z);
+      e.rig.root.rotation.y = e.yaw;
+      animate(e.rig, { t: e.anim, speed: e.netSpeed, attack: e.atkAnim, windup: e.windup > 0 ? 0.6 : 0, dead: 0 });
+      flash(e.rig, e.hurtT > 0 ? 0.55 : 0);
+    }
+    this.updateHazards(dt);
+    this.updateProjectiles(dt);
   }
 
   dispose(): void {

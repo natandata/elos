@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { RoomInfo } from "@/lib/minearena/net/room";
 import type { WorldSave } from "@/lib/minearena/save/save";
+import { CoopLobby } from "./CoopLobby";
 
 function ago(ts: number): string {
   const m = Math.max(0, Math.round((Date.now() - ts) / 60000));
@@ -29,14 +32,19 @@ export function MainMenu({
   onCreate,
   onDelete,
   onOptions,
+  coop,
+  notice,
 }: {
   worlds: WorldSave[] | null;
   onPlay: (w: WorldSave) => void;
   onCreate: (name: string, seed: string) => void;
   onDelete: (w: WorldSave) => void;
   onOptions: () => void;
+  /** Co-op: entrar numa sala (precisa de quem sou e do cliente Supabase). */
+  coop?: { sb: SupabaseClient; myId: string; busy: boolean; error: string | null; onJoin: (r: RoomInfo) => void };
+  notice?: string | null;
 }) {
-  const [view, setView] = useState<"home" | "new" | "load">("home");
+  const [view, setView] = useState<"home" | "new" | "load" | "coop">("home");
   const [name, setName] = useState("Meu mundo");
   const [seed, setSeed] = useState("");
   const [confirm, setConfirm] = useState<string | null>(null);
@@ -66,6 +74,11 @@ export function MainMenu({
                 📜 Carregar mundo ({worlds.length})
               </button>
             ) : null}
+            {coop ? (
+              <button type="button" className="ma-btn" onClick={() => setView("coop")}>
+                👥 Entrar em sala co-op
+              </button>
+            ) : null}
             <button type="button" className="ma-btn" onClick={onOptions}>
               ⚙ Opções
             </button>
@@ -75,6 +88,8 @@ export function MainMenu({
           </div>
         ) : null}
 
+        {notice && view === "home" ? <p className="ma-lobby-error">{notice}</p> : null}
+        {view === "coop" && coop ? <CoopLobby sb={coop.sb} myId={coop.myId} busy={coop.busy} error={coop.error} onJoin={coop.onJoin} onBack={() => setView("home")} /> : null}
         {view === "new" ? (
           <form
             className="ma-form"

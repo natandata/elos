@@ -37,5 +37,5 @@ export default async function MineArenaPage() {
     );
   }
 
-  return <MineArenaClient />;
+  return <MineArenaClient me={{ id: profile.id, name: (profile.full_name || "Jogador").split(" ")[0] }} />;
 }

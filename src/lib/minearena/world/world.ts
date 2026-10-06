@@ -221,6 +221,27 @@ export class World {
     return blockDef(ch.data[idx(x & 15, y, z & 15)]).solid;
   }
 
+  /** Co-op: avisa os outros jogadores de um bloco alterado aqui. */
+  onLocalSet: ((x: number, y: number, z: number, id: number) => void) | null = null;
+  private netMute = false;
+
+  /** Aplica um bloco vindo de outro jogador (sem reenviar). Se o chunk ainda não existe, guarda pra quando nascer. */
+  setBlockRemote(x: number, y: number, z: number, id: number): void {
+    if (y < 0 || y >= WORLD_H) return;
+    const cx = x >> 4;
+    const cz = z >> 4;
+    if (this.chunks.has(ckey(cx, cz))) {
+      this.netMute = true;
+      this.setBlock(x, y, z, id, true);
+      this.netMute = false;
+      return;
+    }
+    const k = ckey(cx, cz);
+    let m = this.mods.get(k);
+    if (!m) this.mods.set(k, (m = new Map()));
+    m.set(idx(x & 15, y, z & 15), id);
+  }
+
   /** Chamado a cada bloco alterado (a simulação de fluidos escuta aqui). */
   onChange: ((x: number, y: number, z: number) => void) | null = null;
 
@@ -256,6 +277,7 @@ export class World {
       if (lz === 15) this.remeshAt(cx, cz + 1);
     }
     this.onChange?.(x, y, z);
+    if (!this.netMute) this.onLocalSet?.(x, y, z, id);
   }
   private remeshAt(cx: number, cz: number): void {
     const c = this.chunks.get(ckey(cx, cz));
