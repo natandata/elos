@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-label="MINEARENA">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#14213f"/>
+      <stop offset="0.45" stop-color="#3f64ad"/>
+      <stop offset="0.8" stop-color="#f0a35a"/>
+      <stop offset="1" stop-color="#f6cf86"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff3b0"/>
+      <stop offset="0.55" stop-color="#ffb02e"/>
+      <stop offset="1" stop-color="#c2410c"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#fff0a8" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#fff0a8" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="dirt" width="60" height="60" patternUnits="userSpaceOnUse">
+      <rect width="60" height="60" fill="#6a4a2a"/>
+      <rect x="0" y="0" width="30" height="30" fill="#5f4226"/>
+      <rect x="30" y="30" width="30" height="30" fill="#5f4226"/>
+      <rect x="8" y="38" width="10" height="8" fill="#7a5a36"/>
+      <rect x="40" y="10" width="10" height="8" fill="#7a5a36"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="675" fill="url(#sky)"/>
+  <g fill="#ffffff" opacity="0.8">
+    <rect x="90" y="70" width="6" height="6"/><rect x="240" y="120" width="6" height="6"/><rect x="420" y="50" width="6" height="6"/>
+    <rect x="610" y="95" width="6" height="6"/><rect x="760" y="40" width="6" height="6"/><rect x="980" y="130" width="6" height="6"/>
+    <rect x="1100" y="60" width="6" height="6"/><rect x="170" y="190" width="4" height="4"/><rect x="880" y="200" width="4" height="4"/>
+  </g>
+  <circle cx="960" cy="150" r="130" fill="url(#glow)"/>
+  <rect x="925" y="115" width="70" height="70" fill="#fff0a8"/>
+  <!-- montanhas em blocos -->
+  <path d="M0 520 L0 420 L120 420 L120 360 L240 360 L240 300 L360 300 L360 360 L480 360 L480 420 L600 420 L600 480 L720 480 L720 400 L840 400 L840 330 L960 330 L960 390 L1080 390 L1080 450 L1200 450 L1200 520 Z" fill="#3b4f7a"/>
+  <path d="M0 560 L0 470 L150 470 L150 420 L270 420 L270 480 L420 480 L420 520 L560 520 L560 450 L700 450 L700 400 L820 400 L820 470 L960 470 L960 430 L1100 430 L1100 490 L1200 490 L1200 560 Z" fill="#2d6a3e"/>
+  <!-- árvores -->
+  <g>
+    <rect x="150" y="440" width="22" height="80" fill="#5d4630"/><rect x="108" y="388" width="106" height="62" fill="#2f7d32"/><rect x="128" y="358" width="66" height="34" fill="#3f8a2e"/>
+    <rect x="1000" y="430" width="22" height="90" fill="#5d4630"/><rect x="958" y="376" width="106" height="64" fill="#2f7d32"/><rect x="978" y="346" width="66" height="34" fill="#3f8a2e"/>
+  </g>
+  <!-- chão -->
+  <rect x="0" y="520" width="1200" height="155" fill="url(#dirt)"/>
+  <rect x="0" y="508" width="1200" height="30" fill="#4f9a3c"/>
+  <rect x="0" y="538" width="1200" height="10" fill="#3b7a2e"/>
+  <!-- minérios -->
+  <g>
+    <rect x="200" y="590" width="30" height="30" fill="#2b6fe0"/><rect x="560" y="610" width="30" height="30" fill="#f3d34d"/>
+    <rect x="860" y="580" width="30" height="30" fill="#34343a"/><rect x="1010" y="620" width="30" height="30" fill="#2b6fe0"/>
+  </g>
+  <!-- espada e picareta -->
+  <g transform="translate(150 470) rotate(-30)">
+    <rect x="-6" y="-70" width="12" height="110" fill="#e6ebf2" stroke="#2a2f3a" stroke-width="4"/>
+    <rect x="-26" y="40" width="52" height="12" fill="#a0702a" stroke="#2a1a08" stroke-width="4"/>
+    <rect x="-6" y="52" width="12" height="30" fill="#6a4a2a" stroke="#2a1a08" stroke-width="4"/>
+  </g>
+  <!-- título -->
+  <g text-anchor="middle" font-family="Impact, 'Arial Black', 'Trebuchet MS', sans-serif" font-weight="900">
+    <text x="600" y="262" font-size="150" letter-spacing="10" fill="#5a3a0a" stroke="#5a3a0a" stroke-width="22" stroke-linejoin="round">MINEARENA</text>
+    <text x="600" y="250" font-size="150" letter-spacing="10" fill="url(#gold)" stroke="#3b2208" stroke-width="10" stroke-linejoin="round" paint-order="stroke">MINEARENA</text>
+    <text x="600" y="312" font-size="34" letter-spacing="9" fill="#fff0c0" stroke="#2a1a08" stroke-width="7" stroke-linejoin="round" paint-order="stroke" font-family="'Trebuchet MS', Arial, sans-serif">CONSTRUA. EXPLORE. ENFRENTE.</text>
+  </g>
+</svg>

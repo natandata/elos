@@ -1,0 +1,126 @@
+// Blocos do MINEARENA (data-driven: pra criar um bloco novo, adicione uma entrada aqui).
+export type ToolType = "hand" | "pick" | "axe" | "shovel";
+export type SoundKind = "stone" | "dirt" | "wood" | "sand" | "glass" | "leaf";
+export type LootEntry = { item: string; min: number; max: number; chance: number };
+
+export interface BlockDef {
+  id: number;
+  key: string;
+  name: string;
+  /** Cores (hex) de cima, lado e baixo. `sideTop` pinta a faixa de cima do lado (grama, neve). */
+  top: number;
+  side: number;
+  bottom: number;
+  sideTop?: number;
+  /** Segundos pra quebrar sem ferramenta. */
+  hardness: number;
+  tool: ToolType;
+  /** Nível mínimo de ferramenta pra render o drop (0 = qualquer). */
+  tier: number;
+  loot: LootEntry[];
+  solid: boolean;
+  /** Esconde as faces dos vizinhos. */
+  opaque: boolean;
+  liquid?: boolean;
+  /** Vai pra malha translúcida. */
+  blend?: boolean;
+  /** Emite luz própria (não escurece em cavernas). */
+  glow?: boolean;
+  sound: SoundKind;
+  /** Pode ser colocado como item de bloco. */
+  placeable: boolean;
+}
+
+const KEYS = [
+  "air",
+  "grass",
+  "dirt",
+  "stone",
+  "cobble",
+  "sand",
+  "sandstone",
+  "log",
+  "planks",
+  "leaves",
+  "coal_ore",
+  "iron_ore",
+  "gold_ore",
+  "sapphire_ore",
+  "water",
+  "lava",
+  "glass",
+  "brick",
+  "bedrock",
+  "snow",
+  "crafting_table",
+  "gold_block",
+  "cactus",
+] as const;
+export type BlockKey = (typeof KEYS)[number];
+
+/** Atalho: B.stone, B.water… */
+export const B = Object.fromEntries(KEYS.map((k, i) => [k, i])) as Record<BlockKey, number>;
+
+type Spec = Omit<BlockDef, "id" | "key">;
+const drop = (item: string, min = 1, max = 1, chance = 1): LootEntry => ({ item, min, max, chance });
+const blk = (name: string, c: number, hardness: number, tool: ToolType, tier: number, loot: LootEntry[], sound: SoundKind, extra: Partial<Spec> = {}): Spec => ({
+  name,
+  top: c,
+  side: c,
+  bottom: c,
+  hardness,
+  tool,
+  tier,
+  loot,
+  solid: true,
+  opaque: true,
+  sound,
+  placeable: true,
+  ...extra,
+});
+
+const SPECS: Record<BlockKey, Spec> = {
+  air: blk("Ar", 0, 0, "hand", 0, [], "stone", { solid: false, opaque: false, placeable: false }),
+  grass: blk("Grama", 0x5da13a, 0.8, "shovel", 0, [drop("dirt"), drop("wheat", 1, 1, 0.08)], "dirt", { side: 0x7b5a33, sideTop: 0x5da13a, bottom: 0x7b5a33 }),
+  dirt: blk("Terra", 0x7b5a33, 0.7, "shovel", 0, [drop("dirt")], "dirt"),
+  stone: blk("Pedra", 0x7d7d80, 4, "pick", 1, [drop("cobble")], "stone"),
+  cobble: blk("Pedra lavrada", 0x6a6a6e, 4, "pick", 1, [drop("cobble")], "stone"),
+  sand: blk("Areia", 0xe3d398, 0.6, "shovel", 0, [drop("sand")], "sand"),
+  sandstone: blk("Arenito", 0xd2b977, 2, "pick", 1, [drop("sandstone")], "stone"),
+  log: blk("Tronco", 0x5d4630, 2.5, "axe", 0, [drop("log")], "wood", { top: 0xb08a50, bottom: 0xb08a50 }),
+  planks: blk("Tábuas", 0xb88a52, 1.8, "axe", 0, [drop("planks")], "wood"),
+  leaves: blk("Folhas", 0x3f8a2e, 0.25, "hand", 0, [drop("stick", 1, 2, 0.25), drop("apple", 1, 1, 0.07)], "leaf"),
+  coal_ore: blk("Minério de carvão", 0x34343a, 5, "pick", 1, [drop("coal", 1, 2)], "stone"),
+  iron_ore: blk("Minério de ferro", 0xc79a78, 6, "pick", 2, [drop("raw_iron")], "stone"),
+  gold_ore: blk("Minério de ouro", 0xf3d34d, 7, "pick", 3, [drop("raw_gold")], "stone"),
+  sapphire_ore: blk("Minério de safira", 0x2b6fe0, 8, "pick", 3, [drop("sapphire")], "stone", { glow: true }),
+  water: blk("Água", 0x3a76d6, Infinity, "hand", 0, [], "dirt", { solid: false, opaque: false, liquid: true, blend: true, placeable: false }),
+  lava: blk("Lava", 0xff6a1a, Infinity, "hand", 0, [], "stone", { solid: false, opaque: false, liquid: true, glow: true, placeable: false }),
+  glass: blk("Vidro", 0xcfe9f2, 0.4, "hand", 0, [], "glass", { opaque: false, blend: true }),
+  brick: blk("Tijolos", 0xa4533b, 4, "pick", 1, [drop("brick")], "stone"),
+  bedrock: blk("Rocha-mãe", 0x2b2b2e, Infinity, "hand", 0, [], "stone", { placeable: false }),
+  snow: blk("Neve", 0xf2f6fa, 0.3, "shovel", 0, [drop("snow")], "dirt", { side: 0x7b5a33, sideTop: 0xf2f6fa, bottom: 0x7b5a33 }),
+  crafting_table: blk("Bancada", 0x8a5d33, 2, "axe", 0, [drop("crafting_table")], "wood", { top: 0xa9794a, bottom: 0xb88a52 }),
+  gold_block: blk("Bloco de ouro", 0xf0c93a, 6, "pick", 3, [drop("gold_block")], "stone"),
+  cactus: blk("Cacto", 0x2f8f43, 0.6, "hand", 0, [drop("cactus")], "leaf"),
+};
+
+export const BLOCKS: BlockDef[] = KEYS.map((key, id) => ({ id, key, ...SPECS[key] }));
+export const BLOCK_BY_KEY = new Map(BLOCKS.map((b) => [b.key, b]));
+
+export const blockDef = (id: number): BlockDef => BLOCKS[id] ?? BLOCKS[0];
+
+/** Segundos pra quebrar com a ferramenta dada, e se o drop vale. */
+export function breakInfo(def: BlockDef, toolType: ToolType, toolTier: number, toolSpeed: number): { time: number; harvest: boolean } {
+  if (!Number.isFinite(def.hardness)) return { time: Infinity, harvest: false };
+  const matches = def.tool !== "hand" && toolType === def.tool;
+  const harvest = def.tier === 0 || (matches && toolTier >= def.tier);
+  const speed = matches ? toolSpeed : 1;
+  return { time: Math.max(0.1, (def.hardness / speed) * (harvest ? 1 : 3.3)), harvest };
+}
+
+/** Hex → [r,g,b] em espaço linear (a malha usa cores de vértice). */
+export function rgb(hex: number): [number, number, number] {
+  const f = (v: number) => Math.pow(v / 255, 2.2);
+  return [f((hex >> 16) & 255), f((hex >> 8) & 255), f(hex & 255)];
+}

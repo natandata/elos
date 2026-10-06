@@ -1,0 +1,268 @@
+// Criaturas e heróis do MINEARENA (data-driven: pra criar uma nova, adicione uma entrada).
+import type { LootEntry } from "../blocks/blocks";
+import type { Rarity } from "../items/items";
+import type { BiomeId } from "../world/worldgen";
+import type { ModelSpec } from "./models";
+
+export type Behavior = "passive" | "neutral" | "hostile" | "hero" | "boss";
+
+export type AbilityDef =
+  | { type: "sling"; range: number; dmg: number; cooldown: number; bossMult: number }
+  | { type: "slam"; radius: number; dmg: number; cooldown: number }
+  | { type: "wave"; radius: number; cooldown: number; heal: number }
+  | { type: "fire"; range: number; radius: number; dmg: number; cooldown: number }
+  | { type: "calm"; radius: number; seconds: number; cooldown: number }
+  | { type: "stomp"; radius: number; dmg: number; cooldown: number; windup: number };
+
+export interface SpawnRule {
+  time: "day" | "night" | "any";
+  biomes?: BiomeId[];
+  weight: number;
+  group: [number, number];
+  /** Nasce também em cavernas. */
+  underground?: boolean;
+}
+
+export interface MobDef {
+  id: string;
+  name: string;
+  behavior: Behavior;
+  rarity: Rarity;
+  hp: number;
+  defense: number;
+  dmg: number;
+  speed: number;
+  chaseRange: number;
+  attackRange: number;
+  attackCooldown: number;
+  model: ModelSpec;
+  loot: LootEntry[];
+  spawn?: SpawnRule;
+  abilities?: AbilityDef[];
+  /** Retrato (arte do Arena dos Heróis) e conversa dos heróis. */
+  portrait?: string;
+  emoji?: string;
+  title?: string;
+  lines?: string[];
+  verse?: string;
+  gift?: { item: string; count: number }[];
+}
+
+const L = (item: string, min: number, max: number, chance = 1): LootEntry => ({ item, min, max, chance });
+
+export const MOBS: MobDef[] = [
+  // ---- passivos ----
+  {
+    id: "ovelha",
+    name: "Ovelha",
+    behavior: "passive",
+    rarity: "comum",
+    hp: 8,
+    defense: 0,
+    dmg: 0,
+    speed: 1.4,
+    chaseRange: 0,
+    attackRange: 0,
+    attackCooldown: 1,
+    model: { kind: "beast", variant: "sheep", scale: 1, body: 0xf1efe6, head: 0xd9c3a3, legs: 0xd9c3a3, accent: 0 },
+    loot: [L("meat", 1, 2), L("wool", 1, 2, 0.85), L("leather", 1, 1, 0.3)],
+    spawn: { time: "day", biomes: ["planicie", "floresta"], weight: 10, group: [2, 4] },
+  },
+  {
+    id: "camelo",
+    name: "Camelo",
+    behavior: "passive",
+    rarity: "incomum",
+    hp: 18,
+    defense: 0,
+    dmg: 0,
+    speed: 1.6,
+    chaseRange: 0,
+    attackRange: 0,
+    attackCooldown: 1,
+    model: { kind: "beast", variant: "camel", scale: 1, body: 0xc9a05c, head: 0xb98d4a, legs: 0xb98d4a, accent: 0 },
+    loot: [L("leather", 1, 2), L("meat", 1, 2)],
+    spawn: { time: "day", biomes: ["deserto"], weight: 8, group: [1, 2] },
+  },
+  // ---- neutro ----
+  {
+    id: "javali",
+    name: "Javali",
+    behavior: "neutral",
+    rarity: "comum",
+    hp: 14,
+    defense: 0,
+    dmg: 3,
+    speed: 2.9,
+    chaseRange: 12,
+    attackRange: 1.4,
+    attackCooldown: 1,
+    model: { kind: "beast", variant: "boar", scale: 1, body: 0x6b4a37, head: 0x5a3d2d, legs: 0x4a3326, accent: 0xb68b78 },
+    loot: [L("meat", 1, 3), L("leather", 1, 1, 0.4)],
+    spawn: { time: "day", biomes: ["floresta"], weight: 6, group: [1, 2] },
+  },
+  // ---- hostis ----
+  {
+    id: "filisteu",
+    name: "Soldado Filisteu",
+    behavior: "hostile",
+    rarity: "comum",
+    hp: 20,
+    defense: 1,
+    dmg: 3,
+    speed: 2.9,
+    chaseRange: 20,
+    attackRange: 1.6,
+    attackCooldown: 1.1,
+    model: { kind: "humanoid", scale: 0.95, skin: 0xc58a5a, hair: 0x2a1c14, hairStyle: "bald", shirt: 0x8a3b30, pants: 0x4a3a2a, shoes: 0x2e2218, helm: 0xb7791f, belt: 0x6b4a2a, sword: 0xc9ced6 },
+    loot: [L("coal", 0, 2, 0.5), L("raw_iron", 1, 1, 0.22), L("bread", 1, 1, 0.2), L("arrow", 1, 3, 0.35)],
+    spawn: { time: "night", biomes: ["planicie", "floresta", "montanha", "lago"], weight: 10, group: [1, 3], underground: true },
+  },
+  {
+    id: "escorpiao",
+    name: "Escorpião do Deserto",
+    behavior: "hostile",
+    rarity: "incomum",
+    hp: 12,
+    defense: 0,
+    dmg: 2,
+    speed: 3.6,
+    chaseRange: 14,
+    attackRange: 1.3,
+    attackCooldown: 0.9,
+    model: { kind: "beast", variant: "scorpion", scale: 1.1, body: 0x6b2a1e, head: 0x7d3324, legs: 0x4a1d15, accent: 0xa03a2a },
+    loot: [L("coal", 0, 1, 0.5), L("raw_gold", 1, 1, 0.12)],
+    spawn: { time: "any", biomes: ["deserto"], weight: 7, group: [1, 2] },
+  },
+  // ---- boss ----
+  {
+    id: "golias",
+    name: "Golias",
+    behavior: "boss",
+    rarity: "epico",
+    hp: 160,
+    defense: 4,
+    dmg: 6,
+    speed: 2.3,
+    chaseRange: 34,
+    attackRange: 2.6,
+    attackCooldown: 1.6,
+    model: { kind: "humanoid", scale: 1.9, bulk: 1.25, skin: 0xb98058, hair: 0x2a1c14, hairStyle: "short", shirt: 0x8a5a2a, pants: 0x5b3b22, shoes: 0x2e2218, helm: 0xc08a2a, belt: 0xd9a93a, sword: 0xd7dce4, beard: 0x2a1c14 },
+    loot: [L("sapphire", 2, 4), L("gold_ingot", 2, 3), L("iron_ingot", 3, 5), L("sword_archangel", 1, 1, 0.18)],
+    abilities: [{ type: "stomp", radius: 4.2, dmg: 8, cooldown: 7, windup: 1.1 }],
+    spawn: { time: "night", biomes: ["planicie"], weight: 1, group: [1, 1] },
+  },
+  // ---- heróis ----
+  {
+    id: "davi",
+    name: "Davi",
+    title: "O pastor de Belém",
+    behavior: "hero",
+    rarity: "lendario",
+    hp: 34,
+    defense: 1,
+    dmg: 4,
+    speed: 3.4,
+    chaseRange: 14,
+    attackRange: 1.6,
+    attackCooldown: 1,
+    model: { kind: "humanoid", scale: 0.95, skin: 0xd09a6a, hair: 0x6b3a1f, hairStyle: "short", shirt: 0x2f6fd0, pants: 0x7a5a3a, shoes: 0x4a3322, belt: 0xe0b84a, sling: true },
+    loot: [],
+    portrait: "/arena/davi.webp",
+    lines: ["Eu era só um pastor, mas o Senhor me guardou do leão e do urso.", "Fique comigo: minha funda não erra quando o Senhor guia a pedra."],
+    verse: "O Senhor é o meu pastor; nada me faltará. — Sl 23.1",
+    gift: [{ item: "sling", count: 1 }, { item: "pebble", count: 24 }],
+    abilities: [{ type: "sling", range: 15, dmg: 6, cooldown: 1.6, bossMult: 2 }],
+    spawn: { time: "day", biomes: ["planicie", "floresta"], weight: 1, group: [1, 1] },
+  },
+  {
+    id: "sansao",
+    name: "Sansão",
+    title: "O nazireu forte",
+    behavior: "hero",
+    rarity: "lendario",
+    hp: 70,
+    defense: 2,
+    dmg: 12,
+    speed: 3,
+    chaseRange: 14,
+    attackRange: 1.9,
+    attackCooldown: 0.9,
+    model: { kind: "humanoid", scale: 1.1, bulk: 1.3, skin: 0xc58552, hair: 0x241710, hairStyle: "long", shirt: 0x7a4a24, pants: 0x6a4524, shoes: 0x3a2a1a, bare: true, belt: 0x4a3018 },
+    loot: [],
+    portrait: "/arena/sansao.webp",
+    lines: ["Meus cabelos nunca foram cortados: é a marca da minha aliança.", "Onde há inimigo, eu abro caminho. Vamos?"],
+    verse: "Contigo me lançarei contra uma tropa. — Sl 18.29",
+    gift: [{ item: "bread", count: 6 }, { item: "chest_iron", count: 1 }],
+    abilities: [{ type: "slam", radius: 3.4, dmg: 11, cooldown: 6 }],
+    spawn: { time: "day", biomes: ["planicie", "montanha"], weight: 1, group: [1, 1] },
+  },
+  {
+    id: "moises",
+    name: "Moisés",
+    title: "O libertador",
+    behavior: "hero",
+    rarity: "mitico",
+    hp: 44,
+    defense: 1,
+    dmg: 4,
+    speed: 3,
+    chaseRange: 14,
+    attackRange: 1.6,
+    attackCooldown: 1,
+    model: { kind: "humanoid", scale: 1, skin: 0xcf9868, hair: 0xe8e4da, hairStyle: "long", shirt: 0x8a6a45, pants: 0x6a4f33, shoes: 0x3a2a1a, robe: true, beard: 0xe8e4da, cape: 0x4a6fa5, staff: true },
+    loot: [],
+    portrait: "/arena/moises.webp",
+    lines: ["Eu abri o mar com o cajado, mas foi o Senhor quem abriu o caminho.", "Caminhe sem medo: as águas obedecem a quem confia."],
+    verse: "O Senhor pelejará por vós, e vós vos calareis. — Êx 14.14",
+    gift: [{ item: "apple", count: 6 }, { item: "helmet_iron", count: 1 }],
+    abilities: [{ type: "wave", radius: 6.5, cooldown: 12, heal: 4 }],
+    spawn: { time: "day", biomes: ["deserto", "planicie"], weight: 1, group: [1, 1] },
+  },
+  {
+    id: "elias",
+    name: "Elias",
+    title: "O profeta do fogo",
+    behavior: "hero",
+    rarity: "mitico",
+    hp: 44,
+    defense: 1,
+    dmg: 5,
+    speed: 3.2,
+    chaseRange: 14,
+    attackRange: 1.6,
+    attackCooldown: 1,
+    emoji: "🔥",
+    model: { kind: "humanoid", scale: 1, skin: 0xbf8558, hair: 0x6b6b6b, hairStyle: "hood", shirt: 0x9b3a22, pants: 0x5a3a28, shoes: 0x3a2a1a, beard: 0x8a8a8a, cape: 0xc2562a, belt: 0x3a2a1a },
+    loot: [],
+    lines: ["Sobre o Carmelo, o fogo desceu e o povo clamou: o Senhor é Deus!", "Não temo as multidões. Siga, e eu queimo o que vier."],
+    verse: "O Senhor é Deus! O Senhor é Deus! — 1Rs 18.39",
+    gift: [{ item: "coal", count: 12 }, { item: "legs_iron", count: 1 }],
+    abilities: [{ type: "fire", range: 13, radius: 4.5, dmg: 9, cooldown: 9 }],
+    spawn: { time: "day", biomes: ["deserto", "montanha"], weight: 1, group: [1, 1] },
+  },
+  {
+    id: "daniel",
+    name: "Daniel",
+    title: "O sábio da Babilônia",
+    behavior: "hero",
+    rarity: "epico",
+    hp: 40,
+    defense: 1,
+    dmg: 4,
+    speed: 3.2,
+    chaseRange: 14,
+    attackRange: 1.6,
+    attackCooldown: 1,
+    model: { kind: "humanoid", scale: 1, skin: 0xc79264, hair: 0x2a1c14, hairStyle: "short", shirt: 0x6a2f9a, pants: 0x4a2470, shoes: 0x2e2218, robe: true, belt: 0xe0b84a, headband: 0xe0b84a },
+    loot: [],
+    portrait: "/arena/daniel.webp",
+    lines: ["Passei a noite entre leões e não tive medo, porque Deus estava ali.", "Eu acalmo o que ruge. Ande comigo."],
+    verse: "O meu Deus enviou o seu anjo, e fechou a boca dos leões. — Dn 6.22",
+    gift: [{ item: "cooked_meat", count: 6 }, { item: "boots_iron", count: 1 }],
+    abilities: [{ type: "calm", radius: 9, seconds: 8, cooldown: 20 }],
+    spawn: { time: "day", biomes: ["planicie", "floresta", "deserto"], weight: 1, group: [1, 1] },
+  },
+];
+
+export const MOB_BY_ID = new Map(MOBS.map((m) => [m.id, m]));

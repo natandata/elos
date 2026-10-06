@@ -5,7 +5,7 @@ import { EarlyAccessManager, type EAUser } from "@/components/games/EarlyAccessM
 import { GAME_RELEASES, isReleased, type ReleasedGame } from "@/lib/games/release";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-const RELEASE_TITLES: Record<ReleasedGame, string> = { dress: "👗 Vista o Herói (inclui a Passarela)" };
+const RELEASE_TITLES: Record<ReleasedGame, string> = { dress: "👗 Vista o Herói (inclui a Passarela)", minearena: "⛏️ MineArena" };
 
 type Game = { href: string; emoji: string; title: string; hint: string; release?: keyof typeof GAME_RELEASES; needsElo?: boolean };
 
@@ -23,6 +23,7 @@ const GAMES: Game[] = [
   { href: "/app/jogos/duelo", emoji: "⚡", title: "Duelo 1x1 do Quiz", hint: "Precisa de um colega no mesmo Elo", needsElo: true },
   { href: "/app/jogos/vestir", emoji: "👗", title: "Vista o Herói", hint: "Desafio do dia, treino, Bilhetes Dourados", release: "dress" },
   { href: "/app/jogos/vestir/passarela", emoji: "📸", title: "Passarela (Vista o Herói)", hint: "Look livre, votação e prêmios", release: "dress" },
+  { href: "/app/jogos/minearena", emoji: "⛏️", title: "MineArena", hint: "Sandbox voxel 3D: construir, explorar e enfrentar", release: "minearena" },
   { href: "/app/jogos/colecao", emoji: "🃏", title: "Coleção de cartas", hint: "Cartas ganhas nos jogos" },
 ];
 

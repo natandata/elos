@@ -1,0 +1,80 @@
+// Ciclo de dia e noite: céu, névoa, luz, sol, lua e estrelas.
+import * as THREE from "three";
+
+const DAY = new THREE.Color(0x87c7f0);
+const DUSK = new THREE.Color(0xf0955a);
+const NIGHT = new THREE.Color(0x070b22);
+
+export class Sky {
+  readonly ambient = new THREE.AmbientLight(0xffffff, 0.8);
+  readonly sun = new THREE.DirectionalLight(0xfff2d0, 1.1);
+  private sunMesh: THREE.Mesh;
+  private moonMesh: THREE.Mesh;
+  private stars: THREE.Points;
+  private fog: THREE.Fog;
+  daylight = 1;
+
+  constructor(
+    private scene: THREE.Scene,
+    far: number,
+    private worldMat: THREE.MeshBasicMaterial[],
+  ) {
+    this.fog = new THREE.Fog(DAY, far * 0.45, far);
+    scene.fog = this.fog;
+    scene.background = DAY.clone();
+    scene.add(this.ambient, this.sun);
+    this.sunMesh = new THREE.Mesh(new THREE.BoxGeometry(20, 20, 2), new THREE.MeshBasicMaterial({ color: 0xffe9a0, fog: false }));
+    this.moonMesh = new THREE.Mesh(new THREE.BoxGeometry(14, 14, 2), new THREE.MeshBasicMaterial({ color: 0xdfe8ff, fog: false }));
+    scene.add(this.sunMesh, this.moonMesh);
+    const n = 350;
+    const pos = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) {
+      const u = Math.random() * 2 - 1;
+      const a = Math.random() * Math.PI * 2;
+      const r = Math.sqrt(1 - u * u);
+      pos[i * 3] = Math.cos(a) * r * 300;
+      pos[i * 3 + 1] = Math.abs(u) * 300 * 0.9 + 20;
+      pos[i * 3 + 2] = Math.sin(a) * r * 300;
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    this.stars = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffffff, size: 2.2, sizeAttenuation: false, transparent: true, opacity: 0, fog: false }));
+    scene.add(this.stars);
+  }
+
+  /** t: 0 amanhecer · .25 meio-dia · .5 pôr do sol · .75 meia-noite. */
+  update(t: number, cam: THREE.Vector3): void {
+    const ang = t * Math.PI * 2;
+    const sunH = Math.sin(ang);
+    this.daylight = Math.min(1, Math.max(0, sunH * 2 + 0.3));
+    const dusk = Math.max(0, 1 - Math.abs(sunH) * 4);
+    const sky = NIGHT.clone().lerp(DAY, this.daylight).lerp(DUSK, dusk * 0.55);
+    (this.scene.background as THREE.Color).copy(sky);
+    this.fog.color.copy(sky);
+    const dir = new THREE.Vector3(Math.cos(ang), sunH, 0.3).normalize();
+    this.sunMesh.position.copy(cam).addScaledVector(dir, 220);
+    this.sunMesh.lookAt(cam);
+    this.moonMesh.position.copy(cam).addScaledVector(dir, -220);
+    this.moonMesh.lookAt(cam);
+    this.stars.position.copy(cam);
+    (this.stars.material as THREE.PointsMaterial).opacity = Math.max(0, 1 - this.daylight * 1.6);
+    this.sun.position.copy(cam).addScaledVector(dir, 60);
+    this.sun.intensity = 0.15 + this.daylight * 1.0;
+    this.ambient.intensity = 0.22 + this.daylight * 0.65;
+    const k = 0.2 + this.daylight * 0.8;
+    for (const m of this.worldMat) m.color.setRGB(k * (0.85 + 0.15 * this.daylight), k * (0.9 + 0.1 * this.daylight), k);
+  }
+
+  dispose(): void {
+    for (const o of [this.sunMesh, this.moonMesh]) {
+      o.geometry.dispose();
+      (o.material as THREE.Material).dispose();
+      o.removeFromParent();
+    }
+    this.stars.geometry.dispose();
+    (this.stars.material as THREE.Material).dispose();
+    this.stars.removeFromParent();
+    this.ambient.removeFromParent();
+    this.sun.removeFromParent();
+  }
+}
