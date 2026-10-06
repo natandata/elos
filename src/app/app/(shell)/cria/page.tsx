@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArenaLaunchCard } from "@/components/games/ArenaLaunchCard";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { needsWeeklyPushNudge, requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -225,6 +226,8 @@ export default async function CriaDashboard() {
       <PageHeader title={`Olá, ${(profile.full_name || "Cria").split(" ")[0]}!`} subtitle={eloName} />
 
       <WeeklyPushNudge eligible={showPushNudge} />
+
+      <ArenaLaunchCard />
 
       <Link
         href="/app/chat/ajuda"
