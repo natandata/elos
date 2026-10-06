@@ -14,6 +14,7 @@ export class Particles {
   private life = new Float32Array(MAX);
   private size = new Float32Array(MAX);
   private next = 0;
+  enabled = true;
   private m = new THREE.Matrix4();
   private q = new THREE.Quaternion();
   private s = new THREE.Vector3();
@@ -34,6 +35,7 @@ export class Particles {
   }
 
   burst(x: number, y: number, z: number, color: number, n: number, speed = 3, size = 0.12, up = 2): void {
+    if (!this.enabled) return;
     const c = new THREE.Color(color);
     for (let k = 0; k < n; k++) {
       const i = this.next++ % MAX;

@@ -28,11 +28,13 @@ export function MainMenu({
   onPlay,
   onCreate,
   onDelete,
+  onOptions,
 }: {
   worlds: WorldSave[] | null;
   onPlay: (w: WorldSave) => void;
   onCreate: (name: string, seed: string) => void;
   onDelete: (w: WorldSave) => void;
+  onOptions: () => void;
 }) {
   const [view, setView] = useState<"home" | "new" | "load">("home");
   const [name, setName] = useState("Meu mundo");
@@ -64,6 +66,9 @@ export function MainMenu({
                 📜 Carregar mundo ({worlds.length})
               </button>
             ) : null}
+            <button type="button" className="ma-btn" onClick={onOptions}>
+              ⚙ Opções
+            </button>
             <Link href="/app/jogos" className="ma-btn ma-btn-dark">
               ← Sala de Jogos
             </Link>

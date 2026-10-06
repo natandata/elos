@@ -41,21 +41,7 @@ export function HeroDialog({ d, onAct }: { d: DialogInfo; onAct: (a: "follow" | 
   );
 }
 
-export function PauseMenu({
-  muted,
-  distance,
-  onResume,
-  onMute,
-  onDistance,
-  onExit,
-}: {
-  muted: boolean;
-  distance: string;
-  onResume: () => void;
-  onMute: () => void;
-  onDistance: () => void;
-  onExit: () => void;
-}) {
+export function PauseMenu({ onResume, onOptions, onExit }: { onResume: () => void; onOptions: () => void; onExit: () => void }) {
   return (
     <div className="ma-modal">
       <div className="ma-dialog ma-pause">
@@ -63,11 +49,8 @@ export function PauseMenu({
         <button type="button" className="ma-btn ma-btn-gold" onClick={onResume}>
           ▶ Continuar
         </button>
-        <button type="button" className="ma-btn" onClick={onDistance}>
-          👁 Distância: {distance}
-        </button>
-        <button type="button" className="ma-btn" onClick={onMute}>
-          {muted ? "🔇 Som desligado" : "🔊 Som ligado"}
+        <button type="button" className="ma-btn" onClick={onOptions}>
+          ⚙ Opções
         </button>
         <button type="button" className="ma-btn ma-btn-dark" onClick={onExit}>
           💾 Salvar e sair

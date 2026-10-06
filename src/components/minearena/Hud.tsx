@@ -33,6 +33,7 @@ export function Hud({ hud, msgs, onSelect }: { hud: HudState; msgs: Msg[]; onSel
       <div className="ma-clock" data-night={night}>
         <span aria-hidden>{night ? "🌙" : hud.phase === "Dia" ? "☀️" : "🌅"}</span> {hud.phase}
         {hud.biome ? <small>{hud.biome}</small> : null}
+        {hud.coords ? <small>📍 {hud.coords}</small> : null}
       </div>
       {hud.allies.length > 0 ? <div className="ma-allies">🛡 {hud.allies.join(" · ")}</div> : null}
 

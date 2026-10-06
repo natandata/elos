@@ -8,15 +8,10 @@ import { findSpawn } from "@/lib/minearena/world/worldgen";
 import { Hud, type Msg } from "./Hud";
 import { InventoryPanel } from "./InventoryPanel";
 import { MainMenu } from "./MainMenu";
+import { OptionsMenu } from "./OptionsMenu";
+import { type Settings, loadSettings, saveSettings } from "@/lib/minearena/config/settings";
 import { DeathScreen, HeroDialog, LoadingScreen, PauseMenu } from "./Overlays";
 import { TouchControls } from "./TouchControls";
-
-const DISTANCES = [
-  { label: "Curta", r: 3 },
-  { label: "Média", r: 4 },
-  { label: "Longa", r: 6 },
-  { label: "Máxima", r: 8 },
-];
 
 const portraitNow = () => window.matchMedia("(orientation: portrait)").matches;
 const subscribePortrait = (fn: () => void) => {
@@ -49,7 +44,7 @@ const subscribeCoarse = (fn: () => void) => {
   return () => m.removeEventListener("change", fn);
 };
 
-function Play({ save, rotated, onExit }: { save: WorldSave; rotated: boolean; onExit: () => void }) {
+function Play({ save, rotated, settings, onSettings, onExit }: { save: WorldSave; rotated: boolean; settings: Settings; onSettings: (s: Settings) => void; onExit: () => void }) {
   const mobile = useSyncExternalStore(subscribeCoarse, coarse, () => false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [game, setGame] = useState<MineArena | null>(null);
@@ -58,8 +53,8 @@ function Play({ save, rotated, onExit }: { save: WorldSave; rotated: boolean; on
   const [dialog, setDialog] = useState<DialogInfo | null>(null);
   const [bag, setBag] = useState<null | "bag" | "craft">(null);
   const [paused, setPaused] = useState(false);
-  const [muted, setMuted] = useState(false);
-  const [dist, setDist] = useState(mobile ? 1 : 2);
+  const [options, setOptions] = useState(false);
+  const settingsRef = useRef(settings);
   const msgId = useRef(0);
   const gameRef = useRef<MineArena | null>(null);
 
@@ -90,7 +85,7 @@ function Play({ save, rotated, onExit }: { save: WorldSave; rotated: boolean; on
             setPaused(true);
           },
         },
-        { mobile, renderDistance: DISTANCES[mobile ? 1 : 2].r },
+        { mobile, settings: settingsRef.current },
       );
     } catch {
       pushMsg("Seu aparelho não conseguiu iniciar o gráfico 3D.", "warn");
@@ -107,6 +102,11 @@ function Play({ save, rotated, onExit }: { save: WorldSave; rotated: boolean; on
     // o mundo carregado não muda enquanto a tela de jogo está aberta
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [save.id]);
+
+  useEffect(() => {
+    settingsRef.current = settings;
+    gameRef.current?.applySettings(settings);
+  }, [settings]);
 
   const openBag = useCallback((tab: "bag" | "craft") => {
     gameRef.current?.setUiOpen(true);
@@ -135,7 +135,7 @@ function Play({ save, rotated, onExit }: { save: WorldSave; rotated: boolean; on
   };
 
   return (
-    <div className={rotated ? "ma-root ma-rot" : "ma-root"}>
+    <div className={rotated ? "ma-root ma-rot" : "ma-root"} data-touch={settings.touchSize}>
       <canvas ref={canvasRef} className="ma-canvas" />
       {game && hud && !hud.loading ? <Hud hud={hud} msgs={msgs} onSelect={(i) => game.inventory.select(i)} /> : null}
       {game && hud && !hud.loading && mobile && !bag && !dialog && !paused && hud.alive ? (
@@ -146,25 +146,16 @@ function Play({ save, rotated, onExit }: { save: WorldSave; rotated: boolean; on
       ) : null}
       {game && bag ? <InventoryPanel game={game} startTab={bag} rotated={rotated} onClose={closeBag} /> : null}
       {dialog && game ? <HeroDialog d={dialog} onAct={(a) => game.dialogAct(a)} /> : null}
-      {paused && game ? (
+      {paused && game && !options ? (
         <PauseMenu
-          muted={muted}
-          distance={DISTANCES[dist].label}
           onResume={resume}
-          onMute={() => {
-            game.setMuted(!muted);
-            setMuted(!muted);
-          }}
-          onDistance={() => {
-            const n = (dist + 1) % DISTANCES.length;
-            setDist(n);
-            game.setRenderDistance(DISTANCES[n].r);
-          }}
+          onOptions={() => setOptions(true)}
           onExit={() => {
             void (gameRef.current?.saveNow() ?? Promise.resolve()).then(onExit);
           }}
         />
       ) : null}
+      {options && game ? <OptionsMenu settings={settings} mobile={mobile} onChange={onSettings} onDone={() => setOptions(false)} /> : null}
       {hud && !hud.alive && game ? <DeathScreen onRespawn={() => game.respawn()} /> : null}
       {!hud || hud.loading ? <LoadingScreen /> : null}
     </div>
@@ -178,6 +169,12 @@ export function MineArenaGame() {
   const rotated = mobile && portrait;
   const [worlds, setWorlds] = useState<WorldSave[] | null>(null);
   const [active, setActive] = useState<WorldSave | null>(null);
+  const [settings, setSettings] = useState<Settings>(loadSettings);
+  const [menuOptions, setMenuOptions] = useState(false);
+  const changeSettings = (s: Settings) => {
+    setSettings(s);
+    saveSettings(s);
+  };
 
   const refresh = useCallback(async () => setWorlds(await listWorlds()), []);
   useEffect(() => {
@@ -220,6 +217,8 @@ export function MineArenaGame() {
       <Play
         save={active}
         rotated={rotated}
+        settings={settings}
+        onSettings={changeSettings}
         onExit={() => {
           leaveImmersive();
           setActive(null);
@@ -232,6 +231,7 @@ export function MineArenaGame() {
     <div className={rotated ? "ma-root ma-rot" : "ma-root"}>
       <MainMenu
         worlds={worlds}
+        onOptions={() => setMenuOptions(true)}
         onPlay={(w) => {
           enterImmersive();
           setActive(w);
@@ -241,6 +241,7 @@ export function MineArenaGame() {
           void deleteWorld(w.id).then(refresh);
         }}
       />
+      {menuOptions ? <OptionsMenu settings={settings} mobile={mobile} onChange={changeSettings} onDone={() => setMenuOptions(false)} /> : null}
     </div>
   );
 }

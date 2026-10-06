@@ -10,6 +10,7 @@ import { RARITY_COLOR, itemDef } from "./items/items";
 import { Particles } from "./particles/particles";
 import { type Body, inLava, newBody, stepBody } from "./player/physics";
 import { type WorldSave, putWorld } from "./save/save";
+import { type Settings, DEFAULT_SETTINGS } from "./config/settings";
 import { Sky } from "./world/sky";
 import { World } from "./world/world";
 import { BIOME_NAME, biomeAt, findSpawn } from "./world/worldgen";
@@ -68,7 +69,7 @@ export interface Input {
 
 export interface GameOptions {
   mobile: boolean;
-  renderDistance?: number;
+  settings?: Settings;
 }
 
 const rarityTone = (r: string): "info" | "good" | "rare" => (r === "comum" ? "info" : r === "incomum" ? "good" : "rare");
@@ -105,6 +106,9 @@ export class MineArena {
   private lastBiome = "";
   private biomeT = 0;
   private radius: number;
+  private sens = 1;
+  private invertY = false;
+  private showCoords = false;
   private ready = false;
   private paused = false;
   private uiOpen = false;
@@ -144,7 +148,7 @@ export class MineArena {
     this.id = save.id;
     this.name = save.name;
     this.createdAt = save.createdAt;
-    this.radius = opts.renderDistance ?? (this.mobile ? RENDER_DISTANCE.mobile : RENDER_DISTANCE.desktop);
+    this.radius = this.mobile ? RENDER_DISTANCE.mobile : RENDER_DISTANCE.desktop;
 
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: !this.mobile, powerPreference: "high-performance" });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.mobile ? 1.5 : 2));
@@ -187,6 +191,7 @@ export class MineArena {
     this.bindEvents();
     this.inventory.subscribe(() => this.rebuildHand());
     this.rebuildHand();
+    this.applySettings(opts.settings ?? DEFAULT_SETTINGS);
   }
 
   // ---------- ciclo de vida ----------
@@ -223,11 +228,23 @@ export class MineArena {
     this.input[key] = on;
   }
   addLook(dx: number, dy: number): void {
-    this.input.lookDX += dx;
-    this.input.lookDY += dy;
+    this.input.lookDX += dx * this.sens;
+    this.input.lookDY += dy * this.sens;
   }
   setMuted(m: boolean): void {
     this.sfx.muted = m;
+  }
+  /** Aplica as opções do jogador (campo de visão, distância, sensibilidade, som, gráficos). */
+  applySettings(s: Settings): void {
+    this.camera.fov = s.fov || (this.mobile ? 70 : 75);
+    this.camera.updateProjectionMatrix();
+    this.setRenderDistance(s.distance || (this.mobile ? RENDER_DISTANCE.mobile : RENDER_DISTANCE.desktop));
+    this.sens = s.sensitivity / 100;
+    this.invertY = s.invertY;
+    this.sfx.volume = s.volume / 100;
+    this.sky.setClouds(s.clouds);
+    this.particles.enabled = s.particles;
+    this.showCoords = s.coords;
   }
   setRenderDistance(r: number): void {
     this.radius = r;
@@ -323,8 +340,8 @@ export class MineArena {
     });
     on("mousemove", (e) => {
       if (document.pointerLockElement === this.canvas) {
-        this.input.lookDX += e.movementX * 0.0022;
-        this.input.lookDY += e.movementY * 0.0022;
+        this.input.lookDX += e.movementX * 0.0022 * this.sens;
+        this.input.lookDY += e.movementY * 0.0022 * this.sens;
       }
     });
     on("mousedown", (e) => {
@@ -487,7 +504,7 @@ export class MineArena {
       return;
     }
     this.yaw -= this.input.lookDX;
-    this.pitch = Math.max(-1.5, Math.min(1.5, this.pitch - this.input.lookDY));
+    this.pitch = Math.max(-1.5, Math.min(1.5, this.pitch - this.input.lookDY * (this.invertY ? -1 : 1)));
     this.input.lookDX = 0;
     this.input.lookDY = 0;
   }
@@ -899,7 +916,7 @@ export class MineArena {
       alive: this.alive,
       hurt: this.hurtFlash,
       allies: this.entities.list.filter((e) => e.ally && !e.dead).map((e) => e.def.name),
-      coords: `${Math.floor(this.body.x)}, ${Math.floor(this.body.y)}, ${Math.floor(this.body.z)}`,
+      coords: !this.showCoords ? "" : `${Math.floor(this.body.x)}, ${Math.floor(this.body.y)}, ${Math.floor(this.body.z)}`,
     });
   }
 }

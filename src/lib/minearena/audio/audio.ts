@@ -3,6 +3,8 @@ export type Sfx = "break" | "place" | "hit" | "hurt" | "pickup" | "eat" | "bow" 
 
 export class Sound {
   muted = false;
+  /** Volume geral (0–1). */
+  volume = 1;
   private ctx: AudioContext | null = null;
   private noise: AudioBuffer | null = null;
 
@@ -32,7 +34,7 @@ export class Sound {
     o.type = type;
     o.frequency.setValueAtTime(freq, c.currentTime);
     if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq + slide), c.currentTime + dur);
-    g.gain.setValueAtTime(vol, c.currentTime);
+    g.gain.setValueAtTime(Math.max(0.0002, vol * this.volume), c.currentTime);
     g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + dur);
     o.connect(g).connect(c.destination);
     o.start();
@@ -48,7 +50,7 @@ export class Sound {
     f.type = "lowpass";
     f.frequency.value = freq;
     const g = c.createGain();
-    g.gain.setValueAtTime(vol, c.currentTime);
+    g.gain.setValueAtTime(Math.max(0.0002, vol * this.volume), c.currentTime);
     g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + dur);
     s.connect(f).connect(g).connect(c.destination);
     s.start();

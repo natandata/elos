@@ -13,6 +13,9 @@ export class Sky {
   private stars: THREE.Points;
   private fog: THREE.Fog;
   daylight = 1;
+  setClouds(on: boolean): void {
+    this.clouds.visible = on;
+  }
   private clouds = new THREE.Group();
   private cloudMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.92, fog: false, depthWrite: false });
 
