@@ -60,6 +60,11 @@ add({ key: "bucket", name: "Balde de ferro", kind: "tool", icon: "🪣", color: 
 add({ key: "bucket_water", name: "Balde com água", kind: "tool", icon: "🪣", color: 0x3a76d6, rarity: "incomum", maxStack: 1 });
 add({ key: "bucket_lava", name: "Balde com lava", kind: "tool", icon: "🪣", color: 0xff6a1a, rarity: "raro", maxStack: 1 });
 mat("feather", "Pena", "🪶", 0xf2f2f2);
+mat("dung", "Esterco", "💩", 0x6a4a2a);
+add({ key: "compass", name: "Bússola do peregrino", kind: "tool", icon: "🧭", color: 0xd7dce4, rarity: "incomum", maxStack: 1 });
+add({ key: "clock", name: "Relógio de Acaz", kind: "tool", icon: "🕰️", color: 0xf0c93a, rarity: "incomum", maxStack: 1 });
+add({ key: "map", name: "Mapa de pergaminho", kind: "tool", icon: "🗺️", color: 0xe8d9b0, rarity: "incomum", maxStack: 1 });
+add({ key: "fishing_rod", name: "Vara de pescar", kind: "tool", icon: "🎣", color: 0x9b6b3a, rarity: "incomum", maxStack: 1 });
 
 // ---- comida ----
 const food = (key: string, name: string, icon: string, color: number, hunger: number, heal: number, rarity: Rarity = "comum") =>
@@ -69,6 +74,8 @@ food("apple", "Maçã", "🍎", 0xd63a3a, 3, 1);
 food("meat", "Carne crua", "🥩", 0xc4504a, 2, 0);
 food("cooked_meat", "Carne assada", "🍖", 0x9a5a2b, 8, 2, "incomum");
 food("dates", "Tâmaras", "🌴", 0x8a4a22, 3, 1);
+food("fish", "Peixe cru", "🐟", 0x7ea2c4, 2, 0);
+food("cooked_fish", "Peixe assado", "🐟", 0xc98b5c, 7, 2, "incomum");
 
 // ---- ferramentas e armas por tier ----
 export const TOOL_TIERS = [
@@ -142,6 +149,7 @@ for (const t of TOOL_TIERS) {
 ITEMS.sword_gideon.durability = 800;
 ITEMS.sword_archangel.durability = 1200;
 ITEMS.bow.durability = 380;
+ITEMS.fishing_rod.durability = 64;
 ITEMS.sling.durability = 500;
 const ARMOR_DUR: Record<string, number> = { leather: 80, iron: 240, sapphire: 560 };
 const SLOT_DUR = [0.8, 1.2, 1.1, 0.9];

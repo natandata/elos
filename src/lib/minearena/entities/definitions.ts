@@ -76,7 +76,7 @@ export const MOBS: MobDef[] = [
     attackCooldown: 1,
     breeds: "wheat",
     model: { kind: "beast", variant: "sheep", scale: 1, body: 0xf1efe6, head: 0xd9c3a3, legs: 0xd9c3a3, accent: 0 },
-    loot: [L("meat", 1, 2), L("wool", 1, 2, 0.85), L("leather", 1, 1, 0.3)],
+    loot: [L("dung", 1, 2, 0.4), L("meat", 1, 2), L("wool", 1, 2, 0.85), L("leather", 1, 1, 0.3)],
     spawn: { time: "day", biomes: ["planicie", "floresta", "savana"], weight: 10, group: [2, 4] },
   },
   {
@@ -92,7 +92,7 @@ export const MOBS: MobDef[] = [
     attackRange: 0,
     attackCooldown: 1,
     model: { kind: "beast", variant: "camel", scale: 1, body: 0xc9a05c, head: 0xb98d4a, legs: 0xb98d4a, accent: 0 },
-    loot: [L("leather", 1, 2), L("meat", 1, 2)],
+    loot: [L("dung", 1, 2, 0.4), L("leather", 1, 2), L("meat", 1, 2)],
     spawn: { time: "day", biomes: ["deserto", "oasis", "savana"], weight: 8, group: [1, 2] },
   },
   {
@@ -154,7 +154,7 @@ export const MOBS: MobDef[] = [
     attackCooldown: 1,
     breeds: "wheat",
     model: { kind: "beast", variant: "ox", scale: 1, body: 0x8a5a36, head: 0x7a4a2a, legs: 0x5a3a22, accent: 0xf2e9d8 },
-    loot: [L("meat", 2, 3), L("leather", 1, 2)],
+    loot: [L("dung", 1, 2, 0.4), L("meat", 2, 3), L("leather", 1, 2)],
     spawn: { time: "day", biomes: ["planicie", "savana"], weight: 8, group: [1, 3] },
   },
   {
@@ -188,7 +188,7 @@ export const MOBS: MobDef[] = [
     attackCooldown: 1,
     breeds: "wheat",
     model: { kind: "beast", variant: "sheep", scale: 0.95, body: 0xb0a89a, head: 0xe8e0d0, legs: 0x6a5f55, accent: 0 },
-    loot: [L("meat", 1, 2), L("leather", 0, 1, 0.5)],
+    loot: [L("dung", 1, 2, 0.4), L("meat", 1, 2), L("leather", 0, 1, 0.5)],
     spawn: { time: "day", biomes: ["montanha", "libano", "hermom", "planicie"], weight: 6, group: [1, 3] },
   },
   {

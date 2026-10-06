@@ -110,7 +110,7 @@ export type BaseKey = (typeof BASE_KEYS)[number];
 export const MATS = ["planks", "cobble", "brick", "limestone", "sandstone", "cedar_planks"] as const;
 export type Mat = (typeof MATS)[number];
 type D4 = 0 | 1 | 2 | 3;
-export type BlockKey = BaseKey | "door_b" | "door_t" | `door_o${D4}${"b" | "t"}` | `ladder_${D4}` | `slab_${Mat}` | `stairs_${Mat}_${D4}`;
+export type BlockKey = BaseKey | "door_b" | "door_t" | `door_o${D4}${"b" | "t"}` | `ladder_${D4}` | `sign_${D4}` | `slab_${Mat}` | `stairs_${Mat}_${D4}`;
 const D4S: D4[] = [0, 1, 2, 3];
 const KEYS: BlockKey[] = [
   ...BASE_KEYS,
@@ -118,6 +118,7 @@ const KEYS: BlockKey[] = [
   "door_t",
   ...D4S.flatMap((d) => [`door_o${d}b`, `door_o${d}t`] as BlockKey[]),
   ...D4S.map((d) => `ladder_${d}` as BlockKey),
+  ...D4S.map((d) => `sign_${d}` as BlockKey),
   ...MATS.map((m) => `slab_${m}` as BlockKey),
   ...MATS.flatMap((m) => D4S.map((d) => `stairs_${m}_${d}` as BlockKey)),
 ];
@@ -229,6 +230,7 @@ for (const d of D4S) {
   for (const h of ["b", "t"] as const) {
     GEN[`door_o${d}${h}`] = blk("Porta aberta", WOOD_DOOR, 1.5, "axe", 0, h === "b" ? [drop("door_b")] : [], "wood", { solid: false, opaque: false, shape: "panel", pdir: d, placeable: false, door: { half: h, open: true } });
   }
+  GEN[`sign_${d}`] = blk("Placa", 0xa9794a, 0.5, "axe", 0, [drop("sign_0")], "wood", { solid: false, opaque: false, shape: "panel", pdir: d, placeable: d === 0 });
   GEN[`ladder_${d}`] = blk("Escada de mão", 0x9b6b3a, 0.4, "axe", 0, [drop("ladder_0")], "wood", { solid: false, opaque: false, shape: "panel", pdir: d, climb: true, placeable: d === 0 });
 }
 const MAT_NAME: Record<Mat, string> = { planks: "tábuas", cobble: "pedra lavrada", brick: "tijolo", limestone: "calcário", sandstone: "arenito", cedar_planks: "cedro" };

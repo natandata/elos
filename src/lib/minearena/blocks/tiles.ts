@@ -65,6 +65,7 @@ export const TILE_NAMES = [
   "door_b",
   "door_t",
   "ladder",
+  "sign",
 ] as const;
 export type TileName = (typeof TILE_NAMES)[number];
 
@@ -144,6 +145,7 @@ for (const d of [0, 1, 2, 3]) {
   GEN_TILES[`door_o${d}b`] = ["door_b", "door_b", "door_b"];
   GEN_TILES[`door_o${d}t`] = ["door_t", "door_t", "door_t"];
   GEN_TILES[`ladder_${d}`] = ["ladder", "ladder", "ladder"];
+  GEN_TILES[`sign_${d}`] = ["sign", "sign", "sign"];
 }
 for (const m of MATS) {
   GEN_TILES[`slab_${m}`] = BASE_TILES[m];

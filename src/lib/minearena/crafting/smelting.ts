@@ -7,6 +7,7 @@ export const SMELT: Record<string, string> = {
   raw_gold: "gold_ingot",
   sand: "glass",
   meat: "cooked_meat",
+  fish: "cooked_fish",
   cobble: "stone",
   log: "coal",
 };

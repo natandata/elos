@@ -12,6 +12,8 @@ export class Inventory {
   armor: Stack[] = [null, null, null, null];
   /** Mão esquerda: só escudo. */
   offhand: Stack = null;
+  /** Grade de fabricação (3 por linha, só vale em parte quando é 2×2). */
+  grid: Stack[] = Array.from({ length: 9 }, () => null);
   selected = 0;
   version = 0;
   /** Espaços do baú/fornalha aberto (ids 200+). */
@@ -102,12 +104,14 @@ export class Inventory {
 
   /** Slots: 0–35 mochila/barra, 100–103 armadura, 104 mão esquerda. */
   getSlot(i: number): Stack {
+    if (i >= 300) return this.grid[i - 300] ?? null;
     if (i >= 200) return this.ext?.slots[i - 200] ?? null;
     if (i === 104) return this.offhand;
     return i >= 100 ? this.armor[i - 100] : this.slots[i];
   }
   setSlot(i: number, s: Stack): void {
-    if (i >= 200) {
+    if (i >= 300) this.grid[i - 300] = s;
+    else if (i >= 200) {
       if (this.ext) this.ext.slots[i - 200] = s;
     } else if (i === 104) this.offhand = s;
     else if (i >= 100) this.armor[i - 100] = s;
@@ -115,6 +119,7 @@ export class Inventory {
   }
   /** O item pode ficar neste slot? (armaduras só no slot certo) */
   accepts(i: number, s: Stack): boolean {
+    if (i >= 300) return i < 309;
     if (i >= 200) return this.ext ? this.ext.accepts(i - 200, s) : false;
     if (i < 100 || !s) return true;
     if (i === 104) return !!itemDef(s.item)?.shield;

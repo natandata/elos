@@ -18,6 +18,8 @@ import { type SavedContainer, type WorldSave, putWorld } from "./save/save";
 import { FUEL, SMELT, SMELT_TIME } from "./crafting/smelting";
 import { rollLoot } from "./structures/loot";
 import { Drops } from "./entities/drops";
+import { TRADES } from "./items/trades";
+import { buildMap } from "./world/minimap";
 import { LANDMARKS, LANDMARK_INTERVAL_S, LANDMARK_ORDER, type LandmarkSite, compass, pickLandmarkSite } from "./structures/landmarks";
 import { STRUCTURE_BY_ID, structuresNear } from "./structures/structures";
 import { type Settings, DEFAULT_SETTINGS } from "./config/settings";
@@ -29,7 +31,7 @@ import { World } from "./world/world";
 import { BIOME_NAME, biomeAt, findSpawn } from "./world/worldgen";
 import { ARENA, FORTRESS_RESIDENTS, GEENA_ARRIVAL, fortressesNear } from "./world/geena";
 import type { MobDef } from "./entities/definitions";
-import { RECIPES, type Recipe } from "./crafting/recipes";
+import { RECIPES, type Recipe, gridLayout, matchGrid } from "./crafting/recipes";
 
 export interface HudState {
   health: number;
@@ -63,6 +65,8 @@ export interface HudState {
   /** Nível e progresso de experiência. */
   xpLevel: number;
   xpFrac: number;
+  /** Dica do item na mão (bússola, relógio). */
+  hint: string | null;
   /** Cabeça dentro de água ou lava (tinge a tela). */
   submerged: "water" | "lava" | null;
 }
@@ -85,6 +89,9 @@ export interface GameCallbacks {
   onDialog(d: DialogInfo | null): void;
   onOpenCrafting(): void;
   onOpenContainer(kind: "chest" | "furnace" | "altar"): void;
+  onTrade(villager: string): void;
+  onEditSign(x: number, y: number, z: number, text: string): void;
+  onOpenMap(): void;
   onPauseRequest(): void;
   /** Co-op: a sala acabou (anfitrião saiu ou conexão caiu). */
   onRoomEnded(reason: string): void;
@@ -186,6 +193,8 @@ export class MineArena {
   private landmarks: LandmarkSite[] = [];
   private lmFxT = 0;
   private drops!: Drops;
+  private signs: Record<string, string> = {};
+  private fishing: { x: number; y: number; z: number; wait: number; bite: number; mesh: THREE.Mesh } | null = null;
   private xp = 0;
   private sat = 5;
   private deathSpot: { x: number; y: number; z: number } | null = null;
@@ -277,6 +286,7 @@ export class MineArena {
     this.drops = new Drops(this.scene, this.world);
     this.drops.load(save.drops);
     this.xp = save.xp ?? 0;
+    this.signs = { ...(save.signs ?? {}) };
     this.deathSpot = save.deathSpot ?? null;
 
     this.spawn = save.spawn ?? findSpawn(save.seed);
@@ -446,6 +456,7 @@ export class MineArena {
       playedSeconds: this.playedSeconds,
       landmarks: this.landmarks,
       xp: this.xp,
+      signs: this.signs,
       drops: this.drops.toJSON(),
       deathSpot: this.deathSpot ?? undefined,
       time: this.time,
@@ -485,6 +496,7 @@ export class MineArena {
     this.remotes.dispose();
     this.cleanup.forEach((f) => f());
     if (document.pointerLockElement) document.exitPointerLock();
+    this.endFishing();
     this.drops.dispose();
     this.entities.dispose();
     this.particles.dispose();
@@ -647,6 +659,99 @@ export class MineArena {
     s.count -= n;
     if (s.count <= 0) this.inventory.slots[this.inventory.selected] = null;
     this.inventory.changed();
+  }
+
+  // ---------- placas, comércio, mapa e pesca ----------
+  setSign(x: number, y: number, z: number, text: string): void {
+    const k = `${x},${y},${z}`;
+    const t = text.trim().slice(0, 60);
+    if (t) this.signs[k] = t;
+    else delete this.signs[k];
+  }
+
+  trades(id: string) {
+    return TRADES[id] ?? [];
+  }
+
+  doTrade(id: string, i: number): boolean {
+    const tr = TRADES[id]?.[i];
+    if (!tr || this.inventory.count(tr.give.item) < tr.give.count) return false;
+    this.inventory.remove(tr.give.item, tr.give.count);
+    const left = this.inventory.add(tr.get.item, tr.get.count);
+    if (left > 0) this.dropItem(tr.get.item, left, this.body.x, this.body.y + 1, this.body.z);
+    this.sfx.play("pickup");
+    this.cb.onMessage(`+${tr.get.count} ${itemDef(tr.get.item)?.name ?? tr.get.item}`, "good");
+    return true;
+  }
+
+  /** Dados do mapa: imagem do terreno e marcadores (em fração 0–1 da imagem). */
+  mapImage(w = 180, radius = 150): { rgba: Uint8ClampedArray; w: number; radius: number; px: number; pz: number; yaw: number; marks: { x: number; z: number; label: string }[] } {
+    const b = this.body;
+    const cx = Math.round(b.x);
+    const cz = Math.round(b.z);
+    const rgba = buildMap(this.baseSeed, cx, cz, radius, w);
+    const to = (x: number, z: number) => ({ x: (x - (cx - radius)) / (radius * 2), z: (z - (cz - radius)) / (radius * 2) });
+    const marks: { x: number; z: number; label: string }[] = [{ ...to(this.spawn.x, this.spawn.z), label: "🏠" }];
+    for (const s of this.landmarks) if (this.discoveries.has("lm:" + s.id)) marks.push({ ...to(s.x, s.z), label: "⭐" });
+    if (this.deathSpot) marks.push({ ...to(this.deathSpot.x, this.deathSpot.z), label: "🪦" });
+    return { rgba, w, radius, px: to(b.x, b.z).x, pz: to(b.x, b.z).z, yaw: this.yaw, marks: marks.filter((m) => m.x >= 0 && m.x <= 1 && m.z >= 0 && m.z <= 1) };
+  }
+
+  private castLine(x: number, y: number, z: number): void {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, 0.14), new THREE.MeshBasicMaterial({ color: 0xd63a3a }));
+    mesh.position.set(x, y, z);
+    this.scene.add(mesh);
+    this.fishing = { x, y, z, wait: 4 + Math.random() * 8, bite: 0, mesh };
+    this.sfx.play("bow");
+    this.swing = 1;
+  }
+
+  private endFishing(): void {
+    if (!this.fishing) return;
+    this.scene.remove(this.fishing.mesh);
+    this.fishing.mesh.geometry.dispose();
+    (this.fishing.mesh.material as THREE.Material).dispose();
+    this.fishing = null;
+  }
+
+  private reel(): void {
+    const f = this.fishing;
+    if (!f) return;
+    const caught = f.bite > 0;
+    this.endFishing();
+    this.swing = 1;
+    if (!caught) return;
+    const r = Math.random();
+    const item = r < 0.74 ? "fish" : r < 0.82 ? "stick" : r < 0.9 ? "leather" : r < 0.96 ? "feather" : r < 0.99 ? "gold_ingot" : "sapphire";
+    const b = this.body;
+    this.drops.spawn({ item, count: 1 }, f.x, f.y, f.z, (b.x - f.x) * 1.4, 4.5, (b.z - f.z) * 1.4, 0.2);
+    this.addXp(2);
+    this.wearHeld(1);
+    this.sfx.play("pickup");
+  }
+
+  private fishingTick(dt: number): void {
+    const f = this.fishing;
+    if (!f) return;
+    const b = this.body;
+    if (this.heldDef()?.key !== "fishing_rod" || Math.hypot(f.x - b.x, f.z - b.z) > 14) {
+      this.endFishing();
+      return;
+    }
+    if (f.bite > 0) {
+      f.bite -= dt;
+      f.mesh.position.y = f.y - 0.12 + Math.sin(this.playedSeconds * 30) * 0.05;
+      if (f.bite <= 0) f.wait = 3 + Math.random() * 7;
+    } else {
+      f.wait -= dt;
+      f.mesh.position.y = f.y + Math.sin(this.playedSeconds * 3) * 0.03;
+      if (f.wait <= 0) {
+        f.bite = 1.4;
+        this.sfx.ambient("splash");
+        this.particles.burst(f.x, f.y, f.z, 0xbfe0ff, 10, 2, 0.1);
+        this.cb.onMessage("🎣 Pegou! Clique pra puxar!", "good");
+      }
+    }
   }
 
   // ---------- experiência ----------
@@ -865,6 +970,7 @@ export class MineArena {
     this.geenaTick();
     this.exploration(dt);
     this.drops.update(dt, b.x, b.y, b.z, this.alive && this.sleepT <= 0, (s) => this.pickup(s));
+    this.fishingTick(dt);
     this.ambience(dt);
     this.landmarkFx(dt);
     this.tutorialTick();
@@ -1016,7 +1122,7 @@ export class MineArena {
     const held = this.heldDef();
     const wReach = held?.weapon?.reach ?? 2.9;
     const ePick = this.entities.pick(eye.x, eye.y, eye.z, dir.x, dir.y, dir.z, Math.max(wReach, 3.6));
-    this.targetName = hit ? blockDef(hit.id).name : null;
+    this.targetName = hit ? (blockDef(hit.id).key.startsWith("sign_") ? `✎ ${this.signs[`${hit.x},${hit.y},${hit.z}`] || "Placa em branco"}` : blockDef(hit.id).name) : null;
 
     // marcador do bloco mirado
     if (hit && !blocked) {
@@ -1101,6 +1207,7 @@ export class MineArena {
     const def = blockDef(id);
     if (id === B.chest || id === B.furnace || id === B.furnace_lit) this.spillContainer(x, y, z, id);
     this.world.setBlock(x, y, z, B.air);
+    if (def.key.startsWith("sign_")) delete this.signs[`${x},${y},${z}`];
     if (def.door) {
       const oy = def.door.half === "b" ? y + 1 : y - 1;
       if (BLOCKS[this.world.getBlock(x, oy, z)]?.door) this.world.setBlock(x, oy, z, B.air);
@@ -1126,6 +1233,18 @@ export class MineArena {
     // 1) conversar com herói
     if (edge && ePick && ePick.e.def.behavior === "hero" && ePick.dist <= 4) {
       this.openDialog(ePick.e);
+      return;
+    }
+    // 1a) comércio com aldeões
+    if (edge && ePick && ePick.dist <= 4 && ePick.e.def.id.startsWith("aldeao")) {
+      this.setUiOpen(true);
+      this.cb.onTrade(ePick.e.def.id);
+      return;
+    }
+    // placa: editar o texto
+    if (edge && hit && blockDef(hit.id).key.startsWith("sign_")) {
+      this.setUiOpen(true);
+      this.cb.onEditSign(hit.x, hit.y, hit.z, this.signs[`${hit.x},${hit.y},${hit.z}`] ?? "");
       return;
     }
     // 1b) baú e fornalha
@@ -1164,6 +1283,57 @@ export class MineArena {
       this.sfx.play("pickup");
       this.cb.onMessage("Escudo na mão esquerda. Segure F (ou o botão 🛡) pra se proteger.", "info");
       return;
+    }
+    // mapa de pergaminho
+    if (edge && held.key === "map") {
+      this.setUiOpen(true);
+      this.cb.onOpenMap();
+      return;
+    }
+    // vara de pescar
+    if (edge && held.key === "fishing_rod") {
+      if (this.fishing) {
+        this.reel();
+        return;
+      }
+      const e0 = this.camera.position;
+      const lh = this.world.raycast(e0.x, e0.y, e0.z, dir.x, dir.y, dir.z, 9, true);
+      if (lh && BLOCKS[lh.id].fluid === "water") this.castLine(lh.x + 0.5, lh.y + 0.85, lh.z + 0.5);
+      else this.cb.onMessage("Mire na água e lance a vara.", "info");
+      return;
+    }
+    // esterco: adubo para as plantações e o mato
+    if (edge && held.key === "dung" && hit) {
+      const k = `${hit.x},${hit.y},${hit.z}`;
+      const hb = BLOCKS[hit.id].key;
+      if (hb === "wheat_0" || hb === "wheat_1" || hb === "wheat_2") {
+        const st = Math.min(3, Number(hb.slice(-1)) + 1 + Math.floor(Math.random() * 2));
+        this.world.setBlock(hit.x, hit.y, hit.z, B[`wheat_${st}` as BlockKey]);
+        this.crops.set(k, st);
+        this.particles.burst(hit.x + 0.5, hit.y + 0.5, hit.z + 0.5, 0x6aa84f, 8, 1.5, 0.1);
+        this.inventory.consumeHeld(1);
+        this.sfx.play("place");
+        return;
+      }
+      if (hit.id === B.grass && hit.ny === 1) {
+        let n = 0;
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dz = -1; dz <= 1; dz++) {
+            const gx = hit.x + dx;
+            const gz = hit.z + dz;
+            if (this.world.getBlock(gx, hit.y, gz) === B.grass && this.world.getBlock(gx, hit.y + 1, gz) === B.air && Math.random() < 0.6) {
+              this.world.setBlock(gx, hit.y + 1, gz, B.tallgrass);
+              n++;
+            }
+          }
+        }
+        if (n > 0) {
+          this.inventory.consumeHeld(1);
+          this.sfx.play("place");
+          this.particles.burst(hit.x + 0.5, hit.y + 1.2, hit.z + 0.5, 0x6aa84f, 8, 1.5, 0.1);
+        }
+        return;
+      }
     }
     // alimentar animal (reprodução)
     if (edge && ePick && ePick.dist <= 4 && this.entities.feed(ePick.e, held.key)) {
@@ -1283,6 +1453,22 @@ export class MineArena {
         this.inventory.consumeHeld(1);
         this.sfx.play("place");
         this.swing = 0.8;
+        return;
+      }
+      if (held.key === "sign_0") {
+        let dir: number;
+        if (!onPlant && hit.ny === 0) dir = hit.nx === 1 ? 1 : hit.nx === -1 ? 0 : hit.nz === 1 ? 3 : 2;
+        else {
+          const fx = -Math.sin(this.yaw);
+          const fz = -Math.cos(this.yaw);
+          dir = Math.abs(fx) > Math.abs(fz) ? (fx > 0 ? 0 : 1) : fz > 0 ? 2 : 3;
+        }
+        this.world.setBlock(px, py, pz, B[`sign_${dir}` as BlockKey]);
+        this.inventory.consumeHeld(1);
+        this.sfx.play("place");
+        this.swing = 0.8;
+        this.setUiOpen(true);
+        this.cb.onEditSign(px, py, pz, "");
         return;
       }
       if (held.key === "ladder_0") {
@@ -1947,6 +2133,60 @@ export class MineArena {
     return RECIPES;
   }
 
+  /** Receita formada pela grade de fabricação agora. */
+  gridRecipe(size: number): Recipe | null {
+    return matchGrid(
+      this.inventory.grid.map((s) => (s ? s.item : null)),
+      size,
+      this.nearStation(),
+    );
+  }
+
+  /** Fabrica pela grade: gasta 1 de cada célula e entrega o resultado. */
+  craftGrid(size: number): boolean {
+    const r = this.gridRecipe(size);
+    if (!r) return false;
+    for (let i = 0; i < 9; i++) {
+      const s = this.inventory.grid[i];
+      if (!s) continue;
+      s.count -= 1;
+      if (s.count <= 0) this.inventory.grid[i] = null;
+    }
+    const left = this.inventory.add(r.result.item, r.result.count);
+    if (left > 0) this.dropItem(r.result.item, left, this.body.x, this.body.y + 1, this.body.z);
+    this.inventory.changed();
+    this.sfx.play("pickup");
+    return true;
+  }
+
+  /** Devolve à mochila o que está na grade (o que não couber cai no chão). */
+  clearGrid(): void {
+    for (let i = 0; i < 9; i++) {
+      const s = this.inventory.grid[i];
+      if (!s) continue;
+      const left = this.inventory.addStack(s);
+      if (left > 0) this.drops.spawn({ ...s, count: left }, this.body.x, this.body.y + 1, this.body.z);
+      this.inventory.grid[i] = null;
+    }
+    this.inventory.changed();
+  }
+
+  /** Monta a receita na grade com os itens da mochila. */
+  fillGrid(r: Recipe, size: number): boolean {
+    const lay = gridLayout(r, size);
+    if (!lay) return false;
+    this.clearGrid();
+    const need = new Map<string, number>();
+    for (const l of lay) need.set(l.item, (need.get(l.item) ?? 0) + 1);
+    for (const [item, n] of need) if (this.inventory.count(item) < n) return false;
+    for (const l of lay) {
+      this.inventory.remove(l.item, 1);
+      this.inventory.grid[l.cell] = { item: l.item, count: 1 };
+    }
+    this.inventory.changed();
+    return true;
+  }
+
   // ---------- mundo e história ----------
   private exploration(dt: number): void {
     this.biomeT -= dt;
@@ -2038,6 +2278,21 @@ export class MineArena {
     const s = this.landmarks.find((l) => l.id === "sarca");
     if (!s || Math.hypot(s.x - this.body.x, s.z - this.body.z) > 48) return;
     this.particles.burst(s.x + (Math.random() - 0.5) * 5, s.gy + 3 + Math.random() * 4, s.z + (Math.random() - 0.5) * 5, Math.random() < 0.5 ? 0xff8a1f : 0xffd36a, 1, 0.8, 0.12, 1.8);
+  }
+
+  private hintText(): string | null {
+    const k = this.heldDef()?.key;
+    if (k === "compass") {
+      const dx = this.spawn.x - this.body.x;
+      const dz = this.spawn.z - this.body.z;
+      return `🧭 Ponto de partida: ${Math.round(Math.hypot(dx, dz))} m ao ${compass(dx, dz)}`;
+    }
+    if (k === "clock") {
+      const mins = Math.floor(((this.time * 24 + 6) % 24) * 60);
+      return `🕰 ${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`;
+    }
+    if (k === "fishing_rod" && this.fishing) return this.fishing.bite > 0 ? "🎣 Pegou! Puxe agora!" : "🎣 Esperando o peixe…";
+    return null;
   }
 
   private questText(): string | null {
@@ -2218,6 +2473,7 @@ export class MineArena {
       offhand: this.inventory.offhand ? { ...this.inventory.offhand } : null,
       guarding: this.guarding,
       submerged: this.submerged,
+      hint: this.hintText(),
       xpLevel: this.xpLevel(),
       xpFrac: Math.round(this.xpFrac() * 20) / 20,
       quest: this.dimension === "overworld" ? this.questText() : null,

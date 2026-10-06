@@ -14,6 +14,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { type Peer, type RoomInfo, type RoomNet, joinRoom } from "@/lib/minearena/net/room";
 import { AltarPanel } from "./AltarPanel";
+import { MapView } from "./MapView";
+import { SignEditor } from "./SignEditor";
+import { TradePanel } from "./TradePanel";
 import { ChatBox } from "./ChatBox";
 import { DeathScreen, HeroDialog, LoadingScreen, PauseMenu } from "./Overlays";
 import { TouchControls } from "./TouchControls";
@@ -57,6 +60,7 @@ function Play({ save, rotated, settings, onSettings, onExit, me, sb, net }: { sa
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [dialog, setDialog] = useState<DialogInfo | null>(null);
   const [bag, setBag] = useState<null | "bag" | "craft" | "chest" | "furnace" | "altar">(null);
+  const [extra, setExtra] = useState<null | { kind: "trade"; id: string } | { kind: "sign"; x: number; y: number; z: number; text: string } | { kind: "map" }>(null);
   const [paused, setPaused] = useState(false);
   const [options, setOptions] = useState(false);
   const [chat, setChat] = useState(false);
@@ -87,6 +91,9 @@ function Play({ save, rotated, settings, onSettings, onExit, me, sb, net }: { sa
             g?.setUiOpen(true);
             setBag(kind);
           },
+          onTrade: (id) => setExtra({ kind: "trade", id }),
+          onEditSign: (x, y, z, text) => setExtra({ kind: "sign", x, y, z, text }),
+          onOpenMap: () => setExtra({ kind: "map" }),
           onOpenCrafting: () => {
             g?.setUiOpen(true);
             setBag("craft");
@@ -124,6 +131,10 @@ function Play({ save, rotated, settings, onSettings, onExit, me, sb, net }: { sa
     gameRef.current?.setUiOpen(true);
     setBag(tab);
   }, []);
+  const closeExtra = useCallback(() => {
+    gameRef.current?.setUiOpen(false);
+    setExtra(null);
+  }, []);
   const closeBag = useCallback(() => {
     gameRef.current?.closeContainer();
     gameRef.current?.setUiOpen(false);
@@ -138,6 +149,10 @@ function Play({ save, rotated, settings, onSettings, onExit, me, sb, net }: { sa
         setChat(true);
         return;
       }
+      if (extra) {
+        if (e.code === "Escape") closeExtra();
+        return;
+      }
       if (e.code === "KeyE" && !paused && !dialog && !chat) {
         if (bag) closeBag();
         else openBag("bag");
@@ -146,7 +161,7 @@ function Play({ save, rotated, settings, onSettings, onExit, me, sb, net }: { sa
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [bag, paused, dialog, chat, openBag, closeBag]);
+  }, [bag, paused, dialog, chat, extra, openBag, closeBag, closeExtra]);
 
   const resume = () => {
     gameRef.current?.setPaused(false);
@@ -157,11 +172,23 @@ function Play({ save, rotated, settings, onSettings, onExit, me, sb, net }: { sa
     <div className={rotated ? "ma-root ma-rot" : "ma-root"} data-touch={settings.touchSize}>
       <canvas ref={canvasRef} className="ma-canvas" />
       {game && hud && !hud.loading ? <Hud hud={hud} msgs={msgs} onSelect={(i) => game.inventory.select(i)} /> : null}
-      {game && hud && !hud.loading && mobile && !bag && !dialog && !paused && hud.alive ? (
+      {game && hud && !hud.loading && mobile && !bag && !extra && !dialog && !paused && hud.alive ? (
         <TouchControls game={game} rotated={rotated} shield={!!hud.offhand} onInventory={() => openBag("bag")} onPause={() => {
           game.setPaused(true);
           setPaused(true);
         }} />
+      ) : null}
+      {game && extra?.kind === "trade" ? <TradePanel game={game} villager={extra.id} onClose={closeExtra} /> : null}
+      {game && extra?.kind === "map" ? <MapView game={game} onClose={closeExtra} /> : null}
+      {game && extra?.kind === "sign" ? (
+        <SignEditor
+          initial={extra.text}
+          onSave={(t) => {
+            game.setSign(extra.x, extra.y, extra.z, t);
+            closeExtra();
+          }}
+          onClose={closeExtra}
+        />
       ) : null}
       {game && bag === "altar" ? <AltarPanel game={game} onClose={closeBag} /> : null}
       {game && bag && bag !== "altar" ? <InventoryPanel game={game} startTab={bag} rotated={rotated} onClose={closeBag} /> : null}

@@ -46,6 +46,7 @@ export function Hud({ hud, msgs, onSelect }: { hud: HudState; msgs: Msg[]; onSel
         {hud.biome ? <small>{hud.biome}</small> : null}
         {hud.coords ? <small>📍 {hud.coords}</small> : null}
       </div>
+      {hud.hint ? <div className="ma-hint">{hud.hint}</div> : null}
       {hud.quest ? <div className="ma-quest">{hud.quest}</div> : null}
       {hud.allies.length > 0 ? <div className="ma-allies">🛡 {hud.allies.join(" · ")}</div> : null}
 

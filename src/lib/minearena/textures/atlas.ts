@@ -361,6 +361,18 @@ function drawTile(name: TileName, put: Put): void {
       }
       break;
     }
+    case "sign": {
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) put(x, y, hex(0x000000), 0);
+      for (let y = 3; y < 11; y++) {
+        for (let x = 1; x < 15; x++) {
+          const edge = y === 3 || y === 10 || x === 1 || x === 14;
+          put(x, y, mul(hex(0xb88a52), edge ? 0.7 : 1 + (rnd(x, y, s) - 0.5) * 0.1));
+        }
+      }
+      for (const y of [5, 7]) for (let x = 3; x < 13; x++) put(x, y, hex(0x4a3320));
+      for (let y = 11; y < N; y++) for (const x of [7, 8]) put(x, y, hex(0x8a5a2e));
+      break;
+    }
     case "ladder": {
       for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) put(x, y, hex(0x000000), 0);
       for (let y = 0; y < N; y++) for (const x of [2, 3, 12, 13]) put(x, y, mul(hex(0x9b6b3a), x % 2 ? 0.8 : 1));

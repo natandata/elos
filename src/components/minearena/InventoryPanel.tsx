@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { MineArena } from "@/lib/minearena/game";
 import type { Stack } from "@/lib/minearena/items/inventory";
 import { RARITY_LABEL, type Rarity, itemDef } from "@/lib/minearena/items/items";
+import { gridLayout } from "@/lib/minearena/crafting/recipes";
 import { describeStack } from "@/lib/minearena/items/enchant";
 import { ItemIcon } from "./ItemIcon";
 
@@ -30,6 +31,7 @@ export function InventoryPanel({ game, startTab, rotated, onClose }: { game: Min
   const [pointer, setPointer] = useState({ x: 0, y: 0 });
   const down = useRef<number | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
 
   const place = (i: number, h: { stack: NonNullable<Stack>; from: number }) => {
     if (!inv.accepts(i, h.stack)) return;
@@ -71,6 +73,7 @@ export function InventoryPanel({ game, startTab, rotated, onClose }: { game: Min
   };
 
   const close = () => {
+    game.clearGrid();
     if (held) {
       const left = inv.add(held.stack.item, held.stack.count);
       if (left > 0) inv.setSlot(held.from, { item: held.stack.item, count: left });
@@ -80,8 +83,13 @@ export function InventoryPanel({ game, startTab, rotated, onClose }: { game: Min
   };
 
   const near = game.nearStation();
+  const size = near ? 3 : 2;
+  const gridR = tab === "craft" ? game.gridRecipe(size) : null;
+  const norm = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const nq = norm(query.trim());
   const recipes = game
     .recipes()
+    .filter((r) => !nq || norm(itemDef(r.result.item)?.name ?? "").includes(nq))
     .map((r) => {
       const ok = r.ingredients.every((x) => inv.count(x.item) >= x.count);
       const unlocked = r.station !== "bancada" || near;
@@ -158,11 +166,27 @@ export function InventoryPanel({ game, startTab, rotated, onClose }: { game: Min
           </>
         ) : (
           <>
-            <p className="ma-info">{near ? "🔨 Bancada por perto: tudo liberado." : "Sem Bancada por perto: só receitas básicas. Coloque uma Bancada no chão."}</p>
+            <p className="ma-info">{near ? "🔨 Bancada por perto: grade 3×3 e todas as receitas." : "Sem bancada por perto: grade 2×2 e receitas básicas. Coloque uma Bancada no chão."}</p>
+            <div className="ma-craftgrid">
+              <div className="ma-cg" data-size={size}>
+                {Array.from({ length: size * size }, (_, n) => slot(300 + Math.floor(n / size) * 3 + (n % size)))}
+              </div>
+              <span className="ma-cgarrow" aria-hidden>
+                ➜
+              </span>
+              <button type="button" className="ma-slot ma-slot-lg ma-out" disabled={!gridR} onClick={() => game.craftGrid(size)} aria-label="Resultado da grade">
+                {gridR ? <ItemIcon item={gridR.result.item} count={gridR.result.count} size={40} /> : null}
+              </button>
+            </div>
+            <div className="ma-grid">{Array.from({ length: 27 }, (_, k) => slot(9 + k))}</div>
+            <div className="ma-grid">{Array.from({ length: 9 }, (_, k) => slot(k))}</div>
+            <p className="ma-sep">📖 Livro de receitas</p>
+            <input className="ma-search" placeholder="🔍 Buscar receita…" value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.stopPropagation()} />
             <ul className="ma-recipes">
               {recipes.map(({ r, ok, unlocked }) => {
                 const def = itemDef(r.result.item);
                 if (!def) return null;
+                const fits = !!gridLayout(r, size);
                 return (
                   <li key={r.id} data-ready={ok && unlocked}>
                     <ItemIcon item={r.result.item} count={r.result.count} size={42} />
@@ -180,9 +204,14 @@ export function InventoryPanel({ game, startTab, rotated, onClose }: { game: Min
                         {r.station ? <i data-ok={near}>🔨 Bancada</i> : null}
                       </span>
                     </span>
-                    <button type="button" className="ma-btn ma-btn-sm" disabled={!ok || !unlocked} onClick={() => game.craft(r)}>
-                      Fabricar
-                    </button>
+                    <span className="ma-r-btns">
+                      <button type="button" className="ma-btn ma-btn-sm ma-btn-dark" disabled={!ok || !fits} onClick={() => game.fillGrid(r, size)} title="Coloca os itens na grade">
+                        Grade
+                      </button>
+                      <button type="button" className="ma-btn ma-btn-sm" disabled={!ok || !unlocked} onClick={() => game.craft(r)}>
+                        Fabricar
+                      </button>
+                    </span>
                   </li>
                 );
               })}
