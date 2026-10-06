@@ -27,6 +27,8 @@ rec("pebble", 8, [i("cobble")]);
 rec("bread", 1, [i("wheat", 3)]);
 rec("arrow", 4, [i("stick"), i("coal")]);
 rec("torch", 4, [i("coal"), i("stick")]);
+rec("saddle", 1, [i("leather", 5), i("iron_ingot")], "bancada");
+rec("boat", 1, [i("planks", 5)]);
 rec("vial", 3, [i("glass")]);
 rec("potion_heal", 1, [i("vial"), i("herb", 2)], "bancada");
 rec("potion_regen", 1, [i("vial"), i("herb"), i("apple")], "bancada");

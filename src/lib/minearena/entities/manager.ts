@@ -46,6 +46,10 @@ export interface Entity {
   breedCd: number;
   baby: boolean;
   growT: number;
+  /** Montaria com sela / controle do cavaleiro / pavio (gafanhoto). */
+  saddled: boolean;
+  ctrl: { x: number; z: number; jump: boolean } | null;
+  fuseT: number;
   /** Quem deu o último golpe ("host" ou id do jogador). */
   lastHit?: string;
   tx?: number;
@@ -67,6 +71,8 @@ export interface ManagerHooks {
   healPlayer(n: number): void;
   /** Aplica um efeito (veneno…) no jogador local. */
   effect?(kind: string, secs: number): void;
+  /** Explosão (gafanhoto). */
+  explode?(x: number, y: number, z: number, r: number): void;
   give(item: string, count: number): void;
   /** Solta o saque no chão, onde a criatura caiu. */
   drop?(item: string, count: number, x: number, y: number, z: number): void;
@@ -191,6 +197,9 @@ export class EntityManager {
       breedCd: 0,
       baby: false,
       growT: 0,
+      saddled: false,
+      ctrl: null,
+      fuseT: 0,
     };
     this.list.push(e);
     return e;
@@ -600,7 +609,12 @@ export class EntityManager {
     };
 
     const supportHero = e.ally && (def.abilities ?? []).some((a) => SUPPORT_ABILITIES.has(a.type));
-    if (e.windup > 0) {
+    if (e.ctrl) {
+      wantX = e.ctrl.x;
+      wantZ = e.ctrl.z;
+      speed = Math.hypot(wantX, wantZ) > 0.01 ? def.speed * 1.9 : 0;
+      if (e.ctrl.jump && b.onGround) b.vy = 9.5;
+    } else if (e.windup > 0 || e.fuseT > 0) {
       speed = 0;
     } else if (e.fleeT > 0 && env.alive) {
       toward(b.x - (env.px - b.x), b.z - (env.pz - b.z), def.speed * 1.6);
@@ -613,7 +627,9 @@ export class EntityManager {
         toward(env.px, env.pz, def.speed * (dPlayer > 10 ? 1.8 : 1.15));
       }
     } else if (target) {
-      if (tdist > def.attackRange + target.r - 0.2) toward(target.x, target.z, def.speed);
+      const keep = def.keepDistance ?? 0;
+      if (keep && tdist < keep - 2.5) toward(b.x - (target.x - b.x), b.z - (target.z - b.z), def.speed);
+      else if (tdist > Math.max(def.attackRange + target.r - 0.2, keep)) toward(target.x, target.z, def.speed);
     } else if (def.behavior === "hero") {
       speed = 0;
     } else {
@@ -669,7 +685,9 @@ export class EntityManager {
     e.kz *= Math.max(0, 1 - dt * 12);
     if (b.inWater) b.vy = Math.min(2.4, b.vy + 22 * dt);
     else b.vy = Math.max(-30, b.vy - 26 * dt);
-    if (b.hitWall && b.onGround && speed > 0) b.vy = 8.2;
+    if (def.climb && b.hitWall && speed > 0) b.vy = Math.max(b.vy, 4.5);
+    else if (b.hitWall && b.onGround && speed > 0 && !e.ctrl) b.vy = 8.2;
+    else if (b.hitWall && b.onGround && e.ctrl && speed > 0 && e.ctrl.jump) b.vy = 9.5;
     stepBody(this.world, b, dt);
     if (b.y < -5) {
       this.remove(e);
@@ -750,6 +768,36 @@ export class EntityManager {
     }
     if ("phase" in ab && ab.phase && phase < ab.phase) return;
     const cdMul = phase === 3 ? 0.6 : 1;
+    if (ab.type === "bowshot") {
+      if (e.cds[i] <= 0 && target && tdist <= ab.range) {
+        e.cds[i] = ab.cooldown;
+        e.atkAnim = 0.01;
+        const sy = b.y + e.body.h * 0.75;
+        const flat = Math.hypot(target.x - b.x, target.z - b.z);
+        this.shoot("arrow", b.x, sy, b.z, target.x - b.x, target.y + 1.2 - sy + flat * 0.12, target.z - b.z, 22, ab.dmg, 8, "hostile");
+        this.sfx.play("bow");
+      }
+      return;
+    }
+    if (ab.type === "explode") {
+      if (e.fuseT <= 0) {
+        if (target && !target.ent && tdist <= 2.6 && env.alive) {
+          e.fuseT = ab.fuse;
+          this.sfx.play("fire");
+        }
+      } else {
+        e.fuseT -= dt;
+        flash(e.rig, Math.floor(e.fuseT * 8) % 2 === 0 ? 0.9 : 0);
+        if (!target || tdist > 6) {
+          e.fuseT = 0;
+          flash(e.rig, 0);
+        } else if (e.fuseT <= 0) {
+          this.hooks.explode?.(b.x, b.y + 0.5, b.z, ab.radius);
+          this.remove(e);
+        }
+      }
+      return;
+    }
     if (ab.type === "firebolt") {
       if (e.cds[i] <= 0 && target && tdist <= ab.range) {
         e.cds[i] = ab.cooldown * cdMul;

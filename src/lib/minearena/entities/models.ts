@@ -38,7 +38,7 @@ export interface HumanoidSpec {
 }
 export interface BeastSpec {
   kind: "beast";
-  variant: "sheep" | "boar" | "camel" | "scorpion" | "ox" | "rooster" | "lion" | "bear" | "snake";
+  variant: "sheep" | "boar" | "camel" | "scorpion" | "ox" | "rooster" | "lion" | "bear" | "snake" | "spider" | "locust" | "horse";
   scale: number;
   body: number;
   head: number;
@@ -231,6 +231,41 @@ function beast(s: BeastSpec): Rig {
     root.add(head);
     height = 1.25;
     radius = 0.62;
+  } else if (s.variant === "spider") {
+    root.add(mk(mats, 6, 5, 7, s.body, 0, 5, -3), mk(mats, 8, 6, 9, s.body, 0, 5.5, -10));
+    head = pivot(0, 5, 1);
+    head.add(mk(mats, 5, 4, 4, s.head, 0, 0, 2), mk(mats, 1.2, 1.2, 0.4, s.accent, -1.3, 1, 4.2), mk(mats, 1.2, 1.2, 0.4, s.accent, 1.3, 1, 4.2), mk(mats, 0.8, 0.8, 0.4, s.accent, -0.5, 0, 4.2), mk(mats, 0.8, 0.8, 0.4, s.accent, 0.5, 0, 4.2));
+    root.add(head);
+    for (const side of [-1, 1]) {
+      for (let k = 0; k < 4; k++) {
+        const l = pivot(side * 3, 5, -1 - k * 2.4);
+        l.add(mk(mats, 9, 1.2, 1.2, s.legs, side * 4.5, -0.5, 0));
+        l.rotation.z = side * -0.45;
+        root.add(l);
+        (k % 2 === 0 ? legsA : legsB).push(l);
+      }
+    }
+    height = 0.7;
+    radius = 0.6;
+  } else if (s.variant === "locust") {
+    legs(6, 1.6, 2, 3.5, s.legs);
+    root.add(mk(mats, 5, 5, 12, s.body, 0, 7.5, 0), mk(mats, 3, 6, 4, s.accent, 0, 7, -7));
+    head = pivot(0, 9, 6);
+    head.add(mk(mats, 5, 5, 5, s.head, 0, 0, 2.5), mk(mats, 1.2, 1.2, 0.4, 0xffd54a, -1.4, 1, 5.2), mk(mats, 1.2, 1.2, 0.4, 0xffd54a, 1.4, 1, 5.2), mk(mats, 0.6, 5, 0.6, s.legs, -1.5, 4, 3), mk(mats, 0.6, 5, 0.6, s.legs, 1.5, 4, 3));
+    root.add(head);
+    height = 0.8;
+    radius = 0.4;
+  } else if (s.variant === "horse") {
+    legs(9, 2.4, 2.6, 6, s.legs);
+    root.add(mk(mats, 7, 8, 17, s.body, 0, 13, 0), mk(mats, 1.5, 3, 12, s.accent, 0, 18, -1));
+    head = pivot(0, 16, 8);
+    head.add(mk(mats, 3.5, 9, 4, s.head, 0, 4, 0), mk(mats, 4, 4.5, 8, s.head, 0, 9.5, 3.5), mk(mats, 1.2, 2.5, 1.2, s.head, -1.5, 13, 1), mk(mats, 1.2, 2.5, 1.2, s.head, 1.5, 13, 1), mk(mats, 0.8, 0.8, 0.4, 0x111111, -1.8, 10.5, 7.7), mk(mats, 0.8, 0.8, 0.4, 0x111111, 1.8, 10.5, 7.7));
+    root.add(head);
+    tail = pivot(0, 16, -9);
+    tail.add(mk(mats, 2.4, 10, 2.4, s.accent, 0, -5, -1));
+    root.add(tail);
+    height = 1.65;
+    radius = 0.5;
   } else if (s.variant === "snake") {
     const seg: [number, number][] = [[0, -12], [0, -7], [0, -2], [0, 3], [0, 8]];
     tail = pivot(0, 0, 0);

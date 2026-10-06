@@ -63,6 +63,9 @@ add({ key: "bucket_water", name: "Balde com água", kind: "tool", icon: "🪣", 
 add({ key: "bucket_lava", name: "Balde com lava", kind: "tool", icon: "🪣", color: 0xff6a1a, rarity: "raro", maxStack: 1 });
 mat("feather", "Pena", "🪶", 0xf2f2f2);
 mat("dung", "Esterco", "💩", 0x6a4a2a);
+mat("bone", "Osso", "🦴", 0xe8e4d4);
+add({ key: "saddle", name: "Sela", kind: "tool", icon: "🏇", color: 0x8a5a33, rarity: "incomum", maxStack: 1 });
+add({ key: "boat", name: "Barca de pescador", kind: "tool", icon: "🛶", color: 0xb88a52, rarity: "incomum", maxStack: 1 });
 mat("herb", "Erva do campo", "🌿", 0x5da13a);
 add({ key: "vial", name: "Frasco de barro", kind: "material", icon: "🏺", color: 0xb06a3a, maxStack: 16 });
 const potion = (key: string, name: string, color: number, p: NonNullable<ItemDef["potion"]>) => add({ key, name, kind: "material", icon: "🧪", color, rarity: "incomum", maxStack: 8, potion: p });

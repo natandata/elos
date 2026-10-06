@@ -200,6 +200,8 @@ export class MineArena {
   private lmFxT = 0;
   private drops!: Drops;
   private signs: Record<string, string> = {};
+  private mount: Entity | null = null;
+  private boat: { mesh: THREE.Group; x: number; y: number; z: number; riding: boolean } | null = null;
   private creative = false;
   private flying = false;
   private lastJump = 0;
@@ -528,6 +530,7 @@ export class MineArena {
     this.cleanup.forEach((f) => f());
     if (document.pointerLockElement) document.exitPointerLock();
     this.endFishing();
+    this.removeBoat();
     for (const f of this.fuses) this.scene.remove(f.mesh);
     if (this.rainObj) this.scene.remove(this.rainObj);
     this.drops.dispose();
@@ -643,6 +646,7 @@ export class MineArena {
         if (this.role === "host") this.net?.send("fx", { k: kind, d: data });
       },
       effect: (k: string, s: number) => this.addEffect(k, s),
+      explode: (x: number, y: number, z: number, r: number) => this.explode(x, y, z, r),
       healPlayer: (n: number) => {
         this.health = Math.min(PLAYER.maxHealth, this.health + n);
       },
@@ -1090,6 +1094,105 @@ export class MineArena {
     this.cb.onMessage(`Você: ${t}`, "info");
   }
 
+  // ---------- montaria e barca ----------
+  private mountOn(m: Entity): void {
+    this.mount = m;
+    this.sfx.play("pickup");
+    this.cb.onMessage(`🐎 Você montou em ${m.def.name}. Agache (Shift) para descer.`, "info");
+  }
+
+  private dismount(): void {
+    const m = this.mount;
+    if (m) m.ctrl = null;
+    this.mount = null;
+    this.body.y += 0.4;
+  }
+
+  private placeBoat(x: number, y: number, z: number): void {
+    this.removeBoat();
+    const g = new THREE.Group();
+    const mat = new THREE.MeshLambertMaterial({ color: 0xb88a52 });
+    const dark = new THREE.MeshLambertMaterial({ color: 0x8a5a33 });
+    const part = (w: number, h: number, d: number, px: number, py: number, pz: number, m = mat) => {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+      mesh.position.set(px, py, pz);
+      g.add(mesh);
+    };
+    part(1.2, 0.12, 2.1, 0, 0, 0, dark);
+    part(0.12, 0.45, 2.1, -0.6, 0.25, 0);
+    part(0.12, 0.45, 2.1, 0.6, 0.25, 0);
+    part(1.2, 0.45, 0.12, 0, 0.25, 1.0);
+    part(1.2, 0.45, 0.12, 0, 0.25, -1.0);
+    part(1, 0.1, 0.35, 0, 0.18, 0.2, dark);
+    g.position.set(x, y, z);
+    this.scene.add(g);
+    this.boat = { mesh: g, x, y, z, riding: false };
+    this.sfx.play("place");
+  }
+
+  private removeBoat(): void {
+    if (!this.boat) return;
+    this.scene.remove(this.boat.mesh);
+    this.boat.mesh.traverse((o) => {
+      const m = o as THREE.Mesh;
+      m.geometry?.dispose();
+      (m.material as THREE.Material | undefined)?.dispose();
+    });
+    this.boat = null;
+  }
+
+  /** Movimento do jogador montado (cavalo/camelo) ou na barca. Devolve true se assumiu o controle. */
+  private rideTick(dt: number): boolean {
+    const b = this.body;
+    const blocked = this.uiOpen || this.paused || this.sleepT > 0;
+    const mx = blocked ? 0 : this.input.moveX;
+    const my = blocked ? 0 : this.input.moveY;
+    const len = Math.hypot(mx, my) || 1;
+    const nx = len > 1 ? mx / len : mx;
+    const ny = len > 1 ? my / len : my;
+    const sin = Math.sin(this.yaw);
+    const cos = Math.cos(this.yaw);
+    const wx = nx * cos - ny * sin;
+    const wz = -nx * sin - ny * cos;
+    if (this.mount) {
+      const m = this.mount;
+      if (m.dead || this.entities.list.indexOf(m) < 0 || !this.alive) {
+        this.mount = null;
+        return false;
+      }
+      m.ctrl = { x: wx, z: wz, jump: !blocked && this.input.jump };
+      b.x = m.body.x;
+      b.y = m.body.y + m.body.h * 0.62;
+      b.z = m.body.z;
+      b.vx = b.vy = b.vz = 0;
+      this.fallV = 0;
+      if (!blocked && this.input.sneak) this.dismount();
+      return true;
+    }
+    const bt = this.boat;
+    if (bt && bt.riding) {
+      const sp = 5.5;
+      const nxp = bt.x + wx * sp * dt;
+      const nzp = bt.z + wz * sp * dt;
+      const water = (x: number, z: number) => isFluid(this.world.getBlock(Math.floor(x), Math.floor(bt.y - 0.3), Math.floor(z)), "water");
+      if (water(nxp, bt.z)) bt.x = nxp;
+      if (water(bt.x, nzp)) bt.z = nzp;
+      if (Math.hypot(wx, wz) > 0.05) bt.mesh.rotation.y = Math.atan2(wx, wz);
+      bt.mesh.position.set(bt.x, bt.y + Math.sin(this.playedSeconds * 2) * 0.03, bt.z);
+      b.x = bt.x;
+      b.y = bt.y + 0.1;
+      b.z = bt.z;
+      b.vx = b.vy = b.vz = 0;
+      this.fallV = 0;
+      if (!blocked && this.input.sneak) {
+        bt.riding = false;
+        b.y += 0.6;
+      }
+      return true;
+    }
+    return false;
+  }
+
   // ---------- placas, comércio, mapa e pesca ----------
   setSign(x: number, y: number, z: number, text: string): void {
     const k = `${x},${y},${z}`;
@@ -1295,6 +1398,8 @@ export class MineArena {
       this.sfx.play("death");
       this.input.mine = false;
       this.input.use = false;
+      if (this.mount) this.dismount();
+      if (this.boat) this.boat.riding = false;
       this.dropAllOnDeath();
       if (document.pointerLockElement) document.exitPointerLock();
       void this.saveNow();
@@ -1461,6 +1566,7 @@ export class MineArena {
     const my = blocked ? 0 : this.input.moveY;
     const len = Math.hypot(mx, my);
     this.updateGuard();
+    if (this.rideTick(dt)) return;
     this.sneaking = !blocked && this.input.sneak && !b.inWater && !this.flying;
     const sprint = !blocked && !this.guarding && !this.sneaking && this.input.sprint && my > 0;
     const sp = (sprint ? PLAYER.sprint : PLAYER.walk) * (b.inWater ? 0.55 : 1) * (this.guarding ? 0.6 : 1) * (this.sneaking ? 0.35 : 1) * (this.effects.has("slow") ? 0.55 : 1) * (this.effects.has("swift") ? 1.35 : 1) * (this.flying ? 2.2 : 1);
@@ -1573,6 +1679,21 @@ export class MineArena {
       this.selLines.position.copy(this.sel.position);
     } else this.sel.visible = this.selLines.visible = false;
 
+    // acertar a barca: recolhe
+    if (!blocked && this.input.mine && this.boat && !this.boat.riding) {
+      const bt = this.boat;
+      const tx = bt.x - eye.x;
+      const ty = bt.y + 0.3 - eye.y;
+      const tz = bt.z - eye.z;
+      const proj = tx * dir.x + ty * dir.y + tz * dir.z;
+      const off = Math.hypot(tx - dir.x * proj, ty - dir.y * proj, tz - dir.z * proj);
+      if (proj > 0 && proj < 4.5 && off < 1.1) {
+        this.removeBoat();
+        this.inventory.add("boat", 1);
+        this.sfx.play("break");
+        this.input.mine = false;
+      }
+    }
     // ---- atacar / minerar ----
     if (!blocked && !this.guarding && this.input.mine) {
       const entityFirst = ePick && ePick.dist <= wReach && (!hit || ePick.dist < hit.dist) && ePick.e.def.behavior !== "hero";
@@ -1730,8 +1851,41 @@ export class MineArena {
       this.cb.onOpenCrafting();
       return;
     }
+    // montar em cavalo/camelo (precisa de sela) e embarcar na barca
+    if (edge && ePick && ePick.dist <= 4 && ePick.e.def.rideable && !ePick.e.baby) {
+      const m = ePick.e;
+      const hk = this.heldDef()?.key;
+      if (this.role === "guest") this.cb.onMessage("Só o anfitrião pode montar.", "warn");
+      else if (!m.saddled) {
+        if (hk === "saddle") {
+          m.saddled = true;
+          this.inventory.consumeHeld(1);
+          this.sfx.play("place");
+          this.cb.onMessage(`Sela colocada em ${m.def.name}. Clique de novo para montar.`, "good");
+        } else this.cb.onMessage("Precisa de uma sela (couro 5 + ferro 1, na bancada).", "info");
+      } else this.mountOn(m);
+      return;
+    }
+    {
+      const hd = this.heldDef();
+      if (edge && this.boat && !this.boat.riding && !this.mount && Math.hypot(this.boat.x - this.body.x, this.boat.z - this.body.z) < 2.8 && (!hd || (hd.block === undefined && !hd.food && !hd.ranged && !hd.potion && hd.key !== "boat"))) {
+        this.boat.riding = true;
+        this.cb.onMessage("🛶 Na barca. Agache (Shift) para descer.", "info");
+        return;
+      }
+    }
     const held = this.heldDef();
     if (!held) return;
+    // barca de pescador: coloca na água
+    if (edge && held.key === "boat") {
+      const e0 = this.camera.position;
+      const lh = this.world.raycast(e0.x, e0.y, e0.z, dir.x, dir.y, dir.z, 6, true);
+      if (lh && BLOCKS[lh.id].fluid === "water") {
+        this.placeBoat(lh.x + 0.5, lh.y + 0.9, lh.z + 0.5);
+        this.inventory.consumeHeld(1);
+      } else this.cb.onMessage("Coloque a barca na água.", "info");
+      return;
+    }
     // escudo na mão principal: vai pra mão esquerda (troca se já houver um)
     if (edge && held.shield) {
       const cur = this.inventory.offhand;
@@ -1761,7 +1915,7 @@ export class MineArena {
       return;
     }
     // esterco: adubo para as plantações e o mato
-    if (edge && held.key === "dung" && hit) {
+    if (edge && (held.key === "dung" || held.key === "bone") && hit) {
       const k = `${hit.x},${hit.y},${hit.z}`;
       const hb = BLOCKS[hit.id].key;
       if (hb === "wheat_0" || hb === "wheat_1" || hb === "wheat_2") {
@@ -2754,6 +2908,8 @@ export class MineArena {
   }
 
   private hintText(): string | null {
+    if (this.mount) return `🐎 ${this.mount.def.name} · agache (Shift) para descer`;
+    if (this.boat?.riding) return "🛶 Na barca · agache (Shift) para descer";
     const k = this.heldDef()?.key;
     if (k === "compass") {
       const dx = this.spawn.x - this.body.x;

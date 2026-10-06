@@ -16,7 +16,9 @@ export type AbilityDef =
   | { type: "firebolt"; range: number; dmg: number; cooldown: number; phase?: number }
   | { type: "summon"; mob: string; count: number; max: number; cooldown: number; phase?: number }
   | { type: "rain"; dmg: number; count: number; cooldown: number; phase?: number }
-  | { type: "blink"; dmg: number; cooldown: number; phase?: number };
+  | { type: "blink"; dmg: number; cooldown: number; phase?: number }
+  | { type: "bowshot"; range: number; dmg: number; cooldown: number }
+  | { type: "explode"; radius: number; fuse: number };
 
 export interface SpawnRule {
   /** Só nasce nesta dimensão. */
@@ -54,6 +56,12 @@ export interface MobDef {
   gift?: { item: string; count: number }[];
   /** Item que faz o animal entrar no cio (reprodução). */
   breeds?: string;
+  /** Hostil à distância: não se aproxima mais do que isso. */
+  keepDistance?: number;
+  /** Escala paredes. */
+  climb?: boolean;
+  /** Dá pra montar (precisa de sela). */
+  rideable?: boolean;
   /** Efeito aplicado no jogador a cada golpe. */
   effect?: { kind: string; secs: number };
   /** Criatura maligna: a Espada do Espírito fere mais. */
@@ -83,6 +91,7 @@ export const MOBS: MobDef[] = [
   },
   {
     id: "camelo",
+    rideable: true,
     name: "Camelo",
     behavior: "passive",
     rarity: "incomum",
@@ -310,6 +319,76 @@ export const MOBS: MobDef[] = [
     model: { kind: "beast", variant: "scorpion", scale: 1.1, body: 0x6b2a1e, head: 0x7d3324, legs: 0x4a1d15, accent: 0xa03a2a },
     loot: [L("coal", 0, 1, 0.5), L("raw_gold", 1, 1, 0.12)],
     spawn: { time: "any", biomes: ["deserto", "oasis"], weight: 7, group: [1, 2] },
+  },
+  {
+    id: "esqueleto",
+    name: "Ossos Secos",
+    behavior: "hostile",
+    rarity: "incomum",
+    hp: 18,
+    defense: 0,
+    dmg: 0,
+    speed: 2.6,
+    chaseRange: 24,
+    attackRange: 0,
+    attackCooldown: 1,
+    keepDistance: 9,
+    model: { kind: "humanoid", scale: 1, skin: 0xe8e4d4, hair: 0x000000, hairStyle: "bald", shirt: 0xd9d4c0, pants: 0xd9d4c0, shoes: 0xc9c4b0, bare: true, bow: true },
+    loot: [L("bone", 1, 2), L("arrow", 0, 3, 0.6)],
+    abilities: [{ type: "bowshot", range: 18, dmg: 4, cooldown: 2 }],
+    spawn: { time: "night", biomes: ["planicie", "floresta", "montanha", "lago", "savana", "libano", "hermom", "oasis", "deserto"], weight: 9, group: [1, 2], underground: true },
+  },
+  {
+    id: "aranha",
+    name: "Aranha",
+    behavior: "hostile",
+    rarity: "comum",
+    hp: 16,
+    defense: 0,
+    dmg: 3,
+    speed: 4,
+    chaseRange: 16,
+    attackRange: 1.5,
+    attackCooldown: 0.9,
+    climb: true,
+    model: { kind: "beast", variant: "spider", scale: 1, body: 0x2a1e1a, head: 0x3a2a24, legs: 0x1a1210, accent: 0xc42a2a },
+    loot: [L("coal", 0, 1, 0.3), L("bone", 0, 1, 0.2)],
+    spawn: { time: "night", biomes: ["planicie", "floresta", "montanha", "lago", "savana", "libano", "hermom", "oasis", "deserto"], weight: 8, group: [1, 2], underground: true },
+  },
+  {
+    id: "gafanhoto",
+    name: "Gafanhoto da Praga",
+    behavior: "hostile",
+    rarity: "incomum",
+    hp: 14,
+    defense: 0,
+    dmg: 0,
+    speed: 3.4,
+    chaseRange: 18,
+    attackRange: 0,
+    attackCooldown: 1,
+    model: { kind: "beast", variant: "locust", scale: 1.15, body: 0x6aa02a, head: 0x4a7a1e, legs: 0x3a5a14, accent: 0xb8c43a },
+    loot: [L("sulfur", 0, 2, 0.7)],
+    abilities: [{ type: "explode", radius: 2.8, fuse: 1.1 }],
+    spawn: { time: "night", biomes: ["planicie", "floresta", "montanha", "lago", "savana", "libano", "hermom", "oasis", "deserto"], weight: 6, group: [1, 1], underground: true },
+  },
+  {
+    id: "cavalo",
+    name: "Cavalo",
+    behavior: "passive",
+    rarity: "incomum",
+    hp: 22,
+    defense: 0,
+    dmg: 0,
+    speed: 4.2,
+    chaseRange: 0,
+    attackRange: 0,
+    attackCooldown: 1,
+    rideable: true,
+    breeds: "wheat",
+    model: { kind: "beast", variant: "horse", scale: 1, body: 0x8a5a33, head: 0x7a4a28, legs: 0x5a3a1e, accent: 0x2a1a10 },
+    loot: [L("leather", 1, 2), L("meat", 1, 2), L("dung", 1, 2, 0.4)],
+    spawn: { time: "day", biomes: ["planicie", "savana", "floresta"], weight: 5, group: [1, 2] },
   },
   // ---- boss ----
   {

@@ -12,6 +12,10 @@ const BIOME_RGB: Record<BiomeId, [number, number, number]> = {
   savana: [186, 176, 76],
   libano: [42, 106, 74],
   hermom: [240, 244, 250],
+  pantano: [78, 110, 62],
+  taiga: [150, 190, 170],
+  selva: [28, 110, 40],
+  oceano: [30, 70, 160],
 };
 
 /** Imagem RGBA (w×w) do terreno em volta de (cx, cz), com `radius` blocos de cada lado. */
