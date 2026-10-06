@@ -139,38 +139,40 @@ const gosen: MapSpec = {
 export const GOSEN_MAP: StoryMapDef = makeMap(gosen);
 
 // ============================================================ MAR VERMELHO
-/** O mar vai de z=45 a z=83; o corredor aberto por Deus fica entre x0 e x1. */
-export const SEA = { x0: 59, x1: 69, z0: 45, z1: 83, level: 23 };
+/** Um mar grande: ~120 blocos de travessia. O corredor aberto por Deus (17 de largura) fica entre x0 e x1. */
+export const SEA = { cx: 96, x0: 88, x1: 104, z0: 71, z1: 189, level: 23, shoreN: 64, shoreS: 200 };
+const S0 = 70;
+const S1 = 190;
 /** Altura do fundo do mar em cada linha z (a praia desce até o fundo e sobe do outro lado). */
 export function seaFloor(z: number): number {
-  if (z < 44 || z > 84) return 24;
-  if (z < 48) return Math.round(24 - (z - 44) * 1.75);
-  if (z > 80) return Math.round(24 - (84 - z) * 1.75);
+  if (z < S0 || z > S1) return 24;
+  if (z < S0 + 4) return Math.round(24 - (z - S0) * 1.75);
+  if (z > S1 - 4) return Math.round(24 - (S1 - z) * 1.75);
   return 17;
 }
 
 const mar: MapSpec = {
   id: "mar",
   name: "A margem do Mar Vermelho",
-  w: 128,
-  d: 128,
+  w: 192,
+  d: 224,
   seed: 9797,
   time: 0.14,
   bgm: "mar",
-  spawn: { x: 64, z: 14, yaw: 0 },
+  spawn: { x: 96, z: 20, yaw: 0 },
   zones: {
-    start: { x: 64, z: 14, r: 5 },
-    acampamento: { x: 64, z: 28, r: 10 },
-    margem: { x: 64, z: 41, r: 5 },
-    travessia: { x: 64, z: 64, r: 6 },
-    outra_margem: { x: 64, z: 92, r: 8 },
+    start: { x: 96, z: 20, r: 5 },
+    acampamento: { x: 96, z: 40, r: 12 },
+    margem: { x: 96, z: SEA.shoreN, r: 5 },
+    travessia: { x: 96, z: 130, r: 8 },
+    outra_margem: { x: 96, z: 208, r: 9 },
   },
   base: 24,
   amp: 1,
   scale: 40,
-  flat: [{ x: 64, z: 28, r: 14, h: 24 }],
+  flat: [{ x: 96, z: 40, r: 16, h: 24 }],
   surf: (x, z, k) => {
-    if (z >= 44 && z <= 84) {
+    if (z >= S0 && z <= S1) {
       const f = seaFloor(z);
       k.h = f;
       k.top = B.sand;
@@ -178,20 +180,20 @@ const mar: MapSpec = {
       if (f < 24) k.water = SEA.level;
       return;
     }
-    if (z > 84) {
+    if (z > S1) {
       k.h = 24 + Math.round(Math.max(0, fbm2(9797, x / 18, z / 18, 2) - 0.45) * 14);
       k.top = B.sand;
       k.sub = B.sandstone;
       return;
     }
-    k.top = z > 38 ? B.sand : B.dry_grass;
-    if (z > 38) k.sub = B.sand;
+    k.top = z > 60 ? B.sand : B.dry_grass;
+    if (z > 60) k.sub = B.sand;
   },
-  tree: (x, z, r, k) => (r < 0.05 && z < 36 && k.top === B.dry_grass && Math.hypot(x - 64, z - 28) > 16 ? { trunk: 5, radius: 3, leaf: B.dry_leaves } : null),
+  tree: (x, z, r, k) => (r < 0.05 && z < 56 && k.top === B.dry_grass && Math.hypot(x - 96, z - 40) > 20 ? { trunk: 5, radius: 3, leaf: B.dry_leaves } : null),
   cover: (x, z, r, k) => (k.top === B.dry_grass && r < 0.08 ? B.tallgrass : 0),
   extra: (c: ChunkCtx) => {
-    for (const [dx, dz] of [[-9, -4], [8, -6], [-4, 6], [10, 5], [0, -10], [-14, 2], [14, 1]]) tent(c, 64 + dx - 2, 24, 28 + dz - 2);
-    for (const [x, z] of [[40, 18], [90, 20]]) palm(c, x, 24, z, 6);
+    for (const [dx, dz] of [[-12, -5], [10, -7], [-5, 7], [13, 6], [0, -12], [-18, 3], [18, 2], [-10, 12], [8, 13]]) tent(c, 96 + dx - 2, 24, 40 + dz - 2);
+    for (const [x, z] of [[60, 20], [132, 24], [70, 212], [124, 214]]) palm(c, x, 24, z, 6);
   },
 };
 export const MAR_MAP: StoryMapDef = makeMap(mar);

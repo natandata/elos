@@ -151,19 +151,18 @@ function sarca(b: Builder): void {
   }
 }
 
-// ---------- Mar Vermelho (um mar de verdade, de água vermelha) ----------
+// ---------- Mar Vermelho (um mar grande, de água comum, com o caminho seco aberto no meio) ----------
+const MAR_R = 70;
+const MAR_DEPTH = 9;
 function mar(b: Builder): void {
-  // ilhota de areia no meio com os restos do exército do Faraó
+  // o caminho: uma faixa de 11 blocos sem água, de uma margem à outra, com paredes de água dos lados
   for (let x = -5; x <= 5; x++) {
-    for (let z = -5; z <= 5; z++) {
-      const d = Math.hypot(x, z);
-      if (d > 5) continue;
-      b.fill(x, -12, z, x, d < 3.2 ? 1 : 0, z, B.sand);
-    }
+    const zMax = Math.floor(Math.sqrt(MAR_R * MAR_R - x * x)) - 1;
+    b.fill(x, -MAR_DEPTH, -zMax, x, -1, zMax, B.air);
   }
-  b.chest(0, 2, 0, "ruina");
-  // carros e destroços boiando
-  for (const [x, z] of [[-14, -8], [12, -16], [-20, 12], [18, 10], [4, 22], [-6, -24]] as const) {
+  b.chest(0, -MAR_DEPTH, 0, "ruina");
+  // carros e destroços boiando dos dois lados do caminho
+  for (const [x, z] of [[-20, -14], [22, -30], [-30, 22], [28, 18], [14, 44], [-16, -48], [-26, 50], [24, -52]] as const) {
     b.fill(x, -1, z, x + 2, -1, z + 1, B.planks);
     b.set(x, 0, z, B.log);
     b.set(x + 2, 0, z + 1, B.log);
@@ -384,12 +383,12 @@ export const LANDMARKS: Record<LandmarkId, LandmarkDef> = {
     id: "mar",
     name: "Mar Vermelho",
     ref: "Êx 14.21–31",
-    blurb: "O mar de águas vermelhas que se abriu para o povo. Ao centro, uma ilhota guarda os restos do exército do Faraó.",
-    rx: 40,
-    rz: 40,
+    blurb: "O grande mar que se abriu para o povo. Siga o caminho seco entre os muros de água; no meio, restos do exército do Faraó.",
+    rx: MAR_R + 4,
+    rz: MAR_R + 4,
     H: 8,
     maxGy: 40,
-    pool: { r: 36, depth: 9, red: true },
+    pool: { r: MAR_R, depth: MAR_DEPTH },
     residents: [],
     build: mar,
   },

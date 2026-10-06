@@ -13,6 +13,7 @@ import { MISSION_BY_ID, MISSIONS_OF } from "./data/missions";
 import { ARK, ARK_INSIDE, arkBlocks, arkDoorCells, noahColumn } from "./maps/noah";
 import { EDEN_SITES } from "./maps/eden";
 import { STRUCTS } from "./maps/structs";
+import { SEA } from "./maps/exodus";
 import { loadProgress, saveProgress } from "./progress";
 import type { ChapterDef, CutStep, Cutscene, MapEnv, Mission, Objective, StoryHud, StoryMapDef, StoryProgress, StorySession, StoryUi, Vec3, Zone } from "./types";
 
@@ -1129,16 +1130,32 @@ export class StoryDirector {
         break;
       }
       case "march":
-        for (const e of this.npcs.values()) if (e.story?.tag === String(arg)) this.sendTo(e, [{ x: 55 + Math.random() * 18, z: 34 + Math.random() * 5 }], 3.2);
+        for (const e of this.npcs.values()) if (e.story?.tag === String(arg)) this.sendTo(e, [{ x: SEA.cx - 12 + Math.random() * 24, z: SEA.shoreN - 12 + Math.random() * 6 }], 3.2);
         break;
       case "marchSea":
-        for (const e of this.npcs.values()) if (e.story?.tag === String(arg)) this.sendTo(e, [{ x: 61 + Math.random() * 7, z: 50 }, { x: 61 + Math.random() * 7, z: 68 }], 3.4);
+        for (const e of this.npcs.values()) if (e.story?.tag === String(arg)) this.sendTo(e, [{ x: SEA.x0 + 1 + Math.random() * (SEA.x1 - SEA.x0 - 2), z: SEA.z0 }, { x: SEA.x0 + 1 + Math.random() * (SEA.x1 - SEA.x0 - 2), z: SEA.z0 + 50 }], 3.6);
         break;
       case "crossSea":
         for (const e of this.npcs.values()) {
           if (e.story?.tag !== "hebreu" && e.story?.id !== "moises" && e.story?.id !== "arao") continue;
-          const x = 60 + Math.random() * 8;
-          this.sendTo(e, [{ x, z: 46 }, { x, z: 70 }, { x: 58 + Math.random() * 12, z: 92 }], 2.8);
+          const x = SEA.x0 + 1 + Math.random() * (SEA.x1 - SEA.x0 - 2);
+          this.sendTo(e, [{ x, z: SEA.z0 - 3 }, { x, z: SEA.z1 + 3 }, { x: SEA.cx - 10 + Math.random() * 20, z: SEA.shoreS }], 4.8);
+        }
+        break;
+      case "arriveSea":
+        // quem ainda está no corredor chega à outra margem antes de o mar se fechar
+        for (const e of this.npcs.values()) {
+          if (e.story?.tag !== "hebreu" && e.story?.id !== "moises" && e.story?.id !== "arao") continue;
+          const x = SEA.cx - 10 + Math.random() * 20;
+          const z = SEA.shoreS + Math.random() * 6;
+          this.paths.delete(e.story.id);
+          e.body.x = x;
+          e.body.z = z;
+          e.body.y = this.groundY(x, z, 30);
+          e.body.vy = 0;
+          e.story.goto = null;
+          e.story.arrived = true;
+          e.story.hold = true;
         }
         break;
       case "removeTag":
