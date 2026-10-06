@@ -18,6 +18,18 @@ export interface WorldSave {
   discoveries: string[];
   heroesMet: string[];
   kills: number;
+  /** Baús e fornalhas: "x,y,z" → conteúdo. */
+  containers?: Record<string, SavedContainer>;
+  /** Estruturas cujos moradores já nasceram. */
+  spawned?: string[];
+}
+
+export interface SavedContainer {
+  kind: "chest" | "furnace";
+  slots: Stack[];
+  burn: number;
+  burnMax: number;
+  cook: number;
 }
 
 const DB = "minearena";

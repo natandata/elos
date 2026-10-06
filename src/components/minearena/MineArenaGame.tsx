@@ -51,7 +51,7 @@ function Play({ save, rotated, settings, onSettings, onExit }: { save: WorldSave
   const [hud, setHud] = useState<HudState | null>(null);
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [dialog, setDialog] = useState<DialogInfo | null>(null);
-  const [bag, setBag] = useState<null | "bag" | "craft">(null);
+  const [bag, setBag] = useState<null | "bag" | "craft" | "chest" | "furnace">(null);
   const [paused, setPaused] = useState(false);
   const [options, setOptions] = useState(false);
   const settingsRef = useRef(settings);
@@ -76,6 +76,10 @@ function Play({ save, rotated, settings, onSettings, onExit }: { save: WorldSave
           onHud: setHud,
           onMessage: pushMsg,
           onDialog: setDialog,
+          onOpenContainer: (kind) => {
+            g?.setUiOpen(true);
+            setBag(kind);
+          },
           onOpenCrafting: () => {
             g?.setUiOpen(true);
             setBag("craft");
@@ -113,6 +117,7 @@ function Play({ save, rotated, settings, onSettings, onExit }: { save: WorldSave
     setBag(tab);
   }, []);
   const closeBag = useCallback(() => {
+    gameRef.current?.closeContainer();
     gameRef.current?.setUiOpen(false);
     setBag(null);
   }, []);

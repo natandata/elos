@@ -31,6 +31,13 @@ export const TILE_NAMES = [
   "cactus_side",
   "cactus_top",
   "limestone",
+  "chest_top",
+  "chest_side",
+  "chest_front",
+  "furnace_top",
+  "furnace_side",
+  "furnace_front",
+  "furnace_front_lit",
 ] as const;
 export type TileName = (typeof TILE_NAMES)[number];
 
@@ -40,7 +47,7 @@ export const ATLAS_ROWS = Math.ceil(TILE_NAMES.length / ATLAS_COLS);
 export const tileIndex = (n: TileName): number => TILE_NAMES.indexOf(n);
 
 /** [topo, lado, base] de cada bloco. */
-export const BLOCK_TILES: Record<BlockKey, [TileName, TileName, TileName]> = {
+export const BLOCK_TILES: Record<BlockKey, [TileName, TileName, TileName, TileName?]> = {
   air: ["stone", "stone", "stone"],
   grass: ["grass_top", "grass_side", "dirt"],
   dirt: ["dirt", "dirt", "dirt"],
@@ -65,6 +72,9 @@ export const BLOCK_TILES: Record<BlockKey, [TileName, TileName, TileName]> = {
   gold_block: ["gold_block", "gold_block", "gold_block"],
   cactus: ["cactus_top", "cactus_side", "cactus_top"],
   limestone: ["limestone", "limestone", "limestone"],
+  chest: ["chest_top", "chest_side", "chest_top", "chest_front"],
+  furnace: ["furnace_top", "furnace_side", "furnace_top", "furnace_front"],
+  furnace_lit: ["furnace_top", "furnace_side", "furnace_top", "furnace_front_lit"],
 };
 
 /** UV [u0, v0, u1, v1] do tile (com meia-margem de pixel pra não vazar). */

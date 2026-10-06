@@ -2,6 +2,8 @@
 import { B } from "../blocks/blocks";
 import { CHUNK, SEA_LEVEL, WORLD_H } from "../config/config";
 import { fbm2, noise3, rand01, smoothstep } from "./noise";
+import type { LootTable } from "../structures/loot";
+import { CELL, STRUCTURE_BY_ID, structureAt } from "../structures/structures";
 
 export type BiomeId = "planicie" | "floresta" | "deserto" | "montanha" | "lago";
 export const BIOME_NAME: Record<BiomeId, string> = {
@@ -65,17 +67,27 @@ export function findSpawn(seed: number): { x: number; y: number; z: number } {
 
 const idx = (x: number, y: number, z: number) => x + z * CHUNK + y * CHUNK * CHUNK;
 
-export function generateChunk(seed: number, cx: number, cz: number): { data: Uint8Array; maxY: number } {
+export interface GenChest {
+  x: number;
+  y: number;
+  z: number;
+  table: LootTable;
+}
+
+export function generateChunk(seed: number, cx: number, cz: number): { data: Uint8Array; maxY: number; chests: GenChest[] } {
   const data = new Uint8Array(CHUNK * CHUNK * WORLD_H);
   const x0 = cx * CHUNK;
   const z0 = cz * CHUNK;
   let maxY = 0;
+  const heights = new Int16Array(CHUNK * CHUNK);
+  const chests: GenChest[] = [];
 
   for (let lz = 0; lz < CHUNK; lz++) {
     for (let lx = 0; lx < CHUNK; lx++) {
       const wx = x0 + lx;
       const wz = z0 + lz;
       const { h, biome } = columnInfo(seed, wx, wz);
+      heights[lx + lz * CHUNK] = h;
       const desert = biome === "deserto";
       const beach = h <= SEA_LEVEL + 1 && biome !== "montanha";
 
@@ -148,5 +160,46 @@ export function generateChunk(seed: number, cx: number, cz: number): { data: Uin
     }
   }
 
-  return { data, maxY: Math.min(WORLD_H - 1, maxY + 1) };
+  // estruturas bíblicas (aldeia, templo, torre, ruínas): nivela o terreno e constrói
+  for (let ccx = Math.floor((x0 - 24) / CELL); ccx <= Math.floor((x0 + CHUNK + 24) / CELL); ccx++) {
+    for (let ccz = Math.floor((z0 - 24) / CELL); ccz <= Math.floor((z0 + CHUNK + 24) / CELL); ccz++) {
+      const sp = structureAt(seed, ccx, ccz);
+      if (!sp) continue;
+      const def = STRUCTURE_BY_ID[sp.id];
+      if (sp.ox + def.rx < x0 || sp.ox - def.rx >= x0 + CHUNK || sp.oz + def.rzB < z0 || sp.oz - def.rzA >= z0 + CHUNK) continue;
+      const gy = sp.gy;
+      if (gy + 20 > maxY) maxY = Math.min(WORLD_H - 1, gy + 20);
+      const surface = columnInfo(seed, sp.ox, sp.oz).biome === "deserto" ? B.sand : B.grass;
+      for (let lz = 0; lz < CHUNK; lz++) {
+        for (let lx = 0; lx < CHUNK; lx++) {
+          const dx = x0 + lx - sp.ox;
+          const dz = z0 + lz - sp.oz;
+          if (dx < -def.rx || dx > def.rx || dz < -def.rzA || dz > def.rzB) continue;
+          const hc = heights[lx + lz * CHUNK];
+          for (let y = Math.min(hc, gy) + 1; y < gy; y++) data[idx(lx, y, lz)] = B.cobble;
+          data[idx(lx, gy, lz)] = surface;
+          for (let y = gy + 1; y <= Math.min(WORLD_H - 1, Math.max(hc, gy) + 12); y++) data[idx(lx, y, lz)] = B.air;
+        }
+      }
+      def.build({
+        set: (dx, dy, dz, id) => put(sp.ox + dx, gy + dy, sp.oz + dz, id, false),
+        fill: (a, b, c, d, e, f, id) => {
+          for (let X = Math.max(a, x0 - sp.ox); X <= Math.min(d, x0 + CHUNK - 1 - sp.ox); X++) {
+            for (let Z = Math.max(c, z0 - sp.oz); Z <= Math.min(f, z0 + CHUNK - 1 - sp.oz); Z++) {
+              for (let Y = b; Y <= e; Y++) put(sp.ox + X, gy + Y, sp.oz + Z, id, false);
+            }
+          }
+        },
+        chest: (dx, dy, dz, table) => {
+          const wx = sp.ox + dx;
+          const wz = sp.oz + dz;
+          put(wx, gy + dy, wz, B.chest, false);
+          if (wx >= x0 && wx < x0 + CHUNK && wz >= z0 && wz < z0 + CHUNK) chests.push({ x: wx, y: gy + dy, z: wz, table });
+        },
+        rnd: (i) => rand01(sp.seed, i, 0, 0),
+      });
+    }
+  }
+
+  return { data, maxY: Math.min(WORLD_H - 1, maxY + 1), chests };
 }

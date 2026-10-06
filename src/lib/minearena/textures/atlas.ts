@@ -236,6 +236,50 @@ function drawTile(name: TileName, put: Put): void {
       else for (let y = 3; y < 13; y++) for (let x = 3; x < 13; x++) if (Math.max(Math.abs(x - 7.5), Math.abs(y - 7.5)) > 3.5) put(x, y, hex(0x24703a));
       break;
     }
+    case "chest_top":
+    case "chest_side":
+    case "chest_front": {
+      for (let y = 0; y < N; y++) {
+        for (let x = 0; x < N; x++) {
+          const edge = x === 0 || y === 0 || x === 15 || y === 15;
+          let k = 1 + (rnd(x, y, s) - 0.5) * 0.14;
+          if (edge) k *= 0.55;
+          else if (name !== "chest_top" && (y === 6 || y === 7)) k *= 0.6;
+          else if ((x === 3 || x === 12) && name !== "chest_top") k *= 0.78;
+          put(x, y, mul(hex(0x9a6a36), k));
+        }
+      }
+      if (name === "chest_front") {
+        for (let y = 5; y < 10; y++) for (let x = 6; x < 10; x++) put(x, y, y === 5 || y === 9 || x === 6 || x === 9 ? hex(0x8a6a10) : hex(0xf0c93a));
+        put(7, 8, hex(0x2a1a08));
+      }
+      break;
+    }
+    case "furnace_top":
+    case "furnace_side":
+    case "furnace_front":
+    case "furnace_front_lit": {
+      for (let y = 0; y < N; y++) {
+        for (let x = 0; x < N; x++) {
+          const row = Math.floor(y / 5);
+          const joint = y % 5 === 4 || (x + (row % 2) * 4) % 8 === 7;
+          const base = name === "furnace_top" ? 0x8a8a8e : 0x77777c;
+          put(x, y, mul(hex(base), (joint ? 0.72 : 1) * (1 + (rnd(x, y, s) - 0.5) * 0.16)));
+        }
+      }
+      if (name === "furnace_front" || name === "furnace_front_lit") {
+        const lit = name === "furnace_front_lit";
+        for (let y = 7; y < 14; y++) {
+          for (let x = 3; x < 13; x++) {
+            const core = lit && y > 9 && x > 4 && x < 11;
+            put(x, y, core ? (rnd(x, y, s) < 0.5 ? hex(0xffb02e) : hex(0xff7a1a)) : lit ? hex(0x5a2a10) : hex(0x1d1a22));
+          }
+        }
+        for (let x = 3; x < 13; x++) put(x, 6, hex(0x3a3a40));
+        for (let x = 4; x < 12; x += 2) put(x, 2, hex(0x2a2a30));
+      }
+      break;
+    }
     case "limestone": {
       noiseFill(put, hex(0xe8e0cc), 0.08, s);
       for (let y = 0; y < N; y++) {

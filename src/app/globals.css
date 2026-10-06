@@ -1036,3 +1036,12 @@ input[type="datetime-local"] {
 .ma-root[data-touch="2"] .ma-dpad { transform: scale(1.45); transform-origin: bottom left; }
 .ma-root[data-touch="2"] .ma-actions { transform: scale(1.45); transform-origin: bottom right; }
 .ma-pix { image-rendering: pixelated; display: block; filter: drop-shadow(0 1px 0 rgba(0,0,0,0.5)); pointer-events: none; }
+
+/* ---- MINEARENA: baú e fornalha ---- */
+.ma-ctitle { font-size: 0.95rem; font-weight: 900; color: #ffd66b; text-shadow: 0 2px 0 #000; }
+.ma-furnace { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 6px 0; }
+.ma-fcol { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.ma-flame { font-size: 1.3rem; filter: grayscale(1) brightness(0.5); }
+.ma-flame[data-on="true"] { filter: none; animation: ma-pop 0.4s ease-out infinite alternate; }
+.ma-farrow { width: 70px; height: 14px; border: 2px solid #0f1536; background: rgba(8, 12, 36, 0.6); border-radius: 3px; overflow: hidden; }
+.ma-farrow i { display: block; height: 100%; background: linear-gradient(90deg, #ffd66b, #ff8a1f); }

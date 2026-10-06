@@ -38,11 +38,9 @@ for (const s of ARMOR_SETS) {
   const m = s.id === "leather" ? "leather" : s.id === "iron" ? "iron_ingot" : "sapphire";
   for (const p of ARMOR_PIECES) rec(`${p.key}_${s.id}`, 1, [i(m, ARMOR_COST[p.slot])], "bancada");
 }
-rec("iron_ingot", 1, [i("raw_iron"), i("coal")], "bancada");
-rec("gold_ingot", 1, [i("raw_gold"), i("coal")], "bancada");
-rec("cooked_meat", 1, [i("meat"), i("coal")], "bancada");
-rec("glass", 2, [i("sand", 2), i("coal")], "bancada");
 rec("brick", 4, [i("dirt", 2), i("sand", 2)], "bancada");
+rec("chest", 1, [i("planks", 8)], "bancada");
+rec("furnace", 1, [i("cobble", 8)], "bancada");
 rec("limestone", 4, [i("sandstone", 4)], "bancada");
 rec("gold_block", 1, [i("gold_ingot", 4)], "bancada");
 rec("bow", 1, [i("stick", 3), i("wool", 3)], "bancada");

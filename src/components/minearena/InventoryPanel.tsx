@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { MineArena } from "@/lib/minearena/game";
 import type { Stack } from "@/lib/minearena/items/inventory";
 import { RARITY_LABEL, type Rarity, itemDef } from "@/lib/minearena/items/items";
@@ -10,14 +10,21 @@ const RARITY_INK: Record<Rarity, string> = { comum: "#3a2a12", incomum: "#1c7a1c
 const ARMOR_NAMES = ["Cabeça", "Peito", "Pernas", "Pés"];
 
 /** Mochila (arrastar ou tocar-e-tocar), armadura e fabricação. */
-export function InventoryPanel({ game, startTab, rotated, onClose }: { game: MineArena; startTab: "bag" | "craft"; rotated: boolean; onClose: () => void }) {
+export function InventoryPanel({ game, startTab, rotated, onClose }: { game: MineArena; startTab: "bag" | "craft" | "chest" | "furnace"; rotated: boolean; onClose: () => void }) {
   const inv = game.inventory;
   useSyncExternalStore(
     (fn) => inv.subscribe(fn),
     () => inv.version,
     () => 0,
   );
-  const [tab, setTab] = useState(startTab);
+  const container = startTab === "chest" || startTab === "furnace" ? startTab : null;
+  const [tab, setTab] = useState<"bag" | "craft">(container ? "bag" : startTab === "craft" ? "craft" : "bag");
+  const [furnace, setFurnace] = useState<{ burn: number; burnMax: number; cook: number } | null>(null);
+  useEffect(() => {
+    if (container !== "furnace") return;
+    const t = window.setInterval(() => setFurnace(game.furnaceInfo()), 150);
+    return () => window.clearInterval(t);
+  }, [container, game]);
   const [held, setHeld] = useState<{ stack: NonNullable<Stack>; from: number } | null>(null);
   const [pointer, setPointer] = useState({ x: 0, y: 0 });
   const down = useRef<number | null>(null);
@@ -94,6 +101,9 @@ export function InventoryPanel({ game, startTab, rotated, onClose }: { game: Min
     <div className="ma-modal" onPointerMove={(e) => setPointer(rotated ? { x: e.clientY, y: window.innerWidth - e.clientX } : { x: e.clientX, y: e.clientY })}>
       <div className="ma-panel">
         <header>
+          {container ? (
+            <b className="ma-ctitle">{container === "chest" ? "🗝 Arca" : "🔥 Fornalha de barro"}</b>
+          ) : (
           <div className="ma-tabs">
             <button type="button" data-on={tab === "bag"} onClick={() => setTab("bag")}>
               🎒 Mochila
@@ -102,12 +112,38 @@ export function InventoryPanel({ game, startTab, rotated, onClose }: { game: Min
               🔨 Fabricar
             </button>
           </div>
+          )}
           <button type="button" className="ma-x" onClick={close} aria-label="Fechar">
             ✕
           </button>
         </header>
 
-        {tab === "bag" ? (
+        {container ? (
+          <>
+            {container === "chest" ? (
+              <div className="ma-grid">{Array.from({ length: 27 }, (_, k) => slot(200 + k))}</div>
+            ) : (
+              <div className="ma-furnace">
+                <div className="ma-fcol">
+                  {slot(200, "Minério")}
+                  <span className="ma-flame" data-on={!!furnace && furnace.burn > 0} aria-hidden>
+                    🔥
+                  </span>
+                  {slot(201, "Fuel")}
+                </div>
+                <div className="ma-farrow" aria-hidden>
+                  <i style={{ width: `${Math.round((furnace?.cook ?? 0) * 100)}%` }} />
+                </div>
+                <div className="ma-fcol">{slot(202, "Pronto")}</div>
+              </div>
+            )}
+            <p className="ma-sep">Sua mochila</p>
+            <div className="ma-grid">{Array.from({ length: 27 }, (_, k) => slot(9 + k))}</div>
+            <p className="ma-sep">Barra rápida</p>
+            <div className="ma-grid">{Array.from({ length: 9 }, (_, k) => slot(k))}</div>
+            <p className="ma-info">{container === "furnace" ? "Coloque o item em cima e o combustível (carvão, tronco, tábuas) embaixo. Tira o resultado à direita." : (info ?? "Toque num item e depois num espaço pra mover.")}</p>
+          </>
+        ) : tab === "bag" ? (
           <>
             <div className="ma-armor">
               {[0, 1, 2, 3].map((k) => slot(100 + k, ARMOR_NAMES[k]))}

@@ -5,6 +5,7 @@ import { BLOCK_TILES, tileIndex, tileUV } from "../blocks/tiles";
 import { createAtlas } from "../textures/atlas";
 import { CHUNK, WORLD_H } from "../config/config";
 import { rand01 } from "./noise";
+import type { LootTable } from "../structures/loot";
 import { generateChunk } from "./worldgen";
 
 export class Chunk {
@@ -36,7 +37,8 @@ const FACES = [
 const FACE_UV = BLOCKS.map((b) => {
   const t = BLOCK_TILES[b.key as BlockKey];
   const side = tileUV(tileIndex(t[1]));
-  return [side, side, tileUV(tileIndex(t[0])), tileUV(tileIndex(t[2])), side, side];
+  const front = t[3] ? tileUV(tileIndex(t[3])) : side;
+  return [side, side, tileUV(tileIndex(t[0])), tileUV(tileIndex(t[2])), front, side];
 });
 
 const AO_LEVEL = [0.52, 0.7, 0.85, 1];
@@ -57,6 +59,8 @@ export class World {
   chunks = new Map<number, Chunk>();
   /** Blocos alterados pelo jogador: chave do chunk → (índice → id). Vai pro save. */
   mods = new Map<number, Map<number, number>>();
+  /** Baús de estrutura ainda não abertos: "x,y,z" → tabela de saque. */
+  lootChests = new Map<string, LootTable>();
   readonly group = new THREE.Group();
   readonly matO: THREE.MeshBasicMaterial;
   readonly matT: THREE.MeshBasicMaterial;
@@ -141,6 +145,7 @@ export class World {
 
   private gen(cx: number, cz: number): void {
     const g = generateChunk(this.seed, cx, cz);
+    for (const c of g.chests) this.lootChests.set(`${c.x},${c.y},${c.z}`, c.table);
     const ch = new Chunk(cx, cz);
     ch.data = g.data;
     ch.maxY = g.maxY;

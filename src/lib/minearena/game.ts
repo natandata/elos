@@ -9,7 +9,10 @@ import { HOTBAR, Inventory, type Stack } from "./items/inventory";
 import { RARITY_COLOR, itemDef } from "./items/items";
 import { Particles } from "./particles/particles";
 import { type Body, inLava, newBody, stepBody } from "./player/physics";
-import { type WorldSave, putWorld } from "./save/save";
+import { type SavedContainer, type WorldSave, putWorld } from "./save/save";
+import { FUEL, SMELT, SMELT_TIME } from "./crafting/smelting";
+import { rollLoot } from "./structures/loot";
+import { STRUCTURE_BY_ID, structuresNear } from "./structures/structures";
 import { type Settings, DEFAULT_SETTINGS } from "./config/settings";
 import { BLOCK_TILES, type TileName } from "./blocks/tiles";
 import { cachedTile, createCracks } from "./textures/atlas";
@@ -56,6 +59,7 @@ export interface GameCallbacks {
   onMessage(text: string, tone: "info" | "good" | "warn" | "rare"): void;
   onDialog(d: DialogInfo | null): void;
   onOpenCrafting(): void;
+  onOpenContainer(kind: "chest" | "furnace"): void;
   onPauseRequest(): void;
 }
 
@@ -139,6 +143,10 @@ export class MineArena {
   private cracks: THREE.CanvasTexture[];
   private dialogEnt: Entity | null = null;
   private cleanup: (() => void)[] = [];
+  private containers = new Map<string, SavedContainer>();
+  private openKey: string | null = null;
+  private spawned = new Set<string>();
+  private furnaceT = 0;
   private id: string;
   private name: string;
   private createdAt: number;
@@ -179,6 +187,8 @@ export class MineArena {
     this.kills = save.kills ?? 0;
     save.discoveries?.forEach((d) => this.discoveries.add(d));
     save.heroesMet?.forEach((d) => this.heroesMet.add(d));
+    for (const [k, c] of Object.entries(save.containers ?? {})) this.containers.set(k, c);
+    save.spawned?.forEach((d) => this.spawned.add(d));
     this.inventory.load(save.inventory);
     if (this.playedSeconds < 5 && this.inventory.slots.every((s) => !s)) {
       this.inventory.add("bread", 4);
@@ -285,6 +295,8 @@ export class MineArena {
       discoveries: [...this.discoveries],
       heroesMet: [...this.heroesMet],
       kills: this.kills,
+      containers: Object.fromEntries(this.containers),
+      spawned: [...this.spawned],
     };
   }
   async saveNow(): Promise<void> {
@@ -498,6 +510,7 @@ export class MineArena {
 
     this.entities.update(dt, { px: b.x, py: b.y, pz: b.z, alive: this.alive, daylight: this.sky.daylight, mobile: this.mobile });
     this.particles.update(dt);
+    this.tickFurnaces(dt);
     this.exploration(dt);
     this.tutorialTick();
     this.animateHand();
@@ -691,6 +704,7 @@ export class MineArena {
   private breakBlock(x: number, y: number, z: number, harvest: boolean): void {
     const id = this.world.getBlock(x, y, z);
     const def = blockDef(id);
+    if (id === B.chest || id === B.furnace || id === B.furnace_lit) this.spillContainer(x, y, z, id);
     this.world.setBlock(x, y, z, B.air);
     this.sfx.play("break");
     this.particles.burst(x + 0.5, y + 0.5, z + 0.5, def.top, 12, 4, 0.14);
@@ -708,6 +722,11 @@ export class MineArena {
     // 1) conversar com herói
     if (edge && ePick && ePick.e.def.behavior === "hero" && ePick.dist <= 4) {
       this.openDialog(ePick.e);
+      return;
+    }
+    // 1b) baú e fornalha
+    if (edge && hit && (hit.id === B.chest || hit.id === B.furnace || hit.id === B.furnace_lit)) {
+      this.openContainer(hit.x, hit.y, hit.z, hit.id);
       return;
     }
     // 2) bancada
@@ -756,6 +775,97 @@ export class MineArena {
       this.inventory.consumeHeld(1);
       this.sfx.play("place");
       this.swing = 0.8;
+    }
+  }
+
+  // ---------- baús e fornalhas ----------
+  private containerAt(x: number, y: number, z: number, id: number): SavedContainer {
+    const key = `${x},${y},${z}`;
+    let c = this.containers.get(key);
+    if (!c) {
+      if (id === B.chest) {
+        const table = this.world.lootChests.get(key);
+        c = { kind: "chest", slots: table ? rollLoot(table, this.world.seed, x, y, z) : Array.from({ length: 27 }, () => null), burn: 0, burnMax: 0, cook: 0 };
+      } else c = { kind: "furnace", slots: [null, null, null], burn: 0, burnMax: 0, cook: 0 };
+      this.containers.set(key, c);
+    }
+    return c;
+  }
+
+  private openContainer(x: number, y: number, z: number, id: number): void {
+    const c = this.containerAt(x, y, z, id);
+    this.openKey = `${x},${y},${z}`;
+    this.inventory.ext = {
+      slots: c.slots,
+      accepts: (i, s) => {
+        if (!s || c.kind === "chest") return true;
+        if (i === 2) return false;
+        if (i === 1) return FUEL[s.item] !== undefined;
+        return SMELT[s.item] !== undefined;
+      },
+    };
+    this.sfx.play("ui");
+    this.setUiOpen(true);
+    this.cb.onOpenContainer(c.kind);
+  }
+
+  closeContainer(): void {
+    this.inventory.ext = null;
+    this.openKey = null;
+    this.inventory.changed();
+  }
+
+  /** Progresso da fornalha aberta (pra interface). */
+  furnaceInfo(): { burn: number; burnMax: number; cook: number } | null {
+    const c = this.openKey ? this.containers.get(this.openKey) : null;
+    return c && c.kind === "furnace" ? { burn: c.burn, burnMax: c.burnMax, cook: c.cook / SMELT_TIME } : null;
+  }
+
+  private spillContainer(x: number, y: number, z: number, id: number): void {
+    const key = `${x},${y},${z}`;
+    const c = this.containerAt(x, y, z, id);
+    for (const s of c.slots) if (s) this.give(s.item, s.count);
+    if (id === B.chest) this.give("chest", 1);
+    this.containers.delete(key);
+    this.world.lootChests.delete(key);
+  }
+
+  private tickFurnaces(dt: number): void {
+    this.furnaceT -= dt;
+    const sync = this.furnaceT <= 0;
+    if (sync) this.furnaceT = 0.5;
+    for (const [key, c] of this.containers) {
+      if (c.kind !== "furnace") continue;
+      const inp = c.slots[0];
+      const res = inp ? SMELT[inp.item] : undefined;
+      const out = c.slots[2];
+      const maxOut = res ? (itemDef(res)?.maxStack ?? 64) : 64;
+      const canOut = !!res && (!out || (out.item === res && out.count < maxOut));
+      if (c.burn > 0) c.burn = Math.max(0, c.burn - dt);
+      const fuel = c.slots[1];
+      if (c.burn <= 0 && canOut && fuel && FUEL[fuel.item] !== undefined) {
+        c.burn = c.burnMax = FUEL[fuel.item];
+        fuel.count -= 1;
+        if (fuel.count <= 0) c.slots[1] = null;
+      }
+      if (c.burn > 0 && canOut && inp && res) {
+        c.cook += dt;
+        if (c.cook >= SMELT_TIME) {
+          c.cook = 0;
+          inp.count -= 1;
+          if (inp.count <= 0) c.slots[0] = null;
+          if (out) out.count += 1;
+          else c.slots[2] = { item: res, count: 1 };
+        }
+      } else if (c.cook > 0) c.cook = Math.max(0, c.cook - dt * 2);
+      if (sync) {
+        const [x, y, z] = key.split(",").map(Number);
+        if (this.world.hasChunkAt(x, z)) {
+          const cur = this.world.getBlock(x, y, z);
+          const want = c.burn > 0 ? B.furnace_lit : B.furnace;
+          if ((cur === B.furnace || cur === B.furnace_lit) && cur !== want) this.world.setBlock(x, y, z, want);
+        }
+      }
     }
   }
 
@@ -830,6 +940,21 @@ export class MineArena {
         this.discoveries.add(biome);
         this.cb.onMessage(`✦ Descoberta: ${name}`, "rare");
       } else this.cb.onMessage(name, "info");
+    }
+    for (const sp of structuresNear(this.world.seed, this.body.x, this.body.z, 70)) {
+      const def = STRUCTURE_BY_ID[sp.id];
+      const d = Math.hypot(sp.ox - this.body.x, sp.oz - this.body.z);
+      if (d < 38 && !this.discoveries.has("s:" + sp.key)) {
+        this.discoveries.add("s:" + sp.key);
+        this.cb.onMessage(`✦ Descoberta: ${def.name}`, "rare");
+      }
+      if (d < 46 && !this.spawned.has(sp.key) && this.world.hasChunkAt(sp.ox, sp.oz)) {
+        this.spawned.add(sp.key);
+        for (const r of def.residents) {
+          const md = MOB_BY_ID.get(r.mob);
+          if (md) this.entities.spawn(md, sp.ox + r.dx + 0.5, sp.gy + 1.05, sp.oz + r.dz + 0.5);
+        }
+      }
     }
     for (const e of this.entities.list) {
       if (e.def.behavior === "hero" && !this.heroesMet.has(e.def.id) && Math.hypot(e.body.x - this.body.x, e.body.z - this.body.z) < 14) {

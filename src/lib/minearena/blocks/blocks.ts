@@ -56,6 +56,9 @@ const KEYS = [
   "gold_block",
   "cactus",
   "limestone",
+  "chest",
+  "furnace",
+  "furnace_lit",
 ] as const;
 export type BlockKey = (typeof KEYS)[number];
 
@@ -105,6 +108,9 @@ const SPECS: Record<BlockKey, Spec> = {
   gold_block: blk("Bloco de ouro de Ofir", 0xf0c93a, 6, "pick", 3, [drop("gold_block")], "stone"),
   cactus: blk("Cacto", 0x2f8f43, 0.6, "hand", 0, [drop("cactus")], "leaf"),
   limestone: blk("Calcário do templo", 0xe8e0cc, 3, "pick", 1, [drop("limestone")], "stone"),
+  chest: blk("Arca", 0x8a5d33, 2.5, "axe", 0, [], "wood"),
+  furnace: blk("Fornalha de barro", 0x6a6a6e, 3.5, "pick", 1, [drop("furnace")], "stone"),
+  furnace_lit: blk("Fornalha acesa", 0x6a6a6e, 3.5, "pick", 1, [drop("furnace")], "stone", { glow: true, placeable: false }),
 };
 
 export const BLOCKS: BlockDef[] = KEYS.map((key, id) => ({ id, key, ...SPECS[key] }));

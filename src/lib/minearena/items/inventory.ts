@@ -10,6 +10,8 @@ export class Inventory {
   armor: Stack[] = [null, null, null, null];
   selected = 0;
   version = 0;
+  /** Espaços do baú/fornalha aberto (ids 200+). */
+  ext: { slots: Stack[]; accepts: (i: number, s: Stack) => boolean } | null = null;
   private listeners = new Set<() => void>();
 
   subscribe(fn: () => void): () => void {
@@ -86,14 +88,18 @@ export class Inventory {
 
   /** Slots: 0–35 mochila/barra, 100–103 armadura. */
   getSlot(i: number): Stack {
+    if (i >= 200) return this.ext?.slots[i - 200] ?? null;
     return i >= 100 ? this.armor[i - 100] : this.slots[i];
   }
   setSlot(i: number, s: Stack): void {
-    if (i >= 100) this.armor[i - 100] = s;
+    if (i >= 200) {
+      if (this.ext) this.ext.slots[i - 200] = s;
+    } else if (i >= 100) this.armor[i - 100] = s;
     else this.slots[i] = s;
   }
   /** O item pode ficar neste slot? (armaduras só no slot certo) */
   accepts(i: number, s: Stack): boolean {
+    if (i >= 200) return this.ext ? this.ext.accepts(i - 200, s) : false;
     if (i < 100 || !s) return true;
     return itemDef(s.item)?.armor?.slot === i - 100;
   }
