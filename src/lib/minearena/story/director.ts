@@ -12,6 +12,7 @@ import { STORY_MOBS } from "./data/mobs";
 import { MISSION_BY_ID, MISSIONS_OF } from "./data/missions";
 import { ARK, ARK_INSIDE, arkBlocks, arkDoorCells, noahColumn } from "./maps/noah";
 import { EDEN_SITES } from "./maps/eden";
+import { STRUCTS } from "./maps/structs";
 import { loadProgress, saveProgress } from "./progress";
 import type { ChapterDef, CutStep, Cutscene, MapEnv, Mission, Objective, StoryHud, StoryMapDef, StoryProgress, StorySession, StoryUi, Vec3, Zone } from "./types";
 
@@ -22,7 +23,7 @@ export interface StoryHost {
   invCount(item: string): number;
   invRemove(item: string, n: number): void;
   invGive(item: string, n: number): void;
-  spawnMob(def: MobDef, x: number, z: number): Entity;
+  spawnMob(def: MobDef, x: number, z: number, y?: number): Entity;
   entities(): Entity[];
   removeEntity(e: Entity): void;
   camGet(): { pos: Vec3; look: Vec3 };
@@ -121,7 +122,7 @@ export class StoryDirector {
     this.host.music(this.session.env.fallen ? "fall" : this.map.bgm);
     if (this.session.env.fallen) this.host.setWeather("clear");
     if (!fresh) {
-      for (const n of this.session.npcs) this.spawnNpc(n.id, n.mob, n.x, n.z, n.tag, false);
+      for (const n of this.session.npcs) this.spawnNpc(n.id, n.mob, n.x, n.z, n.tag, false, n.y);
       if (this.session.flags.arkBuilt) {
         this.arkPlaced = arkBlocks().filter(([x, y, z]) => !arkDoorCells().some((c) => c[0] === x && c[1] === y && c[2] === z));
         this.arkLift = this.session.counters.arkLift ?? 0;
@@ -191,7 +192,7 @@ export class StoryDirector {
       this.retryT = 0;
       const list = this.deferred;
       this.deferred = [];
-      for (const d of list) this.spawnNpc(d.id, d.mob, d.x, d.z, d.tag, false);
+      for (const d of list) this.spawnNpc(d.id, d.mob, d.x, d.z, d.tag, false, d.y);
     }
     this.stepTweens(dt);
     this.stepRunner(dt);
@@ -231,7 +232,7 @@ export class StoryDirector {
       this.session.missionId = m.id;
       this.session.objIndex = 0;
       this.session.progress = 0;
-      for (const s of m.spawn ?? []) this.spawnNpc(s.id ?? this.uid(s.mob), s.mob, s.at.x, s.at.z, s.tag, true);
+      for (const s of m.spawn ?? []) this.spawnNpc(s.id ?? this.uid(s.mob), s.mob, s.at.x, s.at.z, s.tag, true, s.y);
       for (const g of m.give ?? []) this.host.invGive(g.item, g.count);
       this.setCheckpoint();
       this.host.message(`Missão: ${m.title}`, "info");
@@ -497,6 +498,17 @@ export class StoryDirector {
       abel: "As ovelhas conhecem a minha voz.",
       caim: "A terra pede suor, mas dá fruto.",
       noe: "Tudo como o Senhor mandou.",
+      construtor: "Mais tijolos! A torre não vai se levantar sozinha.",
+      abraao: "O Senhor prometeu, e eu creio.",
+      sara: "Nada é difícil demais para o Senhor.",
+      lo: "Seguimos o tio Abrão para onde Deus mandar.",
+      isaque: "Meu pai Abraão me ensinou a confiar em Deus.",
+      jaco: "O Senhor tem sido fiel comigo.",
+      esau: "Um bom caçador nunca volta de mãos vazias.",
+      raquel: "As ovelhas de meu pai estão bem cuidadas.",
+      jose: "O Senhor está comigo, onde quer que eu esteja.",
+      potifar: "Esse jovem hebreu faz prosperar tudo o que toca.",
+      fara: "Há quem interprete sonhos neste reino?",
       sem: "Meu pai confia em Deus. Eu também.",
     };
     return lines[id] ?? null;
@@ -536,7 +548,7 @@ export class StoryDirector {
     const o = this.obj;
     if (o?.k !== "place") return;
     const key = BLOCKS[id]?.key ?? "";
-    if (!/planks|log/.test(key)) return;
+    if (!new RegExp(o.match ?? "planks|log").test(key)) return;
     const zone = this.map.zones[o.zone];
     if (zone && inZone(zone, x, z)) {
       this.session.progress++;
@@ -554,10 +566,10 @@ export class StoryDirector {
     return `${mob}_${Math.random().toString(36).slice(2, 8)}`;
   }
 
-  private deferred: { id: string; mob: string; x: number; z: number; tag?: string }[] = [];
+  private deferred: { id: string; mob: string; x: number; z: number; tag?: string; y?: number }[] = [];
   private retryT = 0;
 
-  private spawnNpc(id: string, mob: string, x: number, z: number, tag: string | undefined, record: boolean): Entity | null {
+  private spawnNpc(id: string, mob: string, x: number, z: number, tag: string | undefined, record: boolean, y?: number): Entity | null {
     const def = STORY_MOBS[mob];
     if (!def) return null;
     const dup = this.npcs.get(id);
@@ -567,15 +579,15 @@ export class StoryDirector {
     }
     if (record) {
       this.session.npcs = this.session.npcs.filter((n) => n.id !== id);
-      this.session.npcs.push({ id, mob, x, z, tag });
+      this.session.npcs.push({ id, mob, x, z, tag, y });
     }
     if (this.host.world.surfaceY(Math.floor(x), Math.floor(z)) < 0) {
       // o chão ainda não carregou: tenta de novo em instantes
-      this.deferred.push({ id, mob, x, z, tag });
+      this.deferred.push({ id, mob, x, z, tag, y });
       return null;
     }
-    const e = this.host.spawnMob(def, x, z);
-    e.story = { id, tag, goto: null, face: tag?.startsWith("pair") || tag === "animal" || tag === "sheep" ? null : "player", pose: null };
+    const e = this.host.spawnMob(def, x, z, y);
+    e.story = { id, tag, goto: null, face: tag?.startsWith("pair") || tag === "animal" || tag === "sheep" || tag === "rebanho" ? null : "player", pose: null };
     this.npcs.set(id, e);
     const ai = this.map.zones.arkInside;
     if (ai && tag?.startsWith("pair:") && inZone(ai, x, z)) e.story.hold = true;
@@ -797,7 +809,7 @@ export class StoryDirector {
         if (!skip) r.wait = { kind: "time", left: s.dur };
         break;
       case "npcEnter": {
-        const mob = this.npcMobOf(s.npc);
+        const mob = s.mob ?? this.npcMobOf(s.npc);
         this.spawnNpc(s.npc, mob, s.at.x, s.at.z, undefined, true);
         break;
       }
@@ -855,7 +867,11 @@ export class StoryDirector {
         if (s.rainbow !== undefined) this.host.rainbow(s.rainbow);
         break;
       case "teleport": {
-        if (s.target === "player") this.host.setPlayer(s.to.x, s.to.y, s.to.z, s.yaw);
+        if (s.target === "player") {
+          // y negativo = pousar no chão (se o chão ainda não carregou, de uma altura segura)
+          const gy = s.to.y < 0 ? this.host.world.surfaceY(Math.floor(s.to.x), Math.floor(s.to.z)) : -1;
+          this.host.setPlayer(s.to.x, s.to.y < 0 ? (gy >= 0 ? gy + 1.05 : 40) : s.to.y, s.to.z, s.yaw);
+        }
         else {
           const e = this.npcs.get(s.target);
           if (e) {
@@ -949,6 +965,8 @@ export class StoryDirector {
 
   // ------------------------------------------------------------------ chamadas especiais
   private longBusy = 0;
+  private structQueue: [number, number, number, number][] = [];
+  private structWait = false;
 
   /** Pular a cena: termina na hora o que estava acontecendo aos poucos (arca, portão, dilúvio). */
   private flushLong(): void {
@@ -960,6 +978,9 @@ export class StoryDirector {
     this.arkBuildQueue = [];
     for (const [x, y, z, id] of this.sealQueue) this.host.world.setBlock(x, y, z, id, true);
     this.sealQueue = [];
+    for (const [x, y, z, id] of this.structQueue) this.host.world.setBlock(x, y, z, id, true);
+    this.structQueue = [];
+    this.structWait = false;
     if (this.floodLevel !== this.floodTarget || this.arkLift !== this.arkLiftTarget) {
       const to = this.floodTarget;
       if (to > this.floodLevel) {
@@ -1056,6 +1077,18 @@ export class StoryDirector {
         this.host.setPlayer(73.5, (gy >= 0 ? gy + 1 : ARK.y0 + 1) + 0.05, 49.6, 0);
         break;
       }
+      case "build": {
+        const list = STRUCTS[String(arg)]?.() ?? [];
+        if (skip) for (const [x, y, z, id] of list) this.host.world.setBlock(x, y, z, id, true);
+        else {
+          this.structQueue = list;
+          if (wait) {
+            this.longBusy++;
+            this.structWait = true;
+          }
+        }
+        break;
+      }
       case "storm":
         this.storm = arg === "on";
         this.stormT = 0.5;
@@ -1077,6 +1110,12 @@ export class StoryDirector {
         }
         break;
       }
+      case "holdAngels":
+        for (const id of ["anjo_a", "anjo_b", "anjo_c"]) {
+          const e = this.npcs.get(id);
+          if (e?.story) e.story.hold = true;
+        }
+        break;
       case "angelStay": {
         const e = this.npcs.get("anjo");
         if (e?.story) e.story.hold = true;
@@ -1268,6 +1307,18 @@ export class StoryDirector {
         this.longBusy = Math.max(0, this.longBusy - 1);
       }
     }
+    // construções de cena (torre de Babel, escada de Jacó...)
+    if (this.structQueue.length > 0) {
+      const n = Math.max(8, Math.ceil(this.structQueue.length / 150));
+      for (let i = 0; i < n && this.structQueue.length > 0; i++) {
+        const b = this.structQueue.shift()!;
+        this.host.world.setBlock(b[0], b[1], b[2], b[3], true);
+      }
+      if (this.structQueue.length === 0 && this.structWait) {
+        this.structWait = false;
+        this.longBusy = Math.max(0, this.longBusy - 1);
+      }
+    }
     // portão que se fecha
     if (this.sealQueue.length > 0) {
       const n = Math.max(3, Math.ceil(this.sealQueue.length / 40));
@@ -1414,7 +1465,7 @@ export class StoryDirector {
     // posições atuais dos personagens
     this.session.npcs = this.session.npcs.map((n) => {
       const e = this.npcs.get(n.id);
-      return e ? { ...n, x: fmt(e.body.x * 10) / 10, z: fmt(e.body.z * 10) / 10 } : n;
+      return e ? { ...n, x: fmt(e.body.x * 10) / 10, z: fmt(e.body.z * 10) / 10, y: n.y === undefined ? undefined : fmt(e.body.y * 10) / 10 } : n;
     });
     this.session.env.flood = this.floodLevel;
     this.session.counters = { ...this.session.counters, arkLift: this.arkLift, doorClosed: this.doorClosed ? 1 : 0 };

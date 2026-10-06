@@ -43,7 +43,7 @@ export type CutStep =
   | { t: "say"; who: string; text: string; ref?: string }
   | { t: "caption"; text: string; dur: number; sub?: string }
   | { t: "wait"; dur: number }
-  | { t: "npcEnter"; npc: string; at: Vec2; face?: string }
+  | { t: "npcEnter"; npc: string; at: Vec2; mob?: string; face?: string }
   | { t: "npcGo"; npc: string; to: Vec2; speed?: number; wait?: boolean; via?: Vec2[] }
   | { t: "npcExit"; npc: string }
   | { t: "npcFace"; npc: string; target: string | Vec2 }
@@ -69,7 +69,7 @@ export type Objective =
   | { k: "talk"; npc: string; dialogue: string; text: string }
   | { k: "collect"; item: string; count: number; text: string; consume?: boolean; at?: string }
   | { k: "harvest"; block: string[]; count: number; text: string; at?: string }
-  | { k: "place"; zone: string; count: number; text: string }
+  | { k: "place"; zone: string; count: number; text: string; /** tipos de bloco que contam (regex sobre o nome); padrão: tábuas e troncos */ match?: string }
   | { k: "near"; tag: string; count: number; dist: number; text: string }
   | { k: "lead"; tag: string; count: number; to: string; near: number; text: string }
   | { k: "wait"; seconds: number; text: string }
@@ -94,7 +94,7 @@ export type Mission = {
   onStart?: string;
   onComplete?: string;
   /** NPCs a criar quando a missão começa: [mob, x, z, tag?] */
-  spawn?: { mob: string; at: Vec2; tag?: string; id?: string }[];
+  spawn?: { mob: string; at: Vec2; tag?: string; id?: string; /** altura fixa (dentro de construções) */ y?: number }[];
   reward?: { item: string; count: number }[];
   /** itens entregues quando a missão começa */
   give?: { item: string; count: number }[];
@@ -152,7 +152,7 @@ export type StorySession = {
   env: MapEnv;
   checkpoint: Checkpoint | null;
   /** personagens e animais da cena (para recriar ao carregar o jogo) */
-  npcs: { id: string; mob: string; x: number; z: number; tag?: string }[];
+  npcs: { id: string; mob: string; x: number; z: number; tag?: string; y?: number }[];
   /** anotações livres de cada capítulo (blocos colocados, etc.) */
   counters: Record<string, number>;
   history: { who: string; text: string }[];

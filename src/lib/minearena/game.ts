@@ -3148,9 +3148,9 @@ export class MineArena {
         const def = itemDef(item);
         if (def) this.cb.onMessage(`+${n} ${def.name}`, "good");
       },
-      spawnMob: (def, x, z) => {
+      spawnMob: (def, x, z, y) => {
         const sy = this.world.surfaceY(Math.floor(x), Math.floor(z));
-        return this.entities.spawn(def, x, (sy >= 0 ? sy : 30) + 1.05, z);
+        return this.entities.spawn(def, x, y ?? (sy >= 0 ? sy : 30) + 1.05, z);
       },
       entities: () => this.entities.list,
       removeEntity: (e) => this.entities.remove(e),

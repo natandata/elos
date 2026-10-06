@@ -50,6 +50,32 @@ export const STORY_MOBS: Record<string, MobDef> = {
   // Noé
   noe: hum("noe", "Noé", "Homem justo", { skin: 0xc58a58, hair: 0xd8d4cc, hairStyle: "long", beard: 0xd8d4cc, shirt: 0x9a7a4a, pants: 0x9a7a4a, robe: true, belt: 0x5a3a1a, staff: true, scale: 1.05 }),
   sem: hum("sem", "Sem", "Filho de Noé", { skin: 0xc58a58, hair: 0x2a1a10, hairStyle: "short", shirt: 0xb89a62, pants: 0x7a5a38, belt: 0x4a3018 }),
+  // Babel
+  construtor: hum("construtor", "Mestre de obras", "Construtor de Sinar", { skin: 0xb98050, hair: 0x2a1a10, shirt: 0xc9a56a, pants: 0x8a6a42, belt: 0x4a3018, bulk: 1.1 }),
+  // Abraão
+  abrao: hum("abrao", "Abrão", "Pai de muitos", { skin: 0xc58a58, hair: 0xb8b0a0, hairStyle: "short", beard: 0xb8b0a0, shirt: 0xe8e0c8, pants: 0xe8e0c8, robe: true, belt: 0x8a5a2a, staff: true, scale: 1.04 }),
+  abraao: hum("abraao", "Abraão", "Pai de muitos", { skin: 0xc58a58, hair: 0xd8d4cc, hairStyle: "short", beard: 0xd8d4cc, shirt: 0xf3ecd2, pants: 0xf3ecd2, robe: true, belt: 0xe0c050, staff: true, scale: 1.05 }),
+  sarai: hum("sarai", "Sarai", "Esposa de Abrão", { skin: 0xd9a574, hair: 0x9a8a7a, hairStyle: "long", shirt: 0xb86a8a, pants: 0xb86a8a, robe: true, belt: 0xe0c050 }),
+  sara: hum("sara", "Sara", "Mãe de Isaque", { skin: 0xd9a574, hair: 0xc8c0b8, hairStyle: "long", shirt: 0xc87a9a, pants: 0xc87a9a, robe: true, belt: 0xe0c050 }),
+  lo: hum("lo", "Ló", "Sobrinho de Abraão", { skin: 0xc58a58, hair: 0x3a2a1a, shirt: 0x7a8aa8, pants: 0x6a5a4a, belt: 0x4a3018 }),
+  visitante_a: hum("visitante_a", "Visitante", "Um dos três", { skin: 0xd0a070, hair: 0x4a3a2a, shirt: 0xf4f0e4, pants: 0xf4f0e4, robe: true, belt: 0xe0c050 }),
+  visitante_b: hum("visitante_b", "Visitante", "Um dos três", { skin: 0xd0a070, hair: 0x4a3a2a, shirt: 0xf4f0e4, pants: 0xf4f0e4, robe: true, belt: 0xe0c050 }),
+  visitante_c: hum("visitante_c", "Visitante", "Um dos três", { skin: 0xd0a070, hair: 0x4a3a2a, shirt: 0xf4f0e4, pants: 0xf4f0e4, robe: true, belt: 0xe0c050 }),
+  isaque_bebe: hum("isaque_bebe", "Isaque", "O filho da promessa", { skin: 0xd9a574, hair: 0x3a2a1a, shirt: 0xf6efd8, pants: 0xf6efd8, scale: 0.45 }),
+  // Isaque e Jacó
+  isaque: hum("isaque", "Isaque", "O filho da promessa", { skin: 0xc58a58, hair: 0xb0a898, beard: 0xb0a898, shirt: 0xe8e0c8, pants: 0xcfc4a4, robe: true, belt: 0xc89a3a, staff: true }),
+  esau: hum("esau", "Esaú", "O caçador", { skin: 0xbf8450, hair: 0xa8421e, hairStyle: "long", beard: 0xa8421e, shirt: 0x7a4a2a, pants: 0x5a3a22, belt: 0x3a2412, fur: 0x7a4a2a, bulk: 1.18, scale: 1.04 }),
+  jaco: hum("jaco", "Jacó", "O que agarra o calcanhar", { skin: 0xd09a6a, hair: 0x4a2c14, shirt: 0xe0d0a8, pants: 0xc4b48a, belt: 0x8a5a2a, staff: true }),
+  raquel: hum("raquel", "Raquel", "Pastora de Harã", { skin: 0xd9a574, hair: 0x2a1a10, hairStyle: "long", shirt: 0x6a9ab8, pants: 0x6a9ab8, robe: true, belt: 0xe0c050 }),
+  // José
+  jose: hum("jose", "José", "O filho amado", { skin: 0xc98f5e, hair: 0x3a2412, hairStyle: "long", shirt: 0xd0502a, pants: 0xc0a040, robe: true, belt: 0xe0c050 }),
+  jose_egito: hum("jose_egito", "José", "Governador do Egito", { skin: 0xc98f5e, hair: 0x1a1008, shirt: 0xf8f4e8, pants: 0xf8f4e8, robe: true, belt: 0xe0c050, scale: 1.04 }),
+  irmao_a: hum("irmao_a", "Irmão de José", "Filho de Jacó", { skin: 0xbf8450, hair: 0x2a1a10, beard: 0x2a1a10, shirt: 0x8a7a5a, pants: 0x6a5a3a, belt: 0x3a2412 }),
+  irmao_b: hum("irmao_b", "Irmão de José", "Filho de Jacó", { skin: 0xc58a58, hair: 0x4a2a14, beard: 0x4a2a14, shirt: 0x9a8a62, pants: 0x6a5a3a, belt: 0x3a2412, bulk: 1.1 }),
+  irmao_c: hum("irmao_c", "Irmão de José", "Filho de Jacó", { skin: 0xb87a48, hair: 0x1a1008, beard: 0x1a1008, shirt: 0x7a6a4a, pants: 0x5a4a32, belt: 0x3a2412 }),
+  potifar: hum("potifar", "Potifar", "Oficial do Faraó", { skin: 0xb98050, hair: 0x1a1008, shirt: 0x2a4a8a, pants: 0xf0ecd8, robe: true, belt: 0xe0c050, bulk: 1.08 }),
+  copeiro: hum("copeiro", "O copeiro", "Servo do Faraó", { skin: 0xb98050, hair: 0x1a1008, shirt: 0xe8e0c8, pants: 0xe8e0c8, belt: 0x8a5a2a }),
+  fara: hum("fara", "Faraó", "Rei do Egito", { skin: 0xb98050, hair: 0x1a1008, shirt: 0xe0c050, pants: 0xf8f4e8, robe: true, belt: 0x2a4a8a, scale: 1.1 }),
   // animais pacíficos
   ovelha: calm("ovelha", "ovelha_story"),
   boi: calm("boi", "boi_story"),

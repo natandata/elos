@@ -9,6 +9,11 @@ const TRACKS: Record<string, Track> = {
   noah: { scale: [261.63, 293.66, 329.63, 392, 440, 523.25], tempo: [1.0, 1.7], gain: 0.045, type: "sine", dur: 2.4 },
   fall: { scale: [220, 246.94, 261.63, 329.63, 349.23, 440], tempo: [1.6, 2.6], gain: 0.04, type: "triangle", drone: 110, dur: 3 },
   flood: { scale: [146.83, 174.61, 196, 220, 261.63], tempo: [0.7, 1.3], gain: 0.05, type: "sawtooth", drone: 73.4, dur: 2.6 },
+  babel: { scale: [293.66, 349.23, 392, 440, 523.25], tempo: [1.0, 1.6], gain: 0.045, type: "triangle", dur: 2.2 },
+  abraao: { scale: [329.63, 392, 440, 493.88, 587.33, 659.25], tempo: [1.1, 1.9], gain: 0.045, type: "sine", dur: 2.6 },
+  abraao_noite: { scale: [220, 261.63, 329.63, 392, 523.25], tempo: [1.6, 2.6], gain: 0.04, type: "sine", drone: 110, dur: 3.2 },
+  jaco: { scale: [261.63, 311.13, 349.23, 392, 466.16], tempo: [1.0, 1.7], gain: 0.045, type: "triangle", dur: 2.3 },
+  jose: { scale: [293.66, 329.63, 369.99, 440, 493.88, 587.33], tempo: [0.9, 1.5], gain: 0.045, type: "sine", dur: 2.3 },
   learn: { scale: [523.25, 659.25, 783.99, 1046.5], tempo: [0.8, 1.2], gain: 0.04, type: "sine", dur: 2.2 },
 };
 
