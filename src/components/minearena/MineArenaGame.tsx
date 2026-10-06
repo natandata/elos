@@ -8,6 +8,7 @@ import { findSpawn } from "@/lib/minearena/world/worldgen";
 import { Hud, type Msg } from "./Hud";
 import { InventoryPanel } from "./InventoryPanel";
 import { MainMenu } from "./MainMenu";
+import { setTheme } from "@/lib/minearena/audio/theme";
 import { OptionsMenu } from "./OptionsMenu";
 import { type Settings, loadSettings, saveSettings } from "@/lib/minearena/config/settings";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -255,6 +256,19 @@ export function MineArenaGame({ me }: { me?: Peer }) {
   const [joining, setJoining] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // música no menu (dentro do mundo quem toca é o jogo, com a mesma faixa)
+  useEffect(() => {
+    if (active) return;
+    const tick = () => setTheme(settings.music, settings.volume / 100);
+    tick();
+    const id = window.setInterval(tick, 1600);
+    window.addEventListener("pointerdown", tick);
+    return () => {
+      window.clearInterval(id);
+      window.removeEventListener("pointerdown", tick);
+    };
+  }, [active, settings.music, settings.volume]);
+  useEffect(() => () => setTheme(false, 0), []);
   const changeSettings = (s: Settings) => {
     setSettings(s);
     saveSettings(s);
