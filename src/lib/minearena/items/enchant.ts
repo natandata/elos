@@ -49,6 +49,9 @@ export function enchantCost(s: Stack, k: EnchantKey): Ingredient[] {
   ];
 }
 
+/** Níveis de experiência gastos na bênção (1, 3 e 5). */
+export const enchantLevelCost = (s: NonNullable<Stack>, k: EnchantKey): number => (enchantLevel(s, k) + 1) * 2 - 1;
+
 export const maxDurability = (item: string): number => itemDef(item)?.durability ?? 0;
 export const wearOf = (s: NonNullable<Stack>): number => s.wear ?? 0;
 export const durabilityLeft = (s: NonNullable<Stack>): number => Math.max(0, maxDurability(s.item) - wearOf(s));

@@ -34,7 +34,7 @@ export function TouchControls({ game, rotated, shield, onInventory, onPause }: {
       {glyph}
     </button>
   );
-  const hold = (key: "mine" | "use" | "jump" | "sprint" | "guard") => ({
+  const hold = (key: "mine" | "use" | "jump" | "sprint" | "guard" | "sneak") => ({
     onPointerDown: (e: React.PointerEvent) => {
       e.currentTarget.setPointerCapture(e.pointerId);
       game.setHold(key, true);
@@ -78,6 +78,9 @@ export function TouchControls({ game, rotated, shield, onInventory, onPause }: {
             🛡
           </button>
         ) : null}
+        <button type="button" className="ma-act" {...hold("sneak")} aria-label="Agachar">
+          ⇩
+        </button>
         <button type="button" className="ma-act" {...hold("jump")} aria-label="Pular">
           ◇
         </button>

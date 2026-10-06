@@ -15,6 +15,8 @@ export class Chunk {
   meshO: THREE.Mesh | null = null;
   meshT: THREE.Mesh | null = null;
   needsMesh = true;
+  /** Tochas deste chunk: x, y, z locais (de 3 em 3). */
+  torches: number[] = [];
   constructor(
     public cx: number,
     public cz: number,
@@ -254,7 +256,19 @@ export class World {
     const ch = this.chunks.get(ckey(cx, cz));
     if (!ch) return;
     const i = idx(x & 15, y, z & 15);
+    const prev = ch.data[i];
     ch.data[i] = id;
+    if (prev === B.torch || id === B.torch) {
+      const tl = ch.torches;
+      for (let t = 0; t < tl.length; t += 3) {
+        if (tl[t] === (x & 15) && tl[t + 1] === y && tl[t + 2] === (z & 15)) {
+          tl.splice(t, 3);
+          break;
+        }
+      }
+      if (id === B.torch) tl.push(x & 15, y, z & 15);
+      for (let ddx = -1; ddx <= 1; ddx++) for (let ddz = -1; ddz <= 1; ddz++) { const n = this.chunks.get(ckey(cx + ddx, cz + ddz)); if (n) n.needsMesh = true; }
+    }
     if (y > ch.maxY) ch.maxY = Math.min(WORLD_H - 1, y + 1);
     const k = ckey(cx, cz);
     let m = this.mods.get(k);
@@ -306,7 +320,11 @@ export class World {
         if (y >= ch.maxY) ch.maxY = Math.min(WORLD_H - 1, y + 1);
       });
     }
+    for (let t = 0; t < ch.data.length; t++) {
+      if (ch.data[t] === B.torch) ch.torches.push(t % CHUNK, Math.floor(t / (CHUNK * CHUNK)), Math.floor(t / CHUNK) % CHUNK);
+    }
     this.chunks.set(ckey(cx, cz), ch);
+    if (ch.torches.length) for (let ddx = -1; ddx <= 1; ddx++) for (let ddz = -1; ddz <= 1; ddz++) { const n = this.chunks.get(ckey(cx + ddx, cz + ddz)); if (n && n !== ch) n.needsMesh = true; }
     const dt = performance.now() - t0;
     this.stats.genMs += dt;
     this.stats.genN++;
@@ -438,6 +456,27 @@ export class World {
     const wx0 = ch.cx * CHUNK;
     const wz0 = ch.cz * CHUNK;
     const aoV = AO_BUF;
+    // luz das tochas (deste chunk e dos vizinhos), em coordenadas relativas a este chunk
+    const torches: number[] = [];
+    for (let ddx = -1; ddx <= 1; ddx++) {
+      for (let ddz = -1; ddz <= 1; ddz++) {
+        const c = ddx === 0 && ddz === 0 ? ch : this.chunks.get(ckey(ch.cx + ddx, ch.cz + ddz));
+        if (!c || c.torches.length === 0) continue;
+        for (let t = 0; t < c.torches.length; t += 3) torches.push(c.torches[t] + ddx * CHUNK, c.torches[t + 1], c.torches[t + 2] + ddz * CHUNK);
+      }
+    }
+    const nT = torches.length;
+    const torchLight = (px: number, py: number, pz: number): number => {
+      let m = 0;
+      for (let t = 0; t < nT; t += 3) {
+        const d = Math.abs(torches[t] - px) + Math.abs(torches[t + 1] - py) + Math.abs(torches[t + 2] - pz);
+        if (d < 9) {
+          const l = 1 - d / 9;
+          if (l > m) m = l;
+        }
+      }
+      return m;
+    };
 
     for (let y = 0; y <= maxY; y++) {
       for (let z = 0; z < CHUNK; z++) {
@@ -457,15 +496,25 @@ export class World {
 
           if (CROSS[id] === 1) {
             const t = faceUV[0];
-            const light = glow ? 1 : y >= hTop ? 1 : Math.max(0.3, 1 - (hTop - y) * 0.11);
+            let light = glow ? 1 : y >= hTop ? 1 : Math.max(0.3, 1 - (hTop - y) * 0.11);
+            let warm = 0;
+            if (nT && !glow) {
+              const tl = torchLight(x, y, z);
+              if (tl > 0 && 0.35 + 0.65 * tl > light) {
+                warm = Math.min(1, (0.35 + 0.65 * tl - light) * 2 + 0.2);
+                light = 0.35 + 0.65 * tl;
+              }
+            }
             const k = jitter * light;
+            const wg = 1 - 0.12 * warm;
+            const wb = 1 - 0.32 * warm;
             for (let pl = 0; pl < 2; pl++) {
               const cs = CROSS_PLANES[pl];
               for (let flip = 0; flip < 2; flip++) {
                 const base = out.vcount;
                 for (let q = 0; q < 4; q++) {
                   const j = flip ? 3 - q : q;
-                  out.vertex(x + cs[j][0], y + cs[j][1] * 0.95, z + cs[j][2], k, k, k, j === 1 || j === 2 ? t[2] : t[0], j >= 2 ? t[3] : t[1]);
+                  out.vertex(x + cs[j][0], y + cs[j][1] * 0.95, z + cs[j][2], k, k * wg, k * wb, j === 1 || j === 2 ? t[2] : t[0], j >= 2 ? t[3] : t[1]);
                 }
                 out.quad(base, false);
               }
@@ -486,6 +535,16 @@ export class World {
             if (LIQ[id] === 1 && f === 3) continue;
             let light = 1;
             if (!glow) light = geena ? 0.78 : ny >= hTop ? 1 : Math.max(0.26, 1 - (hTop - ny) * 0.11);
+            let warm = 0;
+            if (nT && !glow) {
+              const tl = torchLight(nx, ny, nz);
+              if (tl > 0 && 0.35 + 0.65 * tl > light) {
+                warm = Math.min(1, (0.35 + 0.65 * tl - light) * 2 + 0.2);
+                light = 0.35 + 0.65 * tl;
+              }
+            }
+            const wg = 1 - 0.12 * warm;
+            const wb = 1 - 0.32 * warm;
             const k = fd.shade * jitter * light;
             let fluidTop = 1;
             if (LIQ[id] === 1) {
@@ -520,7 +579,7 @@ export class World {
               const c = fd.c[v];
               const vy = fluidTop < 1 && c[1] === 1 ? fluidTop : c[1];
               const kk = k * aoV[v];
-              out.vertex(x + c[0], y + vy, z + c[2], kk, kk, kk, t[0] + tuv[v][0] * (t[2] - t[0]), t[1] + tuv[v][1] * (t[3] - t[1]));
+              out.vertex(x + c[0], y + vy, z + c[2], kk, kk * wg, kk * wb, t[0] + tuv[v][0] * (t[2] - t[0]), t[1] + tuv[v][1] * (t[3] - t[1]));
             }
             out.quad(base, aoV[0] + aoV[2] < aoV[1] + aoV[3]);
           }

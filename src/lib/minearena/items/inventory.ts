@@ -51,6 +51,16 @@ export class Inventory {
     return left;
   }
 
+  /** Guarda um item com desgaste/bênçãos (vai pra um espaço próprio). Devolve quantos NÃO couberam. */
+  addStack(s: NonNullable<Stack>): number {
+    if (!s.wear && !s.ench) return this.add(s.item, s.count);
+    const i = this.slots.findIndex((x) => !x);
+    if (i < 0) return s.count;
+    this.slots[i] = { ...s, count: 1 };
+    this.changed();
+    return s.count - 1;
+  }
+
   count(item: string): number {
     return this.slots.reduce((n, s) => n + (s && s.item === item ? s.count : 0), 0);
   }

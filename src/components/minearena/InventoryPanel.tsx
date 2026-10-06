@@ -191,6 +191,19 @@ export function InventoryPanel({ game, startTab, rotated, onClose }: { game: Min
         )}
       </div>
       {held ? (
+        <button
+          type="button"
+          className="ma-btn ma-btn-sm ma-drop-btn"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={() => {
+            game.dropStack(held.stack);
+            setHeld(null);
+          }}
+        >
+          ⬇ Largar no chão
+        </button>
+      ) : null}
+      {held ? (
         <div className="ma-ghost" style={{ left: pointer.x - 22, top: pointer.y - 22 }}>
           <ItemIcon item={held.stack.item} count={held.stack.count} stack={held.stack} size={44} />
         </div>

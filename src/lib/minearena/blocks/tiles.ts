@@ -61,6 +61,7 @@ export const TILE_NAMES = [
   "portal",
   "altar_top",
   "altar_side",
+  "torch",
 ] as const;
 export type TileName = (typeof TILE_NAMES)[number];
 
@@ -128,6 +129,7 @@ export const BLOCK_TILES: Record<BlockKey, [TileName, TileName, TileName, TileNa
   basalt_brick: ["basalt_brick", "basalt_brick", "basalt_brick"],
   portal: ["portal", "portal", "portal"],
   altar: ["altar_top", "altar_side", "altar_side"],
+  torch: ["torch", "torch", "torch"],
 };
 
 /** UV [u0, v0, u1, v1] do tile (com meia-margem de pixel pra não vazar). */

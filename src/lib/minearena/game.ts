@@ -9,14 +9,15 @@ import { AUTOSAVE_S, DAY_SECONDS, PLAYER, REACH, RENDER_DISTANCE } from "./confi
 import { Sound } from "./audio/audio";
 import { MOB_BY_ID } from "./entities/definitions";
 import { EntityManager, type Entity } from "./entities/manager";
-import { type EnchantKey, ENCHANT_BY_KEY, ROMAN, applyWear, durabilityLeft, enchantCost, enchantLevel, enchantsFor, maxDurability, repair, repairMaterial, repairNeeded } from "./items/enchant";
+import { type EnchantKey, ENCHANT_BY_KEY, ROMAN, applyWear, durabilityLeft, enchantCost, enchantLevel, enchantLevelCost, enchantsFor, maxDurability, repair, repairMaterial, repairNeeded } from "./items/enchant";
 import { HOTBAR, Inventory, type Stack } from "./items/inventory";
 import { RARITY_COLOR, itemDef } from "./items/items";
 import { Particles } from "./particles/particles";
-import { type Body, inLava, newBody, stepBody } from "./player/physics";
+import { type Body, hasGround, inLava, newBody, stepBody } from "./player/physics";
 import { type SavedContainer, type WorldSave, putWorld } from "./save/save";
 import { FUEL, SMELT, SMELT_TIME } from "./crafting/smelting";
 import { rollLoot } from "./structures/loot";
+import { Drops } from "./entities/drops";
 import { LANDMARKS, LANDMARK_INTERVAL_S, LANDMARK_ORDER, type LandmarkSite, compass, pickLandmarkSite } from "./structures/landmarks";
 import { STRUCTURE_BY_ID, structuresNear } from "./structures/structures";
 import { type Settings, DEFAULT_SETTINGS } from "./config/settings";
@@ -59,6 +60,9 @@ export interface HudState {
   guarding: boolean;
   /** Bússola: próximo monumento bíblico ainda não encontrado. */
   quest: string | null;
+  /** Nível e progresso de experiência. */
+  xpLevel: number;
+  xpFrac: number;
   /** Cabeça dentro de água ou lava (tinge a tela). */
   submerged: "water" | "lava" | null;
 }
@@ -93,6 +97,8 @@ export interface Input {
   sprint: boolean;
   mine: boolean;
   use: boolean;
+  /** Agachar (Shift). */
+  sneak: boolean;
   /** Escudo erguido (tecla F ou botão de toque). */
   guard: boolean;
   lookDX: number;
@@ -108,11 +114,12 @@ export interface GameOptions {
   net?: RoomNet;
 }
 
+const ORE_XP: Record<string, number> = { coal_ore: 2, iron_ore: 3, gold_ore: 4, sapphire_ore: 8, sulfur_ore: 2, ember_block: 1 };
 const rarityTone = (r: string): "info" | "good" | "rare" => (r === "comum" ? "info" : r === "incomum" ? "good" : "rare");
 
 export class MineArena {
   readonly inventory = new Inventory();
-  readonly input: Input = { moveX: 0, moveY: 0, jump: false, sprint: false, mine: false, use: false, guard: false, lookDX: 0, lookDY: 0 };
+  readonly input: Input = { moveX: 0, moveY: 0, jump: false, sprint: false, mine: false, use: false, sneak: false, guard: false, lookDX: 0, lookDY: 0 };
   readonly mobile: boolean;
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
@@ -178,6 +185,15 @@ export class MineArena {
   private discoveries = new Set<string>();
   private landmarks: LandmarkSite[] = [];
   private lmFxT = 0;
+  private drops!: Drops;
+  private xp = 0;
+  private sat = 5;
+  private deathSpot: { x: number; y: number; z: number } | null = null;
+  private keepItems = false;
+  private sneaking = false;
+  private eyeY: number = PLAYER.eye;
+  private lastW = 0;
+  private wDouble = false;
   private heroesMet = new Set<string>();
   private spawn: { x: number; y: number; z: number };
   private lastBiome = "";
@@ -258,6 +274,10 @@ export class MineArena {
     if (this.dimension === "geena") this.sky.setFire(true);
     this.particles = new Particles(this.scene);
     this.entities = new EntityManager(this.scene, this.world, this.particles, this.sfx, this.hooks(), save.seed);
+    this.drops = new Drops(this.scene, this.world);
+    this.drops.load(save.drops);
+    this.xp = save.xp ?? 0;
+    this.deathSpot = save.deathSpot ?? null;
 
     this.spawn = save.spawn ?? findSpawn(save.seed);
     this.body = newBody(save.player?.x ?? this.spawn.x, save.player?.y ?? this.spawn.y, save.player?.z ?? this.spawn.z, PLAYER.w, PLAYER.h);
@@ -337,7 +357,7 @@ export class MineArena {
     this.input.moveX = x;
     this.input.moveY = y;
   }
-  setHold(key: "mine" | "use" | "jump" | "sprint" | "guard", on: boolean): void {
+  setHold(key: "mine" | "use" | "jump" | "sprint" | "guard" | "sneak", on: boolean): void {
     this.input[key] = on;
   }
   addLook(dx: number, dy: number): void {
@@ -362,6 +382,7 @@ export class MineArena {
     this.cullDist = [28, 40, 56][q];
     this.entCap = [8, 14, 22][q];
     this.diffMul = [0.7, 1, 1.35][s.difficulty];
+    this.keepItems = s.difficulty === 0;
     this.spawnMul = [1.5, 1, 0.8][s.difficulty];
     this.setRenderDistance(s.distance || (this.mobile ? [3, RENDER_DISTANCE.mobile, 5][q] : [4, RENDER_DISTANCE.desktop, 8][q]));
     this.sens = s.sensitivity / 100;
@@ -424,6 +445,9 @@ export class MineArena {
       updatedAt: Date.now(),
       playedSeconds: this.playedSeconds,
       landmarks: this.landmarks,
+      xp: this.xp,
+      drops: this.drops.toJSON(),
+      deathSpot: this.deathSpot ?? undefined,
       time: this.time,
       player: { x: this.body.x, y: this.body.y, z: this.body.z, yaw: this.yaw, pitch: this.pitch, health: this.health, hunger: this.hunger },
       spawn: this.spawn,
@@ -461,6 +485,7 @@ export class MineArena {
     this.remotes.dispose();
     this.cleanup.forEach((f) => f());
     if (document.pointerLockElement) document.exitPointerLock();
+    this.drops.dispose();
     this.entities.dispose();
     this.particles.dispose();
     this.sky.dispose();
@@ -491,18 +516,26 @@ export class MineArena {
         this.input.moveY = (keys.has("KeyW") || keys.has("ArrowUp") ? 1 : 0) - (keys.has("KeyS") || keys.has("ArrowDown") ? 1 : 0);
         this.input.moveX = (keys.has("KeyD") || keys.has("ArrowRight") ? 1 : 0) - (keys.has("KeyA") || keys.has("ArrowLeft") ? 1 : 0);
         this.input.jump = keys.has("Space");
-        this.input.sprint = keys.has("ShiftLeft") || keys.has("ShiftRight");
+        this.input.sprint = keys.has("ControlLeft") || keys.has("KeyR") || this.wDouble;
+        this.input.sneak = keys.has("ShiftLeft") || keys.has("ShiftRight");
         this.input.guard = keys.has("KeyF");
       }
     };
     on("keydown", (e) => {
       if (this.uiOpen || this.paused) return;
       if (e.code.startsWith("Digit") && e.code !== "Digit0") this.inventory.select(Number(e.code.slice(5)) - 1);
+      if (e.code === "KeyQ" && !e.repeat) this.dropHeld(e.ctrlKey);
+      if (e.code === "KeyW" && !e.repeat) {
+        const now = performance.now();
+        this.wDouble = now - this.lastW < 300;
+        this.lastW = now;
+      }
       keys.add(e.code);
       sync();
       if (["Space", "ArrowUp", "ArrowDown"].includes(e.code)) e.preventDefault();
     });
     on("keyup", (e) => {
+      if (e.code === "KeyW") this.wDouble = false;
       keys.delete(e.code);
       sync();
     });
@@ -567,12 +600,107 @@ export class MineArena {
         this.health = Math.min(PLAYER.maxHealth, this.health + n);
       },
       give: (item: string, count: number) => this.give(item, count),
+      drop: (item: string, count: number, x: number, y: number, z: number) => this.dropItem(item, count, x, y, z),
       say: (text: string) => this.cb.onMessage(text, "warn"),
       onKill: (def: MobDef) => {
         this.kills++;
+        this.addXp(def.behavior === "boss" ? 250 : Math.max(1, Math.round(def.hp / 5)) + (def.behavior === "hostile" ? 2 : 0));
         if (def.id === "satanas") this.onSatanDefeated();
       },
     };
+  }
+
+  /** Solta o item no chão (cai e espera ser recolhido). */
+  private dropItem(item: string, count: number, x: number, y: number, z: number): void {
+    if (!itemDef(item) || count <= 0) return;
+    this.drops.spawn({ item, count }, x, y, z);
+  }
+
+  /** O jogador recolheu o item do chão. Devolve quantos NÃO couberam. */
+  private pickup(s: NonNullable<Stack>): number {
+    const def = itemDef(s.item);
+    if (!def) return 0;
+    const left = this.inventory.addStack(s);
+    const got = s.count - left;
+    if (got > 0) {
+      this.sfx.play("pickup");
+      this.cb.onMessage(`+${got} ${def.name}`, rarityTone(def.rarity));
+    }
+    return left;
+  }
+
+  /** Larga um item (ou pilha) na frente do jogador. */
+  dropStack(s: NonNullable<Stack>): void {
+    const dir = new THREE.Vector3();
+    this.camera.getWorldDirection(dir);
+    const e = this.camera.position;
+    this.drops.spawn({ ...s }, e.x + dir.x * 0.6, e.y - 0.35, e.z + dir.z * 0.6, dir.x * 4.5, 1.8, dir.z * 4.5, 1.1);
+    this.sfx.play("place");
+  }
+
+  /** Tecla Q: larga 1 (ou a pilha toda com Ctrl). */
+  dropHeld(all: boolean): void {
+    const s = this.inventory.held();
+    if (!s || this.uiOpen || this.paused) return;
+    const n = all ? s.count : 1;
+    this.dropStack({ ...s, count: n });
+    s.count -= n;
+    if (s.count <= 0) this.inventory.slots[this.inventory.selected] = null;
+    this.inventory.changed();
+  }
+
+  // ---------- experiência ----------
+  private xpNeed(level: number): number {
+    return 8 + level * 3;
+  }
+  private xpBase(level: number): number {
+    return 8 * level + (3 * level * (level - 1)) / 2;
+  }
+  xpLevel(): number {
+    let l = 0;
+    while (this.xp >= this.xpBase(l + 1)) l++;
+    return l;
+  }
+  xpFrac(): number {
+    const l = this.xpLevel();
+    return (this.xp - this.xpBase(l)) / this.xpNeed(l);
+  }
+  private addXp(n: number): void {
+    const before = this.xpLevel();
+    this.xp += n;
+    const after = this.xpLevel();
+    if (after > before) {
+      this.sfx.play("pickup");
+      this.cb.onMessage(`✦ Nível ${after}!`, "rare");
+    }
+  }
+  /** Gasta níveis (altar), mantendo a fração já ganha. */
+  private spendLevels(n: number): void {
+    const l = this.xpLevel();
+    const f = this.xpFrac();
+    const nl = Math.max(0, l - n);
+    this.xp = Math.round(this.xpBase(nl) + f * this.xpNeed(nl));
+  }
+
+  /** Cansaço: a saciedade acaba primeiro, depois a fome. */
+  private exhaust(a: number): void {
+    if (this.sat > 0) this.sat = Math.max(0, this.sat - a * 1.4);
+    else this.hunger = Math.max(0, this.hunger - a);
+  }
+
+  /** Morte: os pertences caem no chão (só no modo solo e fora da dificuldade fácil). */
+  private dropAllOnDeath(): void {
+    if (this.role !== "solo" || this.keepItems) return;
+    const b = this.body;
+    const all: NonNullable<Stack>[] = [];
+    for (const s of [...this.inventory.slots, ...this.inventory.armor, this.inventory.offhand]) if (s) all.push({ ...s });
+    if (all.length === 0) return;
+    for (const s of all) this.drops.spawn(s, b.x, b.y + 0.6, b.z, undefined, undefined, undefined, 2, 1800);
+    this.inventory.slots.fill(null);
+    this.inventory.armor.fill(null);
+    this.inventory.offhand = null;
+    this.inventory.changed();
+    this.deathSpot = { x: b.x, y: b.y, z: b.z };
   }
 
   private give(item: string, count: number): void {
@@ -632,6 +760,7 @@ export class MineArena {
       this.sfx.play("death");
       this.input.mine = false;
       this.input.use = false;
+      this.dropAllOnDeath();
       if (document.pointerLockElement) document.exitPointerLock();
       void this.saveNow();
     }
@@ -647,6 +776,7 @@ export class MineArena {
     this.body.vx = this.body.vy = this.body.vz = 0;
     this.health = PLAYER.maxHealth;
     this.hunger = 14;
+    this.sat = 0;
     this.alive = true;
     this.invuln = 3;
     this.paused = false;
@@ -654,7 +784,7 @@ export class MineArena {
     this.input.mine = false;
     this.input.use = false;
     this.ready = false;
-    this.cb.onMessage("Você renasceu no ponto de partida. Seus itens foram mantidos.", "info");
+    this.cb.onMessage(this.deathSpot ? "Você renasceu. Seus pertences ficaram onde você caiu: volte lá para recuperá-los (🪦 na bússola)." : "Você renasceu no ponto de partida. Seus itens foram mantidos.", "info");
   }
 
   // ---------- laço ----------
@@ -734,6 +864,7 @@ export class MineArena {
     this.portalTick(dt);
     this.geenaTick();
     this.exploration(dt);
+    this.drops.update(dt, b.x, b.y, b.z, this.alive && this.sleepT <= 0, (s) => this.pickup(s));
     this.ambience(dt);
     this.landmarkFx(dt);
     this.tutorialTick();
@@ -762,7 +893,8 @@ export class MineArena {
     const b = this.body;
     const speed = Math.hypot(b.vx, b.vz);
     this.bobAmt = this.bobOn && b.onGround && !this.uiOpen && !this.paused ? Math.min(1, speed / PLAYER.walk) : 0;
-    this.camera.position.set(b.x, b.y + PLAYER.eye + Math.sin(this.bobT * 2) * 0.035 * this.bobAmt, b.z);
+    this.eyeY += ((this.sneaking ? PLAYER.eye - 0.3 : PLAYER.eye) - this.eyeY) * 0.3;
+    this.camera.position.set(b.x, b.y + this.eyeY + Math.sin(this.bobT * 2) * 0.035 * this.bobAmt, b.z);
     this.camera.rotation.set(this.pitch, this.yaw, Math.sin(this.bobT) * 0.008 * this.bobAmt + this.hurtRoll, "YXZ");
     // debaixo d'água (ou de lava): neblina curta e tela tingida
     const eye = BLOCKS[this.world.getBlock(Math.floor(this.camera.position.x), Math.floor(this.camera.position.y), Math.floor(this.camera.position.z))]?.fluid ?? null;
@@ -785,8 +917,9 @@ export class MineArena {
     const my = blocked ? 0 : this.input.moveY;
     const len = Math.hypot(mx, my);
     this.updateGuard();
-    const sprint = !blocked && !this.guarding && this.input.sprint && my > 0;
-    const sp = (sprint ? PLAYER.sprint : PLAYER.walk) * (b.inWater ? 0.55 : 1) * (this.guarding ? 0.6 : 1);
+    this.sneaking = !blocked && this.input.sneak && !b.inWater;
+    const sprint = !blocked && !this.guarding && !this.sneaking && this.input.sprint && my > 0;
+    const sp = (sprint ? PLAYER.sprint : PLAYER.walk) * (b.inWater ? 0.55 : 1) * (this.guarding ? 0.6 : 1) * (this.sneaking ? 0.35 : 1);
     const sin = Math.sin(this.yaw);
     const cos = Math.cos(this.yaw);
     const nx = len > 1 ? mx / len : mx;
@@ -797,6 +930,11 @@ export class MineArena {
     const k = Math.min(1, dt * (b.onGround ? 12 : 4));
     b.vx += (wx * sp - b.vx) * k;
     b.vz += (wz * sp - b.vz) * k;
+    // agachado: não cai da beirada
+    if (this.sneaking && b.onGround) {
+      if (b.vx !== 0 && !hasGround(this.world, b.x + b.vx * dt * 3, b.y, b.z, b.w)) b.vx = 0;
+      if (b.vz !== 0 && !hasGround(this.world, b.x, b.y, b.z + b.vz * dt * 3, b.w)) b.vz = 0;
+    }
 
     const jump = !blocked && this.input.jump;
     if (b.inWater) {
@@ -834,7 +972,7 @@ export class MineArena {
       }
     }
     if (b.onGround) this.bobT += Math.hypot(b.vx, b.vz) * dt * 1.7;
-    this.hunger = Math.max(0, this.hunger - Math.hypot(b.vx, b.vz) * dt * (sprint ? 0.012 : 0.006));
+    this.exhaust(Math.hypot(b.vx, b.vz) * dt * (sprint ? 0.012 : 0.006));
     if (inLava(this.world, b) && this.invuln <= 0) this.damagePlayer(3, b.x + 0.01, b.z, false);
     if (b.y < -20) this.damagePlayer(100, b.x, b.z, false);
   }
@@ -842,7 +980,7 @@ export class MineArena {
   private survival(dt: number): void {
     if (this.hunger >= 16 && this.health < PLAYER.maxHealth) {
       this.regenT += dt;
-      if (this.regenT >= 3) {
+      if (this.regenT >= (this.sat > 0 && this.hunger >= 18 ? 1.5 : 3)) {
         this.regenT = 0;
         this.health = Math.min(PLAYER.maxHealth, this.health + 1);
       }
@@ -960,14 +1098,16 @@ export class MineArena {
     if (blockDef(this.world.getBlock(x, y + 1, z)).shape === "cross") this.breakBlock(x, y + 1, z, true);
     this.sfx.play("break");
     this.particles.burst(x + 0.5, y + 0.5, z + 0.5, def.top, 12, 4, 0.14);
-    this.hunger = Math.max(0, this.hunger - 0.012);
+    this.exhaust(0.012);
     if (!harvest) return;
     for (const l of def.loot) {
       if (Math.random() > l.chance) continue;
       let n = l.min + Math.floor(Math.random() * (l.max - l.min + 1));
       if (fortune > 0 && n > 0 && itemDef(l.item)?.kind === "material") n *= Math.max(1, Math.floor(Math.random() * (fortune + 2)));
-      if (n > 0) this.give(l.item, n);
+      if (n > 0) this.dropItem(l.item, n, x + 0.5, y + 0.4, z + 0.5);
     }
+    const ox = ORE_XP[def.key];
+    if (ox) this.addXp(ox);
   }
 
   private useAction(hit: ReturnType<World["raycast"]>, ePick: { e: Entity; dist: number } | null, dir: THREE.Vector3, edge: boolean): void {
@@ -1103,6 +1243,7 @@ export class MineArena {
     if (held.food) {
       if (this.hunger >= PLAYER.maxHunger - 0.5 && this.health >= PLAYER.maxHealth) return;
       this.hunger = Math.min(PLAYER.maxHunger, this.hunger + held.food.hunger);
+      this.sat = Math.min(this.hunger, this.sat + held.food.hunger * 0.9);
       this.health = Math.min(PLAYER.maxHealth, this.health + held.food.heal);
       this.inventory.consumeHeld(1);
       this.sfx.play("eat");
@@ -1195,6 +1336,7 @@ export class MineArena {
     this.dimension = dim;
     this.world = new World(dim === "geena" ? this.baseSeed + 99991 : this.baseSeed, this.scene, dim);
     if (dim === "overworld") this.world.landmarks = this.landmarks;
+    this.drops.setWorld(this.world);
     this.world.loadMods(dim === "geena" ? this.geenaMods : this.overMods);
     this.fluids = new FluidSim(this.world);
     this.world.onChange = (x, y, z) => this.fluids.poke(x, y, z);
@@ -1702,8 +1844,10 @@ export class MineArena {
     const s = this.inventory.getSlot(slot);
     if (!s || !enchantsFor(s).some((e) => e.key === key)) return false;
     const cost = enchantCost(s, key);
-    if (!cost.every((c) => this.inventory.count(c.item) >= c.count)) return false;
+    const lv = enchantLevelCost(s, key);
+    if (this.xpLevel() < lv || !cost.every((c) => this.inventory.count(c.item) >= c.count)) return false;
     for (const c of cost) this.inventory.remove(c.item, c.count);
+    this.spendLevels(lv);
     const lvl = enchantLevel(s, key) + 1;
     s.ench = { ...s.ench, [key]: lvl };
     this.inventory.changed();
@@ -1832,6 +1976,11 @@ export class MineArena {
 
   private questText(): string | null {
     const b = this.body;
+    if (this.deathSpot) {
+      const dd = Math.hypot(this.deathSpot.x - b.x, this.deathSpot.z - b.z);
+      if (dd < 5) this.deathSpot = null;
+      else return `🪦 Seus pertences · ${Math.round(dd)} m ao ${compass(this.deathSpot.x - b.x, this.deathSpot.z - b.z)}`;
+    }
     let best: { name: string; d: number; dir: string } | null = null;
     for (const s of this.landmarks) {
       if (this.discoveries.has("lm:" + s.id)) continue;
@@ -2003,6 +2152,8 @@ export class MineArena {
       offhand: this.inventory.offhand ? { ...this.inventory.offhand } : null,
       guarding: this.guarding,
       submerged: this.submerged,
+      xpLevel: this.xpLevel(),
+      xpFrac: Math.round(this.xpFrac() * 20) / 20,
       quest: this.dimension === "overworld" ? this.questText() : null,
       coop: this.role === "solo" ? null : { role: this.role, names: [this.me?.name ?? "Você", ...[...this.remotes.list.values()].map((p) => p.name)] },
       coords: !this.showCoords ? "" : `${Math.floor(this.body.x)}, ${Math.floor(this.body.y)}, ${Math.floor(this.body.z)}`,

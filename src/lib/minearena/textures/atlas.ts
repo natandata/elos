@@ -339,6 +339,13 @@ function drawTile(name: TileName, put: Put): void {
       }
       break;
     }
+    case "torch": {
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) put(x, y, hex(0x000000), 0);
+      for (let y = 7; y < N; y++) for (const x of [7, 8]) put(x, y, mul(hex(0x8a5a2e), y % 2 ? 0.85 : 1));
+      for (const [dx, dy, c] of [[0, 0, 0xffe27a], [1, 0, 0xffe27a], [0, 1, 0xffb02e], [1, 1, 0xffb02e], [0, 2, 0xff7a1a], [1, 2, 0xff7a1a], [0, -1, 0xff9a2e], [1, -1, 0xffcf5a]] as const) put(7 + dx, 5 + dy, hex(c));
+      put(7, 3, hex(0xffcf5a));
+      break;
+    }
     case "tallgrass": {
       for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) put(x, y, hex(0x000000), 0);
       for (let x = 1; x < N - 1; x += 2) {

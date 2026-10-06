@@ -67,6 +67,11 @@ export function stepBody(world: World, b: Body, dt: number): void {
   b.inWater = isFluid(wb, "water");
 }
 
+/** Há chão logo abaixo (até 0,6 bloco)? Usado ao agachar na beirada. */
+export function hasGround(world: World, x: number, y: number, z: number, w: number): boolean {
+  return collides(world, x, y - 0.6, z, w, 0.55);
+}
+
 export function inLava(world: World, b: Body): boolean {
   return isFluid(world.getBlock(Math.floor(b.x), Math.floor(b.y + 0.3), Math.floor(b.z)), "lava");
 }

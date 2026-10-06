@@ -94,6 +94,7 @@ const KEYS = [
   "basalt_brick",
   "portal",
   "altar",
+  "torch",
 ] as const;
 export type BlockKey = (typeof KEYS)[number];
 
@@ -191,6 +192,7 @@ const SPECS: Record<BlockKey, Spec> = {
   basalt_brick: blk("Muralha de Hinom", 0x4a2a30, 4, "pick", 1, [drop("basalt_brick")], "stone"),
   portal: blk("Portal do Abismo", 0x8a2be2, 0.1, "hand", 0, [], "glass", { solid: false, opaque: false, blend: true, glow: true, placeable: false }),
   altar: blk("Altar do ferreiro", 0x6a6a6e, 4, "pick", 1, [drop("altar")], "stone", { top: 0xe0b83a }),
+  torch: blk("Tocha", 0xffb02e, 0.05, "hand", 0, [drop("torch")], "wood", { solid: false, opaque: false, shape: "cross", glow: true }),
   furnace_lit: blk("Fornalha acesa", 0x6a6a6e, 3.5, "pick", 1, [drop("furnace")], "stone", { glow: true, placeable: false }),
 };
 

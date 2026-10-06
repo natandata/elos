@@ -23,6 +23,7 @@ rec("crafting_table", 1, [i("planks", 4)]);
 rec("pebble", 8, [i("cobble")]);
 rec("bread", 1, [i("wheat", 3)]);
 rec("arrow", 4, [i("stick"), i("coal")]);
+rec("torch", 4, [i("coal"), i("stick")]);
 rec("sandstone", 1, [i("sand", 4)]);
 
 // com bancada

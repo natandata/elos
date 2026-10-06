@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import type { MineArena } from "@/lib/minearena/game";
-import { ROMAN, describeStack, enchantCost, enchantLevel, enchantsFor, repairMaterial, repairNeeded } from "@/lib/minearena/items/enchant";
+import { ROMAN, describeStack, enchantCost, enchantLevel, enchantLevelCost, enchantsFor, repairMaterial, repairNeeded } from "@/lib/minearena/items/enchant";
 import { itemDef } from "@/lib/minearena/items/items";
 import { ItemIcon } from "./ItemIcon";
 
@@ -25,7 +25,7 @@ export function AltarPanel({ game, onClose }: { game: MineArena; onClose: () => 
             ✕
           </button>
         </header>
-        <p className="ma-info">O ferreiro prepara as armas para o seu trabalho (Is 54.16). Conserte com o material do item e peça bênçãos com safiras e ouro.</p>
+        <p className="ma-info">O ferreiro prepara as armas para o seu trabalho (Is 54.16). Conserte com o material do item e peça bênçãos com safiras, ouro e níveis de experiência (você está no nível {game.xpLevel()}).</p>
         {entries.length === 0 ? (
           <p className="ma-info">Você não tem ferramentas, armas, armaduras ou escudos pra consertar ou abençoar.</p>
         ) : (
@@ -49,10 +49,11 @@ export function AltarPanel({ game, onClose }: { game: MineArena; onClose: () => 
                       ) : null}
                       {enchantsFor(stack).map((e) => {
                         const cost = enchantCost(stack, e.key);
-                        const ok = cost.every((c) => inv.count(c.item) >= c.count);
+                        const lv = enchantLevelCost(stack, e.key);
+                        const ok = game.xpLevel() >= lv && cost.every((c) => inv.count(c.item) >= c.count);
                         return (
                           <button key={e.key} type="button" className="ma-btn ma-btn-sm ma-btn-ench" disabled={!ok} title={`${e.effect} (${e.verse})`} onClick={() => game.enchantItem(slot, e.key)}>
-                            ✨ {e.name} {ROMAN[enchantLevel(stack, e.key) + 1]} · {cost.map((c) => `${c.count}× ${itemDef(c.item)?.name}`).join(" + ")}
+                            ✨ {e.name} {ROMAN[enchantLevel(stack, e.key) + 1]} · {cost.map((c) => `${c.count}× ${itemDef(c.item)?.name}`).join(" + ")} + nível {lv}
                           </button>
                         );
                       })}

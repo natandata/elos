@@ -1,5 +1,6 @@
 // Mundos salvos no próprio aparelho (IndexedDB), com reserva em memória se o navegador bloquear.
 import type { Stack } from "../items/inventory";
+import type { SavedDrop } from "../entities/drops";
 import type { LandmarkSite } from "../structures/landmarks";
 
 export interface WorldSave {
@@ -11,6 +12,12 @@ export interface WorldSave {
   playedSeconds: number;
   /** Monumentos bíblicos já revelados neste mundo. */
   landmarks?: LandmarkSite[];
+  /** Experiência total do jogador. */
+  xp?: number;
+  /** Itens soltos no chão. */
+  drops?: SavedDrop[];
+  /** Onde o jogador morreu e largou seus pertences. */
+  deathSpot?: { x: number; y: number; z: number };
   /** Tempo do dia (0–1). */
   time: number;
   player: { x: number; y: number; z: number; yaw: number; pitch: number; health: number; hunger: number };

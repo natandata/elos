@@ -65,6 +65,12 @@ export function Hud({ hud, msgs, onSelect }: { hud: HudState; msgs: Msg[]; onSel
       </div>
 
       <div className="ma-bottom">
+        {hud.xpLevel > 0 || hud.xpFrac > 0 ? (
+          <div className="ma-xp" aria-label={`Nível ${hud.xpLevel}`}>
+            <i style={{ width: `${Math.round(hud.xpFrac * 100)}%` }} />
+            <b>{hud.xpLevel}</b>
+          </div>
+        ) : null}
         <div className="ma-stats">
           <Row value={hud.health} max={20} full="❤️" half="💔" empty="🖤" />
           {hud.armor > 0 ? <Row value={Math.min(20, hud.armor)} max={20} full="🛡️" half="🔰" empty="▫️" /> : null}

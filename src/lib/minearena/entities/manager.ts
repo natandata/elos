@@ -66,6 +66,8 @@ export interface ManagerHooks {
   net?(kind: string, data: Record<string, number>): void;
   healPlayer(n: number): void;
   give(item: string, count: number): void;
+  /** Solta o saque no chão, onde a criatura caiu. */
+  drop?(item: string, count: number, x: number, y: number, z: number): void;
   say(text: string): void;
   onKill(def: MobDef): void;
 }
@@ -310,6 +312,7 @@ export class EntityManager {
       const n = l.min + Math.floor(Math.random() * (l.max - l.min + 1));
       if (n > 0) {
         if (e.lastHit && e.lastHit !== "host" && this.hooks.giveRemote) this.hooks.giveRemote(e.lastHit, l.item, n);
+        else if (this.hooks.drop) this.hooks.drop(l.item, n, e.body.x, e.body.y + 0.5, e.body.z);
         else this.hooks.give(l.item, n);
       }
     }
