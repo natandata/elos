@@ -1045,3 +1045,6 @@ input[type="datetime-local"] {
 .ma-flame[data-on="true"] { filter: none; animation: ma-pop 0.4s ease-out infinite alternate; }
 .ma-farrow { width: 70px; height: 14px; border: 2px solid #0f1536; background: rgba(8, 12, 36, 0.6); border-radius: 3px; overflow: hidden; }
 .ma-farrow i { display: block; height: 100%; background: linear-gradient(90deg, #ffd66b, #ff8a1f); }
+
+/* ---- MINEARENA: dormir ---- */
+.ma-fade { position: absolute; inset: 0; z-index: 4; display: flex; align-items: center; justify-content: center; background: #05060f; color: #ffe2a0; font-size: 1.1rem; font-weight: 900; pointer-events: none; }

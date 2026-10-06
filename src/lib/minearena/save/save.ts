@@ -22,6 +22,8 @@ export interface WorldSave {
   containers?: Record<string, SavedContainer>;
   /** Estruturas cujos moradores já nasceram. */
   spawned?: string[];
+  /** Plantações em crescimento: "x,y,z" → segundos acumulados. */
+  crops?: Record<string, number>;
 }
 
 export interface SavedContainer {

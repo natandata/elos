@@ -38,6 +38,15 @@ export const TILE_NAMES = [
   "furnace_side",
   "furnace_front",
   "furnace_front_lit",
+  "farmland_top",
+  "wheat_0",
+  "wheat_1",
+  "wheat_2",
+  "wheat_3",
+  "lily",
+  "tallgrass",
+  "bed_top",
+  "bed_side",
 ] as const;
 export type TileName = (typeof TILE_NAMES)[number];
 
@@ -75,6 +84,14 @@ export const BLOCK_TILES: Record<BlockKey, [TileName, TileName, TileName, TileNa
   chest: ["chest_top", "chest_side", "chest_top", "chest_front"],
   furnace: ["furnace_top", "furnace_side", "furnace_top", "furnace_front"],
   furnace_lit: ["furnace_top", "furnace_side", "furnace_top", "furnace_front_lit"],
+  farmland: ["farmland_top", "dirt", "dirt"],
+  wheat_0: ["wheat_0", "wheat_0", "wheat_0"],
+  wheat_1: ["wheat_1", "wheat_1", "wheat_1"],
+  wheat_2: ["wheat_2", "wheat_2", "wheat_2"],
+  wheat_3: ["wheat_3", "wheat_3", "wheat_3"],
+  lily: ["lily", "lily", "lily"],
+  tallgrass: ["tallgrass", "tallgrass", "tallgrass"],
+  bed: ["bed_top", "bed_side", "planks"],
 };
 
 /** UV [u0, v0, u1, v1] do tile (com meia-margem de pixel pra não vazar). */

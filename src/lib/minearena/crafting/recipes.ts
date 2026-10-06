@@ -29,6 +29,7 @@ for (const t of TOOL_TIERS) {
   const m = TIER_MATERIAL[t.id];
   rec(`pickaxe_${t.id}`, 1, [i(m, 3), i("stick", 2)], "bancada");
   rec(`axe_${t.id}`, 1, [i(m, 3), i("stick", 2)], "bancada");
+  rec(`hoe_${t.id}`, 1, [i(m, 2), i("stick", 2)], "bancada");
   rec(`shovel_${t.id}`, 1, [i(m, 1), i("stick", 2)], "bancada");
   rec(`sword_${t.id}`, 1, [i(m, 2), i("stick", 1)], "bancada");
   rec(`spear_${t.id}`, 1, [i(m, 1), i("stick", 3)], "bancada");
@@ -39,6 +40,8 @@ for (const s of ARMOR_SETS) {
   for (const p of ARMOR_PIECES) rec(`${p.key}_${s.id}`, 1, [i(m, ARMOR_COST[p.slot])], "bancada");
 }
 rec("brick", 4, [i("dirt", 2), i("sand", 2)], "bancada");
+rec("bed", 1, [i("wool", 3), i("planks", 3)], "bancada");
+rec("arrow", 4, [i("stick"), i("feather")]);
 rec("chest", 1, [i("planks", 8)], "bancada");
 rec("furnace", 1, [i("cobble", 8)], "bancada");
 rec("limestone", 4, [i("sandstone", 4)], "bancada");

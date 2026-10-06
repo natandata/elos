@@ -1,5 +1,5 @@
 // Blocos do MINEARENA (data-driven: pra criar um bloco novo, adicione uma entrada aqui).
-export type ToolType = "hand" | "pick" | "axe" | "shovel";
+export type ToolType = "hand" | "pick" | "axe" | "shovel" | "hoe";
 export type SoundKind = "stone" | "dirt" | "wood" | "sand" | "glass" | "leaf";
 export type LootEntry = { item: string; min: number; max: number; chance: number };
 
@@ -29,6 +29,8 @@ export interface BlockDef {
   sound: SoundKind;
   /** Pode ser colocado como item de bloco. */
   placeable: boolean;
+  /** "cross" = planta em X (flores, mato, plantações). */
+  shape?: "cube" | "cross";
 }
 
 const KEYS = [
@@ -59,6 +61,14 @@ const KEYS = [
   "chest",
   "furnace",
   "furnace_lit",
+  "farmland",
+  "wheat_0",
+  "wheat_1",
+  "wheat_2",
+  "wheat_3",
+  "lily",
+  "tallgrass",
+  "bed",
 ] as const;
 export type BlockKey = (typeof KEYS)[number];
 
@@ -83,9 +93,12 @@ const blk = (name: string, c: number, hardness: number, tool: ToolType, tier: nu
   ...extra,
 });
 
+const plant = (name: string, c: number, loot: LootEntry[]): Spec =>
+  blk(name, c, 0.05, "hand", 0, loot, "leaf", { solid: false, opaque: false, shape: "cross", placeable: false });
+
 const SPECS: Record<BlockKey, Spec> = {
   air: blk("Ar", 0, 0, "hand", 0, [], "stone", { solid: false, opaque: false, placeable: false }),
-  grass: blk("Grama", 0x5da13a, 0.8, "shovel", 0, [drop("dirt"), drop("wheat", 1, 1, 0.08)], "dirt", { side: 0x7b5a33, sideTop: 0x5da13a, bottom: 0x7b5a33 }),
+  grass: blk("Grama", 0x5da13a, 0.8, "shovel", 0, [drop("dirt"), drop("seeds", 1, 1, 0.1)], "dirt", { side: 0x7b5a33, sideTop: 0x5da13a, bottom: 0x7b5a33 }),
   dirt: blk("Terra", 0x7b5a33, 0.7, "shovel", 0, [drop("dirt")], "dirt"),
   stone: blk("Pedra", 0x7d7d80, 4, "pick", 1, [drop("cobble")], "stone"),
   cobble: blk("Pedra lavrada", 0x6a6a6e, 4, "pick", 1, [drop("cobble")], "stone"),
@@ -110,6 +123,14 @@ const SPECS: Record<BlockKey, Spec> = {
   limestone: blk("Calcário do templo", 0xe8e0cc, 3, "pick", 1, [drop("limestone")], "stone"),
   chest: blk("Arca", 0x8a5d33, 2.5, "axe", 0, [], "wood"),
   furnace: blk("Fornalha de barro", 0x6a6a6e, 3.5, "pick", 1, [drop("furnace")], "stone"),
+  farmland: blk("Terra arada", 0x5a3d22, 0.6, "shovel", 0, [drop("dirt")], "dirt", { placeable: false }),
+  wheat_0: plant("Trigo (broto)", 0x6aa84f, [drop("seeds")]),
+  wheat_1: plant("Trigo (crescendo)", 0x7cb342, [drop("seeds")]),
+  wheat_2: plant("Trigo (quase maduro)", 0x9ab53a, [drop("seeds", 1, 2), drop("wheat", 1, 1, 0.3)]),
+  wheat_3: plant("Trigo maduro", 0xd9b13b, [drop("wheat", 1, 3), drop("seeds", 1, 3)]),
+  lily: { ...plant("Lírio do campo", 0xf2f2f2, [drop("lily")]), placeable: true },
+  tallgrass: plant("Mato", 0x5da13a, [drop("seeds", 1, 1, 0.12)]),
+  bed: blk("Esteira de dormir", 0xc2272d, 0.6, "axe", 0, [drop("bed")], "wood", { top: 0xc2272d, side: 0xb88a52, bottom: 0xb88a52 }),
   furnace_lit: blk("Fornalha acesa", 0x6a6a6e, 3.5, "pick", 1, [drop("furnace")], "stone", { glow: true, placeable: false }),
 };
 

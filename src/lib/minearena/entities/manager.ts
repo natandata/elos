@@ -41,6 +41,10 @@ export interface Entity {
   stuckT: number;
   lastX: number;
   lastZ: number;
+  love: number;
+  breedCd: number;
+  baby: boolean;
+  growT: number;
 }
 
 export interface ManagerHooks {
@@ -133,9 +137,50 @@ export class EntityManager {
       stuckT: 0,
       lastX: x,
       lastZ: z,
+      love: 0,
+      breedCd: 0,
+      baby: false,
+      growT: 0,
     };
     this.list.push(e);
     return e;
+  }
+
+  /** Filhote: metade do tamanho, cresce em 2 minutos. */
+  spawnBaby(def: MobDef, x: number, y: number, z: number): Entity {
+    const e = this.spawn(def, x, y, z);
+    this.makeBaby(e);
+    return e;
+  }
+  private makeBaby(e: Entity): void {
+    e.baby = true;
+    e.growT = 120;
+    e.rig.root.scale.multiplyScalar(0.5);
+    e.body.w *= 0.5;
+    e.body.h *= 0.5;
+    e.hp = e.maxHp = Math.ceil(e.maxHp / 2);
+  }
+  private grow(e: Entity): void {
+    e.baby = false;
+    e.rig.root.scale.multiplyScalar(2);
+    e.body.w *= 2;
+    e.body.h *= 2;
+    e.hp = e.maxHp = e.def.hp;
+  }
+
+  /** Alimentar um animal: entra no cio (e acasala com outro) ou, se for filhote, cresce mais rápido. */
+  feed(e: Entity, item: string): boolean {
+    if (e.dead || !e.def.breeds || e.def.breeds !== item) return false;
+    if (e.baby) {
+      e.growT = Math.max(0, e.growT - 30);
+      this.fx.burst(e.body.x, e.body.y + e.body.h + 0.2, e.body.z, 0x7cd37c, 6, 2, 0.1);
+      return true;
+    }
+    if (e.love > 0 || e.breedCd > 0) return false;
+    e.love = 20;
+    this.fx.burst(e.body.x, e.body.y + e.body.h + 0.3, e.body.z, 0xff5a7a, 8, 2, 0.12);
+    this.sfx.play("pickup");
+    return true;
   }
 
   private remove(e: Entity): void {
@@ -201,7 +246,7 @@ export class EntityManager {
       this.hooks.say(`${e.def.name} caiu em batalha.`);
       return;
     }
-    for (const l of e.def.loot) {
+    for (const l of e.baby ? [] : e.def.loot) {
       if (Math.random() > l.chance) continue;
       const n = l.min + Math.floor(Math.random() * (l.max - l.min + 1));
       if (n > 0) this.hooks.give(l.item, n);
@@ -378,6 +423,21 @@ export class EntityManager {
     e.provoked = Math.max(0, e.provoked - dt);
     e.fleeT = Math.max(0, e.fleeT - dt);
     e.pacified = Math.max(0, e.pacified - dt);
+    e.love = Math.max(0, e.love - dt);
+    e.breedCd = Math.max(0, e.breedCd - dt);
+    if (e.baby) {
+      e.growT -= dt;
+      if (e.growT <= 0) this.grow(e);
+    }
+    if (e.love > 0 && !e.baby) {
+      const mate = this.list.find((o) => o !== e && !o.dead && o.def === e.def && o.love > 0 && !o.baby && Math.hypot(o.body.x - e.body.x, o.body.z - e.body.z) < 4);
+      if (mate) {
+        e.love = mate.love = 0;
+        e.breedCd = mate.breedCd = 60;
+        this.fx.burst((e.body.x + mate.body.x) / 2, e.body.y + 1.2, (e.body.z + mate.body.z) / 2, 0xff5a7a, 14, 3, 0.14);
+        this.spawnBaby(e.def, (e.body.x + mate.body.x) / 2, e.body.y + 0.1, (e.body.z + mate.body.z) / 2);
+      }
+    }
     for (let i = 0; i < e.cds.length; i++) e.cds[i] -= dt;
     if (e.atkAnim > 0) e.atkAnim = e.atkAnim + dt / 0.35 >= 1 ? 0 : e.atkAnim + dt / 0.35;
 

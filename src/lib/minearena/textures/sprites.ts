@@ -144,6 +144,22 @@ function draw(def: ItemDef): HTMLCanvasElement {
     pen.disc(10, 8, 3, hex(0xf6f6f6), hex(0xd8d8d8));
     pen.disc(8, 6, 3, hex(0xffffff), hex(0xd8d8d8));
     pen.disc(8, 10, 3, hex(0xf2f2f2), hex(0xd0d0d0));
+  } else if (id.startsWith("hoe_")) {
+    pen.line(3, 14, 11, 6, WOOD_D);
+    pen.line(2, 14, 10, 6, WOOD);
+    pen.line(7, 3, 13, 3, m);
+    pen.line(7, 4, 13, 4, lo);
+    pen.line(13, 3, 13, 6, m);
+    pen.p(7, 3, hi);
+  } else if (id === "seeds") {
+    for (const [x, y] of [[5, 6], [9, 5], [7, 9], [11, 9], [4, 11], [8, 12]] as const) {
+      pen.disc(x, y, 1, m, lo);
+    }
+  } else if (id === "feather") {
+    pen.line(3, 13, 12, 4, hex(0xe8e8e8), 2);
+    pen.line(3, 13, 7, 9, hex(0xffffff));
+    pen.line(5, 14, 13, 6, hex(0xc9c9c9));
+    pen.p(12, 3, hex(0xffffff));
   } else if (id === "wheat") {
     pen.line(5, 15, 5, 5, hex(0xa88f2a));
     pen.line(10, 15, 10, 4, hex(0xa88f2a));
@@ -223,6 +239,19 @@ export function itemIconUrl(key: string): string {
   }
   urls.set(key, url);
   return url;
+}
+
+/** Pixels de um canvas 16×16 qualquer. */
+export function canvasPixels(c: HTMLCanvasElement): { x: number; y: number; r: number; g: number; b: number }[] {
+  const d = c.getContext("2d")!.getImageData(0, 0, 16, 16).data;
+  const out: { x: number; y: number; r: number; g: number; b: number }[] = [];
+  for (let y = 0; y < 16; y++) {
+    for (let x = 0; x < 16; x++) {
+      const i = (y * 16 + x) * 4;
+      if (d[i + 3] > 40) out.push({ x, y, r: d[i] / 255, g: d[i + 1] / 255, b: d[i + 2] / 255 });
+    }
+  }
+  return out;
 }
 
 /** Pixels opacos do sprite (pra extrudar em 3D na mão). */

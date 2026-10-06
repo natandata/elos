@@ -115,6 +115,12 @@ export function generateChunk(seed: number, cx: number, cz: number): { data: Uin
         data[idx(lx, y, lz)] = id;
       }
       for (let y = h + 1; y <= SEA_LEVEL; y++) data[idx(lx, y, lz)] = B.water;
+      if (data[idx(lx, h, lz)] === B.grass && h > SEA_LEVEL && h + 1 < WORLD_H) {
+        const fr = rand01(seed + 310, wx, 0, wz);
+        if (fr < 0.08) data[idx(lx, h + 1, lz)] = B.tallgrass;
+        else if (fr < 0.095 && (biome === "planicie" || biome === "floresta")) data[idx(lx, h + 1, lz)] = B.lily;
+        if (fr < 0.095 && h + 1 > maxY) maxY = h + 1;
+      }
       maxY = Math.max(maxY, h, h < SEA_LEVEL ? SEA_LEVEL : 0);
     }
   }

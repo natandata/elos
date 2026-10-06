@@ -48,6 +48,8 @@ mat("sapphire", "Safira", "💎", 0x2b6fe0, "epico");
 mat("leather", "Couro", "🟫", 0x8a5a33);
 mat("wool", "Lã", "🧶", 0xf2f2f2);
 mat("wheat", "Trigo", "🌾", 0xd9b13b);
+mat("seeds", "Sementes de trigo", "🌱", 0x9ab53a);
+mat("feather", "Pena", "🪶", 0xf2f2f2);
 
 // ---- comida ----
 const food = (key: string, name: string, icon: string, color: number, hunger: number, heal: number, rarity: Rarity = "comum") =>
@@ -69,6 +71,7 @@ for (const t of TOOL_TIERS) {
   add({ key: `pickaxe_${t.id}`, name: `Picareta ${t.label}`, kind: "tool", icon: "⛏️", color: t.color, rarity: t.rarity, tool: { type: "pick", tier: t.tier, speed: t.speed }, weapon: { dmg: 2 + t.tier, cooldown: 0.8, reach: 3 } });
   add({ key: `axe_${t.id}`, name: `Machado ${t.label}`, kind: "tool", icon: "🪓", color: t.color, rarity: t.rarity, tool: { type: "axe", tier: t.tier, speed: t.speed }, weapon: { dmg: 3 + t.tier, cooldown: 0.9, reach: 3 } });
   add({ key: `shovel_${t.id}`, name: `Pá ${t.label}`, kind: "tool", icon: "⚒️", color: t.color, rarity: t.rarity, tool: { type: "shovel", tier: t.tier, speed: t.speed }, weapon: { dmg: 1 + t.tier, cooldown: 0.8, reach: 3 } });
+  add({ key: `hoe_${t.id}`, name: `Enxada ${t.label}`, kind: "tool", icon: "⚒️", color: t.color, rarity: t.rarity, tool: { type: "hoe", tier: t.tier, speed: t.speed }, weapon: { dmg: 1 + t.tier, cooldown: 0.8, reach: 3 } });
   add({ key: `sword_${t.id}`, name: `Espada ${t.label}`, kind: "weapon", icon: "🗡️", color: t.color, rarity: t.rarity, weapon: { dmg: t.sword, cooldown: 0.5, reach: 3.2 } });
   add({ key: `spear_${t.id}`, name: `Lança ${t.label}`, kind: "weapon", icon: "🔱", color: t.color, rarity: t.rarity, weapon: { dmg: t.sword - 1, cooldown: 0.7, reach: 4.4 } });
 }

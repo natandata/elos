@@ -26,6 +26,11 @@ export function Hud({ hud, msgs, onSelect }: { hud: HudState; msgs: Msg[]; onSel
   return (
     <div className="ma-hud" aria-live="polite">
       {hud.hurt > 0 ? <div className="ma-hurt" style={{ opacity: hud.hurt * 0.6 }} /> : null}
+      {hud.fade > 0 ? (
+        <div className="ma-fade" style={{ opacity: hud.fade }}>
+          <span>💤 Dormindo…</span>
+        </div>
+      ) : null}
       <div className="ma-cross" aria-hidden />
       {hud.mining > 0 ? <div className="ma-mine-bar"><i style={{ width: `${Math.min(100, hud.mining * 100)}%` }} /></div> : null}
       {hud.target ? <div className="ma-target">{hud.target}</div> : null}

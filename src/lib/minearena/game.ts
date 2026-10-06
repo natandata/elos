@@ -16,7 +16,7 @@ import { STRUCTURE_BY_ID, structuresNear } from "./structures/structures";
 import { type Settings, DEFAULT_SETTINGS } from "./config/settings";
 import { BLOCK_TILES, type TileName } from "./blocks/tiles";
 import { cachedTile, createCracks } from "./textures/atlas";
-import { spritePixels } from "./textures/sprites";
+import { canvasPixels, spritePixels } from "./textures/sprites";
 import { Sky } from "./world/sky";
 import { World } from "./world/world";
 import { BIOME_NAME, biomeAt, findSpawn } from "./world/worldgen";
@@ -41,6 +41,8 @@ export interface HudState {
   hurt: number;
   allies: string[];
   coords: string;
+  /** 0–1: escurecimento da tela ao dormir. */
+  fade: number;
 }
 
 export interface DialogInfo {
@@ -146,6 +148,9 @@ export class MineArena {
   private containers = new Map<string, SavedContainer>();
   private openKey: string | null = null;
   private spawned = new Set<string>();
+  private crops = new Map<string, number>();
+  private cropT = 0;
+  private sleepT = 0;
   private furnaceT = 0;
   private id: string;
   private name: string;
@@ -189,6 +194,7 @@ export class MineArena {
     save.heroesMet?.forEach((d) => this.heroesMet.add(d));
     for (const [k, c] of Object.entries(save.containers ?? {})) this.containers.set(k, c);
     save.spawned?.forEach((d) => this.spawned.add(d));
+    for (const [k, v] of Object.entries(save.crops ?? {})) this.crops.set(k, v);
     this.inventory.load(save.inventory);
     if (this.playedSeconds < 5 && this.inventory.slots.every((s) => !s)) {
       this.inventory.add("bread", 4);
@@ -297,6 +303,7 @@ export class MineArena {
       kills: this.kills,
       containers: Object.fromEntries(this.containers),
       spawned: [...this.spawned],
+      crops: Object.fromEntries(this.crops),
     };
   }
   async saveNow(): Promise<void> {
@@ -511,6 +518,17 @@ export class MineArena {
     this.entities.update(dt, { px: b.x, py: b.y, pz: b.z, alive: this.alive, daylight: this.sky.daylight, mobile: this.mobile });
     this.particles.update(dt);
     this.tickFurnaces(dt);
+    this.tickCrops(dt);
+    if (this.sleepT > 0) {
+      const prev = this.sleepT;
+      this.sleepT = Math.max(0, this.sleepT - dt);
+      if (prev > 1.4 && this.sleepT <= 1.4) {
+        this.time = 0.02;
+        this.health = PLAYER.maxHealth;
+        this.hunger = Math.max(4, this.hunger - 3);
+        this.cb.onMessage("Bom dia! Você acordou descansado.", "good");
+      }
+    }
     this.exploration(dt);
     this.tutorialTick();
     this.animateHand();
@@ -542,7 +560,7 @@ export class MineArena {
 
   private movePlayer(dt: number): void {
     const b = this.body;
-    const blocked = this.uiOpen || this.paused;
+    const blocked = this.uiOpen || this.paused || this.sleepT > 0;
     const mx = blocked ? 0 : this.input.moveX;
     const my = blocked ? 0 : this.input.moveY;
     const len = Math.hypot(mx, my);
@@ -619,7 +637,7 @@ export class MineArena {
   }
 
   private interact(dt: number): void {
-    const blocked = this.uiOpen || this.paused;
+    const blocked = this.uiOpen || this.paused || this.sleepT > 0;
     const eye = this.camera.position;
     const dir = new THREE.Vector3();
     this.camera.getWorldDirection(dir);
@@ -706,6 +724,8 @@ export class MineArena {
     const def = blockDef(id);
     if (id === B.chest || id === B.furnace || id === B.furnace_lit) this.spillContainer(x, y, z, id);
     this.world.setBlock(x, y, z, B.air);
+    this.crops.delete(`${x},${y},${z}`);
+    if (blockDef(this.world.getBlock(x, y + 1, z)).shape === "cross") this.breakBlock(x, y + 1, z, true);
     this.sfx.play("break");
     this.particles.burst(x + 0.5, y + 0.5, z + 0.5, def.top, 12, 4, 0.14);
     this.hunger = Math.max(0, this.hunger - 0.012);
@@ -729,6 +749,11 @@ export class MineArena {
       this.openContainer(hit.x, hit.y, hit.z, hit.id);
       return;
     }
+    // 1c) cama
+    if (edge && hit && hit.id === B.bed) {
+      this.useBed(hit.x, hit.y, hit.z);
+      return;
+    }
     // 2) bancada
     if (edge && hit && hit.id === B.crafting_table) {
       this.cb.onOpenCrafting();
@@ -736,6 +761,34 @@ export class MineArena {
     }
     const held = this.heldDef();
     if (!held) return;
+    // alimentar animal (reprodução)
+    if (edge && ePick && ePick.dist <= 4 && this.entities.feed(ePick.e, held.key)) {
+      this.inventory.consumeHeld(1);
+      this.useCd = 0.4;
+      return;
+    }
+    // mirando numa planta, enxada e sementes valem pro chão embaixo dela
+    const onPlant = !!hit && blockDef(hit.id).shape === "cross";
+    const tgt = hit && onPlant ? { x: hit.x, y: hit.y - 1, z: hit.z, id: this.world.getBlock(hit.x, hit.y - 1, hit.z) } : hit;
+    // arar a terra com a enxada
+    if (held.tool?.type === "hoe" && tgt && (tgt.id === B.grass || tgt.id === B.dirt)) {
+      const above = this.world.getBlock(tgt.x, tgt.y + 1, tgt.z);
+      if (above === B.air || blockDef(above).shape === "cross") {
+        if (above !== B.air) this.world.setBlock(tgt.x, tgt.y + 1, tgt.z, B.air);
+        this.world.setBlock(tgt.x, tgt.y, tgt.z, B.farmland);
+        this.sfx.play("place");
+        this.swing = 1;
+        return;
+      }
+    }
+    // plantar sementes
+    if (held.key === "seeds" && tgt && tgt.id === B.farmland && (this.world.getBlock(tgt.x, tgt.y + 1, tgt.z) === B.air || onPlant)) {
+      this.world.setBlock(tgt.x, tgt.y + 1, tgt.z, B.wheat_0);
+      this.crops.set(`${tgt.x},${tgt.y + 1},${tgt.z}`, 0);
+      this.inventory.consumeHeld(1);
+      this.sfx.play("place");
+      return;
+    }
     const eye = this.camera.position;
     // 3) arco / funda
     if (held.ranged) {
@@ -763,11 +816,11 @@ export class MineArena {
     }
     // 5) colocar bloco
     if (held.block !== undefined && hit) {
-      const px = hit.x + hit.nx;
-      const py = hit.y + hit.ny;
-      const pz = hit.z + hit.nz;
+      const px = onPlant ? hit.x : hit.x + hit.nx;
+      const py = onPlant ? hit.y : hit.y + hit.ny;
+      const pz = onPlant ? hit.z : hit.z + hit.nz;
       const cur = this.world.getBlock(px, py, pz);
-      if (cur !== B.air && !blockDef(cur).liquid) return;
+      if (cur !== B.air && !blockDef(cur).liquid && blockDef(cur).shape !== "cross") return;
       const b = this.body;
       const r = PLAYER.w / 2;
       if (blockDef(held.block).solid && px + 1 > b.x - r && px < b.x + r && pz + 1 > b.z - r && pz < b.z + r && py + 1 > b.y && py < b.y + PLAYER.h) return;
@@ -775,6 +828,52 @@ export class MineArena {
       this.inventory.consumeHeld(1);
       this.sfx.play("place");
       this.swing = 0.8;
+    }
+  }
+
+  // ---------- cama e plantações ----------
+  private useBed(x: number, y: number, z: number): void {
+    this.spawn = { x: x + 0.5, y: y + 1.1, z: z + 0.5 };
+    if (this.sky.daylight >= 0.35) {
+      this.cb.onMessage("Ponto de renascimento definido. Só dá pra dormir à noite.", "info");
+      return;
+    }
+    const enemy = this.entities.list.some((e) => !e.dead && (e.def.behavior === "hostile" || e.def.behavior === "boss") && Math.hypot(e.body.x - this.body.x, e.body.z - this.body.z) < 14);
+    if (enemy) {
+      this.cb.onMessage("Não dá pra dormir: há inimigos por perto.", "warn");
+      return;
+    }
+    this.sleepT = 2.8;
+    this.sfx.play("ui");
+    this.cb.onMessage("Dormindo… 💤  Ponto de renascimento definido.", "info");
+  }
+
+  private hydrated(x: number, y: number, z: number): boolean {
+    for (let dx = -4; dx <= 4; dx++) for (let dz = -4; dz <= 4; dz++) if (this.world.getBlock(x + dx, y, z + dz) === B.water) return true;
+    return false;
+  }
+
+  private tickCrops(dt: number): void {
+    this.cropT -= dt;
+    if (this.cropT > 0) return;
+    this.cropT = 1;
+    for (const [key, t] of this.crops) {
+      const [x, y, z] = key.split(",").map(Number);
+      if (!this.world.hasChunkAt(x, z)) {
+        this.crops.set(key, t + 0.5);
+        continue;
+      }
+      const id = this.world.getBlock(x, y, z);
+      if (id < B.wheat_0 || id >= B.wheat_3) {
+        this.crops.delete(key);
+        continue;
+      }
+      const next = t + (this.hydrated(x, y - 1, z) ? 2 : 1);
+      if (next >= 40) {
+        this.world.setBlock(x, y, z, id + 1);
+        if (id + 1 === B.wheat_3) this.crops.delete(key);
+        else this.crops.set(key, 0);
+      } else this.crops.set(key, next);
     }
   }
 
@@ -1018,6 +1117,20 @@ export class MineArena {
       const arm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.6), new THREE.MeshBasicMaterial({ color: 0xc58a5a }));
       arm.position.set(0, 0, -0.1);
       this.hand.add(arm);
+    } else if (def.block !== undefined && BLOCKS[def.block].shape === "cross") {
+      const tn = BLOCK_TILES[BLOCKS[def.block].key as BlockKey][1];
+      const px = canvasPixels(cachedTile(tn));
+      const geo = new THREE.BoxGeometry(1 / 16, 1 / 16, 1 / 16);
+      const mesh = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ color: 0xffffff }), Math.max(1, px.length));
+      const m4 = new THREE.Matrix4();
+      px.forEach((p, i) => {
+        m4.makeTranslation((p.x - 7.5) / 16, (7.5 - p.y) / 16, 0);
+        mesh.setMatrixAt(i, m4);
+        mesh.setColorAt(i, new THREE.Color().setRGB(p.r, p.g, p.b, THREE.SRGBColorSpace));
+      });
+      mesh.scale.setScalar(0.5);
+      mesh.rotation.set(0, -0.5, 0.15);
+      this.hand.add(mesh);
     } else if (def.block !== undefined) {
       const tiles = BLOCK_TILES[BLOCKS[def.block].key as BlockKey];
       const order: TileName[] = [tiles[1], tiles[1], tiles[0], tiles[2], tiles[1], tiles[1]];
@@ -1078,6 +1191,7 @@ export class MineArena {
       alive: this.alive,
       hurt: this.hurtFlash,
       allies: this.entities.list.filter((e) => e.ally && !e.dead).map((e) => e.def.name),
+      fade: this.sleepT > 0 ? Math.max(0, Math.min(1, 1 - Math.abs(this.sleepT - 1.4) / 1.4)) : 0,
       coords: !this.showCoords ? "" : `${Math.floor(this.body.x)}, ${Math.floor(this.body.y)}, ${Math.floor(this.body.z)}`,
     });
   }

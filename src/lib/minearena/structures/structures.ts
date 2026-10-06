@@ -60,6 +60,14 @@ function house(b: Builder, cx: number, cz: number, w: number, withChest: boolean
   if (withChest) b.chest(cx - 2, 1, cz - 2, "aldeia");
 }
 
+/** Horta irrigada: terra arada com trigo maduro e um canal de água no meio. */
+function field(b: Builder, cx: number, cz: number) {
+  b.fill(cx - 2, 0, cz - 2, cx + 2, 0, cz + 2, B.farmland);
+  b.fill(cx - 2, 1, cz - 2, cx + 2, 1, cz + 2, B.wheat_3);
+  b.fill(cx, 0, cz - 2, cx, 0, cz + 2, B.water);
+  b.fill(cx, 1, cz - 2, cx, 1, cz + 2, B.air);
+}
+
 const STRUCTURES: Record<StructureId, StructureDef> = {
   aldeia: {
     id: "aldeia",
@@ -86,6 +94,9 @@ const STRUCTURES: Record<StructureId, StructureDef> = {
       house(b, -10, 9, 3, false);
       house(b, 10, 9, 4, false);
       if (b.rnd(1) > 0.4) house(b, 0, -13, 5, false);
+      field(b, -14, 0);
+      field(b, 14, 0);
+      field(b, 0, 13);
     },
   },
   templo: {

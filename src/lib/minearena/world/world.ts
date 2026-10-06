@@ -278,6 +278,30 @@ export class World {
           const faceUV = FACE_UV[id];
           const jitter = 0.94 + rand01(this.seed, wx0 + x, y, wz0 + z) * 0.1;
           const hTop = hm[x + z * CHUNK];
+          if (def.shape === "cross") {
+            const t = faceUV[0];
+            const light = def.glow ? 1 : y >= hTop ? 1 : Math.max(0.3, 1 - (hTop - y) * 0.11);
+            const k = jitter * light;
+            const planes = [
+              [[0, 0, 0], [1, 0, 1], [1, 1, 1], [0, 1, 0]],
+              [[0, 0, 1], [1, 0, 0], [1, 1, 0], [0, 1, 1]],
+            ];
+            for (const pl of planes) {
+              for (const flip of [false, true]) {
+                const base = P.length / 3;
+                const order = flip ? [3, 2, 1, 0] : [0, 1, 2, 3];
+                const us = [t[0], t[2], t[2], t[0]];
+                const vs = [t[1], t[1], t[3], t[3]];
+                for (const j of order) {
+                  P.push(x + pl[j][0], y + pl[j][1] * 0.95, z + pl[j][2]);
+                  C.push(k, k, k);
+                  UV.push(us[j], vs[j]);
+                }
+                I.push(base, base + 1, base + 2, base, base + 2, base + 3);
+              }
+            }
+            continue;
+          }
 
           for (let f = 0; f < 6; f++) {
             const fd = FACES[f];

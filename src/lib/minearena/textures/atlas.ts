@@ -280,6 +280,73 @@ function drawTile(name: TileName, put: Put): void {
       }
       break;
     }
+    case "farmland_top": {
+      for (let y = 0; y < N; y++) {
+        for (let x = 0; x < N; x++) {
+          const furrow = y % 4 === 1 ? 0.7 : y % 4 === 2 ? 1.12 : 1;
+          put(x, y, mul(hex(0x5a3d22), furrow * (1 + (rnd(x, y, s) - 0.5) * 0.18)));
+        }
+      }
+      break;
+    }
+    case "wheat_0":
+    case "wheat_1":
+    case "wheat_2":
+    case "wheat_3": {
+      const stage = Number(name.slice(-1));
+      const h = [4, 7, 11, 14][stage];
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) put(x, y, hex(0x000000), 0);
+      for (let x = 1; x < N; x += 3) {
+        const top = N - h + Math.floor(rnd(x, 0, s) * 2);
+        for (let y = top; y < N; y++) put(x, y, mul(stage === 3 ? hex(0xd9b13b) : hex(0x5fa03c), 0.85 + rnd(x, y, s) * 0.3));
+        if (stage >= 2) {
+          put(x, top, hex(stage === 3 ? 0xf0cf5a : 0x8fb83a));
+          put(x - 1, top + 1, hex(stage === 3 ? 0xe0bd48 : 0x7cab35));
+          put(x + 1, top + 1, hex(stage === 3 ? 0xe0bd48 : 0x7cab35));
+          if (stage === 3) put(x, top - 1, hex(0xf6dc7a));
+        }
+      }
+      break;
+    }
+    case "lily": {
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) put(x, y, hex(0x000000), 0);
+      for (const cx of [4, 10]) {
+        for (let y = 7; y < N; y++) put(cx, y, hex(0x4a9a3a));
+        put(cx - 1, 11, hex(0x4a9a3a));
+        put(cx + 1, 12, hex(0x4a9a3a));
+        for (const [dx, dy] of [[0, 0], [-1, 1], [1, 1], [-1, 2], [1, 2], [0, 3], [-2, 1], [2, 1]] as const) put(cx + dx, 3 + dy, dy === 3 ? hex(0xf2c94c) : hex(0xfafafa));
+        put(cx, 5, hex(0xf2c94c));
+      }
+      break;
+    }
+    case "tallgrass": {
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) put(x, y, hex(0x000000), 0);
+      for (let x = 1; x < N - 1; x += 2) {
+        const top = 3 + Math.floor(rnd(x, 1, s) * 7);
+        for (let y = top; y < N; y++) put(x + (y < top + 3 && x % 4 === 1 ? 1 : 0), y, mul(hex(0x5da13a), 0.75 + rnd(x, y, s) * 0.5));
+      }
+      break;
+    }
+    case "bed_top": {
+      for (let y = 0; y < N; y++) {
+        for (let x = 0; x < N; x++) {
+          const pillow = y < 5 && x > 1 && x < 14;
+          const c = pillow ? hex(0xf2efe6) : hex(0xc2272d);
+          const fold = y === 5 || x === 0 || x === 15 ? 0.78 : 1;
+          put(x, y, mul(c, fold * (1 + (rnd(x, y, s) - 0.5) * 0.1)));
+        }
+      }
+      break;
+    }
+    case "bed_side": {
+      for (let y = 0; y < N; y++) {
+        for (let x = 0; x < N; x++) {
+          const cloth = y < 7;
+          put(x, y, mul(cloth ? hex(0xc2272d) : hex(0xb88a52), (y === 7 ? 0.7 : 1) * (1 + (rnd(x, y, s) - 0.5) * 0.12)));
+        }
+      }
+      break;
+    }
     case "limestone": {
       noiseFill(put, hex(0xe8e0cc), 0.08, s);
       for (let y = 0; y < N; y++) {
@@ -381,7 +448,9 @@ export function blockIconUrl(key: BlockKey | string): string {
   c.width = c.height = 32;
   const ctx = c.getContext("2d")!;
   ctx.imageSmoothingEnabled = false;
-  if (tiles) {
+  if (tiles && def?.shape === "cross") {
+    ctx.drawImage(cachedTile(tiles[1]), 2, 2, 28, 28);
+  } else if (tiles) {
     const [top, side] = [cachedTile(tiles[0]), cachedTile(tiles[1])];
     ctx.save();
     ctx.transform(0.875, 0.4375, -0.875, 0.4375, 16, 2);

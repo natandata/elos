@@ -34,7 +34,7 @@ export interface HumanoidSpec {
 }
 export interface BeastSpec {
   kind: "beast";
-  variant: "sheep" | "boar" | "camel" | "scorpion";
+  variant: "sheep" | "boar" | "camel" | "scorpion" | "ox" | "rooster" | "lion" | "bear" | "snake";
   scale: number;
   body: number;
   head: number;
@@ -176,6 +176,51 @@ function beast(s: BeastSpec): Rig {
     root.add(head);
     height = 2.1;
     radius = 0.6;
+  } else if (s.variant === "ox") {
+    legs(9, 3.4, 3.8, 6.5, s.legs);
+    root.add(mk(mats, 11, 10, 19, s.body, 0, 14, 0), mk(mats, 5, 4, 6, s.accent, 3, 17, 2));
+    head = pivot(0, 16, 9.5);
+    head.add(mk(mats, 7, 7, 7, s.head, 0, 0, 3), mk(mats, 5, 3, 2.5, 0xe8d6c0, 0, -2, 7.2), mk(mats, 1.2, 3, 1.2, 0xf3ecd2, -3.8, 4, 1), mk(mats, 1.2, 3, 1.2, 0xf3ecd2, 3.8, 4, 1), mk(mats, 1.4, 1.4, 0.4, 0x111111, -2, 1.5, 6.6), mk(mats, 1.4, 1.4, 0.4, 0x111111, 2, 1.5, 6.6));
+    root.add(head);
+    height = 1.4;
+    radius = 0.6;
+  } else if (s.variant === "rooster") {
+    legs(4, 1, 1.6, 0.5, s.legs);
+    root.add(mk(mats, 5, 5, 7, s.body, 0, 6.5, 0), mk(mats, 3, 6, 2, s.accent, 0, 10, -4.5));
+    head = pivot(0, 9, 3);
+    head.add(mk(mats, 3.4, 4, 3.4, s.head, 0, 2, 1), mk(mats, 1, 2, 3, 0xd63a3a, 0, 5, 1), mk(mats, 1.6, 1.2, 2, 0xf2c94c, 0, 2, 3.2), mk(mats, 1, 1, 0.4, 0x111111, -1.2, 3, 2.7), mk(mats, 1, 1, 0.4, 0x111111, 1.2, 3, 2.7));
+    root.add(head);
+    height = 0.65;
+    radius = 0.25;
+  } else if (s.variant === "lion") {
+    legs(8, 3.2, 3.4, 6.5, s.legs);
+    root.add(mk(mats, 10, 9, 18, s.body, 0, 12.5, 0));
+    head = pivot(0, 15, 9);
+    head.add(mk(mats, 8, 8, 8, s.head, 0, 0, 4), mk(mats, 12, 12, 5, s.accent, 0, 0, 0.5), mk(mats, 4, 3, 2.5, 0xe8c9a0, 0, -2.2, 8.2), mk(mats, 1.4, 1.4, 0.4, 0x111111, -2.2, 1.6, 8.1), mk(mats, 1.4, 1.4, 0.4, 0x111111, 2.2, 1.6, 8.1));
+    root.add(head);
+    tail = pivot(0, 14, -9);
+    tail.add(mk(mats, 1.6, 1.6, 9, s.body, 0, 0, -4.5), mk(mats, 3, 3, 3, s.accent, 0, 0, -10));
+    root.add(tail);
+    height = 1.15;
+    radius = 0.55;
+  } else if (s.variant === "bear") {
+    legs(7, 4.2, 4.2, 6, s.legs);
+    root.add(mk(mats, 12, 11, 17, s.body, 0, 12.5, 0));
+    head = pivot(0, 15, 8.5);
+    head.add(mk(mats, 8, 7, 7, s.head, 0, 0, 3.5), mk(mats, 4, 3, 3, 0xc9a07a, 0, -1.5, 7.5), mk(mats, 2, 2, 1.5, s.head, -3, 4, 1), mk(mats, 2, 2, 1.5, s.head, 3, 4, 1), mk(mats, 1.4, 1.4, 0.4, 0x111111, -2.2, 1.5, 7.1), mk(mats, 1.4, 1.4, 0.4, 0x111111, 2.2, 1.5, 7.1));
+    root.add(head);
+    height = 1.25;
+    radius = 0.62;
+  } else if (s.variant === "snake") {
+    const seg: [number, number][] = [[0, -12], [0, -7], [0, -2], [0, 3], [0, 8]];
+    tail = pivot(0, 0, 0);
+    seg.forEach(([x, z], i) => tail!.add(mk(mats, 3.2 - i * 0.2, 2.6, 6, i % 2 ? s.accent : s.body, x, 1.3, z)));
+    root.add(tail);
+    head = pivot(0, 1, 10);
+    head.add(mk(mats, 4, 3, 5, s.head, 0, 1, 2), mk(mats, 0.8, 0.5, 2.5, 0xd63a3a, 0, 0.5, 6), mk(mats, 0.9, 0.9, 0.4, 0xffd54a, -1.2, 2, 3.8), mk(mats, 0.9, 0.9, 0.4, 0xffd54a, 1.2, 2, 3.8));
+    root.add(head);
+    height = 0.3;
+    radius = 0.28;
   } else {
     legs(4, 1.6, 4, 4, s.legs);
     root.add(mk(mats, 10, 4, 12, s.body, 0, 6, 0));
