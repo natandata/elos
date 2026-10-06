@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
-import { GAME_RELEASES, isReleased } from "@/lib/games/release";
+import { EarlyAccessManager, type EAUser } from "@/components/games/EarlyAccessManager";
+import { GAME_RELEASES, isReleased, type ReleasedGame } from "@/lib/games/release";
+import { createAdminClient } from "@/lib/supabase/admin";
+
+const RELEASE_TITLES: Record<ReleasedGame, string> = { dress: "👗 Vista o Herói (inclui a Passarela)" };
 
 type Game = { href: string; emoji: string; title: string; hint: string; release?: keyof typeof GAME_RELEASES; needsElo?: boolean };
 
@@ -30,6 +34,23 @@ const TOOLS = [
 
 export default async function AdminJogosPage() {
   await requireRole("admin");
+
+  const pending = (Object.keys(GAME_RELEASES) as ReleasedGame[]).filter((g) => !isReleased(g));
+  let users: EAUser[] = [];
+  const granted = new Map<string, string[]>();
+  const db = pending.length > 0 ? createAdminClient() : null;
+  if (db) {
+    const [{ data: profs }, { data: acc }] = await Promise.all([
+      db.from("profiles").select("id, full_name, elos(name)").in("role", ["cria", "leader"]).eq("is_test_account", false).order("full_name").limit(1000),
+      db.from("game_early_access").select("game, user_id").in("game", pending),
+    ]);
+    users = ((profs ?? []) as unknown as { id: string; full_name: string | null; elos: { name: string } | { name: string }[] | null }[]).map((p) => ({
+      id: p.id,
+      name: p.full_name || "Sem nome",
+      elo: (Array.isArray(p.elos) ? p.elos[0]?.name : p.elos?.name) ?? null,
+    }));
+    for (const a of (acc ?? []) as { game: string; user_id: string }[]) granted.set(a.game, [...(granted.get(a.game) ?? []), a.user_id]);
+  }
 
   return (
     <>
@@ -67,6 +88,18 @@ export default async function AdminJogosPage() {
           })}
         </ul>
       </section>
+
+      {pending.length > 0 ? (
+        <section className="mb-6">
+          <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">Acesso antecipado</h2>
+          <p className="mb-3 text-xs text-[var(--muted)]">Libere um jogo ainda não lançado para jogadores específicos. Para todos os outros ele continua fechado até a data de abertura.</p>
+          <div className="space-y-3">
+            {pending.map((g) => (
+              <EarlyAccessManager key={g} game={g} title={RELEASE_TITLES[g]} users={users} granted={granted.get(g) ?? []} />
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section>
         <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">Ferramentas de admin</h2>
