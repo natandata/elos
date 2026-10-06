@@ -133,12 +133,35 @@ export class StoryDirector {
         return;
       }
       this.mission = MISSION_BY_ID.get(this.session.missionId) ?? null;
-      if (this.mission) this.enterMission(this.mission, false);
+      if (this.mission) this.resumeMission(this.mission);
       return;
     }
     const first = MISSIONS_OF(this.session.chapterId)[0];
     this.mission = first;
     this.enterMission(first, true);
+  }
+
+  /** Carregou um jogo salvo no meio de uma missão: refaz (já no final) a cena que tinha sido interrompida. */
+  private resumeMission(m: Mission): void {
+    if (this.session.objIndex >= m.objectives.length) {
+      // salvou durante a cena de conclusão: os objetivos já estavam cumpridos
+      this.completeMission(m, true);
+      return;
+    }
+    this.enterMission(m, false);
+    if (m.onStart && !this.session.flags[`start:${m.id}`]) {
+      this.busyMission = true;
+      this.play(
+        m.onStart,
+        () => {
+          this.busyMission = false;
+          this.session.flags[`start:${m.id}`] = true;
+          this.setCheckpoint();
+          this.host.saveNow();
+        },
+        true,
+      );
+    }
   }
 
   update(dt: number): void {
@@ -186,7 +209,7 @@ export class StoryDirector {
       this.session.missionId = m.id;
       this.session.objIndex = 0;
       this.session.progress = 0;
-      for (const s of m.spawn ?? []) this.spawnNpc(s.id ?? `${s.mob}_${this.npcs.size}`, s.mob, s.at.x, s.at.z, s.tag, true);
+      for (const s of m.spawn ?? []) this.spawnNpc(s.id ?? this.uid(s.mob), s.mob, s.at.x, s.at.z, s.tag, true);
       for (const g of m.give ?? []) this.host.invGive(g.item, g.count);
       this.setCheckpoint();
       this.host.message(`Missão: ${m.title}`, "info");
@@ -194,6 +217,7 @@ export class StoryDirector {
         this.busyMission = true;
         this.play(m.onStart, () => {
           this.busyMission = false;
+          this.session.flags[`start:${m.id}`] = true;
           this.setCheckpoint();
           this.host.saveNow();
         });
@@ -235,11 +259,14 @@ export class StoryDirector {
     this.emit();
   }
 
-  private completeMission(m: Mission): void {
-    if (!this.session.done.includes(m.id)) this.session.done.push(m.id);
-    for (const r of m.reward ?? []) this.host.invGive(r.item, r.count);
-    this.host.sfx("quest");
-    this.host.message(`Missão concluída: ${m.title}`, "rare");
+  private completeMission(m: Mission, replay = false): void {
+    const first = !this.session.done.includes(m.id);
+    if (first) {
+      this.session.done.push(m.id);
+      for (const r of m.reward ?? []) this.host.invGive(r.item, r.count);
+      this.host.sfx("quest");
+      this.host.message(`Missão concluída: ${m.title}`, "rare");
+    }
     const next = m.next ? MISSION_BY_ID.get(m.next) : undefined;
     const go = () => {
       if (next) this.enterMission(next, true);
@@ -248,10 +275,14 @@ export class StoryDirector {
     this.mission = null;
     if (m.onComplete) {
       this.busyMission = true;
-      this.play(m.onComplete, () => {
-        this.busyMission = false;
-        go();
-      });
+      this.play(
+        m.onComplete,
+        () => {
+          this.busyMission = false;
+          go();
+        },
+        replay,
+      );
     } else go();
   }
 
@@ -297,7 +328,11 @@ export class StoryDirector {
           }
         }
         if (this.session.progress >= o.count) {
-          for (const k of [...this.flags]) if (k.startsWith(`near:${o.tag}:`)) this.flags.delete(k);
+          for (const k of [...this.flags]) {
+            if (!k.startsWith(`near:${o.tag}:`)) continue;
+            this.flags.delete(k);
+            delete this.session.flags[k];
+          }
           this.completeObjective();
         }
         break;
@@ -428,11 +463,12 @@ export class StoryDirector {
       return true;
     }
     const e = this.npcs.get(npcId);
-    if (e) this.host.message(`${e.def.name}: ${this.idleLine(npcId)}`, "info");
+    const line = this.idleLine(npcId);
+    if (e && line) this.host.message(`${e.def.name}: ${line}`, "info");
     return true;
   }
 
-  private idleLine(id: string): string {
+  private idleLine(id: string): string | null {
     const lines: Record<string, string> = {
       adao: "Deus nos deu este jardim para cuidar.",
       eva: "Cada flor aqui parece uma promessa.",
@@ -441,7 +477,7 @@ export class StoryDirector {
       noe: "Tudo como o Senhor mandou.",
       sem: "Meu pai confia em Deus. Eu também.",
     };
-    return lines[id] ?? "…";
+    return lines[id] ?? null;
   }
 
   /** Antes de quebrar um bloco: devolve false se a área é protegida pela história. */
@@ -473,10 +509,12 @@ export class StoryDirector {
     this.host.sfx("pickup");
   }
 
-  onBlockPlaced(x: number, y: number, z: number): void {
+  onBlockPlaced(x: number, y: number, z: number, id: number): void {
     void y;
     const o = this.obj;
     if (o?.k !== "place") return;
+    const key = BLOCKS[id]?.key ?? "";
+    if (!/planks|log/.test(key)) return;
     const zone = this.map.zones[o.zone];
     if (zone && inZone(zone, x, z)) {
       this.session.progress++;
@@ -489,13 +527,26 @@ export class StoryDirector {
   }
 
   // ------------------------------------------------------------------ personagens
+  /** Id novo e estável (vai para o jogo salvo) para quem não tem id fixo. */
+  private uid(mob: string): string {
+    return `${mob}_${Math.random().toString(36).slice(2, 8)}`;
+  }
+
   private deferred: { id: string; mob: string; x: number; z: number; tag?: string }[] = [];
   private retryT = 0;
 
   private spawnNpc(id: string, mob: string, x: number, z: number, tag: string | undefined, record: boolean): Entity | null {
     const def = STORY_MOBS[mob];
     if (!def) return null;
-    if (record) this.session.npcs.push({ id, mob, x, z, tag });
+    const dup = this.npcs.get(id);
+    if (dup) {
+      this.host.removeEntity(dup);
+      this.npcs.delete(id);
+    }
+    if (record) {
+      this.session.npcs = this.session.npcs.filter((n) => n.id !== id);
+      this.session.npcs.push({ id, mob, x, z, tag });
+    }
     if (this.host.world.surfaceY(Math.floor(x), Math.floor(z)) < 0) {
       // o chão ainda não carregou: tenta de novo em instantes
       this.deferred.push({ id, mob, x, z, tag });
@@ -594,10 +645,10 @@ export class StoryDirector {
   }
 
   // ------------------------------------------------------------------ cutscenes
-  private play(id: string, then: (() => void) | null): void {
+  private play(id: string, then: (() => void) | null, skip = false): void {
     const cut = CUTSCENES[id];
     if (!cut) return then?.();
-    this.runner = { cut, i: 0, wait: null, skip: false, then };
+    this.runner = { cut, i: 0, wait: null, skip, then };
     this.ui.cinematic = true;
     this.emit();
   }
@@ -606,6 +657,7 @@ export class StoryDirector {
     if (!this.runner) return;
     this.runner.skip = true;
     this.runner.wait = null;
+    this.flushLong();
     this.ui.dialogue = null;
     this.ui.caption = null;
     this.tween = null;
@@ -797,7 +849,7 @@ export class StoryDirector {
         this.host.sfx(s.kind);
         break;
       case "spawn":
-        for (let k = 0; k < (s.count ?? 1); k++) this.spawnNpc(`${s.mob}_${this.npcs.size}`, s.mob, s.at.x + k, s.at.z, s.tag, true);
+        for (let k = 0; k < (s.count ?? 1); k++) this.spawnNpc(this.uid(s.mob), s.mob, s.at.x + k, s.at.z, s.tag, true);
         break;
       case "call":
         this.call(s.fn, s.arg, !!s.wait, r);
@@ -872,6 +924,31 @@ export class StoryDirector {
 
   // ------------------------------------------------------------------ chamadas especiais
   private longBusy = 0;
+
+  /** Pular a cena: termina na hora o que estava acontecendo aos poucos (arca, portão, dilúvio). */
+  private flushLong(): void {
+    for (const [x, y, z, id] of this.arkBuildQueue) {
+      this.host.world.setBlock(x, y, z, id, true);
+      this.arkPlaced.push([x, y, z, id]);
+    }
+    if (this.arkBuildQueue.length > 0) this.session.flags.arkBuilt = true;
+    this.arkBuildQueue = [];
+    for (const [x, y, z, id] of this.sealQueue) this.host.world.setBlock(x, y, z, id, true);
+    this.sealQueue = [];
+    if (this.floodLevel !== this.floodTarget || this.arkLift !== this.arkLiftTarget) {
+      const to = this.floodTarget;
+      if (to > this.floodLevel) {
+        this.floodLevel = to;
+        this.applyWater(to);
+      } else {
+        this.floodLevel = to;
+        this.drainAbove(to);
+      }
+      this.session.env.flood = to;
+      this.liftArkTo(this.arkLiftTarget);
+    }
+    this.longBusy = 0;
+  }
   private longDone(): boolean {
     return this.longBusy === 0;
   }
@@ -970,14 +1047,14 @@ export class StoryDirector {
     const gz = EDEN_SITES.gate.z;
     const cells: [number, number, number, number][] = [];
     for (let y = 25; y <= 32; y++) for (let z = gz - 4; z <= gz + 4; z++) for (const x of [gx, gx + 1]) cells.push([x, y, z, y === 32 ? B.gold_block : B.limestone]);
-    if (skip) for (const [x, y, z, id] of cells) this.host.world.setBlock(x, y, z, id);
+    if (skip) for (const [x, y, z, id] of cells) this.host.world.setBlock(x, y, z, id, true);
     else this.sealQueue = cells;
     this.session.flags.sealed = true;
   }
 
   private arkDoor(close: boolean): void {
     this.doorClosed = close;
-    for (const [x, y, z] of arkDoorCells()) this.host.world.setBlock(x, y + this.arkLift, z, close ? B.planks : B.air);
+    for (const [x, y, z] of arkDoorCells()) this.host.world.setBlock(x, y + this.arkLift, z, close ? B.planks : B.air, true);
     this.host.sfx("door");
   }
 
@@ -986,7 +1063,7 @@ export class StoryDirector {
     // do casco para cima: ordena por altura
     list.sort((a, b) => a[1] - b[1] || a[0] - b[0]);
     if (skip) {
-      for (const [x, y, z, id] of list) this.host.world.setBlock(x, y, z, id);
+      for (const [x, y, z, id] of list) this.host.world.setBlock(x, y, z, id, true);
       this.arkPlaced = list;
       this.session.flags.arkBuilt = true;
       return;
@@ -1001,9 +1078,11 @@ export class StoryDirector {
     this.floodTarget = level;
     this.arkLiftTarget = Math.max(0, level - 25);
     if (skip) {
+      const down = level < this.floodLevel;
       this.floodLevel = level;
       this.session.env.flood = level;
-      this.applyWater(level);
+      if (down) this.drainAbove(level);
+      else this.applyWater(level);
       this.liftArkTo(this.arkLiftTarget);
     }
   }
@@ -1025,10 +1104,10 @@ export class StoryDirector {
     const doorCells = this.doorClosed ? arkDoorCells().map(([x, y, z]) => [x, y, z, B.planks] as [number, number, number, number]) : [];
     const blocks = [...this.arkPlaced, ...doorCells];
     const lift = this.arkLift;
-    for (const [x, y, z] of blocks) w.setBlock(x, y + lift, z, B.air);
+    for (const [x, y, z] of blocks) w.setBlock(x, y + lift, z, B.air, true);
     // o que ficou para trás volta a ser água se estiver abaixo da superfície
     this.arkLift += dy;
-    for (const [x, y, z, id] of blocks) w.setBlock(x, y + this.arkLift, z, id);
+    for (const [x, y, z, id] of blocks) w.setBlock(x, y + this.arkLift, z, id, true);
     const p = this.host.playerPos();
     const inside = (x: number, y: number, z: number) => x >= ARK.x0 && x <= ARK.x1 && z >= ARK.z0 && z <= ARK.z1 && y >= ARK.y0 + lift && y <= ARK.y0 + lift + 12;
     if (inside(p.x, p.y, p.z)) this.host.setPlayer(p.x, p.y + dy, p.z, p.yaw);
@@ -1042,7 +1121,7 @@ export class StoryDirector {
       const n = Math.max(6, Math.ceil(this.arkBuildQueue.length / 110));
       for (let i = 0; i < n && this.arkBuildQueue.length > 0; i++) {
         const b = this.arkBuildQueue.shift()!;
-        this.host.world.setBlock(b[0], b[1], b[2], b[3]);
+        this.host.world.setBlock(b[0], b[1], b[2], b[3], true);
         this.arkPlaced.push(b);
         if (i === 0 && Math.random() < 0.25) this.host.sfx("place");
       }
@@ -1056,7 +1135,7 @@ export class StoryDirector {
       const n = Math.max(3, Math.ceil(this.sealQueue.length / 40));
       for (let i = 0; i < n && this.sealQueue.length > 0; i++) {
         const b = this.sealQueue.shift()!;
-        this.host.world.setBlock(b[0], b[1], b[2], b[3]);
+        this.host.world.setBlock(b[0], b[1], b[2], b[3], true);
       }
     }
     // água subindo/descendo, e a arca subindo junto

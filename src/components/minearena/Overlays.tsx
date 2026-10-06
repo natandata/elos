@@ -75,12 +75,12 @@ export function PauseMenu({ onResume, onOptions, onExit, coop, canHost, onOpenRo
   );
 }
 
-export function DeathScreen({ onRespawn }: { onRespawn: () => void }) {
+export function DeathScreen({ onRespawn, story = false }: { onRespawn: () => void; story?: boolean }) {
   return (
     <div className="ma-modal ma-death">
       <div className="ma-dialog">
-        <h2>Você caiu em Canaã</h2>
-        <p className="ma-dialog-line">Levante-se. A aventura continua e seus itens foram mantidos.</p>
+        <h2>{story ? "Você caiu" : "Você caiu em Canaã"}</h2>
+        <p className="ma-dialog-line">{story ? "Levante-se. Você volta ao último ponto da jornada, com seus itens." : "Levante-se. A aventura continua e seus itens foram mantidos."}</p>
         <button type="button" className="ma-btn ma-btn-gold" onClick={onRespawn}>
           ✦ Renascer
         </button>

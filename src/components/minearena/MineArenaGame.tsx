@@ -157,7 +157,7 @@ function Play({ save, rotated, settings, onSettings, onExit, onStoryNav, storyCh
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.code === "KeyT" && !paused && !dialog && !bag && !chat) {
+      if (e.code === "KeyT" && !paused && !dialog && !bag && !chat && !gameRef.current?.story) {
         e.preventDefault();
         gameRef.current?.setUiOpen(true);
         setChat(true);
@@ -245,6 +245,7 @@ function Play({ save, rotated, settings, onSettings, onExit, onStoryNav, storyCh
       ) : null}
       {options && game ? <OptionsMenu settings={settings} mobile={mobile} onChange={onSettings} onDone={() => setOptions(false)} /> : null}
       {hud && !hud.alive && game ? <DeathScreen
+          story={!!storyChapter}
           onRespawn={() => {
             setPaused(false);
             setOptions(false);

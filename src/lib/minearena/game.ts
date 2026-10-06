@@ -1539,7 +1539,10 @@ export class MineArena {
       this.survival(dt);
       this.interact(dt);
     }
-    if (this.story) this.hunger = Math.max(this.hunger, 14);
+    if (this.story) {
+      this.hunger = Math.max(this.hunger, 14);
+      if (this.alive && !cut) this.storyBounds();
+    }
     this.syncCamera();
     this.storyCamera();
 
@@ -2188,7 +2191,7 @@ export class MineArena {
       const r = PLAYER.w / 2;
       if ((blockDef(placeId).solid || blockDef(placeId).shape === "boxes") && px + 1 > b.x - r && px < b.x + r && pz + 1 > b.z - r && pz < b.z + r && py + 1 > b.y && py < b.y + PLAYER.h) return;
       this.world.setBlock(px, py, pz, placeId);
-      this.story?.onBlockPlaced(px, py, pz);
+      this.story?.onBlockPlaced(px, py, pz, placeId);
       this.inventory.consumeHeld(1);
       this.sfx.play("place");
       this.swing = 0.8;
@@ -3184,6 +3187,23 @@ export class MineArena {
       exitToMenu: () => this.cb.onStoryNav?.({ menu: true }),
       startChapter: (id) => this.cb.onStoryNav?.({ chapter: id }),
     };
+  }
+
+  /** O mapa da campanha é limitado: quem sai dele (ou cai no vazio) volta ao último checkpoint. */
+  private storyBounds(): void {
+    const st = this.story;
+    if (!st) return;
+    const m = st.map;
+    const b = this.body;
+    if (b.x >= -1 && b.z >= -1 && b.x <= m.w + 1 && b.z <= m.d + 1 && b.y >= -8) return;
+    const to = st.respawnPoint() ?? { x: m.spawn.x + 0.5, y: 40, z: m.spawn.z + 0.5, yaw: m.spawn.yaw };
+    b.x = to.x;
+    b.y = to.y + 1;
+    b.z = to.z;
+    b.vx = b.vy = b.vz = 0;
+    this.yaw = to.yaw;
+    this.invuln = 2;
+    this.cb.onMessage("Fique dentro da área da história.", "warn");
   }
 
   /** Câmera da cutscene (por cima da câmera do jogador) e tremor. */

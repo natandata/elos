@@ -173,7 +173,7 @@ export function StoryOverlay({ game, ui, hud }: { game: MineArena; ui: StoryUi |
             <p>{ui.learn.what}</p>
             <h4>Onde está na Bíblia?</h4>
             <p className="ms-learn-ref">
-              📖 {ui.learn.book} · {ui.learn.ref}
+              📖 {ui.learn.ref.startsWith(ui.learn.book) ? ui.learn.ref : `${ui.learn.book} · ${ui.learn.ref}`}
             </p>
             <h4>Personagens</h4>
             <p>{ui.learn.characters.join(" · ")}</p>

@@ -206,7 +206,7 @@ export const MISSIONS: Mission[] = [
     title: "Alimento para a viagem",
     desc: "PREPARE: junte comida para a família e para os animais.",
     ref: "Gênesis 6:21",
-    objectives: [{ k: "collect", item: "apple", count: 8, text: "Colha 8 frutos nas árvores do vale.", consume: true }],
+    objectives: [{ k: "collect", item: "apple", count: 8, text: "Colha 8 frutos no pomar, ao sul da arca.", consume: true, at: "orchard" }],
     next: "noe_5",
   },
   {

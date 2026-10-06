@@ -321,13 +321,16 @@ export class World {
   replaceIds(map: Map<number, number>): void {
     for (const ch of this.chunks.values()) {
       const d = ch.data;
+      let changed = false;
       for (let i = 0; i < d.length; i++) {
         const to = map.get(d[i]);
-        if (to !== undefined) d[i] = to;
+        if (to !== undefined) {
+          d[i] = to;
+          changed = true;
+        }
       }
-      ch.needsMesh = true;
+      if (changed) ch.needsMesh = true;
     }
-    this.markAllDirty();
   }
 
   /** Enche de água o ar até `level` nos chunks carregados (dilúvio). `keep` protege espaços (interior da arca). */
@@ -335,37 +338,52 @@ export class World {
     for (const ch of this.chunks.values()) {
       const x0 = ch.cx * CHUNK;
       const z0 = ch.cz * CHUNK;
+      let changed = false;
       for (let lz = 0; lz < CHUNK; lz++) {
         for (let lx = 0; lx < CHUNK; lx++) {
           for (let y = 1; y <= level; y++) {
             const i = lx + lz * CHUNK + y * CHUNK * CHUNK;
-            if (ch.data[i] === B.air || ch.data[i] === B.tallgrass || ch.data[i] === B.flower_red || ch.data[i] === B.flower_yellow || ch.data[i] === B.flower_blue || ch.data[i] === B.lily) {
-              if (!keep(x0 + lx, y, z0 + lz)) ch.data[i] = B.water;
+            const id = ch.data[i];
+            if (id === B.air || id === B.tallgrass || id === B.flower_red || id === B.flower_yellow || id === B.flower_blue || id === B.lily) {
+              if (!keep(x0 + lx, y, z0 + lz)) {
+                ch.data[i] = B.water;
+                changed = true;
+              }
             }
           }
         }
       }
+      if (!changed) continue;
       ch.maxY = Math.max(ch.maxY, Math.min(WORLD_H - 1, level + 1));
       ch.needsMesh = true;
+      this.markNeighborsDirty(ch);
     }
-    this.markAllDirty();
   }
 
   /** Remove (troca por `ids`) blocos acima de `level` nos chunks carregados: a água do dilúvio baixando. */
   drainAbove(level: number, ids: Map<number, number>): void {
     for (const ch of this.chunks.values()) {
       const start = (level + 1) * CHUNK * CHUNK;
-      for (let i = start; i < ch.data.length; i++) {
+      const end = Math.min(ch.data.length, (ch.maxY + 1) * CHUNK * CHUNK);
+      let changed = false;
+      for (let i = start; i < end; i++) {
         const to = ids.get(ch.data[i]);
-        if (to !== undefined) ch.data[i] = to;
+        if (to !== undefined) {
+          ch.data[i] = to;
+          changed = true;
+        }
       }
+      if (!changed) continue;
       ch.needsMesh = true;
+      this.markNeighborsDirty(ch);
     }
-    this.markAllDirty();
   }
 
-  private markAllDirty(): void {
-    for (const ch of this.chunks.values()) ch.needsMesh = true;
+  private markNeighborsDirty(ch: Chunk): void {
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const n = this.chunks.get(ckey(ch.cx + dx, ch.cz + dz));
+      if (n) n.needsMesh = true;
+    }
   }
 
   private gen(cx: number, cz: number): void {

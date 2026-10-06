@@ -79,6 +79,9 @@ function scaffold(c: ChunkCtx): void {
   }
 }
 
+/** Pomar ao sul da arca: árvores frutíferas garantidas para a missão de alimento. */
+const ORCHARD: [number, number][] = [[56, 77], [62, 74], [68, 77], [70, 83], [64, 87], [57, 85], [63, 80]];
+
 const riverZ = (x: number): number => 98 + 4 * Math.sin(x / 11);
 
 function height(x: number, z: number): number {
@@ -151,6 +154,7 @@ function decorate(c: ChunkCtx, env: MapEnv): void {
     else if (kind < 0.8) tree(c, x, k.h, z, { trunk: 5 + Math.floor(c.rand(x, z, 23) * 2), radius: 3, leaf: B.leaves });
     else tree(c, x, k.h, z, { trunk: 9, radius: 4, leaf: B.leaves, wide: true });
   });
+  for (const [x, z] of ORCHARD) tree(c, x, column(x, z).h, z, { trunk: 5, radius: 3, leaf: B.fruit_leaves });
   scaffold(c);
 }
 
@@ -169,6 +173,7 @@ export const NOAH_MAP: StoryMapDef = {
     arkInside: { x: 74, z: 56, r: 15 },
     arkEnter: { x: 74, z: 56, r: 3.5 },
     meadow: { x: 100, z: 74, r: 14 },
+    orchard: { x: 63, z: 80, r: 10 },
     hill: { x: 108, z: 20, r: 10 },
   },
   time: 0.1,

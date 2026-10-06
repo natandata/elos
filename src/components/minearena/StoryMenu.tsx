@@ -26,6 +26,7 @@ export function StoryMenu({ progress, hasSave, onPlay, onBack }: { progress: Sto
   const total = CHAPTERS.length;
   const pct = Math.round((progress.completed.length / total) * 100);
   const current = useMemo(() => CHAPTERS.find((c) => statusOf(c, progress) === "open") ?? null, [progress]);
+  const main = CHAPTERS.find((c) => hasSave(c.id)) ?? current;
   const nextSoon = useMemo(() => CHAPTERS.find((c) => statusOf(c, progress) === "soon") ?? null, [progress]);
   const nt = CAMPAIGNS.find((c) => c.id === "nt")!;
 
@@ -56,13 +57,13 @@ export function StoryMenu({ progress, hasSave, onPlay, onBack }: { progress: Sto
               </span>
             </div>
             <p className="ms-sub">
-              {progress.books.length} livros descobertos · {progress.completed.length} histórias concluídas
+              {progress.books.length} {progress.books.length === 1 ? "livro descoberto" : "livros descobertos"} · {progress.completed.length} {progress.completed.length === 1 ? "história concluída" : "histórias concluídas"}
             </p>
           </header>
           <nav className="ms-list" aria-label="Modo História">
-            {current ? (
-              <button type="button" className="ms-btn ms-btn-gold" onClick={() => startOrAsk(current)}>
-                ▶ {hasSave(current.id) ? "Continuar" : "Jogar"}: Capítulo {String(current.number).padStart(2, "0")} · {current.title}
+            {main ? (
+              <button type="button" className="ms-btn ms-btn-gold" onClick={() => startOrAsk(main)}>
+                ▶ {hasSave(main.id) ? "Continuar" : "Jogar"}: Capítulo {String(main.number).padStart(2, "0")} · {main.title}
               </button>
             ) : (
               <p className="ms-note ms-soon-note">
@@ -142,7 +143,7 @@ export function StoryMenu({ progress, hasSave, onPlay, onBack }: { progress: Sto
             <h3>
               Capítulo {pick.number}: {pick.title}
             </h3>
-            {hasSave(pick.id) && !progress.completed.includes(pick.id) ? (
+            {hasSave(pick.id) ? (
               <button type="button" className="ms-btn ms-btn-gold" onClick={() => onPlay(pick.id, false)}>
                 ▶ Continuar de onde parou
               </button>

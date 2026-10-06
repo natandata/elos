@@ -20,6 +20,9 @@ export const EDEN_SITES = {
   meadow: { x: 56, z: 64 },
 };
 
+/** Pomar junto ao campo central: árvores frutíferas garantidas para a missão de colheita. */
+const GROVE: [number, number][] = [[50, 56], [64, 56], [66, 70], [50, 72], [58, 76], [58, 54]];
+
 function height(x: number, z: number): number {
   let h = 24 + fbm2(SEED, x / 28, z / 28, 3) * 5;
   const dm = Math.hypot(x - 56, z - 64);
@@ -128,6 +131,7 @@ function decorate(c: ChunkCtx, env: MapEnv): void {
     else if (kind < 0.8) tree(c, x, k.h, z, { trunk: 4 + Math.floor(c.rand(x, z, 23) * 2), radius: 3, leaf: L.fruit });
     else tree(c, x, k.h, z, { trunk: 8 + Math.floor(c.rand(x, z, 24) * 3), radius: 4, leaf: L.leaf, wide: true });
   });
+  for (const [x, z] of GROVE) tree(c, x, column(x, z, env).h, z, { trunk: 5, radius: 3, leaf: L.fruit });
   // Árvore da Vida (dourada) e Árvore do Conhecimento (frutos vermelhos)
   const lh = column(EDEN_SITES.life.x, EDEN_SITES.life.z, env).h;
   tree(c, EDEN_SITES.life.x, lh, EDEN_SITES.life.z, { trunk: 10, radius: 6, leaf: L.life, wide: true });
