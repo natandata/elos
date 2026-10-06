@@ -1,6 +1,7 @@
 // Cutscenes do Modo História, 100% por dados (CutsceneSequence). A mesma engine toca todas elas.
 // Quem fala "Deus" é uma voz (sem corpo); "Narrador" é narração. Referências bíblicas aparecem junto da fala.
 import type { CutStep, Cutscene, Vec3 } from "../types";
+import { EXODUS_CUTSCENES } from "./exodus";
 import { GENESIS_CUTSCENES } from "./genesis";
 
 const say = (who: string, text: string, ref?: string): CutStep => ({ t: "say", who, text, ref });
@@ -355,4 +356,4 @@ CUTSCENES.ca_offerings_all = {
   id: "ca_offerings_all",
   steps: [...CUTSCENES.ca_offerings.steps.filter((s, i, a) => !(i === a.length - 1 && s.t === "call")), ...CUTSCENES.ca_field.steps],
 };
-Object.assign(CUTSCENES, GENESIS_CUTSCENES);
+Object.assign(CUTSCENES, GENESIS_CUTSCENES, EXODUS_CUTSCENES);

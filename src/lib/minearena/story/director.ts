@@ -411,11 +411,11 @@ export class StoryDirector {
     if (done >= o.count) this.completeObjective();
   }
 
-  private sendTo(e: Entity, pts: { x: number; z: number }[]): void {
+  private sendTo(e: Entity, pts: { x: number; z: number }[], speed = 2.6): void {
     if (!e.story) return;
     this.paths.set(e.story.id, pts.slice(1));
-    this.pathSpeed.set(e.story.id, 2.6);
-    e.story.goto = { x: pts[0].x, z: pts[0].z, speed: 2.6 };
+    this.pathSpeed.set(e.story.id, speed);
+    e.story.goto = { x: pts[0].x, z: pts[0].z, speed };
     e.story.arrived = false;
   }
 
@@ -468,7 +468,7 @@ export class StoryDirector {
         const next = pts.shift();
         if (!next) {
           this.paths.delete(id);
-          if (e.story.tag?.startsWith("pair:") || e.story.tag === "crowd") e.story.hold = true;
+          if (e.story.tag?.startsWith("pair:") || e.story.tag === "crowd" || e.story.tag === "hebreu" || e.story.tag === "exercito") e.story.hold = true;
         } else {
           e.story.goto = { x: next.x, z: next.z, speed: this.pathSpeed.get(id) ?? 2.6 };
           e.story.arrived = false;
@@ -957,6 +957,9 @@ export class StoryDirector {
         else if (f.kind === "smoke") this.host.burst(x + rnd(), y + Math.random() * 2, z + rnd(), 0x6a6a6a, 3, 1, 0.2);
         else if (f.kind === "dust") this.host.burst(x + rnd() * 2, y + Math.random(), z + rnd() * 2, 0x9a8a60, 4, 1.8, 0.15);
         else if (f.kind === "tears") this.host.burst(x + (Math.random() - 0.5) * 0.4, y + 1.6, z + (Math.random() - 0.5) * 0.4, 0x9fd8ff, 2, 0.5, 0.07);
+        else if (f.kind === "hail") this.host.burst(x + (Math.random() - 0.5) * 18, y + 8 + Math.random() * 6, z + (Math.random() - 0.5) * 18, 0xeaf4ff, 4, 1.5, 0.12);
+        else if (f.kind === "locust") this.host.burst(x + (Math.random() - 0.5) * 20, y + Math.random() * 8, z + (Math.random() - 0.5) * 20, 0x5a4a1a, 5, 3, 0.1);
+        else if (f.kind === "frog") this.host.burst(x + (Math.random() - 0.5) * 14, y + Math.random() * 0.6, z + (Math.random() - 0.5) * 14, 0x4fae3a, 3, 2, 0.14);
         else if (f.kind === "lightning") this.host.burst(x, y + Math.random() * 6, z, 0xdfe8ff, 6, 4, 0.2);
       }
     }
@@ -1116,6 +1119,35 @@ export class StoryDirector {
           const e = this.npcs.get(id);
           if (e?.story) e.story.hold = true;
         }
+        break;
+      case "nile": {
+        const ids = new Map<number, number>();
+        const wat = [B.water, B.water_1, B.water_2, B.water_3, B.water_4, B.water_5, B.water_6, B.water_7];
+        if (arg === "red") for (const w of wat) ids.set(w, B.red_water);
+        else ids.set(B.red_water, B.water);
+        this.host.world.replaceIds(ids);
+        break;
+      }
+      case "march":
+        for (const e of this.npcs.values()) if (e.story?.tag === String(arg)) this.sendTo(e, [{ x: 55 + Math.random() * 18, z: 34 + Math.random() * 5 }], 3.2);
+        break;
+      case "marchSea":
+        for (const e of this.npcs.values()) if (e.story?.tag === String(arg)) this.sendTo(e, [{ x: 61 + Math.random() * 7, z: 50 }, { x: 61 + Math.random() * 7, z: 68 }], 3.4);
+        break;
+      case "crossSea":
+        for (const e of this.npcs.values()) {
+          if (e.story?.tag !== "hebreu" && e.story?.id !== "moises" && e.story?.id !== "arao") continue;
+          const x = 60 + Math.random() * 8;
+          this.sendTo(e, [{ x, z: 46 }, { x, z: 70 }, { x: 58 + Math.random() * 12, z: 92 }], 2.8);
+        }
+        break;
+      case "removeTag":
+        for (const [id, e] of [...this.npcs.entries()]) {
+          if (e.story?.tag !== String(arg)) continue;
+          this.host.burst(e.body.x, e.body.y + 0.5, e.body.z, 0x7fb6ff, 10, 3, 0.2);
+          this.removeNpc(id);
+        }
+        this.host.sfx("splash");
         break;
       case "angelStay": {
         const e = this.npcs.get("anjo");

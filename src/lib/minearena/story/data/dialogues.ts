@@ -1,9 +1,11 @@
 // Diálogos curtos com personagens (o jogador toca/clica no personagem). Adaptações do texto bíblico, sempre com a referência.
 import type { Dialogue } from "../types";
+import { EXODUS_DIALOGUES } from "./exodus";
 import { GENESIS_DIALOGUES } from "./genesis";
 
 export const DIALOGUES: Record<string, Dialogue> = {
   ...GENESIS_DIALOGUES,
+  ...EXODUS_DIALOGUES,
   adam_1: {
     id: "adam_1",
     lines: [

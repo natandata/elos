@@ -1,9 +1,11 @@
 // "VOCÊ APRENDEU": resumo fiel de cada capítulo. O que é dramatização do jogo vem separado, em `gameNote`.
 import type { LearnCard } from "../types";
+import { EXODUS_LEARN } from "./exodus";
 import { GENESIS_LEARN } from "./genesis";
 
 export const LEARN: Record<string, LearnCard> = {
   ...GENESIS_LEARN,
+  ...EXODUS_LEARN,
   eden: {
     title: "A CRIAÇÃO",
     what: "No princípio, Deus criou os céus e a terra e viu que tudo era muito bom. Colocou o homem num jardim no Éden para cultivá-lo e guardá-lo, e deu-lhe uma ajudadora. Podiam comer de todas as árvores, menos da árvore do conhecimento do bem e do mal.",

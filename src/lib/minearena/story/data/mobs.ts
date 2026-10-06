@@ -76,6 +76,15 @@ export const STORY_MOBS: Record<string, MobDef> = {
   potifar: hum("potifar", "Potifar", "Oficial do Faraó", { skin: 0xb98050, hair: 0x1a1008, shirt: 0x2a4a8a, pants: 0xf0ecd8, robe: true, belt: 0xe0c050, bulk: 1.08 }),
   copeiro: hum("copeiro", "O copeiro", "Servo do Faraó", { skin: 0xb98050, hair: 0x1a1008, shirt: 0xe8e0c8, pants: 0xe8e0c8, belt: 0x8a5a2a }),
   fara: hum("fara", "Faraó", "Rei do Egito", { skin: 0xb98050, hair: 0x1a1008, shirt: 0xe0c050, pants: 0xf8f4e8, robe: true, belt: 0x2a4a8a, scale: 1.1 }),
+  // Êxodo
+  moises_egito: hum("moises_egito", "Moisés", "Criado na casa do Faraó", { skin: 0xc98f5e, hair: 0x1a1008, shirt: 0xf8f4e8, pants: 0xf8f4e8, robe: true, belt: 0xe0c050 }),
+  moises_velho: hum("moises_velho", "Moisés", "Pastor e libertador", { skin: 0xc58a58, hair: 0xd8d4cc, hairStyle: "long", beard: 0xd8d4cc, shirt: 0x9a7a4a, pants: 0x9a7a4a, robe: true, belt: 0x5a3a1a, staff: true, scale: 1.05 }),
+  arao: hum("arao", "Arão", "Irmão de Moisés", { skin: 0xc58a58, hair: 0xe0dcd4, hairStyle: "short", beard: 0xe0dcd4, shirt: 0xf3ecd2, pants: 0xf3ecd2, robe: true, belt: 0x2a4a8a, scale: 1.04 }),
+  miriam: hum("miriam", "Miriã", "Irmã de Moisés", { skin: 0xd9a574, hair: 0x2a1a10, hairStyle: "long", shirt: 0xc87a5a, pants: 0xc87a5a, robe: true, belt: 0xe0c050 }),
+  zipora: hum("zipora", "Zípora", "Filha de Jetro", { skin: 0xd9a574, hair: 0x2a1a10, hairStyle: "long", shirt: 0x8a5a9a, pants: 0x8a5a9a, robe: true, belt: 0xe0c050 }),
+  jetro: hum("jetro", "Jetro", "Sacerdote de Midiã", { skin: 0xb98050, hair: 0xc8c0b8, beard: 0xc8c0b8, shirt: 0x7a5a3a, pants: 0x7a5a3a, robe: true, belt: 0x4a3018, staff: true }),
+  capataz: hum("capataz", "Feitor", "Capataz egípcio", { skin: 0xb98050, hair: 0x1a1008, shirt: 0xb04a3a, pants: 0xe8e0c8, belt: 0xe0c050, staff: true, bulk: 1.12 }),
+  egipcio: hum("egipcio", "Soldado egípcio", "Exército do Faraó", { skin: 0xb98050, hair: 0x1a1008, shirt: 0xc9a24a, pants: 0xe8e0c8, belt: 0x2a4a8a, staff: true, bulk: 1.08 }),
   // animais pacíficos
   ovelha: calm("ovelha", "ovelha_story"),
   boi: calm("boi", "boi_story"),

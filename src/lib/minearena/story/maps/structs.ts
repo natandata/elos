@@ -1,6 +1,7 @@
 // Construções que surgem durante as cenas (a torre de Babel, a escada de Jacó...): listas de blocos [x, y, z, id].
 import { B } from "../../blocks/blocks";
 import { SHINAR, BERSEBA } from "./genesis";
+import { SEA, seaFloor } from "./exodus";
 
 type Block = [number, number, number, number];
 
@@ -43,7 +44,17 @@ function jacobLadder(): Block[] {
   return out;
 }
 
-export const STRUCTS: Record<string, () => Block[]> = { babel_tower: babelTower, jacob_ladder: jacobLadder };
+/** O corredor do Mar Vermelho: a água sai (ou volta) de uma ponta à outra, deixando paredes de água dos lados. */
+function seaRows(id: number, fromFar: boolean): Block[] {
+  const out: Block[] = [];
+  const zs: number[] = [];
+  for (let z = SEA.z0; z <= SEA.z1; z++) zs.push(z);
+  if (fromFar) zs.reverse();
+  for (const z of zs) for (let x = SEA.x0; x <= SEA.x1; x++) for (let y = seaFloor(z) + 1; y <= SEA.level; y++) out.push([x, y, z, id]);
+  return out;
+}
+
+export const STRUCTS: Record<string, () => Block[]> = { babel_tower: babelTower, jacob_ladder: jacobLadder, sea_open: () => seaRows(B.air, false), sea_close: () => seaRows(B.water, true) };
 
 /** Ponto (y) do degrau k da escada de Jacó, para pousar os anjos. */
 export const ladderStep = (k: number): { x: number; y: number; z: number } => ({ x: BERSEBA.betel.x, y: 44 + k, z: BERSEBA.betel.z - 2 - k });

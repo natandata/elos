@@ -338,7 +338,7 @@ export class MineArena {
       }
     }
     this.fluids = new FluidSim(this.world);
-    this.world.onChange = (x, y, z) => this.fluids.poke(x, y, z);
+    this.world.onChange = this.story ? null : (x, y, z) => this.fluids.poke(x, y, z);
     const far = this.radius * 16 - 6;
     this.sky = new Sky(this.scene, far, [this.world.matO, this.world.matT]);
     if (this.dimension === "geena") this.sky.setFire(true);
