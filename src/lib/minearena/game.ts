@@ -1,6 +1,6 @@
 // Motor do MINEARENA: laço do jogo, jogador, mineração, construção, combate, save e ponte com a interface.
 import * as THREE from "three";
-import { B, BLOCKS, type BlockKey, FLUID_MAX, blockDef, breakInfo, fluidId, isFluid } from "./blocks/blocks";
+import { B, BLOCKS, CLIMBABLE, type BlockKey, FLUID_MAX, blockDef, breakInfo, fluidId, isFluid } from "./blocks/blocks";
 import { FluidSim } from "./world/fluids";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { MAX_PLAYERS, type NetMsg, type Peer, RoomNet, announceRoom } from "./net/room";
@@ -937,11 +937,18 @@ export class MineArena {
     }
 
     const jump = !blocked && this.input.jump;
+    const onLadder = !b.inWater && (CLIMBABLE[this.world.getBlock(Math.floor(b.x), Math.floor(b.y + 0.3), Math.floor(b.z))] === 1 || CLIMBABLE[this.world.getBlock(Math.floor(b.x), Math.floor(b.y + 1.1), Math.floor(b.z))] === 1);
     if (b.inWater) {
       b.vy += (jump ? 30 : -10) * dt;
       b.vy = Math.max(-3, Math.min(3.2, b.vy));
       // na superfície, encostado na margem: pula pra fora da água
       if (jump && b.hitWall && !isFluid(this.world.getBlock(Math.floor(b.x), Math.floor(b.y + 1.1), Math.floor(b.z)))) b.vy = PLAYER.jump;
+    } else if (onLadder) {
+      // escada de mão: sobe com pular/frente, agachado segura, solto desliza devagar
+      b.vy = jump || my > 0 ? 3.4 : this.sneaking ? 0 : -3;
+      b.vx *= 0.6;
+      b.vz *= 0.6;
+      this.fallV = 0;
     } else {
       if (jump && b.onGround) {
         b.vy = PLAYER.jump;
@@ -1094,6 +1101,10 @@ export class MineArena {
     const def = blockDef(id);
     if (id === B.chest || id === B.furnace || id === B.furnace_lit) this.spillContainer(x, y, z, id);
     this.world.setBlock(x, y, z, B.air);
+    if (def.door) {
+      const oy = def.door.half === "b" ? y + 1 : y - 1;
+      if (BLOCKS[this.world.getBlock(x, oy, z)]?.door) this.world.setBlock(x, oy, z, B.air);
+    }
     this.crops.delete(`${x},${y},${z}`);
     if (blockDef(this.world.getBlock(x, y + 1, z)).shape === "cross") this.breakBlock(x, y + 1, z, true);
     this.sfx.play("break");
@@ -1120,6 +1131,11 @@ export class MineArena {
     // 1b) baú e fornalha
     if (edge && hit && (hit.id === B.chest || hit.id === B.furnace || hit.id === B.furnace_lit)) {
       this.openContainer(hit.x, hit.y, hit.z, hit.id);
+      return;
+    }
+    // porta: abre e fecha
+    if (edge && hit && BLOCKS[hit.id].door) {
+      this.toggleDoor(hit.x, hit.y, hit.z);
       return;
     }
     // 1c') altar do ferreiro: consertar e abençoar
@@ -1257,14 +1273,64 @@ export class MineArena {
       const pz = onPlant ? hit.z : hit.z + hit.nz;
       const cur = this.world.getBlock(px, py, pz);
       if (cur !== B.air && !blockDef(cur).liquid && blockDef(cur).shape !== "cross") return;
+      const hb = blockDef(held.block);
+      let placeId = held.block;
+      if (hb.door) {
+        const up = this.world.getBlock(px, py + 1, pz);
+        if (up !== B.air && !blockDef(up).liquid && blockDef(up).shape !== "cross") return;
+        this.world.setBlock(px, py, pz, B.door_b);
+        this.world.setBlock(px, py + 1, pz, B.door_t);
+        this.inventory.consumeHeld(1);
+        this.sfx.play("place");
+        this.swing = 0.8;
+        return;
+      }
+      if (held.key === "ladder_0") {
+        if (onPlant || hit.ny !== 0 || !blockDef(hit.id).solid) {
+          this.cb.onMessage("Encoste a escada de mão numa parede.", "warn");
+          return;
+        }
+        const dir = hit.nx === 1 ? 1 : hit.nx === -1 ? 0 : hit.nz === 1 ? 3 : 2;
+        placeId = B[`ladder_${dir}` as BlockKey];
+      } else if (held.key.startsWith("slab_") && hit.id === held.block && hit.ny === 1 && !onPlant) {
+        // duas lajes viram o bloco inteiro
+        this.world.setBlock(hit.x, hit.y, hit.z, B[held.key.slice(5) as BlockKey]);
+        this.inventory.consumeHeld(1);
+        this.sfx.play("place");
+        this.swing = 0.8;
+        return;
+      } else if (held.key.startsWith("stairs_")) {
+        const fx = -Math.sin(this.yaw);
+        const fz = -Math.cos(this.yaw);
+        const dir = Math.abs(fx) > Math.abs(fz) ? (fx > 0 ? 0 : 1) : fz > 0 ? 2 : 3;
+        placeId = B[`${held.key.slice(0, -1)}${dir}` as BlockKey];
+      }
       const b = this.body;
       const r = PLAYER.w / 2;
-      if (blockDef(held.block).solid && px + 1 > b.x - r && px < b.x + r && pz + 1 > b.z - r && pz < b.z + r && py + 1 > b.y && py < b.y + PLAYER.h) return;
-      this.world.setBlock(px, py, pz, held.block);
+      if ((blockDef(placeId).solid || blockDef(placeId).shape === "boxes") && px + 1 > b.x - r && px < b.x + r && pz + 1 > b.z - r && pz < b.z + r && py + 1 > b.y && py < b.y + PLAYER.h) return;
+      this.world.setBlock(px, py, pz, placeId);
       this.inventory.consumeHeld(1);
       this.sfx.play("place");
       this.swing = 0.8;
     }
+  }
+
+  /** Abre ou fecha a porta (as duas metades). A porta aberta fica paralela ao caminho de quem passa. */
+  private toggleDoor(x: number, y: number, z: number): void {
+    const d = BLOCKS[this.world.getBlock(x, y, z)].door;
+    if (!d) return;
+    const by = d.half === "b" ? y : y - 1;
+    if (d.open) {
+      this.world.setBlock(x, by, z, B.door_b);
+      this.world.setBlock(x, by + 1, z, B.door_t);
+    } else {
+      const alongZ = Math.abs(Math.cos(this.yaw)) > Math.abs(Math.sin(this.yaw));
+      const dir = alongZ ? 0 : 2;
+      this.world.setBlock(x, by, z, B[`door_o${dir}b` as BlockKey]);
+      this.world.setBlock(x, by + 1, z, B[`door_o${dir}t` as BlockKey]);
+    }
+    this.sfx.play("place");
+    this.swing = 0.6;
   }
 
   // ---------- dimensão de fogo (Geena) ----------

@@ -1,5 +1,5 @@
 // Mapa de texturas dos blocos (sem DOM: só nomes e posições no atlas).
-import type { BlockKey } from "./blocks";
+import { type BaseKey, type BlockKey, MATS } from "./blocks";
 
 export const TILE_NAMES = [
   "grass_top",
@@ -62,6 +62,9 @@ export const TILE_NAMES = [
   "altar_top",
   "altar_side",
   "torch",
+  "door_b",
+  "door_t",
+  "ladder",
 ] as const;
 export type TileName = (typeof TILE_NAMES)[number];
 
@@ -71,7 +74,8 @@ export const ATLAS_ROWS = Math.ceil(TILE_NAMES.length / ATLAS_COLS);
 export const tileIndex = (n: TileName): number => TILE_NAMES.indexOf(n);
 
 /** [topo, lado, base] de cada bloco. */
-export const BLOCK_TILES: Record<BlockKey, [TileName, TileName, TileName, TileName?]> = {
+type Tiles = [TileName, TileName, TileName, TileName?];
+const BASE_TILES: Record<BaseKey, Tiles> = {
   air: ["stone", "stone", "stone"],
   grass: ["grass_top", "grass_side", "dirt"],
   dirt: ["dirt", "dirt", "dirt"],
@@ -131,6 +135,22 @@ export const BLOCK_TILES: Record<BlockKey, [TileName, TileName, TileName, TileNa
   altar: ["altar_top", "altar_side", "altar_side"],
   torch: ["torch", "torch", "torch"],
 };
+
+const GEN_TILES: Record<string, Tiles> = {
+  door_b: ["planks", "door_b", "planks"],
+  door_t: ["planks", "door_t", "planks"],
+};
+for (const d of [0, 1, 2, 3]) {
+  GEN_TILES[`door_o${d}b`] = ["door_b", "door_b", "door_b"];
+  GEN_TILES[`door_o${d}t`] = ["door_t", "door_t", "door_t"];
+  GEN_TILES[`ladder_${d}`] = ["ladder", "ladder", "ladder"];
+}
+for (const m of MATS) {
+  GEN_TILES[`slab_${m}`] = BASE_TILES[m];
+  for (const d of [0, 1, 2, 3]) GEN_TILES[`stairs_${m}_${d}`] = BASE_TILES[m];
+}
+/** [topo, lado, base] de cada bloco. */
+export const BLOCK_TILES = { ...BASE_TILES, ...GEN_TILES } as Record<BlockKey, Tiles>;
 
 /** UV [u0, v0, u1, v1] do tile (com meia-margem de pixel pra não vazar). */
 export function tileUV(idx: number): [number, number, number, number] {

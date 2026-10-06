@@ -1,4 +1,5 @@
 // Receitas do MINEARENA (data-driven). `station: "bancada"` exige uma Bancada por perto.
+import { MATS } from "../blocks/blocks";
 import { ARMOR_PIECES, ARMOR_SETS, TIER_MATERIAL, TOOL_TIERS } from "../items/items";
 
 export type Ingredient = { item: string; count: number };
@@ -24,6 +25,12 @@ rec("pebble", 8, [i("cobble")]);
 rec("bread", 1, [i("wheat", 3)]);
 rec("arrow", 4, [i("stick"), i("coal")]);
 rec("torch", 4, [i("coal"), i("stick")]);
+rec("door_b", 1, [i("planks", 6)]);
+rec("ladder_0", 3, [i("stick", 7)]);
+for (const m of MATS) {
+  rec(`slab_${m}`, 6, [i(m, 3)]);
+  rec(`stairs_${m}_0`, 4, [i(m, 6)]);
+}
 rec("sandstone", 1, [i("sand", 4)]);
 
 // com bancada

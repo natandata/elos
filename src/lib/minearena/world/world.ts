@@ -1,6 +1,6 @@
 // Mundo em chunks: geração, malhas (só faces visíveis), edição de blocos e raycast.
 import * as THREE from "three";
-import { B, BLOCKS, type BlockKey, blockDef } from "../blocks/blocks";
+import { B, BLOCKS, BOXES, type BlockKey, blockDef } from "../blocks/blocks";
 import { BLOCK_TILES, tileIndex, tileUV } from "../blocks/tiles";
 import { createAtlas } from "../textures/atlas";
 import { CHUNK, WORLD_H } from "../config/config";
@@ -54,6 +54,7 @@ const BLEND = new Uint8Array(256);
 const GLOW = new Uint8Array(256);
 const CROSS = new Uint8Array(256);
 const FLUID = new Uint8Array(256);
+const PANEL = new Uint8Array(256);
 const LEVEL = new Uint8Array(256);
 for (const b of BLOCKS) {
   OPQ[b.id] = b.opaque ? 1 : 0;
@@ -63,7 +64,15 @@ for (const b of BLOCKS) {
   CROSS[b.id] = b.shape === "cross" ? 1 : 0;
   FLUID[b.id] = b.fluid === "water" ? 1 : b.fluid === "lava" ? 2 : 0;
   LEVEL[b.id] = b.level ?? 0;
+  PANEL[b.id] = b.shape === "panel" ? (b.pdir ?? 0) + 1 : 0;
 }
+/** Cantos (x,y,z) da placa de cada lado: 0 +x · 1 −x · 2 +z · 3 −z. */
+const PANEL_V = [
+  [[0.94, 0, 0], [0.94, 0, 1], [0.94, 1, 1], [0.94, 1, 0]],
+  [[0.06, 0, 0], [0.06, 0, 1], [0.06, 1, 1], [0.06, 1, 0]],
+  [[0, 0, 0.94], [1, 0, 0.94], [1, 1, 0.94], [0, 1, 0.94]],
+  [[0, 0, 0.06], [1, 0, 0.06], [1, 1, 0.06], [0, 1, 0.06]],
+];
 const CROSS_PLANES = [
   [[0, 0, 0], [1, 0, 1], [1, 1, 1], [0, 1, 0]],
   [[0, 0, 1], [1, 0, 0], [1, 1, 0], [0, 1, 1]],
@@ -515,6 +524,82 @@ export class World {
                 for (let q = 0; q < 4; q++) {
                   const j = flip ? 3 - q : q;
                   out.vertex(x + cs[j][0], y + cs[j][1] * 0.95, z + cs[j][2], k, k * wg, k * wb, j === 1 || j === 2 ? t[2] : t[0], j >= 2 ? t[3] : t[1]);
+                }
+                out.quad(base, false);
+              }
+            }
+            continue;
+          }
+
+          // placas finas (portas abertas, escadas de mão) e blocos parciais (lajes, degraus)
+          if (PANEL[id] !== 0 || BOXES[id] !== null) {
+            let light = glow ? 1 : y >= hTop ? 1 : Math.max(0.3, 1 - (hTop - y) * 0.11);
+            let warm = 0;
+            if (nT && !glow) {
+              const tl = torchLight(x, y, z);
+              if (tl > 0 && 0.35 + 0.65 * tl > light) {
+                warm = Math.min(1, (0.35 + 0.65 * tl - light) * 2 + 0.2);
+                light = 0.35 + 0.65 * tl;
+              }
+            }
+            const wg = 1 - 0.12 * warm;
+            const wb = 1 - 0.32 * warm;
+            if (PANEL[id] !== 0) {
+              const pv = PANEL_V[PANEL[id] - 1];
+              const t = faceUV[0];
+              const k = jitter * light;
+              for (let flip = 0; flip < 2; flip++) {
+                const base = out.vcount;
+                for (let q = 0; q < 4; q++) {
+                  const j = flip ? 3 - q : q;
+                  out.vertex(x + pv[j][0], y + pv[j][1], z + pv[j][2], k, k * wg, k * wb, j === 1 || j === 2 ? t[2] : t[0], j >= 2 ? t[3] : t[1]);
+                }
+                out.quad(base, false);
+              }
+              continue;
+            }
+            for (const bb of BOXES[id]!) {
+              for (let f = 0; f < 6; f++) {
+                const fd = FACES[f];
+                const edge = f === 0 ? bb[3] === 1 : f === 1 ? bb[0] === 0 : f === 2 ? bb[4] === 1 : f === 3 ? bb[1] === 0 : f === 4 ? bb[5] === 1 : bb[2] === 0;
+                if (edge && OPQ[get(x + fd.n[0], y + fd.n[1], z + fd.n[2])] === 1) continue;
+                if (f === 3 && bb[1] > 0) continue;
+                const t = faceUV[f];
+                const k = fd.shade * jitter * light;
+                const base = out.vcount;
+                for (let v = 0; v < 4; v++) {
+                  const c = fd.c[v];
+                  const X = c[0] ? bb[3] : bb[0];
+                  const Y = c[1] ? bb[4] : bb[1];
+                  const Z = c[2] ? bb[5] : bb[2];
+                  let fu: number;
+                  let fv: number;
+                  switch (f) {
+                    case 0:
+                      fu = 1 - Z;
+                      fv = Y;
+                      break;
+                    case 1:
+                      fu = Z;
+                      fv = Y;
+                      break;
+                    case 2:
+                      fu = X;
+                      fv = Z;
+                      break;
+                    case 3:
+                      fu = X;
+                      fv = 1 - Z;
+                      break;
+                    case 4:
+                      fu = X;
+                      fv = Y;
+                      break;
+                    default:
+                      fu = 1 - X;
+                      fv = Y;
+                  }
+                  out.vertex(x + X, y + Y, z + Z, k, k * wg, k * wb, t[0] + fu * (t[2] - t[0]), t[1] + fv * (t[3] - t[1]));
                 }
                 out.quad(base, false);
               }

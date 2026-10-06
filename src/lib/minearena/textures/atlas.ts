@@ -339,6 +339,34 @@ function drawTile(name: TileName, put: Put): void {
       }
       break;
     }
+    case "door_b":
+    case "door_t": {
+      const top = name === "door_t";
+      for (let y = 0; y < N; y++) {
+        for (let x = 0; x < N; x++) {
+          const frame = x < 2 || x > 13 || y < 1 || y > 14;
+          const seam = x % 5 === 4;
+          let k = 1 + (rnd(x, y, s) - 0.5) * 0.12;
+          if (frame) k *= 0.62;
+          else if (seam) k *= 0.8;
+          put(x, y, mul(hex(0xa9794a), k));
+        }
+      }
+      if (top) {
+        for (const [x0, x1] of [[3, 7], [9, 12]] as const) for (let y = 3; y < 8; y++) for (let x = x0; x <= x1; x++) put(x, y, hex(y === 3 || x === x0 ? 0x6a4a24 : 0x8a5f33));
+      } else {
+        for (const [x0, x1] of [[3, 12]] as const) for (let y = 3; y < 12; y++) for (let x = x0; x <= x1; x++) if (y === 3 || y === 11 || x === 3 || x === 12) put(x, y, hex(0x7a5428));
+        put(12, 8, hex(0xf0c93a));
+        put(12, 9, hex(0xc9a22e));
+      }
+      break;
+    }
+    case "ladder": {
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) put(x, y, hex(0x000000), 0);
+      for (let y = 0; y < N; y++) for (const x of [2, 3, 12, 13]) put(x, y, mul(hex(0x9b6b3a), x % 2 ? 0.8 : 1));
+      for (const y of [1, 5, 9, 13]) for (let x = 4; x < 12; x++) put(x, y, mul(hex(0xb88a52), y % 3 ? 1 : 0.9));
+      break;
+    }
     case "torch": {
       for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) put(x, y, hex(0x000000), 0);
       for (let y = 7; y < N; y++) for (const x of [7, 8]) put(x, y, mul(hex(0x8a5a2e), y % 2 ? 0.85 : 1));
@@ -581,7 +609,7 @@ export function blockIconUrl(key: BlockKey | string): string {
   c.width = c.height = 32;
   const ctx = c.getContext("2d")!;
   ctx.imageSmoothingEnabled = false;
-  if (tiles && def?.shape === "cross") {
+  if (tiles && (def?.shape === "cross" || def?.shape === "panel")) {
     ctx.drawImage(cachedTile(tiles[1]), 2, 2, 28, 28);
   } else if (tiles) {
     const [top, side] = [cachedTile(tiles[0]), cachedTile(tiles[1])];

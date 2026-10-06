@@ -3,6 +3,8 @@ export type ToolType = "hand" | "pick" | "axe" | "shovel" | "hoe";
 export type SoundKind = "stone" | "dirt" | "wood" | "sand" | "glass" | "leaf";
 export type LootEntry = { item: string; min: number; max: number; chance: number };
 
+export type Box = [number, number, number, number, number, number];
+
 export interface BlockDef {
   id: number;
   key: string;
@@ -29,14 +31,22 @@ export interface BlockDef {
   sound: SoundKind;
   /** Pode ser colocado como item de bloco. */
   placeable: boolean;
-  /** "cross" = planta em X (flores, mato, plantações). */
-  shape?: "cube" | "cross";
+  /** "cross" = planta em X; "panel" = placa fina na lateral da célula (portas abertas, escadas de mão); "boxes" = caixas parciais (lajes e degraus). */
+  shape?: "cube" | "cross" | "panel" | "boxes";
+  /** Painel: lado da célula onde fica (0 +x · 1 −x · 2 +z · 3 −z). */
+  pdir?: 0 | 1 | 2 | 3;
+  /** Caixas (0–1 dentro da célula) de blocos parciais: colisão e malha. */
+  boxes?: Box[];
+  /** Dá pra escalar. */
+  climb?: boolean;
+  /** Porta: metade (b/t) e se está aberta. */
+  door?: { half: "b" | "t"; open: boolean };
   /** Fluidos: tipo e nível (fonte = nível máximo: água 8, lava 4). */
   fluid?: "water" | "lava";
   level?: number;
 }
 
-const KEYS = [
+const BASE_KEYS = [
   "air",
   "grass",
   "dirt",
@@ -96,7 +106,21 @@ const KEYS = [
   "altar",
   "torch",
 ] as const;
-export type BlockKey = (typeof KEYS)[number];
+export type BaseKey = (typeof BASE_KEYS)[number];
+export const MATS = ["planks", "cobble", "brick", "limestone", "sandstone", "cedar_planks"] as const;
+export type Mat = (typeof MATS)[number];
+type D4 = 0 | 1 | 2 | 3;
+export type BlockKey = BaseKey | "door_b" | "door_t" | `door_o${D4}${"b" | "t"}` | `ladder_${D4}` | `slab_${Mat}` | `stairs_${Mat}_${D4}`;
+const D4S: D4[] = [0, 1, 2, 3];
+const KEYS: BlockKey[] = [
+  ...BASE_KEYS,
+  "door_b",
+  "door_t",
+  ...D4S.flatMap((d) => [`door_o${d}b`, `door_o${d}t`] as BlockKey[]),
+  ...D4S.map((d) => `ladder_${d}` as BlockKey),
+  ...MATS.map((m) => `slab_${m}` as BlockKey),
+  ...MATS.flatMap((m) => D4S.map((d) => `stairs_${m}_${d}` as BlockKey)),
+];
 
 /** Atalho: B.stone, B.water… */
 export const B = Object.fromEntries(KEYS.map((k, i) => [k, i])) as Record<BlockKey, number>;
@@ -135,7 +159,7 @@ const flow = (kind: "water" | "lava", level: number): Spec => ({
 const plant = (name: string, c: number, loot: LootEntry[]): Spec =>
   blk(name, c, 0.05, "hand", 0, loot, "leaf", { solid: false, opaque: false, shape: "cross", placeable: false });
 
-const SPECS: Record<BlockKey, Spec> = {
+const BASE_SPECS: Record<BaseKey, Spec> = {
   air: blk("Ar", 0, 0, "hand", 0, [], "stone", { solid: false, opaque: false, placeable: false }),
   grass: blk("Grama", 0x5da13a, 0.8, "shovel", 0, [drop("dirt"), drop("seeds", 1, 1, 0.1)], "dirt", { side: 0x7b5a33, sideTop: 0x5da13a, bottom: 0x7b5a33 }),
   dirt: blk("Terra", 0x7b5a33, 0.7, "shovel", 0, [drop("dirt")], "dirt"),
@@ -196,10 +220,42 @@ const SPECS: Record<BlockKey, Spec> = {
   furnace_lit: blk("Fornalha acesa", 0x6a6a6e, 3.5, "pick", 1, [drop("furnace")], "stone", { glow: true, placeable: false }),
 };
 
+// ---- portas, escadas de mão, lajes e degraus (gerados) ----
+const GEN: Record<string, Spec> = {};
+const WOOD_DOOR = 0xa9794a;
+GEN.door_b = blk("Porta de madeira", WOOD_DOOR, 1.5, "axe", 0, [drop("door_b")], "wood", { door: { half: "b", open: false } });
+GEN.door_t = blk("Porta de madeira", WOOD_DOOR, 1.5, "axe", 0, [], "wood", { placeable: false, door: { half: "t", open: false } });
+for (const d of D4S) {
+  for (const h of ["b", "t"] as const) {
+    GEN[`door_o${d}${h}`] = blk("Porta aberta", WOOD_DOOR, 1.5, "axe", 0, h === "b" ? [drop("door_b")] : [], "wood", { solid: false, opaque: false, shape: "panel", pdir: d, placeable: false, door: { half: h, open: true } });
+  }
+  GEN[`ladder_${d}`] = blk("Escada de mão", 0x9b6b3a, 0.4, "axe", 0, [drop("ladder_0")], "wood", { solid: false, opaque: false, shape: "panel", pdir: d, climb: true, placeable: d === 0 });
+}
+const MAT_NAME: Record<Mat, string> = { planks: "tábuas", cobble: "pedra lavrada", brick: "tijolo", limestone: "calcário", sandstone: "arenito", cedar_planks: "cedro" };
+const STAIR_BOXES: Box[][] = [
+  [[0, 0, 0, 1, 0.5, 1], [0.5, 0.5, 0, 1, 1, 1]],
+  [[0, 0, 0, 1, 0.5, 1], [0, 0.5, 0, 0.5, 1, 1]],
+  [[0, 0, 0, 1, 0.5, 1], [0, 0.5, 0.5, 1, 1, 1]],
+  [[0, 0, 0, 1, 0.5, 1], [0, 0.5, 0, 1, 1, 0.5]],
+];
+for (const m of MATS) {
+  const base = BASE_SPECS[m];
+  GEN[`slab_${m}`] = { ...base, name: `Laje de ${MAT_NAME[m]}`, loot: [drop(`slab_${m}`)], solid: false, opaque: false, shape: "boxes", boxes: [[0, 0, 0, 1, 0.5, 1]], hardness: base.hardness * 0.6 };
+  for (const d of D4S) {
+    GEN[`stairs_${m}_${d}`] = { ...base, name: `Degraus de ${MAT_NAME[m]}`, loot: [drop(`stairs_${m}_0`)], solid: false, opaque: false, shape: "boxes", boxes: STAIR_BOXES[d], placeable: d === 0, hardness: base.hardness * 0.75 };
+  }
+}
+const SPECS = { ...BASE_SPECS, ...GEN } as Record<BlockKey, Spec>;
+
 export const BLOCKS: BlockDef[] = KEYS.map((key, id) => ({ id, key, ...SPECS[key] }));
 export const BLOCK_BY_KEY = new Map(BLOCKS.map((b) => [b.key, b]));
 
 export const blockDef = (id: number): BlockDef => BLOCKS[id] ?? BLOCKS[0];
+
+/** Caixas de colisão dos blocos parciais, por id. */
+export const BOXES: (Box[] | null)[] = Array.from({ length: 256 }, (_, i) => BLOCKS[i]?.boxes ?? null);
+export const CLIMBABLE = new Uint8Array(256);
+for (const b of BLOCKS) if (b.climb) CLIMBABLE[b.id] = 1;
 
 export const FLUID_MAX = { water: 8, lava: 4 } as const;
 /** Bloco de fluido com esse nível (fonte = máximo). */
