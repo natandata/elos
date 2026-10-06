@@ -34,12 +34,15 @@ export function MainMenu({
   onOptions,
   coop,
   notice,
+  onStory,
 }: {
   worlds: WorldSave[] | null;
   onPlay: (w: WorldSave) => void;
   onCreate: (name: string, seed: string, mode: "survival" | "creative") => void;
   onDelete: (w: WorldSave) => void;
   onOptions: () => void;
+  /** Abre o Modo História (campanha do Antigo Testamento). */
+  onStory?: () => void;
   /** Co-op: entrar numa sala (precisa de quem sou e do cliente Supabase). */
   coop?: { sb: SupabaseClient; myId: string; busy: boolean; error: string | null; onJoin: (r: RoomInfo) => void };
   notice?: string | null;
@@ -65,6 +68,12 @@ export function MainMenu({
                 <small>
                   {latest.name} · {ago(latest.updatedAt)}
                 </small>
+              </button>
+            ) : null}
+            {onStory ? (
+              <button type="button" className="ma-btn ma-btn-gold" onClick={onStory}>
+                📖 Modo História
+                <small>O Antigo Testamento, do Éden a Ester</small>
               </button>
             ) : null}
             <button type="button" className="ma-btn" onClick={() => setView("new")}>

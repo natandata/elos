@@ -69,6 +69,14 @@ export const TILE_NAMES = [
   "tnt_top",
   "tnt_side",
   "red_water",
+  "flower_red",
+  "flower_yellow",
+  "flower_blue",
+  "fruit_leaves",
+  "life_leaves",
+  "dry_grass_top",
+  "dry_grass_side",
+  "dry_leaves",
 ] as const;
 export type TileName = (typeof TILE_NAMES)[number];
 
@@ -143,6 +151,13 @@ const BASE_TILES: Record<BaseKey, Tiles> = {
 const GEN_TILES: Record<string, Tiles> = {
   tnt: ["tnt_top", "tnt_side", "tnt_top"],
   red_water: ["red_water", "red_water", "red_water"],
+  flower_red: ["flower_red", "flower_red", "flower_red"],
+  flower_yellow: ["flower_yellow", "flower_yellow", "flower_yellow"],
+  flower_blue: ["flower_blue", "flower_blue", "flower_blue"],
+  fruit_leaves: ["fruit_leaves", "fruit_leaves", "fruit_leaves"],
+  life_leaves: ["life_leaves", "life_leaves", "life_leaves"],
+  dry_grass: ["dry_grass_top", "dry_grass_side", "dirt"],
+  dry_leaves: ["dry_leaves", "dry_leaves", "dry_leaves"],
   door_b: ["planks", "door_b", "planks"],
   door_t: ["planks", "door_t", "planks"],
 };

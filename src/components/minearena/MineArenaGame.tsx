@@ -21,6 +21,12 @@ import { TradePanel } from "./TradePanel";
 import { ChatBox } from "./ChatBox";
 import { DeathScreen, HeroDialog, LoadingScreen, PauseMenu } from "./Overlays";
 import { TouchControls } from "./TouchControls";
+import { StoryMenu } from "./StoryMenu";
+import { StoryOverlay } from "./StoryOverlay";
+import { loadProgress } from "@/lib/minearena/story/progress";
+import { CHAPTER_BY_ID } from "@/lib/minearena/story/data/chapters";
+import { STORY_MAPS } from "@/lib/minearena/story/maps";
+import type { StoryProgress, StoryUi } from "@/lib/minearena/story/types";
 
 const portraitNow = () => window.matchMedia("(orientation: portrait)").matches;
 const subscribePortrait = (fn: () => void) => {
@@ -53,7 +59,7 @@ const subscribeCoarse = (fn: () => void) => {
   return () => m.removeEventListener("change", fn);
 };
 
-function Play({ save, rotated, settings, onSettings, onExit, me, sb, net }: { save: WorldSave; rotated: boolean; settings: Settings; onSettings: (s: Settings) => void; onExit: (notice?: string) => void; me?: Peer; sb?: SupabaseClient; net?: RoomNet }) {
+function Play({ save, rotated, settings, onSettings, onExit, onStoryNav, storyChapter, me, sb, net }: { save: WorldSave; rotated: boolean; settings: Settings; onSettings: (s: Settings) => void; onExit: (notice?: string) => void; onStoryNav?: (to: { chapter: string } | { menu: true }) => void; storyChapter?: string; me?: Peer; sb?: SupabaseClient; net?: RoomNet }) {
   const mobile = useSyncExternalStore(subscribeCoarse, coarse, () => false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [game, setGame] = useState<MineArena | null>(null);
@@ -65,6 +71,8 @@ function Play({ save, rotated, settings, onSettings, onExit, me, sb, net }: { sa
   const [paused, setPaused] = useState(false);
   const [options, setOptions] = useState(false);
   const [chat, setChat] = useState(false);
+  const [storyUi, setStoryUi] = useState<StoryUi | null>(null);
+  const onNavRef = useRef(onStoryNav);
   const onExitRef = useRef(onExit);
   const settingsRef = useRef(settings);
   const msgId = useRef(0);
@@ -104,8 +112,12 @@ function Play({ save, rotated, settings, onSettings, onExit, me, sb, net }: { sa
             setPaused(true);
           },
           onRoomEnded: (reason) => onExitRef.current(reason),
+          onStory: setStoryUi,
+          onStoryNav: (to) => {
+            void (gameRef.current?.saveNow() ?? Promise.resolve()).then(() => onNavRef.current?.(to));
+          },
         },
-        { mobile, settings: settingsRef.current, me, sb, net },
+        { mobile, settings: settingsRef.current, me, sb, net, story: storyChapter ? { chapterId: storyChapter } : undefined },
       );
     } catch {
       pushMsg("Seu aparelho não conseguiu iniciar o gráfico 3D.", "warn");
@@ -126,7 +138,8 @@ function Play({ save, rotated, settings, onSettings, onExit, me, sb, net }: { sa
   useEffect(() => {
     settingsRef.current = settings;
     gameRef.current?.applySettings(settings);
-  }, [settings]);
+    onNavRef.current = onStoryNav;
+  }, [settings, onStoryNav]);
 
   const openBag = useCallback((tab: "bag" | "craft") => {
     gameRef.current?.setUiOpen(true);
@@ -154,6 +167,7 @@ function Play({ save, rotated, settings, onSettings, onExit, me, sb, net }: { sa
         if (e.code === "Escape") closeExtra();
         return;
       }
+      if (gameRef.current?.story?.blocking) return;
       if (e.code === "KeyE" && !paused && !dialog && !chat) {
         if (bag) closeBag();
         else openBag("bag");
@@ -172,8 +186,9 @@ function Play({ save, rotated, settings, onSettings, onExit, me, sb, net }: { sa
   return (
     <div className={rotated ? "ma-root ma-rot" : "ma-root"} data-touch={settings.touchSize} onContextMenu={(e) => e.preventDefault()} onDragStart={(e) => e.preventDefault()}>
       <canvas ref={canvasRef} className="ma-canvas" />
-      {game && hud && !hud.loading ? <Hud hud={hud} msgs={msgs} onSelect={(i) => game.inventory.select(i)} /> : null}
-      {game && hud && !hud.loading && mobile && !bag && !extra && !dialog && !paused && hud.alive ? (
+      {game && hud && !hud.loading && !hud.cinematic ? <Hud hud={hud} msgs={msgs} onSelect={(i) => game.inventory.select(i)} /> : null}
+      {game && hud && !hud.loading && game.story ? <StoryOverlay game={game} ui={storyUi} hud={hud} /> : null}
+      {game && hud && !hud.loading && mobile && !bag && !extra && !dialog && !paused && hud.alive && !hud.cinematic && !storyUi?.dialogue && !storyUi?.learn && !storyUi?.chapterEnd ? (
         <TouchControls game={game} rotated={rotated} shield={!!hud.offhand} onInventory={() => openBag("bag")} onPause={() => {
           game.setPaused(true);
           setPaused(true);
@@ -214,7 +229,7 @@ function Play({ save, rotated, settings, onSettings, onExit, me, sb, net }: { sa
           }}
         />
       ) : null}
-      {hud && !hud.loading ? (
+      {hud && !hud.loading && !hud.cinematic && !game?.story ? (
         <button type="button" className="ma-chat-btn" aria-label="Conversar" onClick={() => { game?.setUiOpen(true); setChat(true); }}>
           💬
         </button>
@@ -256,6 +271,9 @@ export function MineArenaGame({ me }: { me?: Peer }) {
   const [joining, setJoining] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [storyOpen, setStoryOpen] = useState(false);
+  const [storyProgress, setStoryProgress] = useState<StoryProgress>(loadProgress);
+  const [storySaves, setStorySaves] = useState<Set<string>>(new Set());
   // música no menu (dentro do mundo quem toca é o jogo, com a mesma faixa)
   useEffect(() => {
     if (active) return;
@@ -274,16 +292,55 @@ export function MineArenaGame({ me }: { me?: Peer }) {
     saveSettings(s);
   };
 
-  const refresh = useCallback(async () => setWorlds(await listWorlds()), []);
+  const refresh = useCallback(async () => {
+    const all = await listWorlds();
+    setWorlds(all.filter((w) => !w.id.startsWith("story:")));
+    setStorySaves(new Set(all.filter((w) => w.id.startsWith("story:") && w.story && !w.story.finished).map((w) => w.id.slice(6))));
+    setStoryProgress(loadProgress());
+  }, []);
   useEffect(() => {
     let on = true;
-    void listWorlds().then((w) => {
-      if (on) setWorlds(w);
+    void listWorlds().then((all) => {
+      if (!on) return;
+      setWorlds(all.filter((w) => !w.id.startsWith("story:")));
+      setStorySaves(new Set(all.filter((w) => w.id.startsWith("story:") && w.story && !w.story.finished).map((w) => w.id.slice(6))));
     });
     return () => {
       on = false;
     };
   }, []);
+
+  /** Modo História: abre (ou recomeça) o mapa limitado de um capítulo. */
+  const startStory = async (chapterId: string, fresh: boolean) => {
+    const ch = CHAPTER_BY_ID.get(chapterId);
+    const map = ch?.map ? STORY_MAPS[ch.map] : undefined;
+    if (!ch || !map) return;
+    enterImmersive();
+    const id = `story:${chapterId}`;
+    let save = fresh ? null : await getWorld(id);
+    if (!save) {
+      const now = Date.now();
+      save = {
+        id,
+        name: ch.title,
+        seed: 1,
+        createdAt: now,
+        updatedAt: now,
+        playedSeconds: 0,
+        time: map.time,
+        player: { x: map.spawn.x + 0.5, y: 40, z: map.spawn.z + 0.5, yaw: map.spawn.yaw, pitch: 0, health: 20, hunger: 20 },
+        spawn: { x: map.spawn.x + 0.5, y: 40, z: map.spawn.z + 0.5 },
+        inventory: { slots: [], armor: [null, null, null, null], selected: 0 },
+        mods: {},
+        mode: "survival",
+        discoveries: [],
+        heroesMet: [],
+        kills: 0,
+      };
+      await putWorld(save);
+    }
+    setActive(save);
+  };
 
   const create = async (name: string, seedText: string, mode: "survival" | "creative") => {
     enterImmersive();
@@ -351,7 +408,18 @@ export function MineArenaGame({ me }: { me?: Peer }) {
   if (active) {
     return (
       <Play
+        key={active.id}
         save={active}
+        storyChapter={active.id.startsWith("story:") ? active.id.slice(6) : undefined}
+        onStoryNav={(to) => {
+          if ("chapter" in to) void startStory(to.chapter, true);
+          else {
+            leaveImmersive();
+            setActive(null);
+            setStoryOpen(true);
+            void refresh();
+          }
+        }}
         me={me}
         sb={sb ?? undefined}
         net={guestNet ?? undefined}
@@ -362,11 +430,24 @@ export function MineArenaGame({ me }: { me?: Peer }) {
           leaveImmersive();
           guestNet?.close();
           setGuestNet(null);
+          if (active.id.startsWith("story:")) setStoryOpen(true);
           setActive(null);
           if (why) setNotice(why);
           void refresh();
         }}
       />
+    );
+  }
+  if (storyOpen) {
+    return (
+      <div className={rotated ? "ma-root ma-rot" : "ma-root"} onContextMenu={(e) => e.preventDefault()}>
+        <StoryMenu
+          progress={storyProgress}
+          hasSave={(id) => storySaves.has(id)}
+          onPlay={(id, fresh) => void startStory(id, fresh)}
+          onBack={() => setStoryOpen(false)}
+        />
+      </div>
     );
   }
   return (
@@ -376,6 +457,10 @@ export function MineArenaGame({ me }: { me?: Peer }) {
         coop={me && sb ? { sb, myId: me.id, busy: joining, error: joinError, onJoin: (r) => void join(r) } : undefined}
         worlds={worlds}
         onOptions={() => setMenuOptions(true)}
+        onStory={() => {
+          void refresh();
+          setStoryOpen(true);
+        }}
         onPlay={(w) => {
           enterImmersive();
           setActive(w);

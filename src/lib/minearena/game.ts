@@ -30,6 +30,11 @@ import { canvasPixels, spritePixels } from "./textures/sprites";
 import { Sky } from "./world/sky";
 import { World } from "./world/world";
 import { BIOME_NAME, biomeAt, findSpawn } from "./world/worldgen";
+import { StoryDirector, newSession, type StoryHost } from "./story/director";
+import { CHAPTER_BY_ID } from "./story/data/chapters";
+import { STORY_MAPS } from "./story/maps";
+import { StoryMusic } from "./story/audio";
+import type { StoryHud, StorySession, StoryUi } from "./story/types";
 import { ARENA, FORTRESS_RESIDENTS, GEENA_ARRIVAL, fortressesNear } from "./world/geena";
 import type { MobDef } from "./entities/definitions";
 import { RECIPES, type Recipe, gridLayout, matchGrid } from "./crafting/recipes";
@@ -75,6 +80,10 @@ export interface HudState {
   flash: number;
   /** Cabeça dentro de água ou lava (tinge a tela). */
   submerged: "water" | "lava" | null;
+  /** Modo História: objetivo atual e marcador. */
+  story: StoryHud | null;
+  /** Modo História: cutscene em andamento (esconde o HUD). */
+  cinematic: boolean;
 }
 
 export interface DialogInfo {
@@ -99,6 +108,10 @@ export interface GameCallbacks {
   onEditSign(x: number, y: number, z: number, text: string): void;
   onOpenMap(): void;
   onPauseRequest(): void;
+  /** Modo História: estado dos diálogos, legendas, fade e telas de aprendizado. */
+  onStory?(ui: StoryUi): void;
+  /** Modo História: trocar de capítulo ou voltar ao menu da campanha. */
+  onStoryNav?(to: { chapter: string } | { menu: true }): void;
   /** Co-op: a sala acabou (anfitrião saiu ou conexão caiu). */
   onRoomEnded(reason: string): void;
 }
@@ -125,6 +138,8 @@ export interface GameOptions {
   me?: Peer;
   sb?: SupabaseClient;
   net?: RoomNet;
+  /** Modo História: capítulo a jogar. */
+  story?: { chapterId: string };
 }
 
 const ORE_XP: Record<string, number> = { coal_ore: 2, iron_ore: 3, gold_ore: 4, sapphire_ore: 8, sulfur_ore: 2, ember_block: 1 };
@@ -261,6 +276,12 @@ export class MineArena {
   private sel: THREE.Mesh;
   private selLines: THREE.LineSegments;
   private hand = new THREE.Group();
+  story: StoryDirector | null = null;
+  private storyTime: number | null = null;
+  private storyMusic: StoryMusic | null = null;
+  private rainbowObj: THREE.Group | null = null;
+  private storyShake = 0;
+  private storyHudPos: { x: number; y: number; z: number } | null = null;
   private handKey = "";
   private handTex = new Map<TileName, THREE.CanvasTexture>();
   private cracks: THREE.CanvasTexture[];
@@ -304,6 +325,18 @@ export class MineArena {
     this.landmarks = save.landmarks ? [...save.landmarks] : [];
     this.world.landmarks = this.landmarks;
     this.world.loadMods(this.dimension === "geena" ? this.geenaMods : this.overMods);
+    if (opts.story) {
+      const ch = CHAPTER_BY_ID.get(opts.story.chapterId);
+      const map = ch?.map ? STORY_MAPS[ch.map] : undefined;
+      if (ch && map) {
+        const session: StorySession = save.story ?? newSession(ch.id);
+        this.world.custom = (cx, cz) => map.generate(cx, cz, session.env);
+        this.story = new StoryDirector(this.storyHost(), map, session);
+        this.storyFresh = !save.story;
+        this.storyMusic = new StoryMusic();
+        this.storyMusic.setOn(opts.settings?.music !== false, opts.settings?.volume ?? 100);
+      }
+    }
     this.fluids = new FluidSim(this.world);
     this.world.onChange = (x, y, z) => this.fluids.poke(x, y, z);
     const far = this.radius * 16 - 6;
@@ -319,9 +352,9 @@ export class MineArena {
     this.inventory.infinite = this.creative;
     this.deathSpot = save.deathSpot ?? null;
 
-    this.spawn = save.spawn ?? findSpawn(save.seed);
+    this.spawn = this.story ? { x: this.story.map.spawn.x + 0.5, y: 40, z: this.story.map.spawn.z + 0.5 } : (save.spawn ?? findSpawn(save.seed));
     this.body = newBody(save.player?.x ?? this.spawn.x, save.player?.y ?? this.spawn.y, save.player?.z ?? this.spawn.z, PLAYER.w, PLAYER.h);
-    this.yaw = save.player?.yaw ?? 0;
+    this.yaw = save.player?.yaw ?? (this.story ? this.story.map.spawn.yaw : 0);
     this.pitch = save.player?.pitch ?? 0;
     this.health = save.player?.health ?? PLAYER.maxHealth;
     this.hunger = save.player?.hunger ?? PLAYER.maxHunger;
@@ -507,6 +540,7 @@ export class MineArena {
       containers: Object.fromEntries(this.containers),
       spawned: [...this.spawned],
       crops: Object.fromEntries(this.crops),
+      story: this.story?.export(),
     };
   }
   async saveNow(): Promise<void> {
@@ -779,7 +813,7 @@ export class MineArena {
       if (this.rainObj) this.rainObj.visible = false;
       return;
     }
-    if (this.role !== "guest") {
+    if (this.role !== "guest" && !this.story) {
       this.wxT -= dt;
       if (this.wxT <= 0) this.nextWeather();
     }
@@ -1328,6 +1362,7 @@ export class MineArena {
 
   /** Morte: os pertences caem no chão (só no modo solo e fora da dificuldade fácil). */
   private dropAllOnDeath(): void {
+    if (this.story) return;
     if (this.role !== "solo" || this.keepItems) return;
     const b = this.body;
     const all: NonNullable<Stack>[] = [];
@@ -1410,9 +1445,11 @@ export class MineArena {
     if (this.dimension === "geena") {
       this.switchDimension("overworld", this.spawn);
     }
-    this.body.x = this.spawn.x;
-    this.body.y = this.spawn.y;
-    this.body.z = this.spawn.z;
+    const cp = this.story?.respawnPoint();
+    this.body.x = cp ? cp.x : this.spawn.x;
+    this.body.y = cp ? cp.y + 1 : this.spawn.y;
+    this.body.z = cp ? cp.z : this.spawn.z;
+    if (cp) this.yaw = cp.yaw;
     this.body.vx = this.body.vy = this.body.vz = 0;
     this.health = PLAYER.maxHealth;
     this.hunger = 14;
@@ -1455,6 +1492,14 @@ export class MineArena {
             if (sy >= 0) b.y = sy + 1.05;
           }
         }
+        if (this.story) {
+          const sy = this.world.surfaceY(Math.floor(b.x), Math.floor(b.z));
+          if (sy >= 0) b.y = sy + 1.05;
+          if (!this.storyStarted) {
+            this.storyStarted = true;
+            this.story.begin(this.storyFresh);
+          }
+        }
         for (const d of this.pendingAllies) {
           const e = this.entities.spawn(d, b.x + 1.5, b.y + 0.2, b.z + 1.5);
           e.ally = true;
@@ -1468,6 +1513,7 @@ export class MineArena {
 
     this.playedSeconds += dt;
     this.time = (this.time + dt / DAY_SECONDS) % 1;
+    if (this.storyTime !== null) this.time = this.storyTime;
     this.weatherTick(dt);
     if (this.dimension === "geena") this.sky.updateFire();
     else this.sky.update(this.time, this.camera.position);
@@ -1479,15 +1525,25 @@ export class MineArena {
     this.useCd = Math.max(0, this.useCd - dt);
     this.swing = Math.max(0, this.swing - dt * 3.2);
 
-    this.look();
-    if (this.alive) {
+    const cut = !!this.story?.blocking;
+    if (cut) {
+      this.input.lookDX = 0;
+      this.input.lookDY = 0;
+      this.input.mine = false;
+      this.input.use = false;
+    }
+    this.story?.update(dt);
+    if (!cut) this.look();
+    if (this.alive && !cut) {
       this.movePlayer(dt);
       this.survival(dt);
       this.interact(dt);
     }
+    if (this.story) this.hunger = Math.max(this.hunger, 14);
     this.syncCamera();
+    this.storyCamera();
 
-    this.entities.update(dt, { px: b.x, py: b.y, pz: b.z, alive: this.alive, daylight: this.sky.daylight, mobile: this.mobile, dim: this.dimension, others: this.role === "solo" ? undefined : this.remotes.positions(), cull: this.cullDist, cap: this.entCap, spawnMul: this.spawnMul * (this.dimension === "geena" ? 1.5 : 1) });
+    this.entities.update(dt, { px: b.x, py: b.y, pz: b.z, alive: this.alive, daylight: this.sky.daylight, mobile: this.mobile, dim: this.dimension, others: this.role === "solo" ? undefined : this.remotes.positions(), cull: this.cullDist, cap: this.entCap, spawnMul: this.story ? 0 : this.spawnMul * (this.dimension === "geena" ? 1.5 : 1) });
     this.particles.update(dt);
     this.tickFurnaces(dt);
     this.tickCrops(dt);
@@ -1505,14 +1561,16 @@ export class MineArena {
     }
     this.portalTick(dt);
     this.geenaTick();
-    this.exploration(dt);
+    if (!this.story) this.exploration(dt);
     this.drops.update(dt, b.x, b.y, b.z, this.alive && this.sleepT <= 0, (s) => this.pickup(s));
     this.fishingTick(dt);
     this.fuseTick(dt);
     this.effectTick(dt);
     this.ambience(dt);
-    this.landmarkFx(dt);
-    this.tutorialTick();
+    if (!this.story) {
+      this.landmarkFx(dt);
+      this.tutorialTick();
+    }
     this.animateHand();
 
     this.saveT += dt;
@@ -1784,6 +1842,7 @@ export class MineArena {
 
   private breakBlock(x: number, y: number, z: number, harvest: boolean, fortune = 0): void {
     const id = this.world.getBlock(x, y, z);
+    if (this.story && !this.story.allowBreak(x, y, z, id)) return;
     const def = blockDef(id);
     if (id === B.chest || id === B.furnace || id === B.furnace_lit) this.spillContainer(x, y, z, id);
     this.world.setBlock(x, y, z, B.air);
@@ -1794,6 +1853,7 @@ export class MineArena {
     }
     this.crops.delete(`${x},${y},${z}`);
     if (blockDef(this.world.getBlock(x, y + 1, z)).shape === "cross") this.breakBlock(x, y + 1, z, true);
+    this.story?.onBlockBroken(x, y, z, id);
     this.sfx.play("break");
     this.particles.burst(x + 0.5, y + 0.5, z + 0.5, def.top, 12, 4, 0.14);
     this.exhaust(0.012);
@@ -2128,6 +2188,7 @@ export class MineArena {
       const r = PLAYER.w / 2;
       if ((blockDef(placeId).solid || blockDef(placeId).shape === "boxes") && px + 1 > b.x - r && px < b.x + r && pz + 1 > b.z - r && pz < b.z + r && py + 1 > b.y && py < b.y + PLAYER.h) return;
       this.world.setBlock(px, py, pz, placeId);
+      this.story?.onBlockPlaced(px, py, pz);
       this.inventory.consumeHeld(1);
       this.sfx.play("place");
       this.swing = 0.8;
@@ -2630,6 +2691,10 @@ export class MineArena {
 
   // ---------- heróis ----------
   private openDialog(e: Entity): void {
+    if (e.story && this.story) {
+      this.story.onTalk(e.story.id);
+      return;
+    }
     const def = e.def;
     const gifts: string[] = [];
     if (!e.gifted) {
@@ -3054,6 +3119,139 @@ export class MineArena {
     }
   }
 
+  // ---------- Modo História ----------
+  private storyFresh = true;
+  private storyStarted = false;
+
+  /** Interface que o diretor da campanha usa para mexer no jogo. */
+  private storyHost(): StoryHost {
+    return {
+      world: this.world,
+      playerPos: () => ({ x: this.body.x, y: this.body.y, z: this.body.z, yaw: this.yaw }),
+      setPlayer: (x, y, z, yaw) => {
+        this.body.x = x;
+        this.body.y = y;
+        this.body.z = z;
+        this.body.vx = this.body.vy = this.body.vz = 0;
+        if (yaw !== undefined) this.yaw = yaw;
+      },
+      invCount: (item) => this.inventory.count(item),
+      invRemove: (item, n) => {
+        this.inventory.remove(item, n);
+      },
+      invGive: (item, n) => {
+        const left = this.inventory.add(item, n);
+        if (left > 0) this.dropItem(item, left, this.body.x, this.body.y + 1, this.body.z);
+        const def = itemDef(item);
+        if (def) this.cb.onMessage(`+${n} ${def.name}`, "good");
+      },
+      spawnMob: (def, x, z) => {
+        const sy = this.world.surfaceY(Math.floor(x), Math.floor(z));
+        return this.entities.spawn(def, x, (sy >= 0 ? sy : 30) + 1.05, z);
+      },
+      entities: () => this.entities.list,
+      removeEntity: (e) => this.entities.remove(e),
+      camGet: () => {
+        const c = this.camera.position;
+        const d = new THREE.Vector3();
+        this.camera.getWorldDirection(d);
+        return { pos: { x: c.x, y: c.y, z: c.z }, look: { x: c.x + d.x * 8, y: c.y + d.y * 8, z: c.z + d.z * 8 } };
+      },
+      shake: (dur, power) => {
+        this.storyShake = Math.max(this.storyShake, power * Math.min(1, dur));
+      },
+      setTime: (t, lock) => {
+        this.time = t;
+        this.storyTime = lock ? t : null;
+      },
+      setWeather: (w) => {
+        this.weather = w;
+        this.wxT = 9999;
+      },
+      rainbow: (on) => this.setRainbow(on),
+      burst: (x, y, z, color, n, speed, size) => this.particles.burst(x, y, z, color, n, speed, size),
+      message: (text, tone) => this.cb.onMessage(text, tone),
+      ui: (u) => this.cb.onStory?.(u),
+      music: (track) => this.storyMusic?.play(track),
+      sfx: (kind) => {
+        if (kind === "pickup") this.sfx.play("pickup");
+        else if (kind === "place") this.sfx.play("place");
+        else if (kind === "eat") this.sfx.play("eat");
+        else if (kind === "rumble") this.sfx.ambient("rumble");
+        else this.storyMusic?.sfx(kind);
+      },
+      saveNow: () => void this.saveNow(),
+      exitToMenu: () => this.cb.onStoryNav?.({ menu: true }),
+      startChapter: (id) => this.cb.onStoryNav?.({ chapter: id }),
+    };
+  }
+
+  /** Câmera da cutscene (por cima da câmera do jogador) e tremor. */
+  private storyCamera(): void {
+    const st = this.story;
+    this.storyShake = Math.max(0, this.storyShake - 0.016);
+    if (!st) return;
+    this.hand.visible = !st.cine;
+    if (st.cine) {
+      const c = st.cine;
+      this.camera.position.set(c.pos.x, c.pos.y, c.pos.z);
+      this.camera.lookAt(c.look.x, c.look.y, c.look.z);
+    }
+    if (this.storyShake > 0) {
+      const k = this.storyShake;
+      this.camera.position.x += (Math.random() - 0.5) * k;
+      this.camera.position.y += (Math.random() - 0.5) * k;
+    }
+  }
+
+  private setRainbow(on: boolean): void {
+    if (on && !this.rainbowObj) {
+      const g = new THREE.Group();
+      const colors = [0xff3b30, 0xff9500, 0xffd60a, 0x34c759, 0x32ade6, 0x5856d6, 0xaf52de];
+      colors.forEach((c, i) => {
+        const m = new THREE.Mesh(new THREE.TorusGeometry(54 + i * 1.7, 0.95, 6, 64, Math.PI), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.8, fog: false }));
+        g.add(m);
+      });
+      g.position.set(74, 16, -6);
+      this.scene.add(g);
+      this.rainbowObj = g;
+    } else if (!on && this.rainbowObj) {
+      this.scene.remove(this.rainbowObj);
+      this.rainbowObj = null;
+    }
+  }
+
+  /** Objetivo atual + marcador projetado na tela. */
+  private storyHud(): StoryHud | null {
+    const st = this.story;
+    if (!st) return null;
+    const { hud, target } = st.hud();
+    if (!hud) return null;
+    if (target) {
+      const v = new THREE.Vector3(target.x, target.y, target.z);
+      const cam = v.clone().applyMatrix4(this.camera.matrixWorldInverse);
+      const p = v.clone().project(this.camera);
+      const behind = cam.z > 0;
+      const on = !behind && Math.abs(p.x) < 0.9 && Math.abs(p.y) < 0.85;
+      hud.wp = { sx: Math.round(Math.max(-0.9, Math.min(0.9, behind ? -p.x : p.x)) * 100) / 100, sy: Math.round(Math.max(-0.85, Math.min(0.85, behind ? -0.85 : p.y)) * 100) / 100, on, angle: Math.round((Math.atan2(cam.x, -cam.z) * 180) / Math.PI) };
+    }
+    return hud;
+  }
+
+  /** Botões da interface: avançar fala, pular cena, fechar telas. */
+  storyAdvance(): void {
+    this.story?.advance();
+  }
+  storySkip(): void {
+    this.story?.skipDialogue();
+  }
+  storyDismissLearn(): void {
+    this.story?.dismissLearn();
+  }
+  storyContinue(): void {
+    this.story?.continueAfterChapter();
+  }
+
   // ---------- HUD ----------
   private emitHud(dt: number, loading: boolean): void {
     this.hudT -= dt;
@@ -3088,6 +3286,8 @@ export class MineArena {
       offhand: this.inventory.offhand ? { ...this.inventory.offhand } : null,
       guarding: this.guarding,
       submerged: this.submerged,
+      story: this.storyHud(),
+      cinematic: !!this.story?.ui.cinematic,
       hint: this.hintText(),
       fx: [...this.effects].map(([k, v]) => ({ k, t: Math.ceil(v.t) })),
       charge: Math.round(this.charge * 20) / 20,

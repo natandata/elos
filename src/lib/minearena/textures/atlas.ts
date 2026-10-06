@@ -409,6 +409,68 @@ function drawTile(name: TileName, put: Put): void {
       put(7, 3, hex(0xffcf5a));
       break;
     }
+    case "flower_red":
+    case "flower_yellow":
+    case "flower_blue": {
+      const petal = name === "flower_red" ? 0xd9322e : name === "flower_yellow" ? 0xf2c92b : 0x4a6fe0;
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) put(x, y, hex(0x000000), 0);
+      for (let y = 7; y < N; y++) put(7 + (y % 5 === 0 ? 1 : 0), y, mul(hex(0x4a8a30), 0.8 + rnd(7, y, s) * 0.4));
+      for (const [lx, ly] of [[5, 11], [9, 12]] as const) for (let k = 0; k < 3; k++) put(lx + k, ly - (k > 1 ? 1 : 0), hex(0x4a8a30));
+      for (const [dx, dy] of [[0, 0], [-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, 1]] as const) put(7 + dx, 4 + dy, mul(hex(petal), 0.9 + rnd(7 + dx, 4 + dy, s) * 0.2));
+      put(7, 4, hex(0xfff2a8));
+      break;
+    }
+    case "fruit_leaves": {
+      for (let y = 0; y < N; y++) {
+        for (let x = 0; x < N; x++) {
+          const r = rnd(x, y, s);
+          if (r < 0.18) put(x, y, hex(0x000000), 0);
+          else put(x, y, mul(hex(0x4a8a30), 0.7 + rnd(x, y, s + 1) * 0.6));
+        }
+      }
+      for (const [fx, fy] of [[3, 3], [10, 2], [6, 8], [12, 10], [2, 12], [9, 13]] as const) {
+        put(fx, fy, hex(0xd9322e));
+        put(fx + 1, fy, hex(0xe8504a));
+        put(fx, fy + 1, hex(0xb02320));
+        put(fx + 1, fy + 1, hex(0xc9322e));
+      }
+      break;
+    }
+    case "life_leaves": {
+      for (let y = 0; y < N; y++) {
+        for (let x = 0; x < N; x++) {
+          const r = rnd(x, y, s);
+          if (r < 0.14) put(x, y, hex(0x000000), 0);
+          else put(x, y, mul(hex(0xe6c64a), 0.8 + rnd(x, y, s + 1) * 0.5));
+        }
+      }
+      for (const [fx, fy] of [[4, 4], [11, 6], [7, 11]] as const) put(fx, fy, hex(0xfff6c0));
+      break;
+    }
+    case "dry_leaves": {
+      for (let y = 0; y < N; y++) {
+        for (let x = 0; x < N; x++) {
+          const r = rnd(x, y, s);
+          if (r < 0.32) put(x, y, hex(0x000000), 0);
+          else put(x, y, mul(hex(0x8a7440), 0.65 + rnd(x, y, s + 1) * 0.6));
+        }
+      }
+      break;
+    }
+    case "dry_grass_top": {
+      noiseFill(put, hex(0x9a8a48), 0.3, s);
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (rnd(x, y, s + 1) < 0.1) put(x, y, hex(0xb8a45a));
+      break;
+    }
+    case "dry_grass_side": {
+      const base = hex(0x7b5a33);
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) put(x, y, mul(base, 1 + (rnd(x, y, s) - 0.5) * 0.25 + blotch(x, y, s) * 0.18));
+      for (let x = 0; x < N; x++) {
+        const depth = 3 + Math.floor(rnd(x, 0, s + 4) * 3);
+        for (let y = 0; y < depth; y++) put(x, y, mul(hex(0x9a8a48), 1 + (rnd(x, y, s + 5) - 0.5) * 0.3));
+      }
+      break;
+    }
     case "tallgrass": {
       for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) put(x, y, hex(0x000000), 0);
       for (let x = 1; x < N - 1; x += 2) {

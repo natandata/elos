@@ -9,7 +9,23 @@ import type { World } from "../world/world";
 import { type AbilityDef, MOBS, MOB_BY_ID, type MobDef } from "./definitions";
 import { type Rig, animate, buildModel, disposeRig, flash } from "./models";
 
+/** Personagem da campanha (Modo História): não morre, não some e obedece ao roteiro. */
+export interface StoryNpc {
+  id: string;
+  tag?: string;
+  goto?: { x: number; z: number; speed: number } | null;
+  /** "player" ou um ponto: o personagem se vira para lá quando está parado */
+  face?: "player" | { x: number; z: number } | null;
+  pose?: "bow" | "pray" | "wave" | "jump" | "kneel" | "point" | "idle" | null;
+  poseT?: number;
+  /** já chegou ao destino (para o roteiro esperar) */
+  arrived?: boolean;
+  /** fica parado onde está (animais já dentro da arca) */
+  hold?: boolean;
+}
+
 export interface Entity {
+  story?: StoryNpc;
   id: number;
   def: MobDef;
   rig: Rig;
@@ -128,6 +144,46 @@ interface Hazard {
 const isHostile = (e: Entity) => !e.dead && (e.def.behavior === "hostile" || e.def.behavior === "boss");
 const SUPPORT_ABILITIES = new Set(["sling", "fire", "wave", "calm"]);
 
+/** Poses simples dos personagens da campanha (sobre a animação normal do rig). */
+function applyPose(e: Entity): void {
+  const st = e.story;
+  if (!st?.pose) return;
+  const r = e.rig;
+  const t = e.anim;
+  switch (st.pose) {
+    case "pray":
+      if (r.armL) r.armL.rotation.x = -1.15;
+      if (r.armR) r.armR.rotation.x = -1.15;
+      r.head.rotation.x = 0.55;
+      break;
+    case "bow":
+      r.head.rotation.x = 0.95;
+      if (r.armL) r.armL.rotation.x = 0.2;
+      if (r.armR) r.armR.rotation.x = 0.2;
+      break;
+    case "wave":
+      if (r.armR) {
+        r.armR.rotation.x = -2.6;
+        r.armR.rotation.z = Math.sin(t * 9) * 0.5;
+      }
+      break;
+    case "point":
+      if (r.armR) r.armR.rotation.x = -1.5;
+      break;
+    case "jump":
+      if (r.armL) r.armL.rotation.x = -2.8;
+      if (r.armR) r.armR.rotation.x = -2.8;
+      break;
+    case "kneel":
+      r.root.position.y -= 0.42;
+      for (const l of [...r.legsA, ...r.legsB]) l.rotation.x = -1.35;
+      r.head.rotation.x = 0.4;
+      if (r.armL) r.armL.rotation.x = -0.9;
+      if (r.armR) r.armR.rotation.x = -0.9;
+      break;
+  }
+}
+
 export class EntityManager {
   list: Entity[] = [];
   private projs: Proj[] = [];
@@ -242,7 +298,7 @@ export class EntityManager {
     return true;
   }
 
-  private remove(e: Entity): void {
+  remove(e: Entity): void {
     disposeRig(e.rig);
     this.list = this.list.filter((o) => o !== e);
   }
@@ -276,6 +332,7 @@ export class EntityManager {
 
   // ---------- dano ----------
   hurt(e: Entity, amount: number, kbx: number, kbz: number, byPlayer: boolean, by?: string): boolean {
+    if (e.story) return false;
     if (e.dead || e.invuln > 0) return false;
     if (this.clientMode) {
       if (e.def.behavior === "hero" && byPlayer) {
@@ -551,12 +608,18 @@ export class EntityManager {
     }
 
     const dPlayer = Math.hypot(b.x - env.px, b.z - env.pz);
+    if (e.story) {
+      e.hp = e.maxHp;
+      e.invuln = 1;
+      // chunk ainda não carregado: espera parado (senão cairia pelo mundo)
+      if (this.world.getBlock(Math.floor(b.x), 0, Math.floor(b.z)) === 0) return;
+    }
     // longe demais: some (heróis aliados voltam pro lado do jogador)
-    if (dPlayer > 70 && !e.ally) {
+    if (dPlayer > 70 && !e.ally && !e.story) {
       this.remove(e);
       return;
     }
-    if (isHostile(e) && def.behavior !== "boss" && env.daylight > 0.7 && !e.ally && b.y > 12 && Math.random() < dt * 0.15) {
+    if (!e.story && isHostile(e) && def.behavior !== "boss" && env.daylight > 0.7 && !e.ally && b.y > 12 && Math.random() < dt * 0.15) {
       this.fx.burst(b.x, b.y + 1, b.z, 0xffd36a, 8, 2, 0.1);
       this.remove(e);
       return;
@@ -565,7 +628,9 @@ export class EntityManager {
     // ---- escolhe alvo ----
     let target: { x: number; y: number; z: number; ent: Entity | null; r: number; pid?: string } | null = null;
     let tdist = Infinity;
-    if (isHostile(e) && e.pacified <= 0) {
+    if (e.story) {
+      // personagens da campanha nunca escolhem alvo
+    } else if (isHostile(e) && e.pacified <= 0) {
       for (const pl of this.players) {
         const d = Math.hypot(b.x - pl.x, b.z - pl.z);
         if (d <= def.chaseRange && d < tdist) {
@@ -618,6 +683,15 @@ export class EntityManager {
       speed = 0;
     } else if (e.fleeT > 0 && env.alive) {
       toward(b.x - (env.px - b.x), b.z - (env.pz - b.z), def.speed * 1.6);
+    } else if (e.story?.goto) {
+      const g = e.story.goto;
+      const dd = Math.hypot(g.x - b.x, g.z - b.z);
+      if (dd < 0.9) {
+        e.story.goto = null;
+        e.story.arrived = true;
+      } else toward(g.x, g.z, g.speed);
+    } else if (e.story && (e.story.hold || def.behavior === "hero")) {
+      speed = 0;
     } else if (e.ally) {
       if (dPlayer > 30) {
         this.teleportNear(e, env);
@@ -668,6 +742,12 @@ export class EntityManager {
       let dy = ty - e.yaw;
       dy = Math.atan2(Math.sin(dy), Math.cos(dy));
       e.yaw += dy * Math.min(1, dt * 10);
+    } else if (e.story?.face) {
+      const f = e.story.face === "player" ? { x: env.px, z: env.pz } : e.story.face;
+      const ty = Math.atan2(f.x - b.x, f.z - b.z);
+      let dy = ty - e.yaw;
+      dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+      e.yaw += dy * Math.min(1, dt * 8);
     } else if (target && e.windup <= 0) {
       const ty = Math.atan2(target.x - b.x, target.z - b.z);
       let dy = ty - e.yaw;
@@ -686,6 +766,7 @@ export class EntityManager {
     if (b.inWater) b.vy = Math.min(2.4, b.vy + 22 * dt);
     else b.vy = Math.max(-30, b.vy - 26 * dt);
     if (def.climb && b.hitWall && speed > 0) b.vy = Math.max(b.vy, 4.5);
+    else if (e.story && b.inWater && b.hitWall && speed > 0) b.vy = Math.max(b.vy, 6.5);
     else if (b.hitWall && b.onGround && speed > 0 && !e.ctrl) b.vy = 8.2;
     else if (b.hitWall && b.onGround && e.ctrl && speed > 0 && e.ctrl.jump) b.vy = 9.5;
     stepBody(this.world, b, dt);
@@ -718,6 +799,7 @@ export class EntityManager {
     e.rig.root.position.set(b.x, b.y, b.z);
     e.rig.root.rotation.y = e.yaw;
     animate(e.rig, { t: e.anim, speed: Math.hypot(b.vx, b.vz), attack: e.atkAnim, windup: e.windup > 0 ? Math.min(1, e.windup / 0.6) : 0, dead: 0 });
+    if (e.story?.pose && e.story.pose !== "idle") applyPose(e);
     flash(e.rig, e.hurtT > 0 ? 0.55 : 0);
   }
 

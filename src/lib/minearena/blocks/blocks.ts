@@ -110,7 +110,7 @@ export type BaseKey = (typeof BASE_KEYS)[number];
 export const MATS = ["planks", "cobble", "brick", "limestone", "sandstone", "cedar_planks"] as const;
 export type Mat = (typeof MATS)[number];
 type D4 = 0 | 1 | 2 | 3;
-export type BlockKey = BaseKey | "door_b" | "door_t" | `door_o${D4}${"b" | "t"}` | `ladder_${D4}` | `sign_${D4}` | "tnt" | "red_water" | `slab_${Mat}` | `stairs_${Mat}_${D4}`;
+export type BlockKey = BaseKey | "door_b" | "door_t" | `door_o${D4}${"b" | "t"}` | `ladder_${D4}` | `sign_${D4}` | "tnt" | "red_water" | "flower_red" | "flower_yellow" | "flower_blue" | "fruit_leaves" | "life_leaves" | "dry_grass" | "dry_leaves" | `slab_${Mat}` | `stairs_${Mat}_${D4}`;
 const D4S: D4[] = [0, 1, 2, 3];
 const KEYS: BlockKey[] = [
   ...BASE_KEYS,
@@ -125,6 +125,13 @@ const KEYS: BlockKey[] = [
   // novos blocos entram SEMPRE no fim (os ids ficam guardados nos mundos salvos)
   "tnt",
   "red_water",
+  "flower_red",
+  "flower_yellow",
+  "flower_blue",
+  "fruit_leaves",
+  "life_leaves",
+  "dry_grass",
+  "dry_leaves",
 ];
 
 /** Atalho: B.stone, B.water… */
@@ -238,6 +245,14 @@ for (const d of D4S) {
   GEN[`ladder_${d}`] = blk("Escada de mão", 0x9b6b3a, 0.4, "axe", 0, [drop("ladder_0")], "wood", { solid: false, opaque: false, shape: "panel", pdir: d, climb: true, placeable: d === 0 });
 }
 GEN.red_water = blk("Água vermelha", 0xb01818, Infinity, "hand", 0, [], "dirt", { solid: false, opaque: false, liquid: true, blend: true, placeable: false, fluid: "water", level: 8 });
+// ---- Modo História: flores, árvores do Éden e o mundo depois da queda ----
+GEN.flower_red = { ...plant("Anêmona", 0xd9322e, [drop("lily")]), placeable: false };
+GEN.flower_yellow = { ...plant("Narciso", 0xf2c92b, [drop("lily")]), placeable: false };
+GEN.flower_blue = { ...plant("Jacinto", 0x4a6fe0, [drop("lily")]), placeable: false };
+GEN.fruit_leaves = blk("Árvore frutífera", 0x4a8a30, 0.35, "hand", 0, [drop("apple", 1, 2)], "leaf", { opaque: false });
+GEN.life_leaves = blk("Folhagem dourada", 0xe0c040, 0.35, "hand", 0, [drop("apple", 1, 1, 0.5)], "leaf", { opaque: false, glow: true });
+GEN.dry_grass = blk("Grama seca", 0x9a8a48, 0.8, "shovel", 0, [drop("dirt")], "dirt", { side: 0x7b5a33, sideTop: 0x9a8a48, bottom: 0x7b5a33 });
+GEN.dry_leaves = blk("Folhas secas", 0x8a7440, 0.25, "hand", 0, [drop("stick", 1, 2, 0.4)], "leaf", { opaque: false });
 GEN.tnt = blk("Fogo e Enxofre", 0xd9533a, 0.2, "hand", 0, [drop("tnt")], "dirt", {});
 const MAT_NAME: Record<Mat, string> = { planks: "tábuas", cobble: "pedra lavrada", brick: "tijolo", limestone: "calcário", sandstone: "arenito", cedar_planks: "cedro" };
 const STAIR_BOXES: Box[][] = [

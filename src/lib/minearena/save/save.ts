@@ -2,8 +2,11 @@
 import type { Stack } from "../items/inventory";
 import type { SavedDrop } from "../entities/drops";
 import type { LandmarkSite } from "../structures/landmarks";
+import type { StorySession } from "../story/types";
 
 export interface WorldSave {
+  /** Modo História: sessão do capítulo (o mundo é um mapa limitado, não procedural). */
+  story?: StorySession;
   id: string;
   name: string;
   seed: number;
