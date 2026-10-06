@@ -1429,6 +1429,7 @@ export class MineArena {
 
   // ---------- laço ----------
   private frame(dt: number): void {
+    this.sfx.track(!this.paused && this.ready);
     if (!this.paused) this.tick(dt);
     this.renderer.render(this.scene, this.camera);
   }
@@ -3049,21 +3050,6 @@ export class MineArena {
         if (covered) this.sfx.ambient(Math.random() < 0.7 ? "drip" : "rumble");
         else if (night) this.sfx.ambient("cricket");
         else this.sfx.ambient(this.lastBiome !== "deserto" && Math.random() < 0.6 ? "bird" : "wind");
-      }
-    }
-    // harpa: frases curtas em escala pentatônica, mais lentas e graves à noite
-    if (this.dimension !== "geena") {
-      this.musT -= dt;
-      if (this.musT <= 0) {
-        const night = Math.sin(this.time * Math.PI * 2) <= 0;
-        this.musT = (night ? 12 : 7) + Math.random() * 9;
-        const scale = [293.66, 329.63, 369.99, 440, 493.88, 587.33, 659.25];
-        const n = 3 + Math.floor(Math.random() * 3);
-        let idx = Math.floor(Math.random() * scale.length);
-        for (let i = 0; i < n; i++) {
-          idx = Math.max(0, Math.min(scale.length - 1, idx + Math.floor(Math.random() * 3) - 1));
-          this.sfx.harp(scale[idx] * (night ? 0.5 : 1), i * 0.55, night ? 0.035 : 0.05);
-        }
       }
     }
   }

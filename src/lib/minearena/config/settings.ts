@@ -14,7 +14,7 @@ export interface Settings {
   quality: -1 | 0 | 1 | 2;
   /** 0 fácil · 1 normal · 2 difícil. */
   difficulty: 0 | 1 | 2;
-  /** Música de harpa ao fundo. */
+  /** Música de fundo (faixa em loop). */
   music: boolean;
   /** Balanço da câmera ao andar (desligue se enjoar). */
   bob: boolean;

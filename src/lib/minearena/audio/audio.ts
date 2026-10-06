@@ -3,10 +3,12 @@ export type Sfx = "break" | "place" | "hit" | "hurt" | "pickup" | "eat" | "bow" 
 
 export class Sound {
   muted = false;
-  /** Música de fundo (harpa) ligada? */
+  /** Música de fundo ligada? */
   musicOn = true;
   /** Volume geral (0–1). */
   volume = 1;
+  private theme: HTMLAudioElement | null = null;
+  private themeTry = 0;
   private ctx: AudioContext | null = null;
   private noise: AudioBuffer | null = null;
 
@@ -210,7 +212,34 @@ export class Sound {
     this.hiss(1.4, 0.5, 320);
   }
 
+  /** Faixa de fundo em loop: toca com a opção Música ligada e o jogo rodando. */
+  track(play: boolean): void {
+    const want = play && this.musicOn && !this.muted;
+    if (!this.theme) {
+      if (!want) return;
+      this.theme = new Audio("/minearena/tema.mp3");
+      this.theme.loop = true;
+    }
+    const a = this.theme;
+    a.volume = Math.min(1, 0.32 * this.volume);
+    if (!want) {
+      if (!a.paused) a.pause();
+      return;
+    }
+    const now = performance.now();
+    if (a.paused && now - this.themeTry > 1500) {
+      this.themeTry = now;
+      a.play().catch(() => {
+        // bloqueado até o primeiro toque; tenta de novo
+      });
+    }
+  }
+
   dispose(): void {
+    if (this.theme) {
+      this.theme.pause();
+      this.theme = null;
+    }
     try {
       this.rainNode?.src.stop();
     } catch {
