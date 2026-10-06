@@ -3,9 +3,12 @@ import { PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import { EarlyAccessManager, type EAUser } from "@/components/games/EarlyAccessManager";
 import { GAME_RELEASES, isReleased, type ReleasedGame } from "@/lib/games/release";
+import { GAME_CATALOG } from "@/lib/games/catalog";
+import { getVisibilities } from "@/lib/games/releaseServer";
+import { GameVisibility, type VisRow } from "@/components/games/GameVisibility";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-const RELEASE_TITLES: Record<ReleasedGame, string> = { dress: "👗 Vista o Herói (inclui a Passarela)", minearena: "⛏️ MineArena" };
+const RELEASE_TITLES: Record<ReleasedGame, string> = { dress: "👗 Vista o Herói (inclui a Passarela)", minearena: "⛏️ MineArena", biblerush: "🛶 Bible Rush" };
 
 type Game = { href: string; emoji: string; title: string; hint: string; release?: keyof typeof GAME_RELEASES; needsElo?: boolean };
 
@@ -24,6 +27,7 @@ const GAMES: Game[] = [
   { href: "/app/jogos/vestir", emoji: "👗", title: "Vista o Herói", hint: "Desafio do dia, treino, Bilhetes Dourados", release: "dress" },
   { href: "/app/jogos/vestir/passarela", emoji: "📸", title: "Passarela (Vista o Herói)", hint: "Look livre, votação e prêmios", release: "dress" },
   { href: "/app/jogos/minearena", emoji: "⛏️", title: "MineArena", hint: "Sandbox voxel 3D: construir, explorar e enfrentar", release: "minearena" },
+  { href: "/app/jogos/biblerush", emoji: "🛶", title: "Bible Rush", hint: "Gerenciamento de tempo bíblico: Noé, Reunindo os Animais", release: "biblerush" },
   { href: "/app/jogos/colecao", emoji: "🃏", title: "Coleção de cartas", hint: "Cartas ganhas nos jogos" },
 ];
 
@@ -36,6 +40,14 @@ const TOOLS = [
 export default async function AdminJogosPage() {
   await requireRole("admin");
 
+  const vis = await getVisibilities();
+  const rows: VisRow[] = GAME_CATALOG.map((g) => {
+    const rel = g.key in GAME_RELEASES ? (g.key as ReleasedGame) : null;
+    const when = rel ? new Date(GAME_RELEASES[rel]).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" }) : null;
+    const v = vis[g.key];
+    const now = v === "visible" ? "Todos os jogadores veem agora." : v === "hidden" ? "Escondido: só você (admin) vê." : rel && !isReleased(rel) ? `Automático: fechado até ${when}.` : "Automático: aberto para todos.";
+    return { key: g.key, emoji: g.emoji, title: g.title, visibility: v, note: now };
+  });
   const pending = (Object.keys(GAME_RELEASES) as ReleasedGame[]).filter((g) => !isReleased(g));
   let users: EAUser[] = [];
   const granted = new Map<string, string[]>();
@@ -88,6 +100,14 @@ export default async function AdminJogosPage() {
             );
           })}
         </ul>
+      </section>
+
+      <section className="mb-6">
+        <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">Visibilidade para os jogadores</h2>
+        <p className="mb-3 text-xs text-[var(--muted)]">
+          Automático segue a data de lançamento (jogos sem data ficam abertos). Visível abre para todos agora. Oculto esconde o jogo de todos, só você continua vendo.
+        </p>
+        <GameVisibility rows={rows} />
       </section>
 
       {pending.length > 0 ? (

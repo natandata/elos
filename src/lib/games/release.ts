@@ -5,7 +5,12 @@ export const GAME_RELEASES = {
   dress: "2026-10-09T00:00:00-03:00",
   /** MineArena (sandbox voxel 3D): abre à 00:00 de 01/11/2026. */
   minearena: "2026-11-01T00:00:00-03:00",
+  /** Bible Rush (gerenciamento de tempo bíblico): abre à 00:00 de 01/11/2026. */
+  biblerush: "2026-11-01T00:00:00-03:00",
 } as const;
+
+/** Antes da data, aparece um cartão "em breve" para os jogadores? O Bible Rush fica invisível até abrir. */
+export const GAME_TEASER: Record<keyof typeof GAME_RELEASES, boolean> = { dress: true, minearena: true, biblerush: false };
 
 export type ReleasedGame = keyof typeof GAME_RELEASES;
 

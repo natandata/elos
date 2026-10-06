@@ -78,6 +78,24 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // Lançamento do Bible Rush (01/11/2026): avisa todo mundo uma única vez, se o admin não o escondeu
+  if (isReleased("biblerush") && brToday === "2026-11-01") {
+    const { data: setting } = await supabase.from("game_settings").select("visibility").eq("game", "biblerush").maybeSingle<{ visibility: string }>();
+    if (setting?.visibility !== "hidden") {
+      const title = "🛶 Novo jogo: Bible Rush!";
+      const body = "Viva histórias da Bíblia em missões de tempo e organização, começando por Noé e os animais. Já está liberado na sala de jogos!";
+      const { data: already } = await supabase.from("notifications").select("id").eq("title", title).limit(1);
+      if (!already || already.length === 0) {
+        const { data: users } = await supabase.from("profiles").select("id").in("role", ["cria", "leader"]).eq("approved", true).neq("is_test_account", true);
+        const ids = ((users ?? []) as { id: string }[]).map((u) => u.id);
+        if (ids.length > 0) {
+          await supabase.from("notifications").insert(ids.map((id) => ({ user_id: id, title, body, link: "/app/jogos/biblerush", category: "jogos" })));
+          await sendPushToUsers(ids, { title, body, url: "/app/jogos/biblerush" }).catch(() => null);
+        }
+      }
+    }
+  }
+
   // Passarela do Vista o Herói: fecha os dias cuja votação já acabou (tema de D vota em D e D+1; fecha em D+2)
   if (isReleased("dress")) {
     const base = new Date(`${brToday}T00:00:00Z`);

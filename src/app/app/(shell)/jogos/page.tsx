@@ -9,7 +9,9 @@ import { liveGameStreak, playDifficulty, todaysPlays } from "@/lib/games/status"
 import { createClient } from "@/lib/supabase/server";
 import { ArenaCover } from "@/components/games/ArenaCover";
 import { DressTeaserText } from "@/components/games/dress/DressTeaser";
-import { gameOpenFor } from "@/lib/games/releaseServer";
+import type { GameKey } from "@/lib/games/catalog";
+import { GAME_TEASER, isReleased } from "@/lib/games/release";
+import { gameOpenFor, getVisibilities, isHiddenFor } from "@/lib/games/releaseServer";
 
 type Tile = { href: string; game: string; emoji: string; title: string; hint: string; tone: string };
 
@@ -37,9 +39,12 @@ export default async function JogosPage() {
     supabase.rpc("game_elo_board"),
   ]);
 
-  const [dressOpen, mineOpen] = await Promise.all([gameOpenFor("dress", profile.id), gameOpenFor("minearena", profile.id)]);
+  const [dressOpen, mineOpen, rushOpen, vis] = await Promise.all([gameOpenFor("dress", profile.id), gameOpenFor("minearena", profile.id), gameOpenFor("biblerush", profile.id), getVisibilities()]);
+  const hide = (k: GameKey) => isHiddenFor(vis[k], profile.role);
+  const showTile = (t: Tile) => !hide(t.game === "verse" ? "verse" : (t.game as GameKey));
+  const tiles = TILES.filter(showTile);
   const streak = liveGameStreak(profile.game_streak ?? 0, profile.game_streak_date ?? null);
-  const doneCount = TILES.filter((t) => plays.get(t.game)?.finished).length;
+  const doneCount = tiles.filter((t) => plays.get(t.game)?.finished).length;
   const chestOpened = plays.get("chest")?.finished === true;
 
   const duels = (duelsRes.data ?? []) as {
@@ -70,8 +75,9 @@ export default async function JogosPage() {
     <>
       <PageHeader title="🎮 Jogos" subtitle="Aprenda a Bíblia jogando, ganhe XP e junte cartas." />
 
-      <ArenaCover />
+      {hide("arena") ? null : <ArenaCover />}
 
+      {hide("memory") ? null : (
       <Link href="/app/jogos/memoria" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-amber-400 bg-[#2a2a3a] shadow-lg transition active:scale-[0.99]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/memoria/capa.webp" alt="Memória dos Heróis" className="block aspect-[4/3] w-full object-cover" draggable={false} />
@@ -80,8 +86,9 @@ export default async function JogosPage() {
           <span className="shrink-0 rounded-full bg-rose-600 px-2.5 py-0.5 text-[11px] font-black text-white">▶ JOGAR</span>
         </span>
       </Link>
+      )}
 
-      {dressOpen ? (
+      {hide("dress") ? null : dressOpen ? (
         <Link href="/app/jogos/vestir" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-amber-300 bg-[#34104f] shadow-lg transition active:scale-[0.99]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/dress/capa.webp" alt="Vista o Herói" className="block aspect-[16/8] w-full object-cover object-top" draggable={false} />
@@ -90,7 +97,7 @@ export default async function JogosPage() {
             <span className="shrink-0 rounded-full bg-rose-600 px-2.5 py-0.5 text-[11px] font-black text-white">NOVO</span>
           </span>
         </Link>
-      ) : (
+      ) : !GAME_TEASER.dress ? null : (
         <Link href="/app/jogos/vestir" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-amber-300 bg-[#34104f] shadow-lg transition active:scale-[0.99]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/dress/capa.webp" alt="Vista o Herói em breve" className="block aspect-[16/8] w-full object-cover object-top brightness-50" draggable={false} />
@@ -106,7 +113,7 @@ export default async function JogosPage() {
         </Link>
       )}
 
-      {mineOpen ? (
+      {hide("minearena") ? null : mineOpen ? (
         <Link href="/app/jogos/minearena" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-amber-400 bg-[#14213f] shadow-lg transition active:scale-[0.99]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/minearena/capa.webp" alt="MineArena" className="block aspect-[3/2] w-full object-cover" draggable={false} />
@@ -115,7 +122,7 @@ export default async function JogosPage() {
             <span className="shrink-0 rounded-full bg-rose-600 px-2.5 py-0.5 text-[11px] font-black text-white">NOVO</span>
           </span>
         </Link>
-      ) : (
+      ) : !GAME_TEASER.minearena ? null : (
         <Link href="/app/jogos/minearena" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-amber-400 bg-[#14213f] shadow-lg transition active:scale-[0.99]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/minearena/capa.webp" alt="MineArena em breve" className="block aspect-[3/2] w-full object-cover brightness-50" draggable={false} />
@@ -128,6 +135,17 @@ export default async function JogosPage() {
               Abre em <DressTeaserText game="minearena" />
             </span>
           </span>
+        </Link>
+      )}
+
+      {hide("biblerush") || !rushOpen ? null : (
+        <Link href="/app/jogos/biblerush" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-amber-400 bg-gradient-to-br from-[#1f3a5f] via-[#2e5a7a] to-[#c9a15a] p-4 shadow-lg transition active:scale-[0.99]">
+          <span className="absolute -right-2 -top-3 text-7xl opacity-30" aria-hidden>
+            🛶
+          </span>
+          <p className="text-2xl font-black tracking-wide text-amber-100 [text-shadow:0_2px_0_#3a2208]">BIBLE RUSH</p>
+          <p className="mt-0.5 text-sm font-bold text-white/90">Histórias da Bíblia, uma missão de cada vez.</p>
+          <span className="mt-3 inline-block rounded-full bg-rose-600 px-3 py-0.5 text-[11px] font-black text-white">{isReleased("biblerush") ? "NOVO" : "SÓ ADMIN"}</span>
         </Link>
       )}
 
@@ -144,14 +162,14 @@ export default async function JogosPage() {
             ✅
           </p>
           <p className="mt-1 text-3xl font-black tabular-nums leading-none">
-            {doneCount}/{TILES.length}
+            {doneCount}/{tiles.length}
           </p>
           <p className="mt-1 text-xs font-bold text-[var(--muted)]">jogos feitos hoje</p>
         </div>
       </section>
 
       <section className="mb-5 grid grid-cols-2 gap-3">
-        {TILES.map((t) => {
+        {tiles.map((t) => {
           const play = plays.get(t.game);
           const done = play?.finished === true;
           const started = !done && (play?.answers?.length ?? 0) > 0;
@@ -179,6 +197,7 @@ export default async function JogosPage() {
       </section>
 
       <section className="mb-5 grid grid-cols-2 gap-3">
+        {hide("duel") ? null : (
         <Link
           href="/app/jogos/duelo"
           className="relative flex aspect-square flex-col justify-between rounded-2xl border-2 border-rose-300 bg-rose-100 p-4 text-rose-900 transition active:scale-[0.98]"
@@ -196,6 +215,8 @@ export default async function JogosPage() {
             <p className="mt-1 text-xs font-bold opacity-80">Desafie um colega do Elo · até +2 XP/dia</p>
           </div>
         </Link>
+        )}
+        {hide("collection") ? null : (
         <Link
           href="/app/jogos/colecao"
           className="flex aspect-square flex-col justify-between rounded-2xl border-2 border-fuchsia-300 bg-fuchsia-100 p-4 text-fuchsia-900 transition active:scale-[0.98]"
@@ -210,6 +231,7 @@ export default async function JogosPage() {
             </p>
           </div>
         </Link>
+        )}
       </section>
 
       <section className="mb-5">
