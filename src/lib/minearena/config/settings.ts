@@ -14,9 +14,13 @@ export interface Settings {
   quality: -1 | 0 | 1 | 2;
   /** 0 fácil · 1 normal · 2 difícil. */
   difficulty: 0 | 1 | 2;
+  /** Música de harpa ao fundo. */
+  music: boolean;
+  /** Balanço da câmera ao andar (desligue se enjoar). */
+  bob: boolean;
 }
 
-export const DEFAULT_SETTINGS: Settings = { fov: 0, distance: 0, sensitivity: 100, volume: 100, clouds: true, particles: true, coords: false, invertY: false, touchSize: 0, quality: -1, difficulty: 1 };
+export const DEFAULT_SETTINGS: Settings = { fov: 0, distance: 0, sensitivity: 100, volume: 100, clouds: true, particles: true, coords: false, invertY: false, touchSize: 0, quality: -1, difficulty: 1, music: true, bob: true };
 
 const KEY = "minearena-options";
 
@@ -38,6 +42,8 @@ export function loadSettings(): Settings {
       touchSize: d.touchSize === 1 || d.touchSize === 2 ? d.touchSize : 0,
       quality: d.quality === 0 || d.quality === 1 || d.quality === 2 ? d.quality : -1,
       difficulty: d.difficulty === 0 || d.difficulty === 2 ? d.difficulty : 1,
+      music: d.music !== false,
+      bob: d.bob !== false,
     };
   } catch {
     return DEFAULT_SETTINGS;

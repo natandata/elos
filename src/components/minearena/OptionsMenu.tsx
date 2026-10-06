@@ -42,6 +42,12 @@ export function OptionsMenu({ settings, mobile, onChange, onDone }: { settings: 
           <button type="button" className="ma-opt" onClick={() => set("difficulty", ((settings.difficulty + 1) % 3) as 0 | 1 | 2)}>
             Dificuldade: {DIFFICULTY[settings.difficulty]}
           </button>
+          <button type="button" className="ma-opt" onClick={() => set("music", !settings.music)}>
+            Música: {yn(settings.music)}
+          </button>
+          <button type="button" className="ma-opt" onClick={() => set("bob", !settings.bob)}>
+            Balanço da câmera: {yn(settings.bob)}
+          </button>
           <button type="button" className="ma-opt" onClick={() => set("clouds", !settings.clouds)}>
             Nuvens: {yn(settings.clouds)}
           </button>

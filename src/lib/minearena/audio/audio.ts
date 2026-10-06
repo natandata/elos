@@ -3,6 +3,8 @@ export type Sfx = "break" | "place" | "hit" | "hurt" | "pickup" | "eat" | "bow" 
 
 export class Sound {
   muted = false;
+  /** Música de fundo (harpa) ligada? */
+  musicOn = true;
   /** Volume geral (0–1). */
   volume = 1;
   private ctx: AudioContext | null = null;
@@ -55,6 +57,82 @@ export class Sound {
     s.connect(f).connect(g).connect(c.destination);
     s.start();
     s.stop(c.currentTime + dur);
+  }
+
+  /** Passo conforme o chão: pedra, terra, madeira, areia, vidro, folhas. */
+  step(ground: string, hard = false): void {
+    const k = hard ? 1.8 : 1;
+    switch (ground) {
+      case "stone":
+        this.hiss(0.06, 0.14 * k, 1200);
+        this.tone(110, 0.05, "square", 0.05 * k, -30);
+        break;
+      case "wood":
+        this.tone(180, 0.06, "triangle", 0.12 * k, -60);
+        this.hiss(0.04, 0.08 * k, 900);
+        break;
+      case "sand":
+        this.hiss(0.1, 0.1 * k, 2600);
+        break;
+      case "glass":
+        this.tone(1100, 0.08, "sine", 0.06 * k, -200);
+        break;
+      case "leaf":
+        this.hiss(0.09, 0.07 * k, 1800);
+        break;
+      default:
+        this.hiss(0.06, 0.14 * k, 500);
+    }
+  }
+
+  /** Sons de ambiente: pássaros, grilos, vento, goteiras, brasas, respingos. */
+  ambient(kind: "bird" | "cricket" | "wind" | "drip" | "crackle" | "splash" | "rumble"): void {
+    switch (kind) {
+      case "bird": {
+        const f = 1800 + Math.random() * 900;
+        this.tone(f, 0.07, "sine", 0.05, 500);
+        setTimeout(() => this.tone(f * 1.2, 0.08, "sine", 0.045, 400), 110);
+        if (Math.random() < 0.6) setTimeout(() => this.tone(f * 0.9, 0.09, "sine", 0.04, 300), 240);
+        break;
+      }
+      case "cricket":
+        for (let i = 0; i < 5; i++) setTimeout(() => this.tone(4200, 0.03, "triangle", 0.025), i * 70);
+        break;
+      case "wind":
+        this.hiss(2.2, 0.07, 380);
+        break;
+      case "drip":
+        this.tone(1300, 0.12, "sine", 0.06, -700);
+        break;
+      case "crackle":
+        for (let i = 0; i < 4; i++) setTimeout(() => this.hiss(0.05, 0.12, 2400), i * 90 + Math.random() * 60);
+        break;
+      case "splash":
+        this.hiss(0.25, 0.22, 1600);
+        break;
+      case "rumble":
+        this.tone(60, 1.4, "sawtooth", 0.06, -10);
+        break;
+    }
+  }
+
+  /** Uma nota de harpa (kinnor): seno com harmônico e queda longa. */
+  harp(freq: number, delay: number, vol: number): void {
+    const c = this.ensure();
+    if (!c || !this.musicOn) return;
+    const t0 = c.currentTime + delay;
+    for (const [mul, v] of [[1, 1], [2, 0.25]] as const) {
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.type = "sine";
+      o.frequency.value = freq * mul;
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(Math.max(0.0002, vol * v * this.volume), t0 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 2.4);
+      o.connect(g).connect(c.destination);
+      o.start(t0);
+      o.stop(t0 + 2.5);
+    }
   }
 
   play(kind: Sfx): void {

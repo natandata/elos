@@ -56,6 +56,8 @@ export interface HudState {
   /** Escudo na mão esquerda e se está erguido. */
   offhand: Stack;
   guarding: boolean;
+  /** Cabeça dentro de água ou lava (tinge a tela). */
+  submerged: "water" | "lava" | null;
 }
 
 export interface DialogInfo {
@@ -157,6 +159,13 @@ export class MineArena {
   private alive = true;
   private invuln = 0;
   private hurtFlash = 0;
+  private hurtRoll = 0;
+  private bobT = 0;
+  private bobAmt = 0;
+  private bobOn = true;
+  private ambT = 6;
+  private musT = 8;
+  private submerged: "water" | "lava" | null = null;
   private regenT = 0;
   private starveT = 0;
   private fallV = 0;
@@ -351,6 +360,8 @@ export class MineArena {
     this.sens = s.sensitivity / 100;
     this.invertY = s.invertY;
     this.sfx.volume = s.volume / 100;
+    this.sfx.musicOn = s.music;
+    this.bobOn = s.bob;
     this.cloudsOn = s.clouds;
     this.sky.setClouds(s.clouds);
     this.particles.enabled = s.particles;
@@ -599,6 +610,7 @@ export class MineArena {
     this.health -= taken;
     this.invuln = 0.5;
     this.hurtFlash = flash;
+    this.hurtRoll = (Math.sign((fx - this.body.x) * Math.cos(this.yaw) - (fz - this.body.z) * Math.sin(this.yaw)) || 1) * 0.1 * flash;
     this.sfx.play("hurt");
     const dx = this.body.x - fx;
     const dz = this.body.z - fz;
@@ -682,6 +694,7 @@ export class MineArena {
     this.portalCd = Math.max(0, this.portalCd - dt);
     this.invuln = Math.max(0, this.invuln - dt);
     this.hurtFlash = Math.max(0, this.hurtFlash - dt * 2);
+    this.hurtRoll *= Math.max(0, 1 - dt * 6);
     this.atkCd = Math.max(0, this.atkCd - dt);
     this.useCd = Math.max(0, this.useCd - dt);
     this.swing = Math.max(0, this.swing - dt * 3.2);
@@ -713,6 +726,7 @@ export class MineArena {
     this.portalTick(dt);
     this.geenaTick();
     this.exploration(dt);
+    this.ambience(dt);
     this.tutorialTick();
     this.animateHand();
 
@@ -737,8 +751,22 @@ export class MineArena {
 
   private syncCamera(): void {
     const b = this.body;
-    this.camera.position.set(b.x, b.y + PLAYER.eye, b.z);
-    this.camera.rotation.set(this.pitch, this.yaw, 0, "YXZ");
+    const speed = Math.hypot(b.vx, b.vz);
+    this.bobAmt = this.bobOn && b.onGround && !this.uiOpen && !this.paused ? Math.min(1, speed / PLAYER.walk) : 0;
+    this.camera.position.set(b.x, b.y + PLAYER.eye + Math.sin(this.bobT * 2) * 0.035 * this.bobAmt, b.z);
+    this.camera.rotation.set(this.pitch, this.yaw, Math.sin(this.bobT) * 0.008 * this.bobAmt + this.hurtRoll, "YXZ");
+    // debaixo d'água (ou de lava): neblina curta e tela tingida
+    const eye = BLOCKS[this.world.getBlock(Math.floor(this.camera.position.x), Math.floor(this.camera.position.y), Math.floor(this.camera.position.z))]?.fluid ?? null;
+    if (eye !== this.submerged) {
+      const was = this.submerged;
+      this.submerged = eye;
+      const fog = this.scene.fog as THREE.Fog;
+      if (eye) {
+        fog.near = eye === "water" ? 0.5 : 0.1;
+        fog.far = eye === "water" ? 24 : 5;
+        if (!was) this.sfx.ambient("splash");
+      } else this.setRenderDistance(this.radius);
+    }
   }
 
   private movePlayer(dt: number): void {
@@ -779,6 +807,7 @@ export class MineArena {
         const dmg = Math.floor((-this.fallV - 13) * 0.55);
         if (dmg > 0) this.damagePlayer(dmg, b.x, b.z, false);
       }
+      else if (this.fallV < -7) this.sfx.step(blockDef(this.world.getBlock(Math.floor(b.x), Math.floor(b.y - 0.1), Math.floor(b.z))).sound, true);
       this.fallV = 0;
     } else {
       this.fallV = Math.min(this.fallV, vyBefore);
@@ -789,9 +818,11 @@ export class MineArena {
       this.stepT -= dt;
       if (this.stepT <= 0) {
         this.stepT = sprint ? 0.28 : 0.42;
-        this.sfx.play("step");
+        if (b.inWater) this.sfx.ambient("splash");
+        else this.sfx.step(blockDef(this.world.getBlock(Math.floor(b.x), Math.floor(b.y - 0.1), Math.floor(b.z))).sound);
       }
     }
+    if (b.onGround) this.bobT += Math.hypot(b.vx, b.vz) * dt * 1.7;
     this.hunger = Math.max(0, this.hunger - Math.hypot(b.vx, b.vz) * dt * (sprint ? 0.012 : 0.006));
     if (inLava(this.world, b) && this.invuln <= 0) this.damagePlayer(3, b.x + 0.01, b.z, false);
     if (b.y < -20) this.damagePlayer(100, b.x, b.z, false);
@@ -1829,7 +1860,41 @@ export class MineArena {
   private animateHand(): void {
     const p = this.swing;
     this.hand.rotation.x = -Math.sin(p * Math.PI) * 0.9;
-    this.hand.position.set(0.36, -0.3 - Math.sin(p * Math.PI) * 0.05, -0.55 - Math.sin(p * Math.PI) * 0.1);
+    this.hand.position.set(0.36 + Math.sin(this.bobT) * 0.014 * this.bobAmt, -0.3 - Math.sin(p * Math.PI) * 0.05 - Math.abs(Math.sin(this.bobT)) * 0.015 * this.bobAmt, -0.55 - Math.sin(p * Math.PI) * 0.1);
+  }
+
+  // ---------- ambiente sonoro e música ----------
+  private ambience(dt: number): void {
+    if (this.paused || !this.alive) return;
+    this.ambT -= dt;
+    if (this.ambT <= 0) {
+      this.ambT = 5 + Math.random() * 9;
+      const b = this.body;
+      if (this.dimension === "geena") this.sfx.ambient(Math.random() < 0.6 ? "crackle" : "rumble");
+      else {
+        let covered = false;
+        for (let y = Math.floor(b.y) + 3; y <= Math.floor(b.y) + 14 && !covered; y++) covered = !!BLOCKS[this.world.getBlock(Math.floor(b.x), y, Math.floor(b.z))]?.opaque;
+        const night = Math.sin(this.time * Math.PI * 2) <= 0;
+        if (covered) this.sfx.ambient(Math.random() < 0.7 ? "drip" : "rumble");
+        else if (night) this.sfx.ambient("cricket");
+        else this.sfx.ambient(this.lastBiome !== "deserto" && Math.random() < 0.6 ? "bird" : "wind");
+      }
+    }
+    // harpa: frases curtas em escala pentatônica, mais lentas e graves à noite
+    if (this.dimension !== "geena") {
+      this.musT -= dt;
+      if (this.musT <= 0) {
+        const night = Math.sin(this.time * Math.PI * 2) <= 0;
+        this.musT = (night ? 12 : 7) + Math.random() * 9;
+        const scale = [293.66, 329.63, 369.99, 440, 493.88, 587.33, 659.25];
+        const n = 3 + Math.floor(Math.random() * 3);
+        let idx = Math.floor(Math.random() * scale.length);
+        for (let i = 0; i < n; i++) {
+          idx = Math.max(0, Math.min(scale.length - 1, idx + Math.floor(Math.random() * 3) - 1));
+          this.sfx.harp(scale[idx] * (night ? 0.5 : 1), i * 0.55, night ? 0.035 : 0.05);
+        }
+      }
+    }
   }
 
   // ---------- HUD ----------
@@ -1865,6 +1930,7 @@ export class MineArena {
       fade: Math.max(this.sleepT > 0 ? Math.max(0, Math.min(1, 1 - Math.abs(this.sleepT - 1.4) / 1.4)) : 0, Math.min(0.85, this.portalT / 2.4)),
       offhand: this.inventory.offhand ? { ...this.inventory.offhand } : null,
       guarding: this.guarding,
+      submerged: this.submerged,
       coop: this.role === "solo" ? null : { role: this.role, names: [this.me?.name ?? "Você", ...[...this.remotes.list.values()].map((p) => p.name)] },
       coords: !this.showCoords ? "" : `${Math.floor(this.body.x)}, ${Math.floor(this.body.y)}, ${Math.floor(this.body.z)}`,
     };

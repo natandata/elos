@@ -36,6 +36,7 @@ export function Hud({ hud, msgs, onSelect }: { hud: HudState; msgs: Msg[]; onSel
           <ItemIcon item={hud.offhand.item} stack={hud.offhand} size={150} />
         </div>
       ) : null}
+      {hud.submerged ? <div className="ma-submerged" data-kind={hud.submerged} aria-hidden /> : null}
       <div className="ma-cross" aria-hidden />
       {hud.mining > 0 ? <div className="ma-mine-bar"><i style={{ width: `${Math.min(100, hud.mining * 100)}%` }} /></div> : null}
       {hud.target ? <div className="ma-target">{hud.target}</div> : null}
