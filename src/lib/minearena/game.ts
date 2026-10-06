@@ -793,6 +793,8 @@ export class MineArena {
     if (b.inWater) {
       b.vy += (jump ? 30 : -10) * dt;
       b.vy = Math.max(-3, Math.min(3.2, b.vy));
+      // na superfície, encostado na margem: pula pra fora da água
+      if (jump && b.hitWall && !isFluid(this.world.getBlock(Math.floor(b.x), Math.floor(b.y + 1.1), Math.floor(b.z)))) b.vy = PLAYER.jump;
     } else {
       if (jump && b.onGround) {
         b.vy = PLAYER.jump;
