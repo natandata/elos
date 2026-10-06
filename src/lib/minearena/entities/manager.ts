@@ -64,6 +64,12 @@ export interface Env {
   daylight: number;
   mobile: boolean;
   dim?: "overworld" | "geena";
+  /** Distância (blocos) além da qual a criatura não é desenhada. */
+  cull?: number;
+  /** Máximo de criaturas vivas. */
+  cap?: number;
+  /** Multiplicador do intervalo de nascimento (maior = menos criaturas). */
+  spawnMul?: number;
 }
 
 interface Proj {
@@ -355,9 +361,9 @@ export class EntityManager {
   private spawnTick(dt: number, env: Env): void {
     this.spawnT -= dt;
     if (this.spawnT > 0) return;
-    this.spawnT = 1.4 + Math.random() * 1.2;
+    this.spawnT = (1.4 + Math.random() * 1.2) * (env.spawnMul ?? 1);
     const alive = this.list.filter((e) => !e.dead);
-    if (alive.length >= (env.mobile ? 14 : 22)) return;
+    if (alive.length >= (env.cap ?? (env.mobile ? 14 : 22))) return;
     const px = Math.floor(env.px);
     const pz = Math.floor(env.pz);
     const surf = this.world.surfaceY(px, pz);
@@ -627,6 +633,9 @@ export class EntityManager {
     (def.abilities ?? []).forEach((ab, i) => this.ability(e, ab, i, target, tdist, env, dt));
 
     // ---- visual ----
+    const shown = dPlayer < (env.cull ?? 60);
+    if (e.rig.root.visible !== shown) e.rig.root.visible = shown;
+    if (!shown) return;
     e.rig.root.position.set(b.x, b.y, b.z);
     e.rig.root.rotation.y = e.yaw;
     animate(e.rig, { t: e.anim, speed: Math.hypot(b.vx, b.vz), attack: e.atkAnim, windup: e.windup > 0 ? Math.min(1, e.windup / 0.6) : 0, dead: 0 });

@@ -10,9 +10,13 @@ export interface Settings {
   invertY: boolean;
   /** Tamanho dos controles de toque: 0 pequeno · 1 médio · 2 grande. */
   touchSize: 0 | 1 | 2;
+  /** Gráficos: -1 automático · 0 baixo · 1 médio · 2 alto. */
+  quality: -1 | 0 | 1 | 2;
+  /** 0 fácil · 1 normal · 2 difícil. */
+  difficulty: 0 | 1 | 2;
 }
 
-export const DEFAULT_SETTINGS: Settings = { fov: 0, distance: 0, sensitivity: 100, volume: 100, clouds: true, particles: true, coords: false, invertY: false, touchSize: 0 };
+export const DEFAULT_SETTINGS: Settings = { fov: 0, distance: 0, sensitivity: 100, volume: 100, clouds: true, particles: true, coords: false, invertY: false, touchSize: 0, quality: -1, difficulty: 1 };
 
 const KEY = "minearena-options";
 
@@ -32,6 +36,8 @@ export function loadSettings(): Settings {
       coords: d.coords === true,
       invertY: d.invertY === true,
       touchSize: d.touchSize === 1 || d.touchSize === 2 ? d.touchSize : 0,
+      quality: d.quality === 0 || d.quality === 1 || d.quality === 2 ? d.quality : -1,
+      difficulty: d.difficulty === 0 || d.difficulty === 2 ? d.difficulty : 1,
     };
   } catch {
     return DEFAULT_SETTINGS;

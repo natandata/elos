@@ -16,6 +16,8 @@ function Slider({ label, text, value, min, max, step = 1, onChange }: { label: s
 
 const yn = (b: boolean) => (b ? "Sim" : "Não");
 const SIZES = ["Pequeno", "Médio", "Grande"];
+const QUALITY = ["Baixo", "Médio", "Alto"];
+const DIFFICULTY = ["Fácil", "Normal", "Difícil"];
 
 /** Menu de opções (no estilo clássico de sandbox): campo de visão, gráficos, som, controles. */
 export function OptionsMenu({ settings, mobile, onChange, onDone }: { settings: Settings; mobile: boolean; onChange: (s: Settings) => void; onDone: () => void }) {
@@ -34,6 +36,12 @@ export function OptionsMenu({ settings, mobile, onChange, onDone }: { settings: 
           <Slider label="Distância de visão" text={settings.distance === 0 || dist === defDist ? `Padrão (${defDist})` : `${dist} chunks`} value={dist} min={2} max={8} onChange={(v) => set("distance", v === defDist ? 0 : v)} />
           <Slider label="Sensibilidade" text={`${settings.sensitivity}%`} value={settings.sensitivity} min={40} max={200} step={5} onChange={(v) => set("sensitivity", v)} />
           <Slider label="Volume dos sons" text={settings.volume === 0 ? "Desligado" : `${settings.volume}%`} value={settings.volume} min={0} max={100} step={5} onChange={(v) => set("volume", v)} />
+          <button type="button" className="ma-opt" onClick={() => set("quality", (settings.quality >= 2 ? -1 : settings.quality + 1) as -1 | 0 | 1 | 2)}>
+            Gráficos: {settings.quality === -1 ? "Automático" : QUALITY[settings.quality]}
+          </button>
+          <button type="button" className="ma-opt" onClick={() => set("difficulty", ((settings.difficulty + 1) % 3) as 0 | 1 | 2)}>
+            Dificuldade: {DIFFICULTY[settings.difficulty]}
+          </button>
           <button type="button" className="ma-opt" onClick={() => set("clouds", !settings.clouds)}>
             Nuvens: {yn(settings.clouds)}
           </button>

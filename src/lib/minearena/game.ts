@@ -96,6 +96,17 @@ export class MineArena {
   private scene = new THREE.Scene();
   private camera: THREE.PerspectiveCamera;
   private world: World;
+  private quality = 1;
+  private adaptive = true;
+  private adaptStep = 0;
+  private fpsAcc = 0;
+  private fpsN = 0;
+  private diffMul = 1;
+  private spawnMul = 1;
+  private cullDist = 40;
+  private entCap = 14;
+  private lastSig = "";
+  private lastSigAt = 0;
   private dimension: "overworld" | "geena" = "overworld";
   private baseSeed = 0;
   private overMods: Record<string, number[]> = {};
@@ -249,9 +260,11 @@ export class MineArena {
     const loop = (now: number) => {
       if (!this.running) return;
       this.raf = requestAnimationFrame(loop);
-      const dt = Math.min(0.05, (now - this.last) / 1000);
+      const raw = (now - this.last) / 1000;
+      const dt = Math.min(0.05, raw);
       this.last = now;
       this.frame(dt);
+      this.sample(raw);
     };
     this.raf = requestAnimationFrame(loop);
   }
@@ -285,7 +298,19 @@ export class MineArena {
   applySettings(s: Settings): void {
     this.camera.fov = s.fov || (this.mobile ? 70 : 75);
     this.camera.updateProjectionMatrix();
-    this.setRenderDistance(s.distance || (this.mobile ? RENDER_DISTANCE.mobile : RENDER_DISTANCE.desktop));
+    const q = s.quality >= 0 ? s.quality : this.mobile ? 1 : 2;
+    this.quality = q;
+    this.adaptive = s.quality === -1;
+    this.adaptStep = 0;
+    const pr = this.mobile ? [1, 1.25, 1.5][q] : [1, 1.5, 2][q];
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, pr));
+    this.resize();
+    this.world.setAO(q >= 1);
+    this.cullDist = [28, 40, 56][q];
+    this.entCap = [8, 14, 22][q];
+    this.diffMul = [0.7, 1, 1.35][s.difficulty];
+    this.spawnMul = [1.5, 1, 0.8][s.difficulty];
+    this.setRenderDistance(s.distance || (this.mobile ? [3, RENDER_DISTANCE.mobile, 5][q] : [4, RENDER_DISTANCE.desktop, 8][q]));
     this.sens = s.sensitivity / 100;
     this.invertY = s.invertY;
     this.sfx.volume = s.volume / 100;
@@ -294,6 +319,30 @@ export class MineArena {
     this.particles.enabled = s.particles;
     this.showCoords = s.coords;
   }
+  /** Monitora o desempenho: se ficar abaixo de ~26 fps, simplifica os gráficos (só no modo automático). */
+  private sample(raw: number): void {
+    if (!this.ready || this.paused || raw > 0.5) {
+      this.fpsAcc = 0;
+      this.fpsN = 0;
+      return;
+    }
+    this.fpsAcc += raw;
+    this.fpsN++;
+    if (this.fpsAcc < 3) return;
+    const fps = this.fpsN / this.fpsAcc;
+    this.fpsAcc = 0;
+    this.fpsN = 0;
+    if (!this.adaptive || fps >= 26) return;
+    this.adaptStep++;
+    if (this.adaptStep === 1) {
+      this.world.setAO(false);
+      this.cb.onMessage("Ajustei os gráficos pra ficar mais fluido (Opções → Gráficos).", "info");
+    } else if (this.adaptStep === 2) {
+      this.renderer.setPixelRatio(1);
+      this.resize();
+    } else if (this.radius > 2) this.setRenderDistance(this.radius - 1);
+  }
+
   setRenderDistance(r: number): void {
     this.radius = r;
     this.camera.far = (r + 2) * 16;
@@ -466,7 +515,7 @@ export class MineArena {
 
   private damagePlayer(amount: number, fx: number, fz: number): void {
     if (!this.alive || this.invuln > 0) return;
-    const taken = amount * (1 - Math.min(0.8, this.inventory.armorDefense() * 0.04));
+    const taken = amount * (1 - Math.min(0.7, this.inventory.armorDefense() * 0.035)) * this.diffMul;
     this.health -= taken;
     this.invuln = 0.5;
     this.hurtFlash = 1;
@@ -516,7 +565,7 @@ export class MineArena {
 
   private tick(dt: number): void {
     const b = this.body;
-    this.world.update(b.x, b.z, this.radius, this.ready ? 5 : 16);
+    this.world.update(b.x, b.z, this.radius, this.ready ? (this.mobile ? 3 : 6) : 16, this.ready ? (this.mobile ? 2 : 4) : 99);
     if (!this.ready) {
       if (this.world.readyAround(b.x, b.z, 2)) {
         this.ready = true;
@@ -565,7 +614,7 @@ export class MineArena {
     }
     this.syncCamera();
 
-    this.entities.update(dt, { px: b.x, py: b.y, pz: b.z, alive: this.alive, daylight: this.sky.daylight, mobile: this.mobile, dim: this.dimension });
+    this.entities.update(dt, { px: b.x, py: b.y, pz: b.z, alive: this.alive, daylight: this.sky.daylight, mobile: this.mobile, dim: this.dimension, cull: this.cullDist, cap: this.entCap, spawnMul: this.spawnMul * (this.dimension === "geena" ? 1.5 : 1) });
     this.particles.update(dt);
     this.tickFurnaces(dt);
     this.tickCrops(dt);
@@ -662,7 +711,7 @@ export class MineArena {
       }
     }
     this.hunger = Math.max(0, this.hunger - Math.hypot(b.vx, b.vz) * dt * (sprint ? 0.012 : 0.006));
-    if (inLava(this.world, b) && this.invuln <= 0) this.damagePlayer(4, b.x + 0.01, b.z);
+    if (inLava(this.world, b) && this.invuln <= 0) this.damagePlayer(3, b.x + 0.01, b.z);
     if (b.y < -20) this.damagePlayer(100, b.x, b.z);
   }
 
@@ -998,6 +1047,7 @@ export class MineArena {
     this.sky.setMaterials([this.world.matO, this.world.matT]);
     this.sky.setFire(dim === "geena");
     this.setClouds();
+    this.world.setAO(this.quality >= 1 && this.adaptStep === 0);
     this.entities = new EntityManager(this.scene, this.world, this.particles, this.sfx, this.hooks(), this.baseSeed);
     this.body.x = pos.x;
     this.body.y = pos.y;
@@ -1423,14 +1473,14 @@ export class MineArena {
   private emitHud(dt: number, loading: boolean): void {
     this.hudT -= dt;
     if (this.hudT > 0) return;
-    this.hudT = 0.1;
+    this.hudT = 0.12;
     const t = this.time;
     const sunH = Math.sin(t * Math.PI * 2);
     const phase = this.dimension === "geena" ? "Geena" : sunH > 0.5 ? "Dia" : sunH > 0 ? (t < 0.25 ? "Amanhecer" : "Entardecer") : "Noite";
     const boss = this.entities.bossNear(this.body.x, this.body.z);
     const held = this.heldDef();
     const slots = this.inventory.slots.slice(0, HOTBAR).map((s) => (s ? { ...s } : null));
-    this.cb.onHud({
+    const state: HudState = {
       health: Math.ceil(this.health),
       hunger: Math.ceil(this.hunger),
       armor: this.inventory.armorDefense(),
@@ -1451,7 +1501,14 @@ export class MineArena {
       fadeText: this.sleepT <= 0 && this.portalT > 0 ? "🔥 Atravessando o portal…" : "💤 Dormindo…",
       fade: Math.max(this.sleepT > 0 ? Math.max(0, Math.min(1, 1 - Math.abs(this.sleepT - 1.4) / 1.4)) : 0, Math.min(0.85, this.portalT / 2.4)),
       coords: !this.showCoords ? "" : `${Math.floor(this.body.x)}, ${Math.floor(this.body.y)}, ${Math.floor(this.body.z)}`,
-    });
+    };
+    // só avisa a interface quando algo visível mudou (evita redesenhar o HUD à toa)
+    const sig = JSON.stringify({ ...state, time: Math.round(state.time * 100), mining: Math.round(state.mining * 10), hurt: Math.round(state.hurt * 10), fade: Math.round(state.fade * 20) });
+    const nowT = this.playedSeconds;
+    if (sig === this.lastSig && nowT - this.lastSigAt < 2) return;
+    this.lastSig = sig;
+    this.lastSigAt = nowT;
+    this.cb.onHud(state);
   }
 }
 

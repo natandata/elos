@@ -4,7 +4,6 @@ import { B, BLOCKS, type BlockKey, blockDef } from "../blocks/blocks";
 import { BLOCK_TILES, tileIndex, tileUV } from "../blocks/tiles";
 import { createAtlas } from "../textures/atlas";
 import { CHUNK, WORLD_H } from "../config/config";
-import { rand01 } from "./noise";
 import type { LootTable } from "../structures/loot";
 import { generateChunk } from "./worldgen";
 import { generateGeena } from "./geena";
@@ -44,6 +43,109 @@ const FACE_UV = BLOCKS.map((b) => {
 
 const AO_LEVEL = [0.52, 0.7, 0.85, 1];
 const AO_BUF = [1, 1, 1, 1];
+
+const LAYER = CHUNK * CHUNK;
+const OPQ = new Uint8Array(256);
+const LIQ = new Uint8Array(256);
+const BLEND = new Uint8Array(256);
+const GLOW = new Uint8Array(256);
+const CROSS = new Uint8Array(256);
+const FLUID = new Uint8Array(256);
+const LEVEL = new Uint8Array(256);
+for (const b of BLOCKS) {
+  OPQ[b.id] = b.opaque ? 1 : 0;
+  LIQ[b.id] = b.liquid ? 1 : 0;
+  BLEND[b.id] = b.blend ? 1 : 0;
+  GLOW[b.id] = b.glow ? 1 : 0;
+  CROSS[b.id] = b.shape === "cross" ? 1 : 0;
+  FLUID[b.id] = b.fluid === "water" ? 1 : b.fluid === "lava" ? 2 : 0;
+  LEVEL[b.id] = b.level ?? 0;
+}
+const CROSS_PLANES = [
+  [[0, 0, 0], [1, 0, 1], [1, 1, 1], [0, 1, 0]],
+  [[0, 0, 1], [1, 0, 0], [1, 1, 0], [0, 1, 1]],
+];
+/** Fração (u,v) do tile de cada canto de cada face. */
+const FACE_TUV = FACES.map((fd, f) =>
+  fd.c.map((c) => {
+    switch (f) {
+      case 0:
+        return [1 - c[2], c[1]];
+      case 1:
+        return [c[2], c[1]];
+      case 2:
+        return [c[0], c[2]];
+      case 3:
+        return [c[0], 1 - c[2]];
+      case 4:
+        return [c[0], c[1]];
+      default:
+        return [1 - c[0], c[1]];
+    }
+  }),
+);
+const HM_BUF = new Int16Array(CHUNK * CHUNK);
+
+/** Buffer de malha reaproveitado entre chunks (evita alocar milhares de números por malha). */
+class MeshBuf {
+  pos = new Float32Array(24000);
+  col = new Float32Array(24000);
+  uv = new Float32Array(16000);
+  ind = new Uint32Array(36000);
+  vcount = 0;
+  icount = 0;
+  reset(): void {
+    this.vcount = 0;
+    this.icount = 0;
+  }
+  private grow(): void {
+    const g = <T extends Float32Array | Uint32Array>(a: T): T => {
+      const n = new (a.constructor as new (n: number) => T)(a.length * 2);
+      n.set(a);
+      return n;
+    };
+    this.pos = g(this.pos);
+    this.col = g(this.col);
+    this.uv = g(this.uv);
+    this.ind = g(this.ind);
+  }
+  vertex(x: number, y: number, z: number, r: number, g: number, b: number, u: number, v: number): void {
+    if ((this.vcount + 1) * 3 > this.pos.length || (this.vcount + 1) * 2 > this.uv.length || this.icount + 6 > this.ind.length) this.grow();
+    const i = this.vcount * 3;
+    this.pos[i] = x;
+    this.pos[i + 1] = y;
+    this.pos[i + 2] = z;
+    this.col[i] = r;
+    this.col[i + 1] = g;
+    this.col[i + 2] = b;
+    this.uv[this.vcount * 2] = u;
+    this.uv[this.vcount * 2 + 1] = v;
+    this.vcount++;
+  }
+  quad(base: number, flip: boolean): void {
+    if (this.icount + 6 > this.ind.length) this.grow();
+    const a = this.ind;
+    let i = this.icount;
+    if (flip) {
+      a[i++] = base + 1;
+      a[i++] = base + 2;
+      a[i++] = base + 3;
+      a[i++] = base + 1;
+      a[i++] = base + 3;
+      a[i++] = base;
+    } else {
+      a[i++] = base;
+      a[i++] = base + 1;
+      a[i++] = base + 2;
+      a[i++] = base;
+      a[i++] = base + 2;
+      a[i++] = base + 3;
+    }
+    this.icount = i;
+  }
+}
+const BUF_O = new MeshBuf();
+const BUF_T = new MeshBuf();
 
 export interface RayHit {
   x: number;
@@ -160,7 +262,11 @@ export class World {
     if (c) this.mesh(c);
   }
 
+  /** Tempos de geração e malha (ms) — pra ajustar o desempenho. */
+  readonly stats = { genMs: 0, genN: 0, genMax: 0, meshMs: 0, meshN: 0, meshMax: 0 };
+
   private gen(cx: number, cz: number): void {
+    const t0 = performance.now();
     const g = this.dimension === "geena" ? generateGeena(this.seed, cx, cz) : generateChunk(this.seed, cx, cz);
     for (const c of g.chests) this.lootChests.set(`${c.x},${c.y},${c.z}`, c.table);
     const ch = new Chunk(cx, cz);
@@ -175,10 +281,14 @@ export class World {
       });
     }
     this.chunks.set(ckey(cx, cz), ch);
+    const dt = performance.now() - t0;
+    this.stats.genMs += dt;
+    this.stats.genN++;
+    this.stats.genMax = Math.max(this.stats.genMax, dt);
   }
 
   /** Carrega/descarrega chunks em volta do jogador, respeitando um orçamento de tempo por quadro. */
-  update(px: number, pz: number, radius: number, budgetMs: number): void {
+  update(px: number, pz: number, radius: number, budgetMs: number, maxOps = 99): void {
     const pcx = Math.floor(px / CHUNK);
     const pcz = Math.floor(pz / CHUNK);
     if (pcx !== this.lastPcx || pcz !== this.lastPcz || radius !== this.lastR) {
@@ -197,17 +307,20 @@ export class World {
       }
     }
     const t0 = performance.now();
+    let ops = 0;
     for (const o of this.order) {
-      if (performance.now() - t0 > budgetMs) break;
+      if (ops >= maxOps || performance.now() - t0 > budgetMs) break;
       let ch = this.chunks.get(ckey(o.cx, o.cz));
       if (!ch) {
         this.gen(o.cx, o.cz);
+        ops++;
         ch = this.chunks.get(ckey(o.cx, o.cz));
         if (!ch) continue;
       }
       if (ch.needsMesh && Math.max(Math.abs(o.cx - pcx), Math.abs(o.cz - pcz)) <= radius) {
         if (this.chunks.has(ckey(o.cx + 1, o.cz)) && this.chunks.has(ckey(o.cx - 1, o.cz)) && this.chunks.has(ckey(o.cx, o.cz + 1)) && this.chunks.has(ckey(o.cx, o.cz - 1))) {
           this.mesh(ch);
+          ops++;
         }
       }
     }
@@ -237,6 +350,23 @@ export class World {
   }
 
   private mesh(ch: Chunk): void {
+    const t0 = performance.now();
+    this.meshImpl(ch);
+    const dt = performance.now() - t0;
+    this.stats.meshMs += dt;
+    this.stats.meshN++;
+    this.stats.meshMax = Math.max(this.stats.meshMax, dt);
+  }
+
+  /** Oclusão ambiente ligada? (desligar poupa CPU no celular) */
+  private ao = true;
+  setAO(on: boolean): void {
+    if (on === this.ao) return;
+    this.ao = on;
+    for (const c of this.chunks.values()) c.needsMesh = true;
+  }
+
+  private meshImpl(ch: Chunk): void {
     this.disposeMeshes(ch);
     ch.needsMesh = false;
     const nE = this.chunks.get(ckey(ch.cx + 1, ch.cz));
@@ -244,15 +374,18 @@ export class World {
     const nS = this.chunks.get(ckey(ch.cx, ch.cz + 1));
     const nN = this.chunks.get(ckey(ch.cx, ch.cz - 1));
     const data = ch.data;
+    const maxY = ch.maxY;
+    const geena = this.dimension === "geena";
+    const ao = this.ao;
 
     // altura da superfície por coluna (pra escurecer cavernas)
-    const hm = new Int16Array(CHUNK * CHUNK);
+    const hm = HM_BUF;
     for (let z = 0; z < CHUNK; z++) {
       for (let x = 0; x < CHUNK; x++) {
         let t = 0;
-        for (let y = ch.maxY; y >= 0; y--) {
-          const id = data[idx(x, y, z)];
-          if (id !== 0 && (BLOCKS[id].opaque || BLOCKS[id].liquid)) {
+        for (let y = maxY; y >= 0; y--) {
+          const id = data[x + z * CHUNK + y * LAYER];
+          if (id !== 0 && (OPQ[id] === 1 || LIQ[id] === 1)) {
             t = y;
             break;
           }
@@ -261,160 +394,129 @@ export class World {
       }
     }
 
+    /** Bloco em (x,y,z) locais (pode sair do chunk). */
     const get = (x: number, y: number, z: number): number => {
       if (y < 0) return 1;
       if (y >= WORLD_H) return 0;
-      if (x < 0) return nW ? nW.data[idx(15, y, z)] : 1;
-      if (x >= CHUNK) return nE ? nE.data[idx(0, y, z)] : 1;
-      if (z < 0) return nN ? nN.data[idx(x, y, 15)] : 1;
-      if (z >= CHUNK) return nS ? nS.data[idx(x, y, 0)] : 1;
-      return data[idx(x, y, z)];
+      if (x < 0) return nW ? nW.data[15 + z * CHUNK + y * LAYER] : 1;
+      if (x >= CHUNK) return nE ? nE.data[z * CHUNK + y * LAYER] : 1;
+      if (z < 0) return nN ? nN.data[x + 15 * CHUNK + y * LAYER] : 1;
+      if (z >= CHUNK) return nS ? nS.data[x + y * LAYER] : 1;
+      return data[x + z * CHUNK + y * LAYER];
     };
 
-    const po: number[] = [];
-    const co: number[] = [];
-    const uo: number[] = [];
-    const io: number[] = [];
-    const pt: number[] = [];
-    const ct: number[] = [];
-    const ut: number[] = [];
-    const it: number[] = [];
+    const bo = BUF_O;
+    const bt = BUF_T;
+    bo.reset();
+    bt.reset();
     const wx0 = ch.cx * CHUNK;
     const wz0 = ch.cz * CHUNK;
+    const aoV = AO_BUF;
 
-    for (let y = 0; y <= ch.maxY; y++) {
+    for (let y = 0; y <= maxY; y++) {
       for (let z = 0; z < CHUNK; z++) {
         for (let x = 0; x < CHUNK; x++) {
-          const id = data[idx(x, y, z)];
+          const i0 = x + z * CHUNK + y * LAYER;
+          const id = data[i0];
           if (id === 0) continue;
-          const def = BLOCKS[id];
-          const P = def.blend ? pt : po;
-          const C = def.blend ? ct : co;
-          const UV = def.blend ? ut : uo;
-          const I = def.blend ? it : io;
+          const inner = x > 0 && x < 15 && z > 0 && z < 15 && y > 0 && y < WORLD_H - 1;
+          // bloco opaco totalmente cercado: nada a desenhar
+          if (OPQ[id] === 1 && inner && OPQ[data[i0 + 1]] === 1 && OPQ[data[i0 - 1]] === 1 && OPQ[data[i0 + CHUNK]] === 1 && OPQ[data[i0 - CHUNK]] === 1 && OPQ[data[i0 + LAYER]] === 1 && OPQ[data[i0 - LAYER]] === 1) continue;
+
+          const out = BLEND[id] === 1 ? bt : bo;
           const faceUV = FACE_UV[id];
-          const jitter = 0.94 + rand01(this.seed, wx0 + x, y, wz0 + z) * 0.1;
+          const jitter = 0.94 + (((x + wx0) * 73856093 ^ y * 19349663 ^ (z + wz0) * 83492791) & 255) / 2550;
           const hTop = hm[x + z * CHUNK];
-          if (def.shape === "cross") {
+          const glow = GLOW[id] === 1;
+
+          if (CROSS[id] === 1) {
             const t = faceUV[0];
-            const light = def.glow ? 1 : y >= hTop ? 1 : Math.max(0.3, 1 - (hTop - y) * 0.11);
+            const light = glow ? 1 : y >= hTop ? 1 : Math.max(0.3, 1 - (hTop - y) * 0.11);
             const k = jitter * light;
-            const planes = [
-              [[0, 0, 0], [1, 0, 1], [1, 1, 1], [0, 1, 0]],
-              [[0, 0, 1], [1, 0, 0], [1, 1, 0], [0, 1, 1]],
-            ];
-            for (const pl of planes) {
-              for (const flip of [false, true]) {
-                const base = P.length / 3;
-                const order = flip ? [3, 2, 1, 0] : [0, 1, 2, 3];
-                const us = [t[0], t[2], t[2], t[0]];
-                const vs = [t[1], t[1], t[3], t[3]];
-                for (const j of order) {
-                  P.push(x + pl[j][0], y + pl[j][1] * 0.95, z + pl[j][2]);
-                  C.push(k, k, k);
-                  UV.push(us[j], vs[j]);
+            for (let pl = 0; pl < 2; pl++) {
+              const cs = CROSS_PLANES[pl];
+              for (let flip = 0; flip < 2; flip++) {
+                const base = out.vcount;
+                for (let q = 0; q < 4; q++) {
+                  const j = flip ? 3 - q : q;
+                  out.vertex(x + cs[j][0], y + cs[j][1] * 0.95, z + cs[j][2], k, k, k, j === 1 || j === 2 ? t[2] : t[0], j >= 2 ? t[3] : t[1]);
                 }
-                I.push(base, base + 1, base + 2, base, base + 2, base + 3);
+                out.quad(base, false);
               }
             }
             continue;
           }
 
+          const fl = FLUID[id];
+          const opaque = OPQ[id] === 1;
           for (let f = 0; f < 6; f++) {
             const fd = FACES[f];
-            const nid = get(x + fd.n[0], y + fd.n[1], z + fd.n[2]);
-            if (nid === id || (def.fluid && BLOCKS[nid].fluid === def.fluid)) continue;
-            const nd = BLOCKS[nid];
-            if (nd.opaque) continue;
-            if (def.liquid && f === 3) continue;
-            // luz do céu: acima da superfície = claro; abaixo escurece com a profundidade
+            const nx = x + fd.n[0];
             const ny = y + fd.n[1];
+            const nz = z + fd.n[2];
+            const nid = inner ? data[nx + nz * CHUNK + ny * LAYER] : get(nx, ny, nz);
+            if (nid === id || (fl !== 0 && FLUID[nid] === fl)) continue;
+            if (OPQ[nid] === 1) continue;
+            if (LIQ[id] === 1 && f === 3) continue;
             let light = 1;
-            if (!def.glow) light = this.dimension === "geena" ? 0.78 : ny >= hTop ? 1 : Math.max(0.26, 1 - (hTop - ny) * 0.11);
+            if (!glow) light = geena ? 0.78 : ny >= hTop ? 1 : Math.max(0.26, 1 - (hTop - ny) * 0.11);
             const k = fd.shade * jitter * light;
-            const aboveId = get(x, y + 1, z);
-            const lowTop = def.liquid && !(def.fluid && BLOCKS[aboveId].fluid === def.fluid);
-            const fluidH = def.fluid ? Math.max(0.12, ((def.level ?? 8) / (def.fluid === "water" ? 8 : 4)) * 0.88) : 1;
-            const base = P.length / 3;
+            let fluidTop = 1;
+            if (LIQ[id] === 1) {
+              const above = get(x, y + 1, z);
+              if (!(fl !== 0 && FLUID[above] === fl)) fluidTop = Math.max(0.12, (LEVEL[id] / (fl === 1 ? 8 : 4)) * 0.88);
+            }
             // oclusão ambiente: escurece cantos onde blocos se encontram
-            const ao = AO_BUF;
-            if (def.opaque) {
+            if (ao && opaque) {
               const ax = f >> 1;
               const t1: number = ax === 0 ? 1 : 0;
               const t2: number = ax === 2 ? 1 : 2;
-              const ox = x + fd.n[0];
-              const oy = y + fd.n[1];
-              const oz = z + fd.n[2];
               for (let v = 0; v < 4; v++) {
                 const c = fd.c[v];
                 const s1 = c[t1] === 1 ? 1 : -1;
                 const s2 = c[t2] === 1 ? 1 : -1;
-                const d1 = [t1 === 0 ? s1 : 0, t1 === 1 ? s1 : 0, t1 === 2 ? s1 : 0];
-                const d2 = [t2 === 0 ? s2 : 0, t2 === 1 ? s2 : 0, t2 === 2 ? s2 : 0];
-                const a = BLOCKS[get(ox + d1[0], oy + d1[1], oz + d1[2])].opaque ? 1 : 0;
-                const b = BLOCKS[get(ox + d2[0], oy + d2[1], oz + d2[2])].opaque ? 1 : 0;
-                const k2 = BLOCKS[get(ox + d1[0] + d2[0], oy + d1[1] + d2[1], oz + d1[2] + d2[2])].opaque ? 1 : 0;
-                ao[v] = AO_LEVEL[a && b ? 0 : 3 - (a + b + k2)];
+                const ox1 = nx + (t1 === 0 ? s1 : 0);
+                const oy1 = ny + (t1 === 1 ? s1 : 0);
+                const oz1 = nz + (t1 === 2 ? s1 : 0);
+                const ox2 = nx + (t2 === 0 ? s2 : 0);
+                const oy2 = ny + (t2 === 1 ? s2 : 0);
+                const oz2 = nz + (t2 === 2 ? s2 : 0);
+                const a1 = OPQ[get(ox1, oy1, oz1)];
+                const a2 = OPQ[get(ox2, oy2, oz2)];
+                const k2 = OPQ[get(ox1 + ox2 - nx, oy1 + oy2 - ny, oz1 + oz2 - nz)];
+                aoV[v] = AO_LEVEL[a1 && a2 ? 0 : 3 - (a1 + a2 + k2)];
               }
-            } else ao[0] = ao[1] = ao[2] = ao[3] = 1;
+            } else aoV[0] = aoV[1] = aoV[2] = aoV[3] = 1;
+            const base = out.vcount;
+            const t = faceUV[f];
+            const tuv = FACE_TUV[f];
             for (let v = 0; v < 4; v++) {
               const c = fd.c[v];
-              let vy: number = c[1];
-              if (lowTop && vy === 1) vy = fluidH;
-              P.push(x + c[0], y + vy, z + c[2]);
-              C.push(k * ao[v], k * ao[v], k * ao[v]);
-              const t = faceUV[f];
-              let tu: number;
-              let tv: number;
-              switch (f) {
-                case 0:
-                  tu = 1 - c[2];
-                  tv = c[1];
-                  break;
-                case 1:
-                  tu = c[2];
-                  tv = c[1];
-                  break;
-                case 2:
-                  tu = c[0];
-                  tv = c[2];
-                  break;
-                case 3:
-                  tu = c[0];
-                  tv = 1 - c[2];
-                  break;
-                case 4:
-                  tu = c[0];
-                  tv = c[1];
-                  break;
-                default:
-                  tu = 1 - c[0];
-                  tv = c[1];
-              }
-              UV.push(t[0] + tu * (t[2] - t[0]), t[1] + tv * (t[3] - t[1]));
+              const vy = fluidTop < 1 && c[1] === 1 ? fluidTop : c[1];
+              const kk = k * aoV[v];
+              out.vertex(x + c[0], y + vy, z + c[2], kk, kk, kk, t[0] + tuv[v][0] * (t[2] - t[0]), t[1] + tuv[v][1] * (t[3] - t[1]));
             }
-            if (ao[0] + ao[2] < ao[1] + ao[3]) I.push(base + 1, base + 2, base + 3, base + 1, base + 3, base);
-            else I.push(base, base + 1, base + 2, base, base + 2, base + 3);
+            out.quad(base, aoV[0] + aoV[2] < aoV[1] + aoV[3]);
           }
         }
       }
     }
 
-    const build = (pos: number[], colr: number[], uvs: number[], ind: number[], mat: THREE.Material): THREE.Mesh | null => {
-      if (ind.length === 0) return null;
+    const build = (buf: MeshBuf, mat: THREE.Material): THREE.Mesh | null => {
+      if (buf.icount === 0) return null;
       const g = new THREE.BufferGeometry();
-      g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(pos), 3));
-      g.setAttribute("color", new THREE.BufferAttribute(new Float32Array(colr), 3));
-      g.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(uvs), 2));
-      g.setIndex(new THREE.BufferAttribute(new Uint32Array(ind), 1));
+      g.setAttribute("position", new THREE.BufferAttribute(buf.pos.slice(0, buf.vcount * 3), 3));
+      g.setAttribute("color", new THREE.BufferAttribute(buf.col.slice(0, buf.vcount * 3), 3));
+      g.setAttribute("uv", new THREE.BufferAttribute(buf.uv.slice(0, buf.vcount * 2), 2));
+      g.setIndex(new THREE.BufferAttribute(buf.ind.slice(0, buf.icount), 1));
       g.computeBoundingSphere();
       const m = new THREE.Mesh(g, mat);
       m.position.set(wx0, 0, wz0);
       this.group.add(m);
       return m;
     };
-    ch.meshO = build(po, co, uo, io, this.matO);
-    ch.meshT = build(pt, ct, ut, it, this.matT);
+    ch.meshO = build(bo, this.matO);
+    ch.meshT = build(bt, this.matT);
     if (ch.meshT) ch.meshT.renderOrder = 2;
   }
 

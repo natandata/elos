@@ -64,21 +64,40 @@ export class Sky {
     g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
     this.stars = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffffff, size: 2.2, sizeAttenuation: false, transparent: true, opacity: 0, fog: false }));
     scene.add(this.stars);
-    // nuvens de blocos que passam devagar
-    const geo = new THREE.BoxGeometry(1, 1, 1);
+    // nuvens de blocos que passam devagar (uma única malha instanciada = 1 chamada de desenho)
+    const parts: { g: number; x: number; y: number; z: number; sx: number; sy: number; sz: number }[] = [];
     for (let i = 0; i < 16; i++) {
-      const c = new THREE.Group();
       const n = 3 + Math.floor(Math.random() * 4);
+      this.cloudPos.push({ x: (Math.random() - 0.5) * 520, y: 92 + Math.random() * 14, z: (Math.random() - 0.5) * 520 });
       for (let k = 0; k < n; k++) {
-        const m = new THREE.Mesh(geo, this.cloudMat);
-        m.scale.set(10 + Math.random() * 14, 4 + Math.random() * 2, 8 + Math.random() * 8);
-        m.position.set((k - n / 2) * 9 + Math.random() * 4, Math.random() * 2, (Math.random() - 0.5) * 8);
-        c.add(m);
+        parts.push({ g: i, x: (k - n / 2) * 9 + Math.random() * 4, y: Math.random() * 2, z: (Math.random() - 0.5) * 8, sx: 10 + Math.random() * 14, sy: 4 + Math.random() * 2, sz: 8 + Math.random() * 8 });
       }
-      c.position.set((Math.random() - 0.5) * 520, 92 + Math.random() * 14, (Math.random() - 0.5) * 520);
-      this.clouds.add(c);
     }
+    this.cloudParts = parts;
+    this.cloudMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), this.cloudMat, parts.length);
+    this.cloudMesh.frustumCulled = false;
+    this.clouds.add(this.cloudMesh);
+    this.refreshClouds();
     scene.add(this.clouds);
+  }
+
+  private cloudPos: { x: number; y: number; z: number }[] = [];
+  private cloudParts: { g: number; x: number; y: number; z: number; sx: number; sy: number; sz: number }[] = [];
+  private cloudMesh!: THREE.InstancedMesh;
+  private cloudTick = 0;
+  private m4 = new THREE.Matrix4();
+  private refreshClouds(): void {
+    const q = new THREE.Quaternion();
+    const p = new THREE.Vector3();
+    const sc = new THREE.Vector3();
+    this.cloudParts.forEach((part, i) => {
+      const g = this.cloudPos[part.g];
+      p.set(g.x + part.x, g.y + part.y, g.z + part.z);
+      sc.set(part.sx, part.sy, part.sz);
+      this.m4.compose(p, q, sc);
+      this.cloudMesh.setMatrixAt(i, this.m4);
+    });
+    this.cloudMesh.instanceMatrix.needsUpdate = true;
   }
 
   /** t: 0 amanhecer · .25 meio-dia · .5 pôr do sol · .75 meia-noite. */
@@ -96,13 +115,16 @@ export class Sky {
     this.moonMesh.position.copy(cam).addScaledVector(dir, -220);
     this.moonMesh.lookAt(cam);
     this.stars.position.copy(cam);
-    this.clouds.children.forEach((c) => {
-      c.position.x += 0.012;
-      if (c.position.x - cam.x > 260) c.position.x -= 520;
-      if (c.position.x - cam.x < -260) c.position.x += 520;
-      if (c.position.z - cam.z > 260) c.position.z -= 520;
-      if (c.position.z - cam.z < -260) c.position.z += 520;
-    });
+    if ((this.cloudTick++ & 3) === 0) {
+      for (const c of this.cloudPos) {
+        c.x += 0.048;
+        if (c.x - cam.x > 260) c.x -= 520;
+        if (c.x - cam.x < -260) c.x += 520;
+        if (c.z - cam.z > 260) c.z -= 520;
+        if (c.z - cam.z < -260) c.z += 520;
+      }
+      this.refreshClouds();
+    }
     const shade = 0.25 + this.daylight * 0.75;
     this.cloudMat.color.setRGB(shade, shade * (0.9 + 0.1 * dusk), shade * (1 - dusk * 0.2));
     (this.stars.material as THREE.PointsMaterial).opacity = Math.max(0, 1 - this.daylight * 1.6);
@@ -119,7 +141,8 @@ export class Sky {
       (o.material as THREE.Material).dispose();
       o.removeFromParent();
     }
-    this.clouds.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
+    this.cloudMesh.geometry.dispose();
+    this.cloudMesh.dispose();
     this.cloudMat.dispose();
     this.clouds.removeFromParent();
     this.stars.geometry.dispose();
