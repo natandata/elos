@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
   const { error: settleError } = await supabase.rpc("settle_leader_mission_xp");
   if (settleError) console.error("settle_leader_mission_xp falhou:", settleError);
 
-  // Arena dos Heróis: quem ficou dias sem devocional perde 50% dos troféus por dia sem anotar
+  // Arena dos Heróis: quem ficou dias sem devocional perde 50% dos troféus por dia sem registro no Meu Devocional (diário, oração, favoritos ou timer)
   const { data: penalized, error: penaltyError } = await supabase.rpc("arena_devotional_penalties");
   if (penaltyError) console.error("arena_devotional_penalties falhou:", penaltyError);
   for (const p of (penalized ?? []) as { user_id: string; lost: number; missed_days: number }[]) {

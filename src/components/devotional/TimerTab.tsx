@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Card } from "@/components/ui";
+import { recordTimerSession } from "@/lib/actions/devotional";
 
 const PRESETS = [5, 10, 15];
 
@@ -23,6 +24,7 @@ export function TimerTab() {
   const [running, setRunning] = useState(false);
   const [done, setDone] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const startedRef = useRef(false);
 
   useEffect(() => {
     if (!running) return;
@@ -52,6 +54,11 @@ export function TimerTab() {
     if (done) {
       setSecondsLeft(minutes * 60);
       setDone(false);
+    }
+    if (!running && !startedRef.current) {
+      // conta como devocional do dia (registra uma vez por abertura da aba)
+      startedRef.current = true;
+      void recordTimerSession(minutes);
     }
     setRunning((r) => !r);
   }

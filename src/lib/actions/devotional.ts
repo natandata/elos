@@ -284,3 +284,20 @@ export async function deleteFavoriteVerse(_prev: Result | null, formData: FormDa
     return { error: NETWORK_ERROR_MESSAGE };
   }
 }
+
+// ---------------------------------------------------------------- timer
+
+/** Registra que a pessoa iniciou o Timer hoje (conta como dia de devocional). */
+export async function recordTimerSession(minutes: number): Promise<Result> {
+  try {
+    const { supabase, userId } = await currentUser();
+    const m = Math.max(1, Math.min(240, Math.round(minutes)));
+    const { error } = await supabase.from("devotional_timer_sessions").insert({ user_id: userId, session_date: todayBR(), minutes: m });
+    if (error) return { error: "Não foi possível registrar o Timer." };
+    return { ok: true };
+  } catch (err) {
+    if (isFrameworkFlowError(err)) throw err;
+    console.error("recordTimerSession falhou:", err);
+    return { error: NETWORK_ERROR_MESSAGE };
+  }
+}
