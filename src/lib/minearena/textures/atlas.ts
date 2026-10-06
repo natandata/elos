@@ -168,6 +168,10 @@ function drawTile(name: TileName, put: Put): void {
       for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) put(x, y, mul(hex(0x2f6fd0), 1 + (rnd(x, y, s) - 0.5) * 0.12 + (y % 5 === 0 ? 0.08 : 0)));
       break;
     }
+    case "red_water": {
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) put(x, y, mul(hex(0xb81c1c), 1 + (rnd(x, y, s) - 0.5) * 0.14 + (y % 5 === 0 ? 0.1 : 0)));
+      break;
+    }
     case "lava": {
       for (let y = 0; y < N; y++) {
         for (let x = 0; x < N; x++) {

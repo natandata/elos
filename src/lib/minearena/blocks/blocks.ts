@@ -110,7 +110,7 @@ export type BaseKey = (typeof BASE_KEYS)[number];
 export const MATS = ["planks", "cobble", "brick", "limestone", "sandstone", "cedar_planks"] as const;
 export type Mat = (typeof MATS)[number];
 type D4 = 0 | 1 | 2 | 3;
-export type BlockKey = BaseKey | "door_b" | "door_t" | `door_o${D4}${"b" | "t"}` | `ladder_${D4}` | `sign_${D4}` | "tnt" | `slab_${Mat}` | `stairs_${Mat}_${D4}`;
+export type BlockKey = BaseKey | "door_b" | "door_t" | `door_o${D4}${"b" | "t"}` | `ladder_${D4}` | `sign_${D4}` | "tnt" | "red_water" | `slab_${Mat}` | `stairs_${Mat}_${D4}`;
 const D4S: D4[] = [0, 1, 2, 3];
 const KEYS: BlockKey[] = [
   ...BASE_KEYS,
@@ -124,6 +124,7 @@ const KEYS: BlockKey[] = [
   ...MATS.flatMap((m) => D4S.map((d) => `stairs_${m}_${d}` as BlockKey)),
   // novos blocos entram SEMPRE no fim (os ids ficam guardados nos mundos salvos)
   "tnt",
+  "red_water",
 ];
 
 /** Atalho: B.stone, B.water… */
@@ -236,6 +237,7 @@ for (const d of D4S) {
   GEN[`sign_${d}`] = blk("Placa", 0xa9794a, 0.5, "axe", 0, [drop("sign_0")], "wood", { solid: false, opaque: false, shape: "panel", pdir: d, placeable: d === 0 });
   GEN[`ladder_${d}`] = blk("Escada de mão", 0x9b6b3a, 0.4, "axe", 0, [drop("ladder_0")], "wood", { solid: false, opaque: false, shape: "panel", pdir: d, climb: true, placeable: d === 0 });
 }
+GEN.red_water = blk("Água vermelha", 0xb01818, Infinity, "hand", 0, [], "dirt", { solid: false, opaque: false, liquid: true, blend: true, placeable: false, fluid: "water", level: 8 });
 GEN.tnt = blk("Fogo e Enxofre", 0xd9533a, 0.2, "hand", 0, [drop("tnt")], "dirt", {});
 const MAT_NAME: Record<Mat, string> = { planks: "tábuas", cobble: "pedra lavrada", brick: "tijolo", limestone: "calcário", sandstone: "arenito", cedar_planks: "cedro" };
 const STAIR_BOXES: Box[][] = [

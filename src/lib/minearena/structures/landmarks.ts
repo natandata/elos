@@ -31,7 +31,7 @@ export interface LandmarkDef {
   /** Maior altura de terreno aceita no local (a obra precisa caber no mundo). */
   maxGy: number;
   /** Lago circular escavado (a baleia). */
-  pool?: { r: number; depth: number };
+  pool?: { r: number; depth: number; red?: boolean };
   residents: { mob: string; dx: number; dy: number; dz: number }[];
   build(b: Builder): void;
 }
@@ -151,24 +151,23 @@ function sarca(b: Builder): void {
   }
 }
 
-// ---------- Mar Vermelho aberto ----------
+// ---------- Mar Vermelho (um mar de verdade, de água vermelha) ----------
 function mar(b: Builder): void {
-  const Z = 36;
-  b.fill(-16, 0, -Z, 16, 0, Z, B.sand);
-  for (const s of [-1, 1]) {
-    const x0 = s > 0 ? 3 : -15;
-    const x1 = s > 0 ? 15 : -3;
-    b.fill(x0, 0, -Z, x1, 0, Z, B.brick); // fundo vermelho do mar
-    b.fill(x0, 1, -Z, x1, 13, Z, B.glass);
-    b.fill(x0 + 1, 1, -Z + 1, x1 - 1, 13, Z - 1, B.water);
+  // ilhota de areia no meio com os restos do exército do Faraó
+  for (let x = -5; x <= 5; x++) {
+    for (let z = -5; z <= 5; z++) {
+      const d = Math.hypot(x, z);
+      if (d > 5) continue;
+      b.fill(x, -12, z, x, d < 3.2 ? 1 : 0, z, B.sand);
+    }
   }
-  // os carros de Faraó afogados ficam ao longo do caminho
-  for (const z of [-24, -8, 12, 28]) {
-    b.fill(-2, 1, z, 2, 1, z, B.planks);
-    b.set(-2, 2, z, B.log);
-    b.set(2, 2, z, B.log);
+  b.chest(0, 2, 0, "ruina");
+  // carros e destroços boiando
+  for (const [x, z] of [[-14, -8], [12, -16], [-20, 12], [18, 10], [4, 22], [-6, -24]] as const) {
+    b.fill(x, -1, z, x + 2, -1, z + 1, B.planks);
+    b.set(x, 0, z, B.log);
+    b.set(x + 2, 0, z + 1, B.log);
   }
-  b.chest(0, 1, 0, "ruina");
 }
 
 // ---------- Bezerro de Ouro ----------
@@ -385,11 +384,12 @@ export const LANDMARKS: Record<LandmarkId, LandmarkDef> = {
     id: "mar",
     name: "Mar Vermelho",
     ref: "Êx 14.21–31",
-    blurb: "As águas se levantaram como muros à direita e à esquerda. Atravesse a pé enxuto.",
-    rx: 17,
-    rz: 37,
-    H: 15,
+    blurb: "O mar de águas vermelhas que se abriu para o povo. Ao centro, uma ilhota guarda os restos do exército do Faraó.",
+    rx: 40,
+    rz: 40,
+    H: 8,
     maxGy: 40,
+    pool: { r: 36, depth: 9, red: true },
     residents: [],
     build: mar,
   },

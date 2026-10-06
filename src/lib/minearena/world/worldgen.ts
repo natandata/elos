@@ -359,7 +359,7 @@ export function generateChunk(seed: number, cx: number, cz: number, landmarks: L
         if (def.pool && rr <= def.pool.r) {
           const floor = Math.max(1, gy - def.pool.depth - 1);
           for (let y = Math.min(hc, floor); y <= floor; y++) data[idx(lx, y, lz)] = y === 0 ? B.bedrock : B.sand;
-          for (let y = floor + 1; y < gy; y++) data[idx(lx, y, lz)] = B.water;
+          for (let y = floor + 1; y < gy; y++) data[idx(lx, y, lz)] = def.pool.red ? B.red_water : B.water;
           for (let y = gy; y <= top; y++) data[idx(lx, y, lz)] = B.air;
         } else {
           for (let y = Math.min(hc, gy) + 1; y < gy; y++) data[idx(lx, y, lz)] = B.cobble;
