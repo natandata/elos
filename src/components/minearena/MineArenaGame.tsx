@@ -146,7 +146,7 @@ function Play({ save, rotated, settings, onSettings, onExit }: { save: WorldSave
       ) : null}
       {game && bag ? <InventoryPanel game={game} startTab={bag} rotated={rotated} onClose={closeBag} /> : null}
       {dialog && game ? <HeroDialog d={dialog} onAct={(a) => game.dialogAct(a)} /> : null}
-      {paused && game && !options ? (
+      {paused && game && !options && hud?.alive !== false ? (
         <PauseMenu
           onResume={resume}
           onOptions={() => setOptions(true)}
@@ -156,7 +156,14 @@ function Play({ save, rotated, settings, onSettings, onExit }: { save: WorldSave
         />
       ) : null}
       {options && game ? <OptionsMenu settings={settings} mobile={mobile} onChange={onSettings} onDone={() => setOptions(false)} /> : null}
-      {hud && !hud.alive && game ? <DeathScreen onRespawn={() => game.respawn()} /> : null}
+      {hud && !hud.alive && game ? <DeathScreen
+          onRespawn={() => {
+            setPaused(false);
+            setOptions(false);
+            setBag(null);
+            game.respawn();
+          }}
+        /> : null}
       {!hud || hud.loading ? <LoadingScreen /> : null}
     </div>
   );

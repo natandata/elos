@@ -368,7 +368,7 @@ export class MineArena {
     this.canvas.addEventListener("contextmenu", ctx);
     this.cleanup.push(() => this.canvas.removeEventListener("contextmenu", ctx));
     const lock = () => {
-      if (!document.pointerLockElement && !this.uiOpen && !this.paused && this.running && this.ready && !this.mobile) this.cb.onPauseRequest();
+      if (!document.pointerLockElement && this.alive && !this.uiOpen && !this.paused && this.running && this.ready && !this.mobile) this.cb.onPauseRequest();
     };
     document.addEventListener("pointerlockchange", lock);
     this.cleanup.push(() => document.removeEventListener("pointerlockchange", lock));
@@ -439,6 +439,10 @@ export class MineArena {
     this.hunger = 14;
     this.alive = true;
     this.invuln = 3;
+    this.paused = false;
+    this.uiOpen = false;
+    this.input.mine = false;
+    this.input.use = false;
     this.ready = false;
     this.cb.onMessage("Você renasceu no ponto de partida. Seus itens foram mantidos.", "info");
   }
