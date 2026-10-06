@@ -7,6 +7,7 @@ import { CardArt } from "./CardArt";
 import { TEAM, buildBackground, drawTower, layoutFor, type Layout } from "./arenaRender";
 import { applyEvent, drawFx, newAnim, type Anim, type Fx } from "./arenaFx";
 import { ArenaSound, readMuted } from "./arenaSound";
+import { suspendMusic } from "./arenaMusicEngine";
 import {
   DOUBLE_MANA_TICK,
   deployRects,
@@ -134,6 +135,7 @@ export function ArenaPlayfield({
   const [selected, setSelected] = useState<number | null>(null);
   const [waiting, setWaiting] = useState(false);
   const [muted, setMuted] = useState(readMuted);
+  useEffect(() => suspendMusic(), []);
   const soundRef = useRef<ArenaSound | null>(null);
   const lastSecRef = useRef(-1);
   const crownsRef = useRef<[number, number]>([0, 0]);
