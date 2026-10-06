@@ -53,6 +53,12 @@ export const TILE_NAMES = [
   "cedar_leaves",
   "cedar_planks",
   "palm_leaves",
+  "basalt",
+  "ash",
+  "sulfur_ore",
+  "ember_block",
+  "basalt_brick",
+  "portal",
 ] as const;
 export type TileName = (typeof TILE_NAMES)[number];
 
@@ -113,6 +119,12 @@ export const BLOCK_TILES: Record<BlockKey, [TileName, TileName, TileName, TileNa
   cedar_leaves: ["cedar_leaves", "cedar_leaves", "cedar_leaves"],
   cedar_planks: ["cedar_planks", "cedar_planks", "cedar_planks"],
   palm_leaves: ["palm_leaves", "palm_leaves", "palm_leaves"],
+  basalt: ["basalt", "basalt", "basalt"],
+  ash: ["ash", "ash", "ash"],
+  sulfur_ore: ["sulfur_ore", "sulfur_ore", "sulfur_ore"],
+  ember_block: ["ember_block", "ember_block", "ember_block"],
+  basalt_brick: ["basalt_brick", "basalt_brick", "basalt_brick"],
+  portal: ["portal", "portal", "portal"],
 };
 
 /** UV [u0, v0, u1, v1] do tile (com meia-margem de pixel pra não vazar). */

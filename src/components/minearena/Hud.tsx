@@ -28,7 +28,7 @@ export function Hud({ hud, msgs, onSelect }: { hud: HudState; msgs: Msg[]; onSel
       {hud.hurt > 0 ? <div className="ma-hurt" style={{ opacity: hud.hurt * 0.6 }} /> : null}
       {hud.fade > 0 ? (
         <div className="ma-fade" style={{ opacity: hud.fade }}>
-          <span>💤 Dormindo…</span>
+          <span>{hud.fadeText}</span>
         </div>
       ) : null}
       <div className="ma-cross" aria-hidden />

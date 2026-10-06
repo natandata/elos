@@ -347,6 +347,54 @@ function drawTile(name: TileName, put: Put): void {
       }
       break;
     }
+    case "basalt": {
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) put(x, y, mul(hex(0x3a2a2e), 1 + (rnd(x, y, s) - 0.5) * 0.3 + blotch(x, y, s) * 0.3 + (rnd(x, y, s + 3) < 0.03 ? 0.6 : 0)));
+      break;
+    }
+    case "ash": {
+      noiseFill(put, hex(0x6a5f5f), 0.28, s);
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (rnd(x, y, s + 1) < 0.05) put(x, y, hex(0xa09090));
+      break;
+    }
+    case "sulfur_ore": {
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) put(x, y, mul(hex(0x3a2a2e), 1 + (rnd(x, y, 9) - 0.5) * 0.3 + blotch(x, y, 9) * 0.3));
+      for (let k = 0; k < 7; k++) {
+        const cx = 1 + Math.floor(rnd(k, 1, s) * 13);
+        const cy = 1 + Math.floor(rnd(k, 2, s) * 13);
+        for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1]] as const) put(cx + dx, cy + dy, dx + dy === 0 ? hex(0xfff08a) : hex(0xd9c93a));
+      }
+      break;
+    }
+    case "ember_block": {
+      for (let y = 0; y < N; y++) {
+        for (let x = 0; x < N; x++) {
+          const v = rnd(Math.floor(x / 2), Math.floor(y / 2), s);
+          put(x, y, v < 0.3 ? hex(0xc2410c) : v < 0.75 ? hex(0xff8a1f) : hex(0xffd23a));
+        }
+      }
+      break;
+    }
+    case "basalt_brick": {
+      noiseFill(put, hex(0x4a2a30), 0.18, s);
+      for (let y = 0; y < N; y++) {
+        const row = Math.floor(y / 4);
+        for (let x = 0; x < N; x++) {
+          const joint = y % 4 === 3 || (x + (row % 2) * 4) % 8 === 7;
+          if (joint) put(x, y, mul(hex(0x241418), 0.9 + rnd(x, y, s + 1) * 0.2));
+          else if (rnd(x, y, s + 2) < 0.05) put(x, y, hex(0xa83a1a));
+        }
+      }
+      break;
+    }
+    case "portal": {
+      for (let y = 0; y < N; y++) {
+        for (let x = 0; x < N; x++) {
+          const v = (Math.sin((x + y * 0.7) * 0.9 + s) + Math.sin((y - x * 0.4) * 0.7)) * 0.25 + 0.5;
+          put(x, y, mul(v > 0.55 ? hex(0xc23af0) : hex(0x6a1aa8), 0.8 + v * 0.5), 200);
+        }
+      }
+      break;
+    }
     case "obsidian": {
       for (let y = 0; y < N; y++) {
         for (let x = 0; x < N; x++) {

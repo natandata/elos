@@ -49,6 +49,9 @@ mat("leather", "Couro", "🟫", 0x8a5a33);
 mat("wool", "Lã", "🧶", 0xf2f2f2);
 mat("wheat", "Trigo", "🌾", 0xd9b13b);
 mat("seeds", "Sementes de trigo", "🌱", 0x9ab53a);
+mat("sulfur", "Enxofre", "🟡", 0xd9c93a, "incomum");
+mat("ember_shard", "Brasa de Hinom", "🔸", 0xff8a1f, "raro");
+add({ key: "ember_brand", name: "Tição do altar", kind: "tool", icon: "🔥", color: 0xff7a1a, rarity: "raro", maxStack: 1 });
 add({ key: "bucket", name: "Balde de ferro", kind: "tool", icon: "🪣", color: 0xc9ced6, rarity: "incomum", maxStack: 1 });
 add({ key: "bucket_water", name: "Balde com água", kind: "tool", icon: "🪣", color: 0x3a76d6, rarity: "incomum", maxStack: 1 });
 add({ key: "bucket_lava", name: "Balde com lava", kind: "tool", icon: "🪣", color: 0xff6a1a, rarity: "raro", maxStack: 1 });
@@ -80,6 +83,7 @@ for (const t of TOOL_TIERS) {
   add({ key: `spear_${t.id}`, name: `Lança ${t.label}`, kind: "weapon", icon: "🔱", color: t.color, rarity: t.rarity, weapon: { dmg: t.sword - 1, cooldown: 0.7, reach: 4.4 } });
 }
 add({ key: "sword_gideon", name: "Espada de Gideão", kind: "weapon", icon: "⚔️", color: 0xffb02e, rarity: "lendario", weapon: { dmg: 11, cooldown: 0.45, reach: 3.4 } });
+add({ key: "sword_spirit", name: "Espada do Espírito", kind: "weapon", icon: "🗡️", color: 0xfff2b0, rarity: "mitico", weapon: { dmg: 18, cooldown: 0.4, reach: 3.8 } });
 add({ key: "sword_archangel", name: "Espada do Arcanjo", kind: "weapon", icon: "🔥", color: 0xff4d6d, rarity: "mitico", weapon: { dmg: 15, cooldown: 0.4, reach: 3.6 } });
 
 // ---- à distância ----
@@ -104,6 +108,16 @@ for (const s of ARMOR_SETS) {
   for (const p of ARMOR_PIECES) {
     add({ key: `${p.key}_${s.id}`, name: `${p.name} ${s.label}`, kind: "armor", icon: p.icon, color: s.color, rarity: s.rarity, armor: { slot: p.slot, def: s.def[p.slot] } });
   }
+}
+
+// Armadura de Deus (Ef 6.13-17): recompensa de quem vence o Adversário
+for (const [slot, key, name, icon, def] of [
+  [0, "helmet_god", "Capacete da Salvação", "⛑️", 4],
+  [1, "chest_god", "Couraça da Justiça", "🦺", 7],
+  [2, "legs_god", "Cinto da Verdade", "👖", 6],
+  [3, "boots_god", "Calçado do Evangelho", "👢", 4],
+] as const) {
+  add({ key, name, kind: "armor", icon, color: 0xf6d36a, rarity: "mitico", armor: { slot, def } });
 }
 
 export const itemDef = (key: string): ItemDef | undefined => ITEMS[key];

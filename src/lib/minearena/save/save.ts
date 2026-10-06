@@ -24,6 +24,13 @@ export interface WorldSave {
   spawned?: string[];
   /** Plantações em crescimento: "x,y,z" → segundos acumulados. */
   crops?: Record<string, number>;
+  /** Dimensão onde o jogador está (padrão: mundo normal). */
+  dimension?: "overworld" | "geena";
+  /** Blocos alterados em Geena. */
+  modsGeena?: Record<string, number[]>;
+  satanDefeated?: boolean;
+  /** Onde o jogador entrou no portal (pra voltar). */
+  portalReturn?: { x: number; y: number; z: number };
 }
 
 export interface SavedContainer {

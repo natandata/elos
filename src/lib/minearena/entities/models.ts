@@ -31,6 +31,10 @@ export interface HumanoidSpec {
   bow?: boolean;
   plume?: number;
   fur?: number;
+  /** Chifres, asas de morcego e coroa de chamas (demônios e o Adversário). */
+  horns?: number;
+  wings?: number;
+  flame?: number;
 }
 export interface BeastSpec {
   kind: "beast";
@@ -52,6 +56,7 @@ export interface Rig {
   legsA: THREE.Object3D[];
   legsB: THREE.Object3D[];
   cape?: THREE.Object3D;
+  wings?: THREE.Object3D[];
   tail?: THREE.Object3D;
   mats: THREE.MeshLambertMaterial[];
   height: number;
@@ -109,6 +114,12 @@ function humanoid(s: HumanoidSpec): Rig {
   }
   if (s.helm !== undefined) head.add(mk(mats, 9.2, 5, 9.2, s.helm, 0, 7.2, 0), mk(mats, 1.5, 5, 1.2, s.helm, 0, 3, 4.6));
   if (s.plume !== undefined) head.add(mk(mats, 2, 4, 10, s.plume, 0, 11, -0.5), mk(mats, 2, 6, 3, s.plume, 0, 10, -5));
+  if (s.horns !== undefined) {
+    head.add(mk(mats, 1.8, 4, 1.8, s.horns, -3, 9.5, 0), mk(mats, 1.2, 3, 1.2, s.horns, -4, 12.5, 0.4), mk(mats, 1.8, 4, 1.8, s.horns, 3, 9.5, 0), mk(mats, 1.2, 3, 1.2, s.horns, 4, 12.5, 0.4));
+  }
+  if (s.flame !== undefined) {
+    for (const x of [-3, -1, 1, 3]) head.add(mk(mats, 1.4, 3 + ((x + 4) % 3), 1.4, s.flame, x, 9.5, -1));
+  }
   if (s.headband !== undefined) head.add(mk(mats, 8.5, 1.4, 8.5, s.headband, 0, 6.6, 0));
   root.add(head);
 
@@ -117,6 +128,15 @@ function humanoid(s: HumanoidSpec): Rig {
     cape = pivot(0, 23, -2.6);
     cape.add(mk(mats, 8.4 * bulk, 15, 1, s.cape, 0, -7.5, -0.5));
     root.add(cape);
+  }
+  let wings: THREE.Group[] | undefined;
+  if (s.wings !== undefined) {
+    const wl = pivot(-4, 22, -2.5);
+    wl.add(mk(mats, 1, 16, 4, s.wings, -6, -2, -1), mk(mats, 1, 12, 8, s.wings, -9, 0, -3), mk(mats, 1, 8, 10, s.wings, -12, 2, -5));
+    const wr = pivot(4, 22, -2.5);
+    wr.add(mk(mats, 1, 16, 4, s.wings, 6, -2, -1), mk(mats, 1, 12, 8, s.wings, 9, 0, -3), mk(mats, 1, 8, 10, s.wings, 12, 2, -5));
+    root.add(wl, wr);
+    wings = [wl, wr];
   }
   if (s.staff) {
     armR.add(mk(mats, 1.4, 34, 1.4, 0x7a5230, 0, -2, 4), mk(mats, 3.2, 3.2, 3.2, 0xe0b84a, 0, 17, 4));
@@ -129,7 +149,7 @@ function humanoid(s: HumanoidSpec): Rig {
   if (s.sword !== undefined) armR.add(mk(mats, 1.2, 14, 0.8, s.sword, 0, -17, 2), mk(mats, 4, 1.2, 1.2, 0x6a4a2a, 0, -10.5, 2));
 
   root.scale.setScalar(s.scale);
-  return { root, head, armL, armR, legsA: [legL], legsB: [legR], cape, mats, height: 2 * s.scale, radius: 0.3 * s.scale * Math.max(1, bulk), humanoid: true };
+  return { root, head, armL, armR, legsA: [legL], legsB: [legR], cape, wings, mats, height: 2 * s.scale, radius: 0.3 * s.scale * Math.max(1, bulk), humanoid: true };
 }
 
 function beast(s: BeastSpec): Rig {
@@ -262,6 +282,11 @@ export function animate(rig: Rig, a: AnimState): void {
       if (rig.armR) rig.armR.rotation.x = -2.7 * a.windup;
     }
     if (rig.cape) rig.cape.rotation.x = 0.12 + Math.abs(swing) * 0.5;
+    if (rig.wings) {
+      const flap = Math.sin(a.t * 2.4) * 0.28;
+      rig.wings[0].rotation.y = 0.25 + flap;
+      rig.wings[1].rotation.y = -0.25 - flap;
+    }
   } else {
     if (a.attack > 0) rig.head.rotation.x = Math.sin(a.attack * Math.PI) * 0.7;
     else rig.head.rotation.x = Math.sin(a.t * 1.3) * 0.05;

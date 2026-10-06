@@ -164,6 +164,17 @@ function draw(def: ItemDef): HTMLCanvasElement {
       pen.line(4, 5, 11, 5, f);
       pen.line(5, 6, 10, 6, id === "bucket_water" ? hex(0x6aa0f0) : hex(0xffd23a));
     }
+  } else if (id === "ember_brand") {
+    pen.line(3, 14, 9, 8, WOOD_D);
+    pen.line(2, 14, 8, 8, WOOD);
+    pen.disc(10, 6, 3, hex(0xff7a1a), hex(0xc2410c));
+    pen.disc(10, 5, 1, hex(0xffe08a));
+    pen.p(11, 2, hex(0xffb02e));
+    pen.p(9, 2, hex(0xff7a1a));
+  } else if (id === "sulfur" || id === "ember_shard") {
+    pen.rows([[4, 6, 9], [5, 5, 10], [6, 4, 11], [7, 4, 11], [8, 5, 10], [9, 6, 9], [10, 7, 8]], m);
+    pen.rows([[4, 6, 7], [5, 5, 6]], hi);
+    pen.rows([[9, 6, 9], [10, 7, 8]], lo);
   } else if (id === "dates") {
     for (const [x, y] of [[5, 6], [8, 5], [10, 8], [6, 10], [9, 11]] as const) pen.disc(x, y, 1, m, lo);
     pen.line(7, 2, 8, 4, hex(0x4a9a3a));

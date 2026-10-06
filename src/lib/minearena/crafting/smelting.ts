@@ -17,4 +17,6 @@ export const FUEL: Record<string, number> = {
   log: 15,
   planks: 7.5,
   stick: 5,
+  sulfur: 60,
+  ember_shard: 160,
 };

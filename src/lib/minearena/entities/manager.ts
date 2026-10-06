@@ -6,7 +6,7 @@ import type { Particles } from "../particles/particles";
 import { type Body, newBody, stepBody } from "../player/physics";
 import { biomeAt } from "../world/worldgen";
 import type { World } from "../world/world";
-import { type AbilityDef, MOBS, type MobDef } from "./definitions";
+import { type AbilityDef, MOBS, MOB_BY_ID, type MobDef } from "./definitions";
 import { type Rig, animate, buildModel, disposeRig, flash } from "./models";
 
 export interface Entity {
@@ -41,6 +41,7 @@ export interface Entity {
   stuckT: number;
   lastX: number;
   lastZ: number;
+  phase: number;
   love: number;
   breedCd: number;
   baby: boolean;
@@ -62,6 +63,7 @@ export interface Env {
   alive: boolean;
   daylight: number;
   mobile: boolean;
+  dim?: "overworld" | "geena";
 }
 
 interface Proj {
@@ -74,8 +76,18 @@ interface Proj {
   vz: number;
   dmg: number;
   life: number;
-  owner: "player" | "ally";
+  owner: "player" | "ally" | "hostile";
   gravity: number;
+}
+
+interface Hazard {
+  x: number;
+  y: number;
+  z: number;
+  t: number;
+  dmg: number;
+  r: number;
+  tick: number;
 }
 
 const isHostile = (e: Entity) => !e.dead && (e.def.behavior === "hostile" || e.def.behavior === "boss");
@@ -84,6 +96,10 @@ const SUPPORT_ABILITIES = new Set(["sling", "fire", "wave", "calm"]);
 export class EntityManager {
   list: Entity[] = [];
   private projs: Proj[] = [];
+  private hazards: Hazard[] = [];
+  private playerPos = { x: 0, y: 0, z: 0 };
+  private fireGeo = new THREE.BoxGeometry(0.34, 0.34, 0.34);
+  private fireMat = new THREE.MeshBasicMaterial({ color: 0xff8a1f });
   private nextId = 1;
   private spawnT = 3;
   private arrowGeo = new THREE.BoxGeometry(0.06, 0.06, 0.55);
@@ -137,6 +153,7 @@ export class EntityManager {
       stuckT: 0,
       lastX: x,
       lastZ: z,
+      phase: 1,
       love: 0,
       breedCd: 0,
       baby: false,
@@ -282,8 +299,8 @@ export class EntityManager {
   }
 
   // ---------- projéteis ----------
-  shoot(shape: "arrow" | "stone", ox: number, oy: number, oz: number, dx: number, dy: number, dz: number, speed: number, dmg: number, gravity: number, owner: "player" | "ally"): void {
-    const mesh = new THREE.Mesh(shape === "arrow" ? this.arrowGeo : this.stoneGeo, shape === "arrow" ? this.arrowMat : this.stoneMat);
+  shoot(shape: "arrow" | "stone" | "fire", ox: number, oy: number, oz: number, dx: number, dy: number, dz: number, speed: number, dmg: number, gravity: number, owner: "player" | "ally" | "hostile"): void {
+    const mesh = new THREE.Mesh(shape === "arrow" ? this.arrowGeo : shape === "fire" ? this.fireGeo : this.stoneGeo, shape === "arrow" ? this.arrowMat : shape === "fire" ? this.fireMat : this.stoneMat);
     mesh.position.set(ox, oy, oz);
     this.scene.add(mesh);
     const n = Math.hypot(dx, dy, dz) || 1;
@@ -301,6 +318,16 @@ export class EntityManager {
       p.mesh.lookAt(p.x + p.vx, p.y + p.vy, p.z + p.vz);
       if (this.world.isSolid(Math.floor(p.x), Math.floor(p.y), Math.floor(p.z))) {
         p.life = 0;
+        continue;
+      }
+      if (p.owner === "hostile") {
+        const pp = this.playerPos;
+        if (Math.hypot(p.x - pp.x, p.z - pp.z) < 0.9 && p.y > pp.y - 0.2 && p.y < pp.y + 2) {
+          this.hooks.damagePlayer(p.dmg, p.x - p.vx * 0.1, p.z - p.vz * 0.1);
+          this.fx.burst(p.x, p.y, p.z, 0xff8a1f, 10, 3, 0.16);
+          p.life = 0;
+        }
+        if (Math.random() < 0.5) this.fx.burst(p.x, p.y, p.z, 0xff7a1a, 1, 0.5, 0.1, 0);
         continue;
       }
       for (const e of this.list) {
@@ -334,14 +361,15 @@ export class EntityManager {
     const px = Math.floor(env.px);
     const pz = Math.floor(env.pz);
     const surf = this.world.surfaceY(px, pz);
-    const underground = surf > 0 && env.py < surf - 6;
+    const geena = env.dim === "geena";
+    const underground = geena || (surf > 0 && env.py < surf - 6);
     const night = env.daylight < 0.35;
 
     let x = 0;
     let y = 0;
     let z = 0;
     let found = false;
-    if (underground && Math.random() < 0.7) {
+    if (underground && (geena || Math.random() < 0.7)) {
       for (let tries = 0; tries < 10 && !found; tries++) {
         x = Math.floor(env.px + (Math.random() - 0.5) * 36);
         z = Math.floor(env.pz + (Math.random() - 0.5) * 36);
@@ -367,7 +395,7 @@ export class EntityManager {
     }
     if (!found) return;
 
-    const biome = biomeAt(this.seed, x, z);
+    const biome = geena ? "planicie" : biomeAt(this.seed, x, z);
     const present = new Map<string, number>();
     for (const e of alive) present.set(e.def.id, (present.get(e.def.id) ?? 0) + 1);
     const bossAlive = alive.some((e) => e.def.behavior === "boss");
@@ -377,10 +405,11 @@ export class EntityManager {
     for (const def of MOBS) {
       const r = def.spawn;
       if (!r) continue;
-      if (underground && found && y < surf - 4 && !r.underground) continue;
-      if (r.time === "night" && !(night || (underground && r.underground))) continue;
-      if (r.time === "day" && night) continue;
-      if (r.biomes && !r.biomes.includes(biome)) continue;
+      if (!!r.dim !== geena) continue;
+      if (!geena && underground && found && y < surf - 4 && !r.underground) continue;
+      if (!geena && r.time === "night" && !(night || (underground && r.underground))) continue;
+      if (!geena && r.time === "day" && night) continue;
+      if (!geena && r.biomes && !r.biomes.includes(biome)) continue;
       if (def.behavior === "boss" && bossAlive) continue;
       if (def.behavior === "hero" && (heroes >= 2 || present.has(def.id))) continue;
       if ((present.get(def.id) ?? 0) >= 6) continue;
@@ -408,7 +437,9 @@ export class EntityManager {
 
   // ---------- atualização ----------
   update(dt: number, env: Env): void {
+    this.playerPos = { x: env.px, y: env.py, z: env.pz };
     this.spawnTick(dt, env);
+    this.updateHazards(dt, env);
     for (const e of [...this.list]) this.updateEntity(e, dt, env);
     this.updateProjectiles(dt);
   }
@@ -602,12 +633,33 @@ export class EntityManager {
     flash(e.rig, e.hurtT > 0 ? 0.55 : 0);
   }
 
+  private updateHazards(dt: number, env: Env): void {
+    for (const h of this.hazards) {
+      h.t -= dt;
+      h.tick -= dt;
+      if (h.tick <= 0 && h.t > 0) {
+        h.tick = 0.12;
+        for (let k = 0; k < 10; k++) {
+          const a = (k / 10) * Math.PI * 2;
+          this.fx.burst(h.x + Math.cos(a) * h.r, h.y + 0.15, h.z + Math.sin(a) * h.r, 0xff5a1a, 1, 0.3, 0.12, 0);
+        }
+      }
+      if (h.t <= 0) {
+        this.fx.burst(h.x, h.y + 0.6, h.z, 0xff8a1f, 22, 6, 0.22, 3);
+        this.sfx.play("fire");
+        if (env.alive && Math.hypot(env.px - h.x, env.pz - h.z) < h.r && Math.abs(env.py - h.y) < 3) this.hooks.damagePlayer(h.dmg, h.x, h.z);
+        this.aoeOnEntities(h.x, h.y, h.z, h.r, h.dmg, (o) => o.ally, 3);
+      }
+    }
+    this.hazards = this.hazards.filter((h) => h.t > 0);
+  }
+
   private teleportNear(e: Entity, env: Env): void {
     for (let t = 0; t < 8; t++) {
       const a = Math.random() * Math.PI * 2;
       const x = Math.floor(env.px + Math.cos(a) * 3);
       const z = Math.floor(env.pz + Math.sin(a) * 3);
-      const sy = this.world.surfaceY(x, z);
+      const sy = env.dim === "geena" ? Math.floor(env.py) - 1 : this.world.surfaceY(x, z);
       if (sy < 0) continue;
       e.body.x = x + 0.5;
       e.body.z = z + 0.5;
@@ -619,6 +671,70 @@ export class EntityManager {
 
   private ability(e: Entity, ab: AbilityDef, i: number, target: { x: number; y: number; z: number; ent: Entity | null } | null, tdist: number, env: Env, dt: number): void {
     const b = e.body;
+    const frac = e.hp / e.maxHp;
+    const phase = frac > 0.6 ? 1 : frac > 0.3 ? 2 : 3;
+    if (e.def.behavior === "boss" && phase !== e.phase) {
+      e.phase = phase;
+      this.hooks.say(phase === 2 ? "Satanás invoca as trevas!" : "Satanás se enfurece! Resista!");
+      this.sfx.play("boss");
+    }
+    if ("phase" in ab && ab.phase && phase < ab.phase) return;
+    const cdMul = phase === 3 ? 0.6 : 1;
+    if (ab.type === "firebolt") {
+      if (e.cds[i] <= 0 && env.alive && target && tdist <= ab.range) {
+        e.cds[i] = ab.cooldown * cdMul;
+        e.atkAnim = 0.01;
+        const sy = b.y + e.body.h * 0.7;
+        this.shoot("fire", b.x, sy, b.z, env.px - b.x, env.py + 1.1 - sy, env.pz - b.z, 14, ab.dmg, 0, "hostile");
+        this.sfx.play("fire");
+      }
+      return;
+    }
+    if (ab.type === "summon") {
+      if (e.cds[i] <= 0 && env.alive && this.list.filter((o) => !o.dead && o.def.id === ab.mob).length < ab.max) {
+        e.cds[i] = ab.cooldown * cdMul;
+        const md = MOB_BY_ID.get(ab.mob);
+        if (md) {
+          for (let k = 0; k < ab.count; k++) {
+            const a = (k / ab.count) * Math.PI * 2 + Math.random();
+            const sx = b.x + Math.cos(a) * 6;
+            const sz = b.z + Math.sin(a) * 6;
+            this.spawn(md, sx, b.y + 0.2, sz);
+            this.fx.burst(sx, b.y + 1, sz, 0xff7a1a, 14, 4, 0.18);
+          }
+          this.hooks.say("Satanás invoca seus servos!");
+          this.sfx.play("boss");
+        }
+      }
+      return;
+    }
+    if (ab.type === "rain") {
+      if (e.cds[i] <= 0 && env.alive) {
+        e.cds[i] = ab.cooldown * cdMul;
+        for (let k = 0; k < ab.count; k++) {
+          const a = Math.random() * Math.PI * 2;
+          const rr = k === 0 ? 0 : 2 + Math.random() * 7;
+          this.hazards.push({ x: env.px + Math.cos(a) * rr, y: env.py, z: env.pz + Math.sin(a) * rr, t: 1.4 + k * 0.12, dmg: ab.dmg, r: 2.4, tick: 0 });
+        }
+        this.hooks.say("Chuva de fogo! Saia do círculo!");
+      }
+      return;
+    }
+    if (ab.type === "blink") {
+      if (e.cds[i] <= 0 && env.alive && target) {
+        e.cds[i] = ab.cooldown * cdMul;
+        this.fx.burst(b.x, b.y + 2, b.z, 0x8a2be2, 24, 6, 0.2);
+        const a = Math.random() * Math.PI * 2;
+        b.x = env.px + Math.cos(a) * 6;
+        b.z = env.pz + Math.sin(a) * 6;
+        b.y = env.py + 0.2;
+        b.vy = 0;
+        this.fx.burst(b.x, b.y + 2, b.z, 0x8a2be2, 24, 6, 0.2);
+        this.sfx.play("boss");
+        if (Math.hypot(env.px - b.x, env.pz - b.z) < 7) this.hooks.damagePlayer(ab.dmg, b.x, b.z);
+      }
+      return;
+    }
     if (ab.type === "stomp") {
       if (e.windup > 0) {
         e.windup += dt;
@@ -706,6 +822,9 @@ export class EntityManager {
     for (const e of [...this.list]) this.remove(e);
     for (const p of this.projs) p.mesh.removeFromParent();
     this.projs = [];
+    this.hazards = [];
+    this.fireGeo.dispose();
+    this.fireMat.dispose();
     this.arrowGeo.dispose();
     this.stoneGeo.dispose();
     this.arrowMat.dispose();

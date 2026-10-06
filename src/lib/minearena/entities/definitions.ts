@@ -12,9 +12,15 @@ export type AbilityDef =
   | { type: "wave"; radius: number; cooldown: number; heal: number }
   | { type: "fire"; range: number; radius: number; dmg: number; cooldown: number }
   | { type: "calm"; radius: number; seconds: number; cooldown: number }
-  | { type: "stomp"; radius: number; dmg: number; cooldown: number; windup: number };
+  | { type: "stomp"; radius: number; dmg: number; cooldown: number; windup: number; phase?: number }
+  | { type: "firebolt"; range: number; dmg: number; cooldown: number; phase?: number }
+  | { type: "summon"; mob: string; count: number; max: number; cooldown: number; phase?: number }
+  | { type: "rain"; dmg: number; count: number; cooldown: number; phase?: number }
+  | { type: "blink"; dmg: number; cooldown: number; phase?: number };
 
 export interface SpawnRule {
+  /** Só nasce nesta dimensão. */
+  dim?: "geena";
   time: "day" | "night" | "any";
   biomes?: BiomeId[];
   weight: number;
@@ -48,6 +54,8 @@ export interface MobDef {
   gift?: { item: string; count: number }[];
   /** Item que faz o animal entrar no cio (reprodução). */
   breeds?: string;
+  /** Criatura maligna: a Espada do Espírito fere mais. */
+  evil?: boolean;
 }
 
 const L = (item: string, min: number, max: number, chance = 1): LootEntry => ({ item, min, max, chance });
@@ -230,6 +238,24 @@ export const MOBS: MobDef[] = [
     model: { kind: "beast", variant: "snake", scale: 1, body: 0x5a7a2a, head: 0x4a6a22, legs: 0, accent: 0x8a9a3a },
     loot: [],
     spawn: { time: "any", biomes: ["floresta", "planicie", "deserto", "savana", "oasis"], weight: 4, group: [1, 1] },
+  },
+  // ---- Geena ----
+  {
+    id: "demonio",
+    name: "Demônio",
+    behavior: "hostile",
+    rarity: "raro",
+    hp: 36,
+    defense: 1,
+    dmg: 5,
+    speed: 3.3,
+    chaseRange: 24,
+    attackRange: 1.8,
+    attackCooldown: 1,
+    evil: true,
+    model: { kind: "humanoid", scale: 1, skin: 0x8a2a1e, hair: 0x000000, hairStyle: "bald", shirt: 0x3a1a1a, pants: 0x2a1010, shoes: 0x1a0a0a, horns: 0x2a1a1a, wings: 0x3a1414, bare: true, belt: 0x6a1a1a },
+    loot: [L("sulfur", 0, 2, 0.6), L("ember_shard", 0, 1, 0.4)],
+    spawn: { dim: "geena", time: "any", weight: 10, group: [1, 3] },
   },
   // ---- neutro ----
   {
@@ -477,5 +503,31 @@ export const MOBS: MobDef[] = [
     spawn: { time: "day", biomes: ["planicie", "floresta", "deserto"], weight: 1, group: [1, 1] },
   },
 ];
+
+/** O chefe final (nasce na arena de Geena, não entra no sorteio normal). */
+MOBS.push({
+  id: "satanas",
+  name: "Satanás",
+  title: "O Adversário",
+  behavior: "boss",
+  rarity: "mitico",
+  hp: 720,
+  defense: 5,
+  dmg: 11,
+  speed: 2.9,
+  chaseRange: 70,
+  attackRange: 3.4,
+  attackCooldown: 1.3,
+  evil: true,
+  model: { kind: "humanoid", scale: 3, bulk: 1.3, skin: 0x7a1a14, hair: 0x000000, hairStyle: "bald", shirt: 0x1a0a0a, pants: 0x241010, shoes: 0x0a0505, bare: true, horns: 0x1a1010, wings: 0x2a0a0a, flame: 0xff7a1a, belt: 0xe0b84a },
+  loot: [],
+  abilities: [
+    { type: "stomp", radius: 7, dmg: 14, cooldown: 8, windup: 1.1 },
+    { type: "firebolt", range: 46, dmg: 9, cooldown: 3.2 },
+    { type: "summon", mob: "demonio", count: 3, max: 5, cooldown: 20, phase: 2 },
+    { type: "rain", dmg: 11, count: 7, cooldown: 11, phase: 2 },
+    { type: "blink", dmg: 12, cooldown: 9, phase: 3 },
+  ],
+});
 
 export const MOB_BY_ID = new Map(MOBS.map((m) => [m.id, m]));

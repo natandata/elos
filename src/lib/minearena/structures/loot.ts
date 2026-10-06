@@ -3,7 +3,7 @@ import type { Stack } from "../items/inventory";
 import { rand01 } from "../world/noise";
 
 type Entry = { item: string; min: number; max: number; w: number };
-export type LootTable = "aldeia" | "templo" | "torre" | "ruina";
+export type LootTable = "aldeia" | "templo" | "torre" | "ruina" | "fortaleza";
 
 const TABLES: Record<LootTable, { rolls: [number, number]; entries: Entry[] }> = {
   aldeia: {
@@ -34,6 +34,7 @@ const TABLES: Record<LootTable, { rolls: [number, number]; entries: Entry[] }> =
       { item: "legs_iron", min: 1, max: 1, w: 2 },
       { item: "sword_iron", min: 1, max: 1, w: 2 },
       { item: "sword_gideon", min: 1, max: 1, w: 0.6 },
+      { item: "obsidian", min: 4, max: 9, w: 4 },
     ],
   },
   torre: {
@@ -46,6 +47,22 @@ const TABLES: Record<LootTable, { rolls: [number, number]; entries: Entry[] }> =
       { item: "coal", min: 3, max: 8, w: 6 },
       { item: "spear_stone", min: 1, max: 1, w: 3 },
       { item: "boots_iron", min: 1, max: 1, w: 1.5 },
+      { item: "obsidian", min: 2, max: 5, w: 2.5 },
+    ],
+  },
+  fortaleza: {
+    rolls: [4, 7],
+    entries: [
+      { item: "sulfur", min: 3, max: 8, w: 8 },
+      { item: "ember_shard", min: 2, max: 6, w: 8 },
+      { item: "gold_ingot", min: 2, max: 6, w: 7 },
+      { item: "sapphire", min: 1, max: 4, w: 6 },
+      { item: "iron_ingot", min: 3, max: 8, w: 6 },
+      { item: "obsidian", min: 4, max: 10, w: 5 },
+      { item: "cooked_meat", min: 4, max: 8, w: 5 },
+      { item: "chest_iron", min: 1, max: 1, w: 2 },
+      { item: "pickaxe_sapphire", min: 1, max: 1, w: 1 },
+      { item: "sword_sapphire", min: 1, max: 1, w: 1.2 },
     ],
   },
   ruina: {

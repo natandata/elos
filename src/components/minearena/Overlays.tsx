@@ -23,7 +23,7 @@ export function HeroDialog({ d, onAct }: { d: DialogInfo; onAct: (a: "follow" | 
         {d.verse ? <p className="ma-dialog-verse">{d.verse}</p> : null}
         {d.gifts.length > 0 ? <p className="ma-dialog-gift">🎁 Presente: {d.gifts.join(", ")}</p> : null}
         <div className="ma-dialog-btns">
-          {d.recruited ? (
+          {d.closeOnly ? null : d.recruited ? (
             <button type="button" className="ma-btn" onClick={() => onAct("stay")}>
               Ficar aqui
             </button>

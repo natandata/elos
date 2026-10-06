@@ -87,6 +87,12 @@ const KEYS = [
   "cedar_leaves",
   "cedar_planks",
   "palm_leaves",
+  "basalt",
+  "ash",
+  "sulfur_ore",
+  "ember_block",
+  "basalt_brick",
+  "portal",
 ] as const;
 export type BlockKey = (typeof KEYS)[number];
 
@@ -177,6 +183,12 @@ const SPECS: Record<BlockKey, Spec> = {
   cedar_leaves: blk("Folhas de cedro", 0x2f6a4a, 0.25, "hand", 0, [drop("stick", 1, 2, 0.3)], "leaf", { opaque: false }),
   cedar_planks: blk("Tábuas de cedro do Líbano", 0xa8583a, 1.8, "axe", 0, [drop("cedar_planks")], "wood"),
   palm_leaves: blk("Palmas de tamareira", 0x7aa83a, 0.25, "hand", 0, [drop("stick", 1, 1, 0.2), drop("dates", 1, 2, 0.18)], "leaf", { opaque: false }),
+  basalt: blk("Rocha calcinada", 0x3a2a2e, 3, "pick", 1, [drop("basalt")], "stone"),
+  ash: blk("Cinza", 0x6a5a5a, 0.5, "shovel", 0, [drop("ash")], "sand"),
+  sulfur_ore: blk("Enxofre", 0xd9c93a, 3, "pick", 1, [drop("sulfur", 1, 3)], "stone"),
+  ember_block: blk("Brasa viva", 0xff7a1a, 1.5, "pick", 0, [drop("ember_shard", 2, 4)], "glass", { glow: true }),
+  basalt_brick: blk("Muralha de Hinom", 0x4a2a30, 4, "pick", 1, [drop("basalt_brick")], "stone"),
+  portal: blk("Portal do Abismo", 0x8a2be2, 0.1, "hand", 0, [], "glass", { solid: false, opaque: false, blend: true, glow: true, placeable: false }),
   furnace_lit: blk("Fornalha acesa", 0x6a6a6e, 3.5, "pick", 1, [drop("furnace")], "stone", { glow: true, placeable: false }),
 };
 

@@ -21,6 +21,8 @@ import { canvasPixels, spritePixels } from "./textures/sprites";
 import { Sky } from "./world/sky";
 import { World } from "./world/world";
 import { BIOME_NAME, biomeAt, findSpawn } from "./world/worldgen";
+import { ARENA, FORTRESS_RESIDENTS, GEENA_ARRIVAL, fortressesNear } from "./world/geena";
+import type { MobDef } from "./entities/definitions";
 import { RECIPES, type Recipe } from "./crafting/recipes";
 
 export interface HudState {
@@ -42,8 +44,9 @@ export interface HudState {
   hurt: number;
   allies: string[];
   coords: string;
-  /** 0–1: escurecimento da tela ao dormir. */
+  /** 0–1: escurecimento da tela ao dormir ou atravessar o portal. */
   fade: number;
+  fadeText: string;
 }
 
 export interface DialogInfo {
@@ -55,6 +58,7 @@ export interface DialogInfo {
   verse: string;
   gifts: string[];
   recruited: boolean;
+  closeOnly?: boolean;
 }
 
 export interface GameCallbacks {
@@ -92,6 +96,16 @@ export class MineArena {
   private scene = new THREE.Scene();
   private camera: THREE.PerspectiveCamera;
   private world: World;
+  private dimension: "overworld" | "geena" = "overworld";
+  private baseSeed = 0;
+  private overMods: Record<string, number[]> = {};
+  private geenaMods: Record<string, number[]> = {};
+  private satanDefeated = false;
+  private portalReturn: { x: number; y: number; z: number } | null = null;
+  private portalT = 0;
+  private portalCd = 0;
+  private pendingAllies: MobDef[] = [];
+  private geenaSpawned = new Set<string>();
   private fluids: FluidSim;
   private sky: Sky;
   private particles: Particles;
@@ -175,12 +189,19 @@ export class MineArena {
     this.camera = new THREE.PerspectiveCamera(this.mobile ? 70 : 75, 1, 0.08, (this.radius + 2) * 16);
     this.scene.add(this.camera);
 
-    this.world = new World(save.seed, this.scene);
-    this.world.loadMods(save.mods);
+    this.baseSeed = save.seed;
+    this.dimension = save.dimension ?? "overworld";
+    this.overMods = save.mods ?? {};
+    this.geenaMods = save.modsGeena ?? {};
+    this.satanDefeated = save.satanDefeated ?? false;
+    this.portalReturn = save.portalReturn ?? null;
+    this.world = new World(this.dimension === "geena" ? save.seed + 99991 : save.seed, this.scene, this.dimension);
+    this.world.loadMods(this.dimension === "geena" ? this.geenaMods : this.overMods);
     this.fluids = new FluidSim(this.world);
     this.world.onChange = (x, y, z) => this.fluids.poke(x, y, z);
     const far = this.radius * 16 - 6;
     this.sky = new Sky(this.scene, far, [this.world.matO, this.world.matT]);
+    if (this.dimension === "geena") this.sky.setFire(true);
     this.particles = new Particles(this.scene);
     this.entities = new EntityManager(this.scene, this.world, this.particles, this.sfx, this.hooks(), save.seed);
 
@@ -268,6 +289,7 @@ export class MineArena {
     this.sens = s.sensitivity / 100;
     this.invertY = s.invertY;
     this.sfx.volume = s.volume / 100;
+    this.cloudsOn = s.clouds;
     this.sky.setClouds(s.clouds);
     this.particles.enabled = s.particles;
     this.showCoords = s.coords;
@@ -293,7 +315,7 @@ export class MineArena {
     return {
       id: this.id,
       name: this.name,
-      seed: this.world.seed,
+      seed: this.baseSeed,
       createdAt: this.createdAt,
       updatedAt: Date.now(),
       playedSeconds: this.playedSeconds,
@@ -301,7 +323,11 @@ export class MineArena {
       player: { x: this.body.x, y: this.body.y, z: this.body.z, yaw: this.yaw, pitch: this.pitch, health: this.health, hunger: this.hunger },
       spawn: this.spawn,
       inventory: JSON.parse(JSON.stringify(this.inventory.toJSON())),
-      mods: this.world.exportMods(),
+      mods: this.dimension === "overworld" ? this.world.exportMods() : this.overMods,
+      modsGeena: this.dimension === "geena" ? this.world.exportMods() : this.geenaMods,
+      dimension: this.dimension,
+      satanDefeated: this.satanDefeated,
+      portalReturn: this.portalReturn ?? undefined,
       discoveries: [...this.discoveries],
       heroesMet: [...this.heroesMet],
       kills: this.kills,
@@ -419,8 +445,9 @@ export class MineArena {
       },
       give: (item: string, count: number) => this.give(item, count),
       say: (text: string) => this.cb.onMessage(text, "warn"),
-      onKill: () => {
+      onKill: (def: MobDef) => {
         this.kills++;
+        if (def.id === "satanas") this.onSatanDefeated();
       },
     };
   }
@@ -462,6 +489,9 @@ export class MineArena {
   }
 
   respawn(): void {
+    if (this.dimension === "geena") {
+      this.switchDimension("overworld", this.spawn);
+    }
     this.body.x = this.spawn.x;
     this.body.y = this.spawn.y;
     this.body.z = this.spawn.z;
@@ -493,9 +523,23 @@ export class MineArena {
         const sx = Math.floor(b.x);
         const sz = Math.floor(b.z);
         if (this.world.isSolid(sx, Math.floor(b.y), sz) || this.world.isSolid(sx, Math.floor(b.y + 1), sz)) {
-          const sy = this.world.surfaceY(sx, sz);
-          if (sy >= 0) b.y = sy + 1.05;
+          if (this.dimension === "geena") {
+            for (let y = Math.floor(b.y); y < 60; y++) {
+              if (!this.world.isSolid(sx, y, sz) && !this.world.isSolid(sx, y + 1, sz)) {
+                b.y = y + 0.05;
+                break;
+              }
+            }
+          } else {
+            const sy = this.world.surfaceY(sx, sz);
+            if (sy >= 0) b.y = sy + 1.05;
+          }
         }
+        for (const d of this.pendingAllies) {
+          const e = this.entities.spawn(d, b.x + 1.5, b.y + 0.2, b.z + 1.5);
+          e.ally = true;
+        }
+        this.pendingAllies = [];
         this.syncCamera();
       }
       this.emitHud(dt, true);
@@ -504,7 +548,9 @@ export class MineArena {
 
     this.playedSeconds += dt;
     this.time = (this.time + dt / DAY_SECONDS) % 1;
-    this.sky.update(this.time, this.camera.position);
+    if (this.dimension === "geena") this.sky.updateFire();
+    else this.sky.update(this.time, this.camera.position);
+    this.portalCd = Math.max(0, this.portalCd - dt);
     this.invuln = Math.max(0, this.invuln - dt);
     this.hurtFlash = Math.max(0, this.hurtFlash - dt * 2);
     this.atkCd = Math.max(0, this.atkCd - dt);
@@ -519,7 +565,7 @@ export class MineArena {
     }
     this.syncCamera();
 
-    this.entities.update(dt, { px: b.x, py: b.y, pz: b.z, alive: this.alive, daylight: this.sky.daylight, mobile: this.mobile });
+    this.entities.update(dt, { px: b.x, py: b.y, pz: b.z, alive: this.alive, daylight: this.sky.daylight, mobile: this.mobile, dim: this.dimension });
     this.particles.update(dt);
     this.tickFurnaces(dt);
     this.tickCrops(dt);
@@ -534,6 +580,8 @@ export class MineArena {
         this.cb.onMessage("Bom dia! Você acordou descansado.", "good");
       }
     }
+    this.portalTick(dt);
+    this.geenaTick();
     this.exploration(dt);
     this.tutorialTick();
     this.animateHand();
@@ -714,6 +762,7 @@ export class MineArena {
     let dmg = w?.dmg ?? 1;
     const crit = !this.body.onGround && this.body.vy < -1;
     if (crit) dmg *= 1.5;
+    if (e.def.evil && held?.key === "sword_spirit") dmg *= 1.6;
     this.atkCd = w?.cooldown ?? 0.45;
     this.swing = 1;
     if (this.entities.hurt(e, dmg, dir.x, dir.z, true)) {
@@ -807,6 +856,14 @@ export class MineArena {
     // mirando numa planta, enxada e sementes valem pro chão embaixo dela
     const onPlant = !!hit && blockDef(hit.id).shape === "cross";
     const tgt = hit && onPlant ? { x: hit.x, y: hit.y - 1, z: hit.z, id: this.world.getBlock(hit.x, hit.y - 1, hit.z) } : hit;
+    // acender o portal do Abismo com o tição do altar
+    if (held.key === "ember_brand" && hit && hit.id === B.obsidian) {
+      if (this.tryLightPortal(hit.x + hit.nx, hit.y + hit.ny, hit.z + hit.nz)) {
+        this.sfx.play("fire");
+        this.cb.onMessage("O portal do Abismo se abriu…", "rare");
+      } else this.cb.onMessage("A moldura de obsidiana precisa estar fechada.", "warn");
+      return;
+    }
     // arar a terra com a enxada
     if (held.tool?.type === "hoe" && tgt && (tgt.id === B.grass || tgt.id === B.dirt)) {
       const above = this.world.getBlock(tgt.x, tgt.y + 1, tgt.z);
@@ -868,8 +925,162 @@ export class MineArena {
     }
   }
 
+  // ---------- dimensão de fogo (Geena) ----------
+  /** Tenta acender a moldura de obsidiana: preenche o vão com o portal do Abismo. */
+  private tryLightPortal(sx: number, sy: number, sz: number): boolean {
+    if (this.world.getBlock(sx, sy, sz) !== B.air) return false;
+    for (const axis of ["x", "z"] as const) {
+      const cells: [number, number, number][] = [];
+      const seen = new Set<string>([`${sx},${sy},${sz}`]);
+      const queue: [number, number, number][] = [[sx, sy, sz]];
+      let ok = true;
+      while (queue.length && ok) {
+        const [x, y, z] = queue.shift()!;
+        cells.push([x, y, z]);
+        if (cells.length > 21) {
+          ok = false;
+          break;
+        }
+        const nbs: [number, number, number][] = axis === "x" ? [[x, y + 1, z], [x, y - 1, z], [x, y, z + 1], [x, y, z - 1]] : [[x, y + 1, z], [x, y - 1, z], [x + 1, y, z], [x - 1, y, z]];
+        for (const n of nbs) {
+          const k = `${n[0]},${n[1]},${n[2]}`;
+          if (seen.has(k)) continue;
+          const id = this.world.getBlock(n[0], n[1], n[2]);
+          if (id === B.air) {
+            seen.add(k);
+            queue.push(n);
+          } else if (id !== B.obsidian) ok = false;
+        }
+      }
+      if (ok && cells.length >= 2) {
+        for (const [x, y, z] of cells) this.world.setBlock(x, y, z, B.portal);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private portalTick(dt: number): void {
+    const b = this.body;
+    const inPortal = this.world.getBlock(Math.floor(b.x), Math.floor(b.y + 0.3), Math.floor(b.z)) === B.portal || this.world.getBlock(Math.floor(b.x), Math.floor(b.y + 1.2), Math.floor(b.z)) === B.portal;
+    if (!inPortal || this.portalCd > 0 || !this.alive) {
+      this.portalT = Math.max(0, this.portalT - dt * 2);
+      return;
+    }
+    this.portalT += dt;
+    if (this.portalT >= 2.4) {
+      this.portalT = 0;
+      if (this.dimension === "overworld") {
+        this.portalReturn = { x: b.x, y: b.y, z: b.z };
+        this.switchDimension("geena", { x: GEENA_ARRIVAL.x + 0.5, y: GEENA_ARRIVAL.floorY + 1, z: GEENA_ARRIVAL.z + 0.5 });
+        this.cb.onMessage("Você desceu a Geena, o Vale de Hinom. “Ainda que eu ande pelo vale da sombra da morte, não temerei mal nenhum.” — Sl 23.4", "rare");
+      } else {
+        this.switchDimension("overworld", this.portalReturn ?? this.spawn);
+        this.cb.onMessage("Você voltou à luz.", "good");
+      }
+    }
+  }
+
+  /** Troca de dimensão: salva os blocos da atual, recria o mundo, as criaturas e leva os aliados. */
+  private switchDimension(dim: "overworld" | "geena", pos: { x: number; y: number; z: number }): void {
+    if (dim === this.dimension) return;
+    this.pendingAllies = this.entities.list.filter((e) => e.ally && !e.dead).map((e) => e.def);
+    const cur = this.world.exportMods();
+    if (this.dimension === "overworld") this.overMods = cur;
+    else this.geenaMods = cur;
+    this.entities.dispose();
+    this.world.dispose();
+    this.dimension = dim;
+    this.world = new World(dim === "geena" ? this.baseSeed + 99991 : this.baseSeed, this.scene, dim);
+    this.world.loadMods(dim === "geena" ? this.geenaMods : this.overMods);
+    this.fluids = new FluidSim(this.world);
+    this.world.onChange = (x, y, z) => this.fluids.poke(x, y, z);
+    this.sky.setMaterials([this.world.matO, this.world.matT]);
+    this.sky.setFire(dim === "geena");
+    this.setClouds();
+    this.entities = new EntityManager(this.scene, this.world, this.particles, this.sfx, this.hooks(), this.baseSeed);
+    this.body.x = pos.x;
+    this.body.y = pos.y;
+    this.body.z = pos.z;
+    this.body.vx = this.body.vy = this.body.vz = 0;
+    this.ready = false;
+    this.portalCd = 5;
+    this.lastBiome = "";
+    this.sfx.play("boss");
+    void this.saveNow();
+  }
+
+  private cloudsOn = true;
+  private setClouds(): void {
+    this.sky.setClouds(this.cloudsOn);
+  }
+
+  /** Geena: moradores das fortalezas e o despertar do Adversário no trono. */
+  private geenaTick(): void {
+    if (this.dimension !== "geena") return;
+    const b = this.body;
+    for (const f of fortressesNear(this.world.seed, b.x, b.z, 60)) {
+      if (this.geenaSpawned.has(f.key) || !this.world.hasChunkAt(f.ox, f.oz)) continue;
+      this.geenaSpawned.add(f.key);
+      this.cb.onMessage("✦ Descoberta: Fortaleza de Hinom", "rare");
+      const md = MOB_BY_ID.get("demonio");
+      if (md) for (const r of FORTRESS_RESIDENTS) this.entities.spawn(md, f.ox + r.dx + 0.5, f.gy + 1.05, f.oz + r.dz + 0.5);
+    }
+    const d = Math.hypot(b.x - ARENA.x, b.z - ARENA.z);
+    if (!this.satanDefeated && d < 42 && this.world.hasChunkAt(ARENA.x, ARENA.z) && !this.entities.list.some((e) => e.def.id === "satanas" && !e.dead)) {
+      const sd = MOB_BY_ID.get("satanas");
+      if (sd) {
+        this.entities.spawn(sd, ARENA.x + 6.5, ARENA.floorY + 1.05, ARENA.z + 0.5);
+        this.cb.onMessage("⚠ Satanás, o Adversário, ergue-se do trono! Resista e vença com a fé.", "warn");
+        this.sfx.play("boss");
+      }
+    }
+  }
+
+  /** Vitória sobre o Adversário: a arca do trono guarda a Armadura de Deus. */
+  private onSatanDefeated(): void {
+    this.satanDefeated = true;
+    const rewards: { item: string; count: number }[] = [
+      { item: "helmet_god", count: 1 },
+      { item: "chest_god", count: 1 },
+      { item: "legs_god", count: 1 },
+      { item: "boots_god", count: 1 },
+      { item: "sword_spirit", count: 1 },
+      { item: "gold_ingot", count: 16 },
+      { item: "sapphire", count: 12 },
+      { item: "ember_shard", count: 16 },
+      { item: "cooked_meat", count: 16 },
+    ];
+    const cx = ARENA.x;
+    const cy = ARENA.floorY + 2;
+    const cz = ARENA.z;
+    this.world.setBlock(cx, cy, cz, B.chest);
+    const slots: SavedContainer["slots"] = Array.from({ length: 27 }, () => null);
+    rewards.forEach((r, i) => (slots[i] = { ...r }));
+    this.containers.set(this.ckey(cx, cy, cz), { kind: "chest", slots, burn: 0, burnMax: 0, cook: 0 });
+    this.particles.burst(cx + 0.5, cy + 1, cz + 0.5, 0xffd66b, 60, 9, 0.22, 4);
+    this.sfx.play("pickup");
+    this.cb.onMessage("✦ O Adversário foi vencido! A arca do trono guarda a Armadura de Deus.", "rare");
+    this.cb.onDialog({
+      name: "Vitória!",
+      title: "O Adversário foi vencido",
+      emoji: "🕊️",
+      line: "Sujeitai-vos, portanto, a Deus; mas resisti ao diabo, e ele fugirá de vós. — Tg 4.7",
+      verse: "Eles o venceram por causa do sangue do Cordeiro e por causa da palavra do testemunho. — Ap 12.11",
+      gifts: ["Armadura de Deus (Ef 6.13-17)", "Espada do Espírito"],
+      recruited: false,
+      closeOnly: true,
+    });
+    this.setUiOpen(true);
+    void this.saveNow();
+  }
+
   // ---------- cama e plantações ----------
   private useBed(x: number, y: number, z: number): void {
+    if (this.dimension === "geena") {
+      this.cb.onMessage("Não há descanso em Geena.", "warn");
+      return;
+    }
     this.spawn = { x: x + 0.5, y: y + 1.1, z: z + 0.5 };
     if (this.sky.daylight >= 0.35) {
       this.cb.onMessage("Ponto de renascimento definido. Só dá pra dormir à noite.", "info");
@@ -891,6 +1102,7 @@ export class MineArena {
   }
 
   private tickCrops(dt: number): void {
+    if (this.dimension !== "overworld") return;
     this.cropT -= dt;
     if (this.cropT > 0) return;
     this.cropT = 1;
@@ -915,8 +1127,12 @@ export class MineArena {
   }
 
   // ---------- baús e fornalhas ----------
+  private ckey(x: number, y: number, z: number): string {
+    return `${this.dimension === "geena" ? "g:" : ""}${x},${y},${z}`;
+  }
+
   private containerAt(x: number, y: number, z: number, id: number): SavedContainer {
-    const key = `${x},${y},${z}`;
+    const key = this.ckey(x, y, z);
     let c = this.containers.get(key);
     if (!c) {
       if (id === B.chest) {
@@ -930,7 +1146,7 @@ export class MineArena {
 
   private openContainer(x: number, y: number, z: number, id: number): void {
     const c = this.containerAt(x, y, z, id);
-    this.openKey = `${x},${y},${z}`;
+    this.openKey = this.ckey(x, y, z);
     this.inventory.ext = {
       slots: c.slots,
       accepts: (i, s) => {
@@ -958,7 +1174,7 @@ export class MineArena {
   }
 
   private spillContainer(x: number, y: number, z: number, id: number): void {
-    const key = `${x},${y},${z}`;
+    const key = this.ckey(x, y, z);
     const c = this.containerAt(x, y, z, id);
     for (const s of c.slots) if (s) this.give(s.item, s.count);
     if (id === B.chest) this.give("chest", 1);
@@ -971,7 +1187,7 @@ export class MineArena {
     const sync = this.furnaceT <= 0;
     if (sync) this.furnaceT = 0.5;
     for (const [key, c] of this.containers) {
-      if (c.kind !== "furnace") continue;
+      if (c.kind !== "furnace" || key.startsWith("g:") !== (this.dimension === "geena")) continue;
       const inp = c.slots[0];
       const res = inp ? SMELT[inp.item] : undefined;
       const out = c.slots[2];
@@ -995,7 +1211,7 @@ export class MineArena {
         }
       } else if (c.cook > 0) c.cook = Math.max(0, c.cook - dt * 2);
       if (sync) {
-        const [x, y, z] = key.split(",").map(Number);
+        const [x, y, z] = key.replace("g:", "").split(",").map(Number);
         if (this.world.hasChunkAt(x, z)) {
           const cur = this.world.getBlock(x, y, z);
           const want = c.burn > 0 ? B.furnace_lit : B.furnace;
@@ -1068,6 +1284,10 @@ export class MineArena {
     this.biomeT -= dt;
     if (this.biomeT > 0) return;
     this.biomeT = 1;
+    if (this.dimension === "geena") {
+      this.lastBiome = "geena";
+      return;
+    }
     const biome = biomeAt(this.world.seed, this.body.x, this.body.z);
     if (biome !== this.lastBiome) {
       this.lastBiome = biome;
@@ -1206,7 +1426,7 @@ export class MineArena {
     this.hudT = 0.1;
     const t = this.time;
     const sunH = Math.sin(t * Math.PI * 2);
-    const phase = sunH > 0.5 ? "Dia" : sunH > 0 ? (t < 0.25 ? "Amanhecer" : "Entardecer") : "Noite";
+    const phase = this.dimension === "geena" ? "Geena" : sunH > 0.5 ? "Dia" : sunH > 0 ? (t < 0.25 ? "Amanhecer" : "Entardecer") : "Noite";
     const boss = this.entities.bossNear(this.body.x, this.body.z);
     const held = this.heldDef();
     const slots = this.inventory.slots.slice(0, HOTBAR).map((s) => (s ? { ...s } : null));
@@ -1220,7 +1440,7 @@ export class MineArena {
       heldColor: held ? RARITY_COLOR[held.rarity] : "#fff",
       time: t,
       phase,
-      biome: BIOME_NAME[this.lastBiome as keyof typeof BIOME_NAME] ?? "",
+      biome: this.dimension === "geena" ? "Geena — Vale de Hinom" : (BIOME_NAME[this.lastBiome as keyof typeof BIOME_NAME] ?? ""),
       target: this.targetName,
       mining: this.mineProgress,
       boss: boss ? { name: boss.def.name, hp: Math.max(0, boss.hp), max: boss.maxHp } : null,
@@ -1228,7 +1448,8 @@ export class MineArena {
       alive: this.alive,
       hurt: this.hurtFlash,
       allies: this.entities.list.filter((e) => e.ally && !e.dead).map((e) => e.def.name),
-      fade: this.sleepT > 0 ? Math.max(0, Math.min(1, 1 - Math.abs(this.sleepT - 1.4) / 1.4)) : 0,
+      fadeText: this.sleepT <= 0 && this.portalT > 0 ? "🔥 Atravessando o portal…" : "💤 Dormindo…",
+      fade: Math.max(this.sleepT > 0 ? Math.max(0, Math.min(1, 1 - Math.abs(this.sleepT - 1.4) / 1.4)) : 0, Math.min(0.85, this.portalT / 2.4)),
       coords: !this.showCoords ? "" : `${Math.floor(this.body.x)}, ${Math.floor(this.body.y)}, ${Math.floor(this.body.z)}`,
     });
   }

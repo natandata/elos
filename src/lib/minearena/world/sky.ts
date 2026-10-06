@@ -14,7 +14,26 @@ export class Sky {
   private fog: THREE.Fog;
   daylight = 1;
   setClouds(on: boolean): void {
-    this.clouds.visible = on;
+    this.clouds.visible = on && !this.fire;
+  }
+  private fire = false;
+  setMaterials(mats: THREE.MeshBasicMaterial[]): void {
+    this.worldMat = mats;
+  }
+  /** Geena: sem sol nem lua, céu e névoa vermelhos e luz fixa. */
+  setFire(on: boolean): void {
+    this.fire = on;
+    this.sunMesh.visible = this.moonMesh.visible = this.stars.visible = !on;
+    this.clouds.visible = !on;
+  }
+  updateFire(): void {
+    const bg = new THREE.Color(0x2a0806);
+    (this.scene.background as THREE.Color).copy(bg);
+    this.fog.color.copy(bg);
+    this.daylight = 0;
+    this.sun.intensity = 0.2;
+    this.ambient.intensity = 0.55;
+    for (const m of this.worldMat) m.color.setRGB(0.9, 0.62, 0.55);
   }
   private clouds = new THREE.Group();
   private cloudMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.92, fog: false, depthWrite: false });

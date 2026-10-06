@@ -7,6 +7,7 @@ import { CHUNK, WORLD_H } from "../config/config";
 import { rand01 } from "./noise";
 import type { LootTable } from "../structures/loot";
 import { generateChunk } from "./worldgen";
+import { generateGeena } from "./geena";
 
 export class Chunk {
   data: Uint8Array = new Uint8Array(CHUNK * CHUNK * WORLD_H);
@@ -73,6 +74,7 @@ export class World {
   constructor(
     public seed: number,
     scene: THREE.Scene,
+    readonly dimension: "overworld" | "geena" = "overworld",
   ) {
     this.atlas = createAtlas();
     this.matO = new THREE.MeshBasicMaterial({ map: this.atlas, vertexColors: true, alphaTest: 0.5 });
@@ -159,7 +161,7 @@ export class World {
   }
 
   private gen(cx: number, cz: number): void {
-    const g = generateChunk(this.seed, cx, cz);
+    const g = this.dimension === "geena" ? generateGeena(this.seed, cx, cz) : generateChunk(this.seed, cx, cz);
     for (const c of g.chests) this.lootChests.set(`${c.x},${c.y},${c.z}`, c.table);
     const ch = new Chunk(cx, cz);
     ch.data = g.data;
@@ -328,7 +330,7 @@ export class World {
             // luz do céu: acima da superfície = claro; abaixo escurece com a profundidade
             const ny = y + fd.n[1];
             let light = 1;
-            if (!def.glow) light = ny >= hTop ? 1 : Math.max(0.26, 1 - (hTop - ny) * 0.11);
+            if (!def.glow) light = this.dimension === "geena" ? 0.78 : ny >= hTop ? 1 : Math.max(0.26, 1 - (hTop - ny) * 0.11);
             const k = fd.shade * jitter * light;
             const aboveId = get(x, y + 1, z);
             const lowTop = def.liquid && !(def.fluid && BLOCKS[aboveId].fluid === def.fluid);

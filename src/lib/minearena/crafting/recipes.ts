@@ -45,6 +45,7 @@ rec("bed", 1, [i("wool", 3), i("planks", 3)], "bancada");
 rec("arrow", 4, [i("stick"), i("feather")]);
 rec("bucket", 1, [i("iron_ingot", 3)], "bancada");
 rec("cedar_planks", 4, [i("cedar_log")]);
+rec("ember_brand", 1, [i("coal"), i("iron_ingot")], "bancada");
 rec("chest", 1, [i("planks", 8)], "bancada");
 rec("furnace", 1, [i("cobble", 8)], "bancada");
 rec("limestone", 4, [i("sandstone", 4)], "bancada");
