@@ -19,7 +19,7 @@ export async function ArenaLaunchCard() {
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="/arena/capa.webp" alt="Arena dos Heróis" className="block aspect-[16/9] w-full object-cover" draggable={false} />
       <span className="absolute left-3 top-3 rounded-full bg-amber-400 px-3 py-1 text-[11px] font-black uppercase tracking-wide text-black shadow">🔥 Sucesso no 1º dia</span>
-      <span className="absolute inset-x-0 bottom-0 block bg-gradient-to-t from-black/95 via-black/80 to-transparent px-4 pb-3 pt-14 text-white">
+      <span className="block bg-gradient-to-b from-[#1b1208] to-black px-4 pb-3 pt-3 text-white">
         <span className="grid grid-cols-2 gap-2 text-center">
           <span className="rounded-xl bg-white/10 px-2 py-2 backdrop-blur-sm">
             <b className="block text-2xl font-black tabular-nums leading-none text-amber-300">{fmt(stats.matches)}</b>
