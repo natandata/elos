@@ -3,6 +3,7 @@ import { B } from "../blocks/blocks";
 import { CHUNK, SEA_LEVEL, WORLD_H } from "../config/config";
 import { fbm2, noise3, rand01, smoothstep } from "./noise";
 import type { LootTable } from "../structures/loot";
+import { LANDMARKS, type LandmarkSite } from "../structures/landmarks";
 import { CELL, STRUCTURE_BY_ID, structureAt } from "../structures/structures";
 
 export type BiomeId = "planicie" | "floresta" | "deserto" | "montanha" | "lago" | "oasis" | "savana" | "libano" | "hermom";
@@ -85,7 +86,7 @@ export interface GenChest {
   table: LootTable;
 }
 
-export function generateChunk(seed: number, cx: number, cz: number): { data: Uint8Array; maxY: number; chests: GenChest[] } {
+export function generateChunk(seed: number, cx: number, cz: number, landmarks: LandmarkSite[] = []): { data: Uint8Array; maxY: number; chests: GenChest[] } {
   const data = new Uint8Array(CHUNK * CHUNK * WORLD_H);
   const x0 = cx * CHUNK;
   const z0 = cz * CHUNK;
@@ -243,6 +244,53 @@ export function generateChunk(seed: number, cx: number, cz: number): { data: Uin
         rnd: (i) => rand01(sp.seed, i, 0, 0),
       });
     }
+  }
+
+  // monumentos bíblicos gigantes (Arca, Babel, Jericó…): nivelam o terreno, escavam o mar (baleia) e constroem
+  for (const lm of landmarks) {
+    const def = LANDMARKS[lm.id];
+    if (lm.x + def.rx < x0 || lm.x - def.rx >= x0 + CHUNK || lm.z + def.rz < z0 || lm.z - def.rz >= z0 + CHUNK) continue;
+    const gy = lm.gy;
+    maxY = Math.max(maxY, Math.min(WORLD_H - 1, gy + def.H));
+    const surface = columnInfo(seed, lm.x, lm.z).biome === "deserto" ? B.sand : B.grass;
+    for (let lz = 0; lz < CHUNK; lz++) {
+      for (let lx = 0; lx < CHUNK; lx++) {
+        const dx = x0 + lx - lm.x;
+        const dz = z0 + lz - lm.z;
+        if (Math.abs(dx) > def.rx || Math.abs(dz) > def.rz) continue;
+        const hc = heights[lx + lz * CHUNK];
+        const top = Math.min(WORLD_H - 1, Math.max(hc, gy) + def.H);
+        const rr = Math.hypot(dx, dz);
+        if (def.pool && rr <= def.pool.r) {
+          const floor = Math.max(1, gy - def.pool.depth - 1);
+          for (let y = Math.min(hc, floor); y <= floor; y++) data[idx(lx, y, lz)] = y === 0 ? B.bedrock : B.sand;
+          for (let y = floor + 1; y < gy; y++) data[idx(lx, y, lz)] = B.water;
+          for (let y = gy; y <= top; y++) data[idx(lx, y, lz)] = B.air;
+        } else {
+          for (let y = Math.min(hc, gy) + 1; y < gy; y++) data[idx(lx, y, lz)] = B.cobble;
+          data[idx(lx, gy, lz)] = def.pool && rr <= def.pool.r + 3 ? B.sand : surface;
+          for (let y = gy + 1; y <= top; y++) data[idx(lx, y, lz)] = B.air;
+        }
+      }
+    }
+    const lseed = Math.abs(lm.x * 73856093 + lm.z * 19349663) % 2147483647;
+    def.build({
+      set: (dx, dy, dz, id) => put(lm.x + dx, gy + dy, lm.z + dz, id, false),
+      fill: (a, b, c, d, e, f, id) => {
+        for (let X = Math.max(a, x0 - lm.x); X <= Math.min(d, x0 + CHUNK - 1 - lm.x); X++) {
+          for (let Z = Math.max(c, z0 - lm.z); Z <= Math.min(f, z0 + CHUNK - 1 - lm.z); Z++) {
+            for (let Y = b; Y <= e; Y++) put(lm.x + X, gy + Y, lm.z + Z, id, false);
+          }
+        }
+      },
+      chest: (dx, dy, dz, table) => {
+        const wx = lm.x + dx;
+        const wz = lm.z + dz;
+        put(wx, gy + dy, wz, B.chest, false);
+        if (wx >= x0 && wx < x0 + CHUNK && wz >= z0 && wz < z0 + CHUNK) chests.push({ x: wx, y: gy + dy, z: wz, table });
+      },
+      rnd: (i) => rand01(lseed, i, 0, 0),
+    });
   }
 
   return { data, maxY: Math.min(WORLD_H - 1, maxY + 1), chests };

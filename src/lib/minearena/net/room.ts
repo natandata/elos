@@ -133,7 +133,7 @@ export async function joinRoom(
   sb: SupabaseClient,
   me: Peer,
   hostId: string,
-): Promise<{ net: RoomNet; welcome: { seed: number; time: number; spawn: { x: number; y: number; z: number }; host: { x: number; y: number; z: number }; peers: Peer[] } }> {
+): Promise<{ net: RoomNet; welcome: { seed: number; time: number; spawn: { x: number; y: number; z: number }; host: { x: number; y: number; z: number }; peers: Peer[]; lm?: { id: string; x: number; z: number; gy: number }[] } }> {
   const net = new RoomNet(sb, me, hostId, "guest");
   await net.connect();
   return new Promise((resolve, reject) => {
@@ -148,7 +148,7 @@ export async function joinRoom(
     });
     net.on("welcome", (m) => {
       clearTimeout(timer);
-      resolve({ net, welcome: m as unknown as { seed: number; time: number; spawn: { x: number; y: number; z: number }; host: { x: number; y: number; z: number }; peers: Peer[] } });
+      resolve({ net, welcome: m as unknown as { seed: number; time: number; spawn: { x: number; y: number; z: number }; host: { x: number; y: number; z: number }; peers: Peer[]; lm?: { id: string; x: number; z: number; gy: number }[] } });
     });
     net.send("hello", { name: me.name });
   });

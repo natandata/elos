@@ -1,5 +1,6 @@
 // Mundos salvos no próprio aparelho (IndexedDB), com reserva em memória se o navegador bloquear.
 import type { Stack } from "../items/inventory";
+import type { LandmarkSite } from "../structures/landmarks";
 
 export interface WorldSave {
   id: string;
@@ -8,6 +9,8 @@ export interface WorldSave {
   createdAt: number;
   updatedAt: number;
   playedSeconds: number;
+  /** Monumentos bíblicos já revelados neste mundo. */
+  landmarks?: LandmarkSite[];
   /** Tempo do dia (0–1). */
   time: number;
   player: { x: number; y: number; z: number; yaw: number; pitch: number; health: number; hunger: number };

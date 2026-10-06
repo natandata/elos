@@ -5,6 +5,7 @@ import { BLOCK_TILES, tileIndex, tileUV } from "../blocks/tiles";
 import { createAtlas } from "../textures/atlas";
 import { CHUNK, WORLD_H } from "../config/config";
 import type { LootTable } from "../structures/loot";
+import type { LandmarkSite } from "../structures/landmarks";
 import { generateChunk } from "./worldgen";
 import { generateGeena } from "./geena";
 
@@ -287,9 +288,12 @@ export class World {
   /** Tempos de geração e malha (ms) — pra ajustar o desempenho. */
   readonly stats = { genMs: 0, genN: 0, genMax: 0, meshMs: 0, meshN: 0, meshMax: 0 };
 
+  /** Monumentos bíblicos plantados neste mundo (o terreno é gerado a partir deles). */
+  landmarks: LandmarkSite[] = [];
+
   private gen(cx: number, cz: number): void {
     const t0 = performance.now();
-    const g = this.dimension === "geena" ? generateGeena(this.seed, cx, cz) : generateChunk(this.seed, cx, cz);
+    const g = this.dimension === "geena" ? generateGeena(this.seed, cx, cz) : generateChunk(this.seed, cx, cz, this.landmarks);
     for (const c of g.chests) this.lootChests.set(`${c.x},${c.y},${c.z}`, c.table);
     const ch = new Chunk(cx, cz);
     ch.data = g.data;

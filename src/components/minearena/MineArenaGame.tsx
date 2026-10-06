@@ -292,6 +292,7 @@ export function MineArenaGame({ me }: { me?: Peer }) {
         spawn: welcome.spawn,
         inventory: profile?.inventory ?? { slots: [], armor: [null, null, null, null], selected: 0 },
         mods: {},
+        landmarks: (welcome.lm ?? []) as WorldSave["landmarks"],
         discoveries: profile?.discoveries ?? [],
         heroesMet: profile?.heroesMet ?? [],
         kills: profile?.kills ?? 0,

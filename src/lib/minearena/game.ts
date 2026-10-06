@@ -17,6 +17,7 @@ import { type Body, inLava, newBody, stepBody } from "./player/physics";
 import { type SavedContainer, type WorldSave, putWorld } from "./save/save";
 import { FUEL, SMELT, SMELT_TIME } from "./crafting/smelting";
 import { rollLoot } from "./structures/loot";
+import { LANDMARKS, LANDMARK_INTERVAL_S, LANDMARK_ORDER, type LandmarkSite, compass, pickLandmarkSite } from "./structures/landmarks";
 import { STRUCTURE_BY_ID, structuresNear } from "./structures/structures";
 import { type Settings, DEFAULT_SETTINGS } from "./config/settings";
 import { BLOCK_TILES, type TileName } from "./blocks/tiles";
@@ -56,6 +57,8 @@ export interface HudState {
   /** Escudo na mão esquerda e se está erguido. */
   offhand: Stack;
   guarding: boolean;
+  /** Bússola: próximo monumento bíblico ainda não encontrado. */
+  quest: string | null;
   /** Cabeça dentro de água ou lava (tinge a tela). */
   submerged: "water" | "lava" | null;
 }
@@ -173,6 +176,8 @@ export class MineArena {
   private playedSeconds = 0;
   private kills = 0;
   private discoveries = new Set<string>();
+  private landmarks: LandmarkSite[] = [];
+  private lmFxT = 0;
   private heroesMet = new Set<string>();
   private spawn: { x: number; y: number; z: number };
   private lastBiome = "";
@@ -243,6 +248,8 @@ export class MineArena {
     this.satanDefeated = save.satanDefeated ?? false;
     this.portalReturn = save.portalReturn ?? null;
     this.world = new World(this.dimension === "geena" ? save.seed + 99991 : save.seed, this.scene, this.dimension);
+    this.landmarks = save.landmarks ? [...save.landmarks] : [];
+    this.world.landmarks = this.landmarks;
     this.world.loadMods(this.dimension === "geena" ? this.geenaMods : this.overMods);
     this.fluids = new FluidSim(this.world);
     this.world.onChange = (x, y, z) => this.fluids.poke(x, y, z);
@@ -416,6 +423,7 @@ export class MineArena {
       createdAt: this.createdAt,
       updatedAt: Date.now(),
       playedSeconds: this.playedSeconds,
+      landmarks: this.landmarks,
       time: this.time,
       player: { x: this.body.x, y: this.body.y, z: this.body.z, yaw: this.yaw, pitch: this.pitch, health: this.health, hunger: this.hunger },
       spawn: this.spawn,
@@ -727,6 +735,7 @@ export class MineArena {
     this.geenaTick();
     this.exploration(dt);
     this.ambience(dt);
+    this.landmarkFx(dt);
     this.tutorialTick();
     this.animateHand();
 
@@ -1185,6 +1194,7 @@ export class MineArena {
     this.world.dispose();
     this.dimension = dim;
     this.world = new World(dim === "geena" ? this.baseSeed + 99991 : this.baseSeed, this.scene, dim);
+    if (dim === "overworld") this.world.landmarks = this.landmarks;
     this.world.loadMods(dim === "geena" ? this.geenaMods : this.overMods);
     this.fluids = new FluidSim(this.world);
     this.world.onChange = (x, y, z) => this.fluids.poke(x, y, z);
@@ -1368,6 +1378,9 @@ export class MineArena {
       net.on("dmg", (m) => this.damagePlayer(m.amount as number, m.fx as number, m.fz as number));
       net.on("loot", (m) => this.give(m.item as string, m.count as number));
       net.on("fx", (m) => this.entities.visualEvent(m.k as string, m.d as Record<string, number>));
+      net.on("lm", (m) => {
+        this.landmarks.push({ id: m.id as LandmarkSite["id"], x: m.x as number, z: m.z as number, gy: m.gy as number });
+      });
       net.on("mods", (m) => this.applyMods(m.c as [number, number[]][]));
       net.on("peers", (m) => {
         const list = m.list as Peer[];
@@ -1389,7 +1402,7 @@ export class MineArena {
     const name = String(m.name ?? "Jogador").slice(0, 24);
     this.peers.set(m.from, name);
     if (!this.remotes.list.has(m.from)) this.remotes.add(m.from, name, this.body.x, this.body.y, this.body.z);
-    net.send("welcome", { seed: this.baseSeed, time: this.time, spawn: this.spawn, host: { x: this.body.x, y: this.body.y, z: this.body.z }, peers: [{ id: this.me.id, name: this.me.name }] }, m.from);
+    net.send("welcome", { lm: this.landmarks, seed: this.baseSeed, time: this.time, spawn: this.spawn, host: { x: this.body.x, y: this.body.y, z: this.body.z }, peers: [{ id: this.me.id, name: this.me.name }] }, m.from);
     // blocos já alterados: manda em lotes pequenos
     const mods = this.world.exportMods();
     let batch: [number, number[]][] = [];
@@ -1742,6 +1755,7 @@ export class MineArena {
         this.cb.onMessage(`✦ Descoberta: ${name}`, "rare");
       } else this.cb.onMessage(name, "info");
     }
+    this.landmarkTick();
     if (this.role === "guest") return;
     for (const sp of structuresNear(this.world.seed, this.body.x, this.body.z, 70)) {
       const def = STRUCTURE_BY_ID[sp.id];
@@ -1769,6 +1783,62 @@ export class MineArena {
         this.sfx.play("boss");
       }
     }
+  }
+
+  // ---------- monumentos bíblicos (um a cada 10 minutos de jogo) ----------
+  private landmarkTick(): void {
+    if (this.dimension !== "overworld" || !this.alive) return;
+    const b = this.body;
+    if (this.role !== "guest") {
+      const due = Math.min(LANDMARK_ORDER.length, Math.floor(this.playedSeconds / LANDMARK_INTERVAL_S));
+      if (this.landmarks.length < due) {
+        const k = this.landmarks.length;
+        const site = pickLandmarkSite(this.baseSeed, LANDMARK_ORDER[k], b.x, b.z, (this.radius + 2) * 16, k, this.landmarks);
+        this.landmarks.push(site);
+        this.net?.send("lm", { ...site });
+        const d = Math.round(Math.hypot(site.x - b.x, site.z - b.z));
+        this.sfx.play("wave");
+        this.cb.onMessage(`✦ Algo grandioso surgiu: ${LANDMARKS[site.id].name}, a ${d} blocos ao ${compass(site.x - b.x, site.z - b.z)}. Siga a bússola 🧭`, "rare");
+      }
+    }
+    for (const s of this.landmarks) {
+      const def = LANDMARKS[s.id];
+      const d = Math.hypot(s.x - b.x, s.z - b.z);
+      if (!this.discoveries.has("lm:" + s.id) && d < Math.max(def.rx, def.rz) + 14) {
+        this.discoveries.add("lm:" + s.id);
+        this.sfx.play("pickup");
+        this.cb.onMessage(`✦ Descoberta: ${def.name} (${def.ref})`, "rare");
+        this.cb.onMessage(def.blurb, "info");
+      }
+      if (this.role !== "guest" && d < 60 && !this.spawned.has("lm:" + s.id) && this.world.hasChunkAt(s.x, s.z)) {
+        this.spawned.add("lm:" + s.id);
+        for (const r of def.residents) {
+          const md = MOB_BY_ID.get(r.mob);
+          if (md) this.entities.spawn(md, s.x + r.dx + 0.5, s.gy + r.dy + 0.05, s.z + r.dz + 0.5);
+        }
+      }
+    }
+  }
+
+  /** Chamas da Sarça Ardente: arde sem se consumir. */
+  private landmarkFx(dt: number): void {
+    this.lmFxT -= dt;
+    if (this.lmFxT > 0 || this.dimension !== "overworld") return;
+    this.lmFxT = 0.12;
+    const s = this.landmarks.find((l) => l.id === "sarca");
+    if (!s || Math.hypot(s.x - this.body.x, s.z - this.body.z) > 48) return;
+    this.particles.burst(s.x + (Math.random() - 0.5) * 5, s.gy + 3 + Math.random() * 4, s.z + (Math.random() - 0.5) * 5, Math.random() < 0.5 ? 0xff8a1f : 0xffd36a, 1, 0.8, 0.12, 1.8);
+  }
+
+  private questText(): string | null {
+    const b = this.body;
+    let best: { name: string; d: number; dir: string } | null = null;
+    for (const s of this.landmarks) {
+      if (this.discoveries.has("lm:" + s.id)) continue;
+      const d = Math.hypot(s.x - b.x, s.z - b.z);
+      if (!best || d < best.d) best = { name: LANDMARKS[s.id].name, d, dir: compass(s.x - b.x, s.z - b.z) };
+    }
+    return best ? `🧭 ${best.name} · ${Math.round(best.d)} m ao ${best.dir}` : null;
   }
 
   private tutorialTick(): void {
@@ -1933,6 +2003,7 @@ export class MineArena {
       offhand: this.inventory.offhand ? { ...this.inventory.offhand } : null,
       guarding: this.guarding,
       submerged: this.submerged,
+      quest: this.dimension === "overworld" ? this.questText() : null,
       coop: this.role === "solo" ? null : { role: this.role, names: [this.me?.name ?? "Você", ...[...this.remotes.list.values()].map((p) => p.name)] },
       coords: !this.showCoords ? "" : `${Math.floor(this.body.x)}, ${Math.floor(this.body.y)}, ${Math.floor(this.body.z)}`,
     };
