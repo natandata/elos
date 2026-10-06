@@ -4,8 +4,6 @@ import Link from "next/link";
 import { useState } from "react";
 import type { WorldSave } from "@/lib/minearena/save/save";
 
-const HEROES = ["davi", "sansao", "moises", "daniel"];
-
 function ago(ts: number): string {
   const m = Math.max(0, Math.round((Date.now() - ts) / 60000));
   if (m < 1) return "agora há pouco";
@@ -44,14 +42,9 @@ export function MainMenu({
 
   return (
     <div className="ma-menu">
-      <div className="ma-menu-sky" aria-hidden>
-        <i className="ma-sun" />
-        <i className="ma-hill ma-hill-a" />
-        <i className="ma-hill ma-hill-b" />
-        <i className="ma-ground" />
-      </div>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img className="ma-menu-cover" src="/minearena/capa.webp" alt="MineArena: construa, explore, enfrente" draggable={false} />
       <div className="ma-menu-body">
-        <MineArenaLogo />
 
         {view === "home" ? (
           <div className="ma-menu-btns">
@@ -138,12 +131,6 @@ export function MainMenu({
           </div>
         ) : null}
 
-        <div className="ma-menu-heroes" aria-hidden>
-          {HEROES.map((h) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img key={h} src={`/arena/${h}.webp`} alt="" draggable={false} />
-          ))}
-        </div>
         <p className="ma-menu-hint">No computador: WASD, mouse, E (mochila). No celular: manche e botões na tela. Seu progresso fica salvo neste aparelho.</p>
       </div>
     </div>

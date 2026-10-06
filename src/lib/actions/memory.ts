@@ -123,6 +123,7 @@ export async function finishMemoryDuel(id: string, turns: unknown): Promise<Memo
   const { data, error } = await c.admin.rpc("memory_duel_finish", { p_duel: id, p_user: c.userId, p_ms: ms, p_moves: moves });
   if (error) return { error: "Não foi possível salvar o resultado." };
   const row = (Array.isArray(data) ? data[0] : data) as { duel_status: string; c_ms: number | null; o_ms: number | null; winner_id: string | null } | undefined;
+  await c.admin.rpc("memory_record_submit", { p_user: c.userId, p_pairs: d.pairs, p_ms: ms, p_moves: moves });
   const oppMs = row ? (mine ? row.o_ms : row.c_ms) : null;
   const other = mine ? d.opponent_id : d.challenger_id;
   if (row?.duel_status === "finished") {
@@ -134,4 +135,34 @@ export async function finishMemoryDuel(id: string, turns: unknown): Promise<Memo
   revalidatePath("/app/jogos/memoria");
   revalidatePath("/app/jogos");
   return { ms, moves, status: row?.duel_status, winnerId: row?.winner_id ?? null, oppMs };
+}
+
+export type SoloStart = { error?: string; runId?: string; seed?: number };
+
+/** Começa uma partida solo valendo recorde: a semente e o relógio são do servidor. */
+export async function startMemorySolo(pairs: number): Promise<SoloStart> {
+  if (!SOLO_SIZES.some((s) => s.pairs === pairs)) return { error: "Nível inválido." };
+  const c = await player();
+  const seed = randomInt(1, 2 ** 31 - 1);
+  const { data, error } = await c.admin.from("memory_solo_runs").insert({ user_id: c.userId, seed, pairs }).select("id").single<{ id: string }>();
+  if (error || !data) return { error: "Não foi possível começar." };
+  return { runId: data.id, seed };
+}
+
+export type SoloFinish = { error?: string; ms?: number; moves?: number; record?: boolean; best?: number };
+
+/** Termina a partida solo: confere as jogadas, usa o tempo do servidor e guarda o recorde se for o melhor. */
+export async function finishMemorySolo(runId: string, turns: unknown): Promise<SoloFinish> {
+  const c = await player();
+  const { data: run } = await c.admin.from("memory_solo_runs").select("id, user_id, seed, pairs, started_at, finished").eq("id", runId).maybeSingle<{ id: string; user_id: string; seed: number; pairs: number; started_at: string; finished: boolean }>();
+  if (!run || run.user_id !== c.userId) return { error: "Partida não encontrada." };
+  if (run.finished) return { error: "Esta partida já foi enviada." };
+  const moves = verifyTurns(buildBoard(run.seed, run.pairs), turns);
+  if (moves === null) return { error: "Jogadas inválidas." };
+  const ms = Math.max(minPlausibleMs(run.pairs), Date.now() - new Date(run.started_at).getTime());
+  await c.admin.from("memory_solo_runs").update({ finished: true }).eq("id", runId);
+  const { data } = await c.admin.rpc("memory_record_submit", { p_user: c.userId, p_pairs: run.pairs, p_ms: ms, p_moves: moves });
+  const row = (Array.isArray(data) ? data[0] : data) as { is_record: boolean; best_ms: number } | undefined;
+  revalidatePath("/app/jogos/memoria");
+  return { ms, moves, record: row?.is_record ?? false, best: row?.best_ms ?? ms };
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { MemoryChallenge } from "@/components/games/MemoryChallenge";
 import { MemorySolo } from "@/components/games/MemorySolo";
+import { type EloRankRow, MemoryRanking, type RankRow } from "@/components/games/MemoryRanking";
 import { requireRole } from "@/lib/auth";
 import { SOLO_SIZES, fmtMs } from "@/lib/games/memory";
 import { createClient } from "@/lib/supabase/server";
@@ -23,7 +24,7 @@ export default async function MemoriaPage() {
   const { profile } = await requireRole("cria", "leader", "admin");
   const supabase = await createClient();
 
-  const [matesRes, duelsRes] = await Promise.all([
+  const [matesRes, duelsRes, recRes, rankRes, eloRankRes] = await Promise.all([
     profile.elo_id
       ? supabase.from("profiles").select("id, full_name, avatar_url").eq("elo_id", profile.elo_id).in("role", ["cria", "leader"]).neq("id", profile.id).order("full_name")
       : Promise.resolve({ data: [] }),
@@ -33,7 +34,12 @@ export default async function MemoriaPage() {
       .gte("created_at", new Date(nowMs() - 7 * 86_400_000).toISOString())
       .order("created_at", { ascending: false })
       .limit(15),
+    supabase.from("memory_records").select("pairs, best_ms").eq("user_id", profile.id),
+    supabase.rpc("memory_ranking", { p_per_level: 200 }),
+    supabase.rpc("memory_elo_ranking"),
   ]);
+  const records: Record<number, number> = {};
+  for (const r of (recRes.data ?? []) as { pairs: number; best_ms: number }[]) records[r.pairs] = r.best_ms;
 
   const mates = ((matesRes.data ?? []) as { id: string; full_name: string; avatar_url: string | null }[]).map((m) => ({ id: m.id, name: m.full_name || "Sem nome", avatarUrl: m.avatar_url }));
   const nameOf = new Map(mates.map((m) => [m.id, m.name]));
@@ -64,8 +70,8 @@ export default async function MemoriaPage() {
 
       <section className="mb-6">
         <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">Treino</h2>
-        <MemorySolo />
-        <p className="mt-2 text-xs text-[var(--muted)]">O treino não dá XP. O duelo (você escolhe o nível) vale até +2 XP por dia (junto com o Duelo 1x1).</p>
+        <MemorySolo records={records} />
+        <p className="mt-2 text-xs text-[var(--muted)]">O treino não dá XP, mas o seu recorde de cada nível entra no ranking. O duelo (você escolhe o nível) vale até +2 XP por dia (junto com o Duelo 1x1).</p>
       </section>
 
       {duels.length > 0 ? (
@@ -89,6 +95,11 @@ export default async function MemoriaPage() {
           </ul>
         </section>
       ) : null}
+
+      <section className="mb-6">
+        <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">🏆 Ranking de recordes</h2>
+        <MemoryRanking rows={(rankRes.data ?? []) as RankRow[]} elos={(eloRankRes.data ?? []) as EloRankRow[]} myId={profile.id} myEloId={profile.elo_id ?? null} />
+      </section>
 
       <section>
         <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">Desafiar um colega do Elo</h2>

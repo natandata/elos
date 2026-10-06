@@ -25,6 +25,12 @@ export interface HumanoidSpec {
   staff?: boolean;
   sling?: boolean;
   sword?: number;
+  /** Escudo no braço esquerdo, machado e arco na mão, penacho no elmo. */
+  shield?: number;
+  axe?: boolean;
+  bow?: boolean;
+  plume?: number;
+  fur?: number;
 }
 export interface BeastSpec {
   kind: "beast";
@@ -102,6 +108,7 @@ function humanoid(s: HumanoidSpec): Rig {
     for (const x of [-3, 0, 3]) head.add(mk(mats, 1.4, 2.2, 1.4, s.crown, x, 10.6, 3));
   }
   if (s.helm !== undefined) head.add(mk(mats, 9.2, 5, 9.2, s.helm, 0, 7.2, 0), mk(mats, 1.5, 5, 1.2, s.helm, 0, 3, 4.6));
+  if (s.plume !== undefined) head.add(mk(mats, 2, 4, 10, s.plume, 0, 11, -0.5), mk(mats, 2, 6, 3, s.plume, 0, 10, -5));
   if (s.headband !== undefined) head.add(mk(mats, 8.5, 1.4, 8.5, s.headband, 0, 6.6, 0));
   root.add(head);
 
@@ -115,6 +122,10 @@ function humanoid(s: HumanoidSpec): Rig {
     armR.add(mk(mats, 1.4, 34, 1.4, 0x7a5230, 0, -2, 4), mk(mats, 3.2, 3.2, 3.2, 0xe0b84a, 0, 17, 4));
   }
   if (s.sling) armL.add(mk(mats, 1.6, 7, 1.6, 0x8a5a33, 0, -13, 2), mk(mats, 3, 3, 3, 0x9a9aa0, 0, -17, 2));
+  if (s.shield !== undefined) armL.add(mk(mats, 1.6, 10, 8, s.shield, -3, -7, 2), mk(mats, 1.8, 4, 4, 0xe0b84a, -3.2, -7, 2));
+  if (s.axe) armR.add(mk(mats, 1.4, 16, 1.4, 0x6a4a2a, 0, -11, 3), mk(mats, 1.6, 6, 7, 0xc9ced6, 0, -17, 5.5));
+  if (s.bow) armL.add(mk(mats, 1.4, 20, 1.4, 0x8a5a2a, 0, -9, 4), mk(mats, 0.6, 18, 0.6, 0xe8dcb8, 0, -9, 2.2));
+  if (s.fur !== undefined) root.add(mk(mats, 10 * bulk, 4, 6, s.fur, 0, 24, 0), mk(mats, 8.4 * bulk, 11, 1.2, s.fur, 0, 17, -2.8));
   if (s.sword !== undefined) armR.add(mk(mats, 1.2, 14, 0.8, s.sword, 0, -17, 2), mk(mats, 4, 1.2, 1.2, 0x6a4a2a, 0, -10.5, 2));
 
   root.scale.setScalar(s.scale);

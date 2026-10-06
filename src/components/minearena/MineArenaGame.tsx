@@ -18,6 +18,30 @@ const DISTANCES = [
   { label: "Máxima", r: 8 },
 ];
 
+const portraitNow = () => window.matchMedia("(orientation: portrait)").matches;
+const subscribePortrait = (fn: () => void) => {
+  const m = window.matchMedia("(orientation: portrait)");
+  m.addEventListener("change", fn);
+  return () => m.removeEventListener("change", fn);
+};
+
+/** No celular: tela cheia e, onde o aparelho deixa, trava deitado (como o Minecraft). */
+function enterImmersive(): void {
+  if (!window.matchMedia("(pointer: coarse)").matches) return;
+  const el = document.documentElement;
+  void (el.requestFullscreen?.() ?? Promise.resolve())
+    .then(() => (screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> }).lock?.("landscape"))
+    .catch(() => undefined);
+}
+function leaveImmersive(): void {
+  try {
+    (screen.orientation as ScreenOrientation & { unlock?: () => void }).unlock?.();
+    if (document.fullscreenElement) void document.exitFullscreen();
+  } catch {
+    // sem tela cheia, nada a desfazer
+  }
+}
+
 const coarse = () => window.matchMedia("(pointer: coarse)").matches;
 const subscribeCoarse = (fn: () => void) => {
   const m = window.matchMedia("(pointer: coarse)");
@@ -25,7 +49,7 @@ const subscribeCoarse = (fn: () => void) => {
   return () => m.removeEventListener("change", fn);
 };
 
-function Play({ save, onExit }: { save: WorldSave; onExit: () => void }) {
+function Play({ save, rotated, onExit }: { save: WorldSave; rotated: boolean; onExit: () => void }) {
   const mobile = useSyncExternalStore(subscribeCoarse, coarse, () => false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [game, setGame] = useState<MineArena | null>(null);
@@ -111,16 +135,16 @@ function Play({ save, onExit }: { save: WorldSave; onExit: () => void }) {
   };
 
   return (
-    <div className="ma-root">
+    <div className={rotated ? "ma-root ma-rot" : "ma-root"}>
       <canvas ref={canvasRef} className="ma-canvas" />
       {game && hud && !hud.loading ? <Hud hud={hud} msgs={msgs} onSelect={(i) => game.inventory.select(i)} /> : null}
       {game && hud && !hud.loading && mobile && !bag && !dialog && !paused && hud.alive ? (
-        <TouchControls game={game} onInventory={() => openBag("bag")} onPause={() => {
+        <TouchControls game={game} rotated={rotated} onInventory={() => openBag("bag")} onPause={() => {
           game.setPaused(true);
           setPaused(true);
         }} />
       ) : null}
-      {game && bag ? <InventoryPanel game={game} startTab={bag} onClose={closeBag} /> : null}
+      {game && bag ? <InventoryPanel game={game} startTab={bag} rotated={rotated} onClose={closeBag} /> : null}
       {dialog && game ? <HeroDialog d={dialog} onAct={(a) => game.dialogAct(a)} /> : null}
       {paused && game ? (
         <PauseMenu
@@ -148,6 +172,10 @@ function Play({ save, onExit }: { save: WorldSave; onExit: () => void }) {
 }
 
 export function MineArenaGame() {
+  const mobile = useSyncExternalStore(subscribeCoarse, coarse, () => false);
+  const portrait = useSyncExternalStore(subscribePortrait, portraitNow, () => false);
+  // celular em pé (e sem trava de rotação): gira o jogo 90° pra ocupar a tela deitada
+  const rotated = mobile && portrait;
   const [worlds, setWorlds] = useState<WorldSave[] | null>(null);
   const [active, setActive] = useState<WorldSave | null>(null);
 
@@ -163,6 +191,7 @@ export function MineArenaGame() {
   }, []);
 
   const create = async (name: string, seedText: string) => {
+    enterImmersive();
     const seed = seedText ? seedFromString(seedText) : Math.floor(Math.random() * 2 ** 31);
     const spawn = findSpawn(seed);
     const now = Date.now();
@@ -190,7 +219,9 @@ export function MineArenaGame() {
     return (
       <Play
         save={active}
+        rotated={rotated}
         onExit={() => {
+          leaveImmersive();
           setActive(null);
           void refresh();
         }}
@@ -198,10 +229,13 @@ export function MineArenaGame() {
     );
   }
   return (
-    <div className="ma-root">
+    <div className={rotated ? "ma-root ma-rot" : "ma-root"}>
       <MainMenu
         worlds={worlds}
-        onPlay={setActive}
+        onPlay={(w) => {
+          enterImmersive();
+          setActive(w);
+        }}
         onCreate={(n, s) => void create(n, s)}
         onDelete={(w) => {
           void deleteWorld(w.id).then(refresh);

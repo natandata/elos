@@ -5,8 +5,11 @@ import type { MineArena } from "@/lib/minearena/game";
 
 const RADIUS = 52;
 
+/** Com o jogo girado 90°, o eixo da tela vira o eixo do jogo: (x, y) → (y, -x). */
+const mapDelta = (dx: number, dy: number, rotated: boolean): [number, number] => (rotated ? [dy, -dx] : [dx, dy]);
+
 /** Controles de toque: manche virtual, arrastar pra olhar e botões de ação. */
-export function TouchControls({ game, onInventory, onPause }: { game: MineArena; onInventory: () => void; onPause: () => void }) {
+export function TouchControls({ game, rotated, onInventory, onPause }: { game: MineArena; rotated: boolean; onInventory: () => void; onPause: () => void }) {
   const [knob, setKnob] = useState<{ x: number; y: number } | null>(null);
   const origin = useRef({ x: 0, y: 0, id: -1 });
   const look = useRef({ x: 0, y: 0, id: -1 });
@@ -34,7 +37,8 @@ export function TouchControls({ game, onInventory, onPause }: { game: MineArena;
         }}
         onPointerMove={(e) => {
           if (look.current.id !== e.pointerId) return;
-          game.addLook((e.clientX - look.current.x) * 0.0055, (e.clientY - look.current.y) * 0.0055);
+          const [lx, ly] = mapDelta(e.clientX - look.current.x, e.clientY - look.current.y, rotated);
+          game.addLook(lx * 0.0055, ly * 0.0055);
           look.current.x = e.clientX;
           look.current.y = e.clientY;
         }}
@@ -52,8 +56,7 @@ export function TouchControls({ game, onInventory, onPause }: { game: MineArena;
         }}
         onPointerMove={(e) => {
           if (origin.current.id !== e.pointerId) return;
-          let dx = e.clientX - origin.current.x;
-          let dy = e.clientY - origin.current.y;
+          let [dx, dy] = mapDelta(e.clientX - origin.current.x, e.clientY - origin.current.y, rotated);
           const d = Math.hypot(dx, dy);
           if (d > RADIUS) {
             dx = (dx / d) * RADIUS;

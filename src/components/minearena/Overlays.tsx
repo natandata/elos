@@ -94,7 +94,8 @@ export function DeathScreen({ onRespawn }: { onRespawn: () => void }) {
 export function LoadingScreen() {
   return (
     <div className="ma-loading">
-      <MineArenaLogo />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img className="ma-loading-cover" src="/minearena/capa.webp" alt="MineArena" draggable={false} />
       <p>Erguendo o mundo…</p>
       <span className="ma-loading-bar">
         <i />

@@ -16,7 +16,7 @@ export default async function MineArenaPage() {
         <PageHeader title="⛏️ MineArena" subtitle="Construa. Explore. Enfrente." />
         <div className="relative mb-5 overflow-hidden rounded-2xl border-[3px] border-amber-400 bg-[#14213f] shadow-lg">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/minearena/capa.svg" alt="MineArena" className="block aspect-[16/9] w-full object-cover brightness-75" draggable={false} />
+          <img src="/minearena/capa.webp" alt="MineArena" className="block aspect-[3/2] w-full object-cover brightness-75" draggable={false} />
           <span className="absolute inset-0 flex items-center justify-center text-5xl" aria-hidden>
             🔒
           </span>

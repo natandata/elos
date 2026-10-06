@@ -344,6 +344,9 @@ export class MineArena {
       if (!this.uiOpen && !this.paused) this.inventory.select(this.inventory.selected + (e.deltaY > 0 ? 1 : -1));
     });
     on("resize", () => this.resize());
+    const ro = new ResizeObserver(() => this.resize());
+    ro.observe(this.canvas);
+    this.cleanup.push(() => ro.disconnect());
     const ctx = (e: Event) => e.preventDefault();
     this.canvas.addEventListener("contextmenu", ctx);
     this.cleanup.push(() => this.canvas.removeEventListener("contextmenu", ctx));

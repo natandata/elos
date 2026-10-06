@@ -109,7 +109,7 @@ export default async function JogosPage() {
       {mineOpen ? (
         <Link href="/app/jogos/minearena" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-amber-400 bg-[#14213f] shadow-lg transition active:scale-[0.99]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/minearena/capa.svg" alt="MineArena" className="block aspect-[16/9] w-full object-cover" draggable={false} />
+          <img src="/minearena/capa.webp" alt="MineArena" className="block aspect-[3/2] w-full object-cover" draggable={false} />
           <span className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-black/85 to-transparent px-4 pb-2.5 pt-8">
             <span className="text-xs font-bold text-amber-100">Sandbox 3D · construa, explore e enfrente</span>
             <span className="shrink-0 rounded-full bg-rose-600 px-2.5 py-0.5 text-[11px] font-black text-white">NOVO</span>
@@ -118,7 +118,7 @@ export default async function JogosPage() {
       ) : (
         <Link href="/app/jogos/minearena" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-amber-400 bg-[#14213f] shadow-lg transition active:scale-[0.99]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/minearena/capa.svg" alt="MineArena em breve" className="block aspect-[16/9] w-full object-cover brightness-50" draggable={false} />
+          <img src="/minearena/capa.webp" alt="MineArena em breve" className="block aspect-[3/2] w-full object-cover brightness-50" draggable={false} />
           <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-center text-white">
             <span className="text-3xl" aria-hidden>
               🔒

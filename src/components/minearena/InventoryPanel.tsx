@@ -10,7 +10,7 @@ const RARITY_INK: Record<Rarity, string> = { comum: "#3a2a12", incomum: "#1c7a1c
 const ARMOR_NAMES = ["Cabeça", "Peito", "Pernas", "Pés"];
 
 /** Mochila (arrastar ou tocar-e-tocar), armadura e fabricação. */
-export function InventoryPanel({ game, startTab, onClose }: { game: MineArena; startTab: "bag" | "craft"; onClose: () => void }) {
+export function InventoryPanel({ game, startTab, rotated, onClose }: { game: MineArena; startTab: "bag" | "craft"; rotated: boolean; onClose: () => void }) {
   const inv = game.inventory;
   useSyncExternalStore(
     (fn) => inv.subscribe(fn),
@@ -91,7 +91,7 @@ export function InventoryPanel({ game, startTab, onClose }: { game: MineArena; s
   };
 
   return (
-    <div className="ma-modal" onPointerMove={(e) => setPointer({ x: e.clientX, y: e.clientY })}>
+    <div className="ma-modal" onPointerMove={(e) => setPointer(rotated ? { x: e.clientY, y: window.innerWidth - e.clientX } : { x: e.clientX, y: e.clientY })}>
       <div className="ma-panel">
         <header>
           <div className="ma-tabs">

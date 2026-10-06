@@ -590,7 +590,7 @@ export class EntityManager {
       case "sling":
         if (nd <= ab.range) {
           const mult = nearest.def.behavior === "boss" ? ab.bossMult : 1;
-          this.shoot("stone", b.x, b.y + 1.5, b.z, nearest.body.x - b.x, nearest.body.y + nearest.body.h * 0.6 - (b.y + 1.5), nearest.body.z - b.z, 30, ab.dmg * mult, 3, "ally");
+          this.shoot(ab.shape ?? "stone", b.x, b.y + 1.5, b.z, nearest.body.x - b.x, nearest.body.y + nearest.body.h * 0.6 - (b.y + 1.5), nearest.body.z - b.z, ab.shape === "arrow" ? 28 : 30, ab.dmg * mult, ab.shape === "arrow" ? 8 : 3, "ally");
           e.atkAnim = 0.01;
           this.sfx.play("bow");
           e.cds[i] = ab.cooldown;

@@ -933,3 +933,57 @@ input[type="datetime-local"] {
 .ma-act-big { width: 84px; height: 84px; grid-row: span 2; font-size: 2.2rem; background: rgba(150, 60, 20, 0.72); border-color: #ffb067; }
 .ma-act-sm { width: 44px; height: 44px; font-size: 1.15rem; }
 .ma-top-btns { position: absolute; right: calc(10px + env(safe-area-inset-right)); top: calc(10px + env(safe-area-inset-top)); display: flex; gap: 8px; }
+
+/* ---- MINEARENA: capa, giro e tema azul/dourado (fiel à capa) ---- */
+.ma-root.ma-rot { inset: auto; top: 0; left: 100dvw; width: 100dvh; height: 100dvw; transform-origin: top left; transform: rotate(90deg); }
+.ma-menu { background: #0d1530; }
+.ma-menu-cover { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; }
+.ma-menu::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, rgba(8, 12, 30, 0) 38%, rgba(8, 12, 30, 0.82) 82%); }
+.ma-menu-body { justify-content: flex-end; gap: 12px; padding-bottom: 20px; z-index: 2; }
+.ma-menu-hint { font-size: 0.68rem; opacity: 0.9; }
+@media (orientation: landscape) and (max-height: 520px) {
+  .ma-menu-body { flex-direction: row; align-items: flex-end; justify-content: flex-start; padding-left: 3%; }
+  .ma-menu-btns, .ma-form, .ma-load { width: min(40%, 320px); gap: 6px; }
+  .ma-menu-btns .ma-btn, .ma-form .ma-btn { padding: 8px 14px; font-size: 0.95rem; }
+  .ma-menu-hint { display: none; }
+}
+.ma-rot .ma-menu-body { flex-direction: row; align-items: flex-end; justify-content: flex-start; padding-left: 3%; }
+.ma-rot .ma-menu-btns, .ma-rot .ma-form, .ma-rot .ma-load { width: min(40%, 320px); gap: 6px; }
+.ma-rot .ma-menu-btns .ma-btn, .ma-rot .ma-form .ma-btn { padding: 8px 14px; font-size: 0.95rem; }
+.ma-rot .ma-menu-hint { display: none; }
+.ma-rot .ma-menu-cover { object-position: 50% 35%; }
+.ma-rot .ma-panel { max-height: 94dvw; }
+.ma-loading { background: #0d1530; }
+.ma-loading-cover { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.55; }
+.ma-loading p, .ma-loading-bar { position: relative; z-index: 1; margin-top: auto; }
+.ma-loading p { margin-bottom: 0; text-shadow: 0 2px 6px #000; }
+.ma-loading-bar { margin-bottom: 8vh; margin-top: 8px; }
+.ma-loading { justify-content: flex-end; }
+
+/* painéis em azul-pedra com moldura dourada */
+.ma-panel, .ma-dialog { background: linear-gradient(180deg, #2b3b76, #141c3e); color: #fbf0cf; border-color: #f2c14e; box-shadow: 0 0 0 4px #1a1130, 0 0 0 6px #b9892a, 0 14px 30px rgba(0, 0, 0, 0.6); }
+.ma-dialog h2 { color: #ffd66b; text-shadow: 0 2px 0 #000; }
+.ma-dialog-head p, .ma-info { color: #ffe2a0; opacity: 0.9; }
+.ma-dialog-line { color: #fff6dd; }
+.ma-dialog-verse { background: rgba(255, 207, 90, 0.12); color: #ffe2a0; }
+.ma-dialog-gift { color: #8ff08f; }
+.ma-death h2 { color: #ff8a7a; }
+.ma-tabs button { background: #232f63; color: #ffe2a0; border-color: #0f1536; }
+.ma-tabs button[data-on="true"] { background: linear-gradient(180deg, #ffd66b, #e0902a); color: #3a2204; box-shadow: 0 3px 0 #8a5d12; }
+.ma-grid .ma-slot, .ma-armor .ma-slot { background: rgba(8, 12, 36, 0.55); border-color: #46568f; }
+.ma-recipes li { background: rgba(8, 12, 36, 0.35); border-color: #46568f; }
+.ma-recipes li[data-ready="true"] { background: rgba(80, 170, 90, 0.22); border-color: #5fd35f; }
+.ma-recipes .ma-icon { background: rgba(8, 12, 36, 0.6); }
+.ma-r-ing i { color: #ff9a8a; }
+.ma-r-ing i[data-ok="true"] { color: #8ff08f; }
+.ma-sep { color: #ffe2a0; }
+.ma-hotbar { border-color: #f2c14e; background: linear-gradient(180deg, #2b3b76, #141c3e); }
+.ma-slot { border-color: #0f1536; background: rgba(8, 12, 36, 0.5); }
+.ma-clock { border-color: #f2c14e; background: linear-gradient(180deg, rgba(43, 59, 118, 0.9), rgba(20, 28, 62, 0.9)); }
+.ma-msgs p { border-color: #46568f; background: rgba(14, 20, 50, 0.85); }
+.ma-world { background: linear-gradient(180deg, #2b3b76, #141c3e); border-color: #f2c14e; color: #fbf0cf; }
+.ma-form input { background: #fbf0cf; border-color: #f2c14e; }
+.ma-btn { background: linear-gradient(180deg, #3c4f9a, #222e66); border-color: #0f1536; }
+.ma-btn-gold { background: linear-gradient(180deg, #ffe08a, #e0902a); border-color: #6a3e08; color: #3a2204; }
+.ma-btn-dark { background: linear-gradient(180deg, #4a4a58, #2e2e3a); }
+.ma-ghost { z-index: 20; }
