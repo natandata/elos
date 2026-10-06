@@ -9,7 +9,7 @@ const mapDelta = (dx: number, dy: number, rotated: boolean): [number, number] =>
 type Dir = "up" | "down" | "left" | "right";
 
 /** Controles de toque no estilo do Minecraft mobile: setas à esquerda, pular e ações à direita, arrastar pra olhar. */
-export function TouchControls({ game, rotated, onInventory, onPause }: { game: MineArena; rotated: boolean; onInventory: () => void; onPause: () => void }) {
+export function TouchControls({ game, rotated, shield, onInventory, onPause }: { game: MineArena; rotated: boolean; shield: boolean; onInventory: () => void; onPause: () => void }) {
   const look = useRef({ x: 0, y: 0, id: -1 });
   const dirs = useRef<Record<Dir, boolean>>({ up: false, down: false, left: false, right: false });
 
@@ -34,7 +34,7 @@ export function TouchControls({ game, rotated, onInventory, onPause }: { game: M
       {glyph}
     </button>
   );
-  const hold = (key: "mine" | "use" | "jump" | "sprint") => ({
+  const hold = (key: "mine" | "use" | "jump" | "sprint" | "guard") => ({
     onPointerDown: (e: React.PointerEvent) => {
       e.currentTarget.setPointerCapture(e.pointerId);
       game.setHold(key, true);
@@ -73,6 +73,11 @@ export function TouchControls({ game, rotated, onInventory, onPause }: { game: M
       </div>
 
       <div className="ma-actions">
+        {shield ? (
+          <button type="button" className="ma-act" {...hold("guard")} aria-label="Erguer o escudo">
+            🛡
+          </button>
+        ) : null}
         <button type="button" className="ma-act" {...hold("jump")} aria-label="Pular">
           ◇
         </button>

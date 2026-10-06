@@ -1058,3 +1058,17 @@ input[type="datetime-local"] {
 .ma-chat input { flex: 1; min-width: 0; padding: 10px 12px; border: 3px solid #f2c14e; border-radius: 10px; background: #fbf0cf; color: #2a1a08; font-size: 0.9rem; font-weight: 800; }
 .ma-chat button { padding: 0 14px; border: 3px solid #6a3e08; border-radius: 10px; background: linear-gradient(180deg, #ffe08a, #e0902a); color: #3a2204; font-weight: 900; }
 .ma-chat-btn { position: absolute; right: calc(10px + env(safe-area-inset-right)); top: calc(54px + env(safe-area-inset-top)); z-index: 3; width: 34px; height: 34px; border: 2px solid rgba(20, 24, 50, 0.55); border-radius: 8px; background: rgba(150, 158, 190, 0.45); font-size: 1rem; }
+
+/* MineArena: durabilidade, bênçãos, escudo e altar */
+.ma-dur { position: absolute; left: 3px; right: 3px; bottom: 1px; height: 3px; border-radius: 2px; background: rgba(0, 0, 0, 0.7); overflow: hidden; pointer-events: none; }
+.ma-dur i { display: block; height: 100%; }
+.ma-icon[data-ench="true"]::after { content: ""; position: absolute; inset: 2px; border-radius: 6px; pointer-events: none; background: linear-gradient(115deg, transparent 30%, rgba(190, 120, 255, 0.55) 50%, transparent 70%); background-size: 250% 100%; mix-blend-mode: screen; animation: ma-glint 2.4s linear infinite; }
+@keyframes ma-glint { from { background-position: 150% 0; } to { background-position: -50% 0; } }
+.ma-guard { position: absolute; left: 50%; bottom: 14%; transform: translateX(-50%) rotate(-6deg); opacity: 0.92; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.6)); pointer-events: none; }
+.ma-guard .ma-icon { width: 150px; height: 150px; }
+.ma-offhand { display: flex; align-items: center; justify-content: center; width: 46px; height: 46px; border-radius: 10px; border: 3px solid #3b2a14; background: rgba(8, 12, 36, 0.7); pointer-events: none; }
+.ma-offhand[data-on="true"] { border-color: #ffcf5a; box-shadow: 0 0 10px rgba(255, 207, 90, 0.7); }
+.ma-altar .ma-altar-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.ma-btn-ench { border-color: #b362ff; }
+.ma-bottom .ma-offhand { position: absolute; bottom: 6px; left: calc(50% - 262px); }
+@media (max-width: 700px) { .ma-bottom .ma-offhand { left: 6px; bottom: 74px; } }

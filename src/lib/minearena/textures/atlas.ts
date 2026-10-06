@@ -255,6 +255,26 @@ function drawTile(name: TileName, put: Put): void {
       }
       break;
     }
+    case "altar_top":
+    case "altar_side": {
+      const top = name === "altar_top";
+      for (let y = 0; y < N; y++) {
+        for (let x = 0; x < N; x++) {
+          const joint = y % 5 === 4 || (x + (Math.floor(y / 5) % 2) * 4) % 8 === 7;
+          put(x, y, mul(hex(top ? 0x7a7a80 : 0x6a6a70), (joint ? 0.72 : 1) * (1 + (rnd(x, y, s) - 0.5) * 0.16)));
+        }
+      }
+      if (top) {
+        // bigorna dourada no centro
+        for (let y = 4; y < 8; y++) for (let x = 2; x < 14; x++) put(x, y, y === 4 ? hex(0xf6d36a) : hex(0xc9a22e));
+        for (let y = 8; y < 12; y++) for (let x = 5; x < 11; x++) put(x, y, hex(0xa8841f));
+        for (let x = 3; x < 13; x++) put(x, 12, hex(0x6a540f));
+      } else {
+        for (let x = 0; x < N; x++) put(x, 0, hex(0xe0b83a));
+        for (let y = 5; y < 11; y++) for (let x = 6; x < 10; x++) put(x, y, y % 2 ? hex(0xc9a22e) : hex(0xf0c93a));
+      }
+      break;
+    }
     case "furnace_top":
     case "furnace_side":
     case "furnace_front":

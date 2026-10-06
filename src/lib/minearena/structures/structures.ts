@@ -94,6 +94,8 @@ const STRUCTURES: Record<StructureId, StructureDef> = {
       house(b, -10, 9, 3, false);
       house(b, 10, 9, 4, false);
       if (b.rnd(1) > 0.4) house(b, 0, -13, 5, false);
+      // o ferreiro da aldeia (1 Sm 13.20: cada um descia para afiar o seu machado)
+      b.set(4, 1, -4, B.altar);
       field(b, -14, 0);
       field(b, 14, 0);
       field(b, 0, 13);

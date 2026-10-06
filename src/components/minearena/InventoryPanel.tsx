@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { MineArena } from "@/lib/minearena/game";
 import type { Stack } from "@/lib/minearena/items/inventory";
 import { RARITY_LABEL, type Rarity, itemDef } from "@/lib/minearena/items/items";
+import { describeStack } from "@/lib/minearena/items/enchant";
 import { ItemIcon } from "./ItemIcon";
 
 const RARITY_INK: Record<Rarity, string> = { comum: "#3a2a12", incomum: "#1c7a1c", raro: "#1b5fc0", epico: "#7a2fc0", lendario: "#b36a00", mitico: "#c01840" };
@@ -36,7 +37,7 @@ export function InventoryPanel({ game, startTab, rotated, onClose }: { game: Min
     if (!cur) {
       inv.setSlot(i, h.stack);
       setHeld(null);
-    } else if (cur.item === h.stack.item) {
+    } else if (cur.item === h.stack.item && (itemDef(cur.item)?.maxStack ?? 1) > 1) {
       const max = itemDef(cur.item)?.maxStack ?? 1;
       const n = Math.min(max - cur.count, h.stack.count);
       cur.count += n;
@@ -51,7 +52,7 @@ export function InventoryPanel({ game, startTab, rotated, onClose }: { game: Min
 
   const onDown = (i: number) => {
     const cur = inv.getSlot(i);
-    if (cur) setInfo(`${itemDef(cur.item)?.name} · ${RARITY_LABEL[itemDef(cur.item)?.rarity ?? "comum"]}`);
+    if (cur) setInfo(`${describeStack(cur)} · ${RARITY_LABEL[itemDef(cur.item)?.rarity ?? "comum"]}`);
     if (!held) {
       if (cur) {
         setHeld({ stack: cur, from: i });
@@ -92,7 +93,7 @@ export function InventoryPanel({ game, startTab, rotated, onClose }: { game: Min
     const s = inv.getSlot(i);
     return (
       <button key={i} type="button" className="ma-slot ma-slot-lg" data-on={i < 9 && i === inv.selected} onPointerDown={() => onDown(i)} onPointerUp={() => onUp(i)} aria-label={label ?? `Slot ${i}`}>
-        {s ? <ItemIcon item={s.item} count={s.count} size={40} /> : label ? <small>{label}</small> : null}
+        {s ? <ItemIcon item={s.item} count={s.count} stack={s} size={40} /> : label ? <small>{label}</small> : null}
       </button>
     );
   };
@@ -147,6 +148,7 @@ export function InventoryPanel({ game, startTab, rotated, onClose }: { game: Min
           <>
             <div className="ma-armor">
               {[0, 1, 2, 3].map((k) => slot(100 + k, ARMOR_NAMES[k]))}
+              {slot(104, "Escudo")}
               <span className="ma-def">🛡️ {inv.armorDefense()}</span>
             </div>
             <div className="ma-grid">{Array.from({ length: 27 }, (_, k) => slot(9 + k))}</div>
@@ -190,7 +192,7 @@ export function InventoryPanel({ game, startTab, rotated, onClose }: { game: Min
       </div>
       {held ? (
         <div className="ma-ghost" style={{ left: pointer.x - 22, top: pointer.y - 22 }}>
-          <ItemIcon item={held.stack.item} count={held.stack.count} size={44} />
+          <ItemIcon item={held.stack.item} count={held.stack.count} stack={held.stack} size={44} />
         </div>
       ) : null}
     </div>

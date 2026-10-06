@@ -12,7 +12,7 @@ export interface WorldSave {
   time: number;
   player: { x: number; y: number; z: number; yaw: number; pitch: number; health: number; hunger: number };
   spawn: { x: number; y: number; z: number };
-  inventory: { slots: Stack[]; armor: Stack[]; selected: number };
+  inventory: { slots: Stack[]; armor: Stack[]; offhand?: Stack; selected: number };
   /** Blocos alterados: chave do chunk → pares [índice, id]. */
   mods: Record<string, number[]>;
   discoveries: string[];

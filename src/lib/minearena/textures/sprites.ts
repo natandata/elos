@@ -198,6 +198,25 @@ function draw(def: ItemDef): HTMLCanvasElement {
     }
     pen.p(5, 3, hi);
     pen.p(10, 2, hi);
+  } else if (def.kind === "shield") {
+    const wood = id === "shield_wood";
+    const faith = id === "shield_faith";
+    const body = wood ? hex(0xa9794a) : m;
+    pen.rows([[2, 3, 12], [3, 2, 13], [4, 2, 13], [5, 2, 13], [6, 2, 13], [7, 2, 13], [8, 3, 12], [9, 3, 12], [10, 4, 11], [11, 5, 10], [12, 6, 9], [13, 7, 8]], mul(body, 0.62));
+    pen.rows([[3, 4, 11], [4, 3, 12], [5, 3, 12], [6, 3, 12], [7, 3, 12], [8, 4, 11], [9, 4, 11], [10, 5, 10], [11, 6, 9], [12, 7, 8]], body);
+    pen.rows([[3, 4, 6], [4, 3, 5]], hi);
+    if (wood) {
+      pen.line(8, 3, 8, 12, hex(0x6a4a24));
+      pen.line(3, 7, 12, 7, hex(0x6a4a24));
+      pen.disc(8, 7, 1, hex(0xd7dce4));
+    } else if (faith) {
+      pen.line(8, 4, 8, 11, hex(0xfff2b0));
+      pen.line(5, 6, 11, 6, hex(0xfff2b0));
+      pen.line(8, 4, 8, 11, hex(0xfff2b0), 2);
+    } else {
+      pen.disc(8, 7, 2, hi, lo);
+      pen.p(8, 7, hex(0xffffff));
+    }
   } else if (id === "bread") {
     pen.rows([[6, 4, 11], [7, 3, 12], [8, 3, 12], [9, 3, 12], [10, 4, 11]], hex(0xc98b3c));
     pen.rows([[6, 4, 11], [7, 3, 4]], hex(0xe3a85a));

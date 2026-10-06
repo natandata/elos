@@ -9,6 +9,7 @@ import { AUTOSAVE_S, DAY_SECONDS, PLAYER, REACH, RENDER_DISTANCE } from "./confi
 import { Sound } from "./audio/audio";
 import { MOB_BY_ID } from "./entities/definitions";
 import { EntityManager, type Entity } from "./entities/manager";
+import { type EnchantKey, ENCHANT_BY_KEY, ROMAN, applyWear, durabilityLeft, enchantCost, enchantLevel, enchantsFor, maxDurability, repair, repairMaterial, repairNeeded } from "./items/enchant";
 import { HOTBAR, Inventory, type Stack } from "./items/inventory";
 import { RARITY_COLOR, itemDef } from "./items/items";
 import { Particles } from "./particles/particles";
@@ -52,6 +53,9 @@ export interface HudState {
   /** 0–1: escurecimento da tela ao dormir ou atravessar o portal. */
   fade: number;
   fadeText: string;
+  /** Escudo na mão esquerda e se está erguido. */
+  offhand: Stack;
+  guarding: boolean;
 }
 
 export interface DialogInfo {
@@ -71,7 +75,7 @@ export interface GameCallbacks {
   onMessage(text: string, tone: "info" | "good" | "warn" | "rare"): void;
   onDialog(d: DialogInfo | null): void;
   onOpenCrafting(): void;
-  onOpenContainer(kind: "chest" | "furnace"): void;
+  onOpenContainer(kind: "chest" | "furnace" | "altar"): void;
   onPauseRequest(): void;
   /** Co-op: a sala acabou (anfitrião saiu ou conexão caiu). */
   onRoomEnded(reason: string): void;
@@ -84,6 +88,8 @@ export interface Input {
   sprint: boolean;
   mine: boolean;
   use: boolean;
+  /** Escudo erguido (tecla F ou botão de toque). */
+  guard: boolean;
   lookDX: number;
   lookDY: number;
 }
@@ -101,7 +107,7 @@ const rarityTone = (r: string): "info" | "good" | "rare" => (r === "comum" ? "in
 
 export class MineArena {
   readonly inventory = new Inventory();
-  readonly input: Input = { moveX: 0, moveY: 0, jump: false, sprint: false, mine: false, use: false, lookDX: 0, lookDY: 0 };
+  readonly input: Input = { moveX: 0, moveY: 0, jump: false, sprint: false, mine: false, use: false, guard: false, lookDX: 0, lookDY: 0 };
   readonly mobile: boolean;
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
@@ -144,6 +150,7 @@ export class MineArena {
   private sfx = new Sound();
   private body: Body;
   private yaw = 0;
+  guarding = false;
   private pitch = 0;
   private health: number = PLAYER.maxHealth;
   private hunger: number = PLAYER.maxHunger;
@@ -314,7 +321,7 @@ export class MineArena {
     this.input.moveX = x;
     this.input.moveY = y;
   }
-  setHold(key: "mine" | "use" | "jump" | "sprint", on: boolean): void {
+  setHold(key: "mine" | "use" | "jump" | "sprint" | "guard", on: boolean): void {
     this.input[key] = on;
   }
   addLook(dx: number, dy: number): void {
@@ -466,6 +473,7 @@ export class MineArena {
         this.input.moveX = (keys.has("KeyD") || keys.has("ArrowRight") ? 1 : 0) - (keys.has("KeyA") || keys.has("ArrowLeft") ? 1 : 0);
         this.input.jump = keys.has("Space");
         this.input.sprint = keys.has("ShiftLeft") || keys.has("ShiftRight");
+        this.input.guard = keys.has("KeyF");
       }
     };
     on("keydown", (e) => {
@@ -560,19 +568,44 @@ export class MineArena {
     if (left > 0) this.cb.onMessage("Mochila cheia!", "warn");
   }
 
-  private damagePlayer(amount: number, fx: number, fz: number): void {
+  private damagePlayer(amount: number, fx: number, fz: number, blockable = true): void {
     if (!this.alive || this.invuln > 0) return;
+    let kb = 6;
+    let flash = 1;
+    const shield = this.inventory.offhand;
+    if (blockable && this.guarding && shield) {
+      const dx = fx - this.body.x;
+      const dz = fz - this.body.z;
+      const n = Math.hypot(dx, dz);
+      // só segura o que vem de frente (dentro de ~160°)
+      if (n > 0.5 && (dx * -Math.sin(this.yaw) + dz * -Math.cos(this.yaw)) / n > 0.17) {
+        const block = itemDef(shield.item)?.shield?.block ?? 0.7;
+        const raw = amount;
+        amount *= 1 - block;
+        kb = 1.5;
+        flash = 0.35;
+        this.sfx.play("place");
+        this.particles.burst(this.body.x - Math.sin(this.yaw) * 0.8, this.body.y + 1.1, this.body.z - Math.cos(this.yaw) * 0.8, 0xffe9a8, 6, 3, 0.1);
+        if (applyWear(shield, Math.max(1, Math.round(raw / 2)))) {
+          this.inventory.offhand = null;
+          this.sfx.play("break");
+          this.cb.onMessage("Seu escudo quebrou!", "warn");
+        }
+        this.inventory.changed();
+      }
+    }
     const taken = amount * (1 - Math.min(0.7, this.inventory.armorDefense() * 0.035)) * this.diffMul;
+    if (taken > 0.4) this.wearArmor();
     this.health -= taken;
     this.invuln = 0.5;
-    this.hurtFlash = 1;
+    this.hurtFlash = flash;
     this.sfx.play("hurt");
     const dx = this.body.x - fx;
     const dz = this.body.z - fz;
     const n = Math.hypot(dx, dz) || 1;
-    this.body.vx += (dx / n) * 6;
-    this.body.vz += (dz / n) * 6;
-    this.body.vy = Math.max(this.body.vy, 4);
+    this.body.vx += (dx / n) * kb;
+    this.body.vz += (dz / n) * kb;
+    this.body.vy = Math.max(this.body.vy, kb > 3 ? 4 : 2);
     if (this.health <= 0) {
       this.health = 0;
       this.alive = false;
@@ -714,8 +747,9 @@ export class MineArena {
     const mx = blocked ? 0 : this.input.moveX;
     const my = blocked ? 0 : this.input.moveY;
     const len = Math.hypot(mx, my);
-    const sprint = !blocked && this.input.sprint && my > 0;
-    const sp = (sprint ? PLAYER.sprint : PLAYER.walk) * (b.inWater ? 0.55 : 1);
+    this.updateGuard();
+    const sprint = !blocked && !this.guarding && this.input.sprint && my > 0;
+    const sp = (sprint ? PLAYER.sprint : PLAYER.walk) * (b.inWater ? 0.55 : 1) * (this.guarding ? 0.6 : 1);
     const sin = Math.sin(this.yaw);
     const cos = Math.cos(this.yaw);
     const nx = len > 1 ? mx / len : mx;
@@ -743,7 +777,7 @@ export class MineArena {
     if (b.onGround) {
       if (this.fallV < -14 && !b.inWater) {
         const dmg = Math.floor((-this.fallV - 13) * 0.55);
-        if (dmg > 0) this.damagePlayer(dmg, b.x, b.z);
+        if (dmg > 0) this.damagePlayer(dmg, b.x, b.z, false);
       }
       this.fallV = 0;
     } else {
@@ -759,8 +793,8 @@ export class MineArena {
       }
     }
     this.hunger = Math.max(0, this.hunger - Math.hypot(b.vx, b.vz) * dt * (sprint ? 0.012 : 0.006));
-    if (inLava(this.world, b) && this.invuln <= 0) this.damagePlayer(3, b.x + 0.01, b.z);
-    if (b.y < -20) this.damagePlayer(100, b.x, b.z);
+    if (inLava(this.world, b) && this.invuln <= 0) this.damagePlayer(3, b.x + 0.01, b.z, false);
+    if (b.y < -20) this.damagePlayer(100, b.x, b.z, false);
   }
 
   private survival(dt: number): void {
@@ -805,7 +839,7 @@ export class MineArena {
     } else this.sel.visible = this.selLines.visible = false;
 
     // ---- atacar / minerar ----
-    if (!blocked && this.input.mine) {
+    if (!blocked && !this.guarding && this.input.mine) {
       const entityFirst = ePick && ePick.dist <= wReach && (!hit || ePick.dist < hit.dist) && ePick.e.def.behavior !== "hero";
       if (entityFirst && ePick) {
         this.mineProgress = 0;
@@ -814,7 +848,8 @@ export class MineArena {
       } else if (hit) {
         const def = BLOCKS[hit.id];
         const tool = held?.tool;
-        const info = breakInfo(def, tool?.type ?? "hand", tool?.tier ?? 0, tool?.speed ?? 1);
+        const heldStack = this.inventory.held();
+        const info = breakInfo(def, tool?.type ?? "hand", tool?.tier ?? 0, (tool?.speed ?? 1) * (1 + 0.3 * enchantLevel(heldStack, "zelo")));
         const key = `${hit.x},${hit.y},${hit.z}`;
         if (key !== this.mineKey) {
           this.mineKey = key;
@@ -830,7 +865,8 @@ export class MineArena {
             this.particles.burst(hit.x + 0.5 + hit.nx * 0.5, hit.y + 0.5 + hit.ny * 0.5, hit.z + 0.5 + hit.nz * 0.5, def.top, 2, 1.5, 0.08, 1);
           }
           if (this.mineProgress >= 1) {
-            this.breakBlock(hit.x, hit.y, hit.z, info.harvest);
+            this.breakBlock(hit.x, hit.y, hit.z, info.harvest, enchantLevel(heldStack, "abundancia"));
+            if (tool && def.hardness > 0.2) this.wearHeld(1);
             this.mineProgress = 0;
             this.mineKey = "";
           }
@@ -856,13 +892,16 @@ export class MineArena {
   private attack(e: Entity, dir: THREE.Vector3): void {
     const held = this.heldDef();
     const w = held?.weapon;
-    let dmg = w?.dmg ?? 1;
+    const hs = this.inventory.held();
+    let dmg = (w?.dmg ?? 1) + enchantLevel(hs, "fio") * 1.5 + (e.def.evil ? enchantLevel(hs, "combate") * 3 : 0);
     const crit = !this.body.onGround && this.body.vy < -1;
     if (crit) dmg *= 1.5;
     if (e.def.evil && held?.key === "sword_spirit") dmg *= 1.6;
     this.atkCd = w?.cooldown ?? 0.45;
     this.swing = 1;
-    if (this.entities.hurt(e, dmg, dir.x, dir.z, true)) {
+    const landed = this.entities.hurt(e, dmg, dir.x, dir.z, true);
+    if (w && held?.durability) this.wearHeld(held.tool ? 2 : 1);
+    if (landed) {
       if (crit) {
         this.particles.burst(e.body.x, e.body.y + e.body.h * 0.7, e.body.z, 0xffd36a, 10, 4, 0.12);
         this.cb.onMessage("Golpe crítico!", "good");
@@ -870,7 +909,7 @@ export class MineArena {
     }
   }
 
-  private breakBlock(x: number, y: number, z: number, harvest: boolean): void {
+  private breakBlock(x: number, y: number, z: number, harvest: boolean, fortune = 0): void {
     const id = this.world.getBlock(x, y, z);
     const def = blockDef(id);
     if (id === B.chest || id === B.furnace || id === B.furnace_lit) this.spillContainer(x, y, z, id);
@@ -883,7 +922,8 @@ export class MineArena {
     if (!harvest) return;
     for (const l of def.loot) {
       if (Math.random() > l.chance) continue;
-      const n = l.min + Math.floor(Math.random() * (l.max - l.min + 1));
+      let n = l.min + Math.floor(Math.random() * (l.max - l.min + 1));
+      if (fortune > 0 && n > 0 && itemDef(l.item)?.kind === "material") n *= Math.max(1, Math.floor(Math.random() * (fortune + 2)));
       if (n > 0) this.give(l.item, n);
     }
   }
@@ -900,6 +940,11 @@ export class MineArena {
       this.openContainer(hit.x, hit.y, hit.z, hit.id);
       return;
     }
+    // 1c') altar do ferreiro: consertar e abençoar
+    if (edge && hit && hit.id === B.altar) {
+      this.cb.onOpenContainer("altar");
+      return;
+    }
     // 1c) cama
     if (edge && hit && hit.id === B.bed) {
       this.useBed(hit.x, hit.y, hit.z);
@@ -912,6 +957,16 @@ export class MineArena {
     }
     const held = this.heldDef();
     if (!held) return;
+    // escudo na mão principal: vai pra mão esquerda (troca se já houver um)
+    if (edge && held.shield) {
+      const cur = this.inventory.offhand;
+      this.inventory.offhand = this.inventory.held();
+      this.inventory.slots[this.inventory.selected] = cur;
+      this.inventory.changed();
+      this.sfx.play("pickup");
+      this.cb.onMessage("Escudo na mão esquerda. Segure F (ou o botão 🛡) pra se proteger.", "info");
+      return;
+    }
     // alimentar animal (reprodução)
     if (edge && ePick && ePick.dist <= 4 && this.entities.feed(ePick.e, held.key)) {
       this.inventory.consumeHeld(1);
@@ -973,6 +1028,7 @@ export class MineArena {
         this.world.setBlock(tgt.x, tgt.y, tgt.z, B.farmland);
         this.sfx.play("place");
         this.swing = 1;
+        this.wearHeld(1);
         return;
       }
     }
@@ -997,7 +1053,8 @@ export class MineArena {
       this.atkCd = r.cooldown;
       this.swing = 1;
       this.sfx.play("bow");
-      this.entities.shoot(r.shape, eye.x + dir.x * 0.5, eye.y + dir.y * 0.5 - 0.1, eye.z + dir.z * 0.5, dir.x, dir.y, dir.z, r.speed, r.dmg, r.gravity, "player");
+      this.entities.shoot(r.shape, eye.x + dir.x * 0.5, eye.y + dir.y * 0.5 - 0.1, eye.z + dir.z * 0.5, dir.x, dir.y, dir.z, r.speed, r.dmg * (1 + 0.2 * enchantLevel(this.inventory.held(), "certeira")), r.gravity, "player");
+      this.wearHeld(1);
       return;
     }
     // 4) comer
@@ -1150,6 +1207,7 @@ export class MineArena {
       { item: "legs_god", count: 1 },
       { item: "boots_god", count: 1 },
       { item: "sword_spirit", count: 1 },
+      { item: "shield_faith", count: 1 },
       { item: "gold_ingot", count: 16 },
       { item: "sapphire", count: 12 },
       { item: "ember_shard", count: 16 },
@@ -1537,6 +1595,77 @@ export class MineArena {
     this.setUiOpen(false);
   }
 
+  // ---------- desgaste, escudo e altar ----------
+  private updateGuard(): void {
+    const sd = this.inventory.offhand ? itemDef(this.inventory.offhand.item) : undefined;
+    const h = this.heldDef();
+    const okHeld = !h || h.kind === "weapon" || (h.kind === "tool" && !!h.tool && h.tool.type !== "hoe");
+    this.guarding = !!sd?.shield && this.alive && !this.uiOpen && !this.paused && this.sleepT <= 0 && (this.input.guard || (this.input.use && okHeld));
+  }
+
+  /** Gasta `n` usos do item da mão; se quebrar, some da barra. */
+  private wearHeld(n = 1): void {
+    const s = this.inventory.held();
+    if (!s || !itemDef(s.item)?.durability) return;
+    const name = itemDef(s.item)?.name ?? s.item;
+    if (applyWear(s, n)) {
+      this.inventory.slots[this.inventory.selected] = null;
+      this.sfx.play("break");
+      this.cb.onMessage(`${name} quebrou!`, "warn");
+    } else if (durabilityLeft(s) === Math.max(3, Math.floor(maxDurability(s.item) * 0.1))) {
+      this.cb.onMessage(`${name} está quase quebrando. Conserte no altar do ferreiro.`, "warn");
+    }
+    this.inventory.changed();
+  }
+
+  private wearArmor(): void {
+    for (let i = 0; i < 4; i++) {
+      const s = this.inventory.armor[i];
+      if (!s) continue;
+      if (applyWear(s, 1)) {
+        this.inventory.armor[i] = null;
+        this.sfx.play("break");
+        this.cb.onMessage(`${itemDef(s.item)?.name ?? "Armadura"} quebrou!`, "warn");
+      }
+    }
+    this.inventory.changed();
+  }
+
+  /** Itens da mochila, armadura e mão esquerda que o altar pode consertar ou abençoar. */
+  altarEntries(): { slot: number; stack: NonNullable<Stack> }[] {
+    const out: { slot: number; stack: NonNullable<Stack> }[] = [];
+    for (const i of [...Array.from({ length: 36 }, (_, k) => k), 100, 101, 102, 103, 104]) {
+      const s = this.inventory.getSlot(i);
+      if (s && (itemDef(s.item)?.durability || enchantsFor(s).length)) out.push({ slot: i, stack: s });
+    }
+    return out;
+  }
+
+  repairItem(slot: number): boolean {
+    const s = this.inventory.getSlot(slot);
+    if (!s || repairNeeded(s) <= 0) return false;
+    const mat = repairMaterial(s.item);
+    if (!mat || !this.inventory.remove(mat, 1)) return false;
+    repair(s, 1);
+    this.inventory.changed();
+    this.sfx.play("pickup");
+    return true;
+  }
+
+  enchantItem(slot: number, key: EnchantKey): boolean {
+    const s = this.inventory.getSlot(slot);
+    if (!s || !enchantsFor(s).some((e) => e.key === key)) return false;
+    const cost = enchantCost(s, key);
+    if (!cost.every((c) => this.inventory.count(c.item) >= c.count)) return false;
+    for (const c of cost) this.inventory.remove(c.item, c.count);
+    const lvl = enchantLevel(s, key) + 1;
+    s.ench = { ...s.ench, [key]: lvl };
+    this.inventory.changed();
+    this.sfx.play("pickup");
+    this.cb.onMessage(`${itemDef(s.item)?.name} recebeu ${ENCHANT_BY_KEY[key].name} ${ROMAN[lvl]}`, "rare");
+    return true;
+  }
+
   // ---------- fabricação ----------
   nearStation(): boolean {
     const b = this.body;
@@ -1734,6 +1863,8 @@ export class MineArena {
       allies: this.entities.list.filter((e) => e.ally && !e.dead).map((e) => e.def.name),
       fadeText: this.sleepT <= 0 && this.portalT > 0 ? "🔥 Atravessando o portal…" : "💤 Dormindo…",
       fade: Math.max(this.sleepT > 0 ? Math.max(0, Math.min(1, 1 - Math.abs(this.sleepT - 1.4) / 1.4)) : 0, Math.min(0.85, this.portalT / 2.4)),
+      offhand: this.inventory.offhand ? { ...this.inventory.offhand } : null,
+      guarding: this.guarding,
       coop: this.role === "solo" ? null : { role: this.role, names: [this.me?.name ?? "Você", ...[...this.remotes.list.values()].map((p) => p.name)] },
       coords: !this.showCoords ? "" : `${Math.floor(this.body.x)}, ${Math.floor(this.body.y)}, ${Math.floor(this.body.z)}`,
     };

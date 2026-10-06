@@ -31,6 +31,11 @@ export function Hud({ hud, msgs, onSelect }: { hud: HudState; msgs: Msg[]; onSel
           <span>{hud.fadeText}</span>
         </div>
       ) : null}
+      {hud.guarding && hud.offhand ? (
+        <div className="ma-guard" aria-hidden>
+          <ItemIcon item={hud.offhand.item} stack={hud.offhand} size={150} />
+        </div>
+      ) : null}
       <div className="ma-cross" aria-hidden />
       {hud.mining > 0 ? <div className="ma-mine-bar"><i style={{ width: `${Math.min(100, hud.mining * 100)}%` }} /></div> : null}
       {hud.target ? <div className="ma-target">{hud.target}</div> : null}
@@ -68,10 +73,15 @@ export function Hud({ hud, msgs, onSelect }: { hud: HudState; msgs: Msg[]; onSel
             {hud.heldName}
           </p>
         ) : null}
+        {hud.offhand ? (
+          <span className="ma-offhand" data-on={hud.guarding} title="Escudo (segure F)">
+            <ItemIcon item={hud.offhand.item} stack={hud.offhand} size={34} />
+          </span>
+        ) : null}
         <div className="ma-hotbar">
           {hud.hotbar.map((s, i) => (
             <button key={i} type="button" className="ma-slot" data-on={i === hud.selected} onPointerDown={() => onSelect(i)} aria-label={`Slot ${i + 1}`}>
-              {s ? <ItemIcon item={s.item} count={s.count} size={38} /> : null}
+              {s ? <ItemIcon item={s.item} count={s.count} stack={s} size={38} /> : null}
               <em>{i + 1}</em>
             </button>
           ))}

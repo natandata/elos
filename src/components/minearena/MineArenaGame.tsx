@@ -13,6 +13,7 @@ import { type Settings, loadSettings, saveSettings } from "@/lib/minearena/confi
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { type Peer, type RoomInfo, type RoomNet, joinRoom } from "@/lib/minearena/net/room";
+import { AltarPanel } from "./AltarPanel";
 import { ChatBox } from "./ChatBox";
 import { DeathScreen, HeroDialog, LoadingScreen, PauseMenu } from "./Overlays";
 import { TouchControls } from "./TouchControls";
@@ -55,7 +56,7 @@ function Play({ save, rotated, settings, onSettings, onExit, me, sb, net }: { sa
   const [hud, setHud] = useState<HudState | null>(null);
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [dialog, setDialog] = useState<DialogInfo | null>(null);
-  const [bag, setBag] = useState<null | "bag" | "craft" | "chest" | "furnace">(null);
+  const [bag, setBag] = useState<null | "bag" | "craft" | "chest" | "furnace" | "altar">(null);
   const [paused, setPaused] = useState(false);
   const [options, setOptions] = useState(false);
   const [chat, setChat] = useState(false);
@@ -157,12 +158,13 @@ function Play({ save, rotated, settings, onSettings, onExit, me, sb, net }: { sa
       <canvas ref={canvasRef} className="ma-canvas" />
       {game && hud && !hud.loading ? <Hud hud={hud} msgs={msgs} onSelect={(i) => game.inventory.select(i)} /> : null}
       {game && hud && !hud.loading && mobile && !bag && !dialog && !paused && hud.alive ? (
-        <TouchControls game={game} rotated={rotated} onInventory={() => openBag("bag")} onPause={() => {
+        <TouchControls game={game} rotated={rotated} shield={!!hud.offhand} onInventory={() => openBag("bag")} onPause={() => {
           game.setPaused(true);
           setPaused(true);
         }} />
       ) : null}
-      {game && bag ? <InventoryPanel game={game} startTab={bag} rotated={rotated} onClose={closeBag} /> : null}
+      {game && bag === "altar" ? <AltarPanel game={game} onClose={closeBag} /> : null}
+      {game && bag && bag !== "altar" ? <InventoryPanel game={game} startTab={bag} rotated={rotated} onClose={closeBag} /> : null}
       {dialog && game ? <HeroDialog d={dialog} onAct={(a) => game.dialogAct(a)} /> : null}
       {paused && game && !options && hud?.alive !== false ? (
         <PauseMenu

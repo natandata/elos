@@ -19,6 +19,7 @@ const TABLES: Record<LootTable, { rolls: [number, number]; entries: Entry[] }> =
       { item: "raw_iron", min: 1, max: 3, w: 3 },
       { item: "pickaxe_stone", min: 1, max: 1, w: 2 },
       { item: "helmet_leather", min: 1, max: 1, w: 2 },
+      { item: "shield_wood", min: 1, max: 1, w: 2 },
     ],
   },
   templo: {
@@ -33,6 +34,7 @@ const TABLES: Record<LootTable, { rolls: [number, number]; entries: Entry[] }> =
       { item: "chest_iron", min: 1, max: 1, w: 2 },
       { item: "legs_iron", min: 1, max: 1, w: 2 },
       { item: "sword_iron", min: 1, max: 1, w: 2 },
+      { item: "shield_iron", min: 1, max: 1, w: 2 },
       { item: "sword_gideon", min: 1, max: 1, w: 0.6 },
       { item: "obsidian", min: 4, max: 9, w: 4 },
     ],

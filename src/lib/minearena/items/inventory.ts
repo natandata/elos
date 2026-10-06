@@ -1,6 +1,8 @@
+import { type EnchantKey, enchantLevel } from "./enchant";
 import { itemDef } from "./items";
 
-export type Stack = { item: string; count: number } | null;
+/** `wear` = usos já gastos; `ench` = bênçãos (nível por chave). */
+export type Stack = { item: string; count: number; wear?: number; ench?: Partial<Record<EnchantKey, number>> } | null;
 export const HOTBAR = 9;
 export const INV_SLOTS = 36;
 
@@ -8,6 +10,8 @@ export const INV_SLOTS = 36;
 export class Inventory {
   slots: Stack[] = Array.from({ length: INV_SLOTS }, () => null);
   armor: Stack[] = [null, null, null, null];
+  /** Mão esquerda: só escudo. */
+  offhand: Stack = null;
   selected = 0;
   version = 0;
   /** Espaços do baú/fornalha aberto (ids 200+). */
@@ -83,35 +87,45 @@ export class Inventory {
   }
 
   armorDefense(): number {
-    return this.armor.reduce((n, s) => n + (s ? (itemDef(s.item)?.armor?.def ?? 0) : 0), 0);
+    return this.armor.reduce((n, s) => n + (s ? (itemDef(s.item)?.armor?.def ?? 0) + enchantLevel(s, "guarda") : 0), 0);
   }
 
-  /** Slots: 0–35 mochila/barra, 100–103 armadura. */
+  /** Slots: 0–35 mochila/barra, 100–103 armadura, 104 mão esquerda. */
   getSlot(i: number): Stack {
     if (i >= 200) return this.ext?.slots[i - 200] ?? null;
+    if (i === 104) return this.offhand;
     return i >= 100 ? this.armor[i - 100] : this.slots[i];
   }
   setSlot(i: number, s: Stack): void {
     if (i >= 200) {
       if (this.ext) this.ext.slots[i - 200] = s;
-    } else if (i >= 100) this.armor[i - 100] = s;
+    } else if (i === 104) this.offhand = s;
+    else if (i >= 100) this.armor[i - 100] = s;
     else this.slots[i] = s;
   }
   /** O item pode ficar neste slot? (armaduras só no slot certo) */
   accepts(i: number, s: Stack): boolean {
     if (i >= 200) return this.ext ? this.ext.accepts(i - 200, s) : false;
     if (i < 100 || !s) return true;
+    if (i === 104) return !!itemDef(s.item)?.shield;
     return itemDef(s.item)?.armor?.slot === i - 100;
   }
 
-  toJSON(): { slots: Stack[]; armor: Stack[]; selected: number } {
-    return { slots: this.slots, armor: this.armor, selected: this.selected };
+  toJSON(): { slots: Stack[]; armor: Stack[]; offhand: Stack; selected: number } {
+    return { slots: this.slots, armor: this.armor, offhand: this.offhand, selected: this.selected };
   }
-  load(d: { slots?: Stack[]; armor?: Stack[]; selected?: number } | undefined): void {
+  load(d: { slots?: Stack[]; armor?: Stack[]; offhand?: Stack; selected?: number } | undefined): void {
     if (!d) return;
-    const clean = (s: Stack | undefined): Stack => (s && itemDef(s.item) && s.count > 0 ? { item: s.item, count: s.count } : null);
+    const clean = (s: Stack | undefined): Stack => {
+      if (!s || !itemDef(s.item) || s.count <= 0) return null;
+      const o: NonNullable<Stack> = { item: s.item, count: s.count };
+      if (s.wear) o.wear = s.wear;
+      if (s.ench && Object.keys(s.ench).length) o.ench = { ...s.ench };
+      return o;
+    };
     this.slots = Array.from({ length: INV_SLOTS }, (_, i) => clean(d.slots?.[i]));
     this.armor = [0, 1, 2, 3].map((i) => clean(d.armor?.[i]));
+    this.offhand = itemDef(d.offhand?.item ?? "")?.shield ? clean(d.offhand) : null;
     this.selected = d.selected ?? 0;
     this.changed();
   }

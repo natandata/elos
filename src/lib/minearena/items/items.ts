@@ -5,7 +5,7 @@ export type Rarity = "comum" | "incomum" | "raro" | "epico" | "lendario" | "miti
 export const RARITY_LABEL: Record<Rarity, string> = { comum: "Comum", incomum: "Incomum", raro: "Raro", epico: "Épico", lendario: "Lendário", mitico: "Mítico" };
 export const RARITY_COLOR: Record<Rarity, string> = { comum: "#c9c9c9", incomum: "#5fd35f", raro: "#4aa3ff", epico: "#b362ff", lendario: "#ffb02e", mitico: "#ff4d6d" };
 
-export type ItemKind = "block" | "material" | "tool" | "weapon" | "armor" | "food" | "ranged" | "ammo";
+export type ItemKind = "block" | "material" | "tool" | "weapon" | "armor" | "food" | "ranged" | "ammo" | "shield";
 
 export interface ItemDef {
   key: string;
@@ -20,13 +20,17 @@ export interface ItemDef {
   weapon?: { dmg: number; cooldown: number; reach: number };
   armor?: { slot: 0 | 1 | 2 | 3; def: number };
   food?: { hunger: number; heal: number };
+  /** Usos até quebrar (ausente = não quebra). */
+  durability?: number;
+  /** Escudo: fração do dano de frente que ele segura. */
+  shield?: { block: number };
   ranged?: { ammo: string; dmg: number; speed: number; cooldown: number; gravity: number; shape: "arrow" | "stone" };
 }
 
 export const ITEMS: Record<string, ItemDef> = {};
 type NewItem = Omit<ItemDef, "maxStack" | "rarity"> & { maxStack?: number; rarity?: Rarity };
 const add = (d: NewItem) => {
-  ITEMS[d.key] = { maxStack: d.kind === "tool" || d.kind === "weapon" || d.kind === "armor" || d.kind === "ranged" ? 1 : 64, rarity: "comum", ...d };
+  ITEMS[d.key] = { maxStack: d.kind === "tool" || d.kind === "weapon" || d.kind === "armor" || d.kind === "ranged" || d.kind === "shield" ? 1 : 64, rarity: "comum", ...d };
 };
 
 // ---- blocos ----
@@ -119,5 +123,28 @@ for (const [slot, key, name, icon, def] of [
 ] as const) {
   add({ key, name, kind: "armor", icon, color: 0xf6d36a, rarity: "mitico", armor: { slot, def } });
 }
+
+// ---- escudos (Ef 6.16: "o escudo da fé") ----
+const SHIELDS = [
+  { id: "wood", label: "de madeira", color: 0xb88a52, block: 0.7, dur: 160, rarity: "comum" as Rarity },
+  { id: "iron", label: "de ferro", color: 0xd7dce4, block: 0.8, dur: 340, rarity: "incomum" as Rarity },
+  { id: "sapphire", label: "de safira", color: 0x3b82f6, block: 0.9, dur: 700, rarity: "epico" as Rarity },
+];
+for (const s of SHIELDS) add({ key: `shield_${s.id}`, name: `Escudo ${s.label}`, kind: "shield", icon: "🛡️", color: s.color, rarity: s.rarity, shield: { block: s.block }, durability: s.dur });
+// Recompensa do Adversário: apaga todos os dardos inflamados e não quebra
+add({ key: "shield_faith", name: "Escudo da Fé", kind: "shield", icon: "🛡️", color: 0xf6d36a, rarity: "mitico", shield: { block: 1 } });
+
+// ---- durabilidade (a Armadura de Deus, a Espada do Espírito e o Escudo da Fé não quebram) ----
+const TIER_DUR: Record<string, number> = { wood: 60, stone: 132, iron: 250, sapphire: 900 };
+for (const t of TOOL_TIERS) {
+  for (const k of ["pickaxe", "axe", "shovel", "hoe", "sword", "spear"]) ITEMS[`${k}_${t.id}`].durability = TIER_DUR[t.id];
+}
+ITEMS.sword_gideon.durability = 800;
+ITEMS.sword_archangel.durability = 1200;
+ITEMS.bow.durability = 380;
+ITEMS.sling.durability = 500;
+const ARMOR_DUR: Record<string, number> = { leather: 80, iron: 240, sapphire: 560 };
+const SLOT_DUR = [0.8, 1.2, 1.1, 0.9];
+for (const s of ARMOR_SETS) for (const p of ARMOR_PIECES) ITEMS[`${p.key}_${s.id}`].durability = Math.round(ARMOR_DUR[s.id] * SLOT_DUR[p.slot]);
 
 export const itemDef = (key: string): ItemDef | undefined => ITEMS[key];
