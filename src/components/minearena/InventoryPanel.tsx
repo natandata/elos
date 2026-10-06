@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { MineArena } from "@/lib/minearena/game";
 import type { Stack } from "@/lib/minearena/items/inventory";
-import { RARITY_LABEL, type Rarity, itemDef } from "@/lib/minearena/items/items";
+import { ITEMS, RARITY_LABEL, type Rarity, itemDef } from "@/lib/minearena/items/items";
 import { gridLayout } from "@/lib/minearena/crafting/recipes";
 import { describeStack } from "@/lib/minearena/items/enchant";
 import { ItemIcon } from "./ItemIcon";
@@ -20,7 +20,7 @@ export function InventoryPanel({ game, startTab, rotated, onClose }: { game: Min
     () => 0,
   );
   const container = startTab === "chest" || startTab === "furnace" ? startTab : null;
-  const [tab, setTab] = useState<"bag" | "craft">(container ? "bag" : startTab === "craft" ? "craft" : "bag");
+  const [tab, setTab] = useState<"bag" | "craft" | "creative">(container ? "bag" : startTab === "craft" ? "craft" : "bag");
   const [furnace, setFurnace] = useState<{ burn: number; burnMax: number; cook: number } | null>(null);
   useEffect(() => {
     if (container !== "furnace") return;
@@ -120,6 +120,11 @@ export function InventoryPanel({ game, startTab, rotated, onClose }: { game: Min
             <button type="button" data-on={tab === "craft"} onClick={() => setTab("craft")}>
               🔨 Fabricar
             </button>
+            {game.isCreative() ? (
+              <button type="button" data-on={tab === "creative"} onClick={() => setTab("creative")}>
+                ✨ Criativo
+              </button>
+            ) : null}
           </div>
           )}
           <button type="button" className="ma-x" onClick={close} aria-label="Fechar">
@@ -163,6 +168,21 @@ export function InventoryPanel({ game, startTab, rotated, onClose }: { game: Min
             <p className="ma-sep">Barra rápida</p>
             <div className="ma-grid">{Array.from({ length: 9 }, (_, k) => slot(k))}</div>
             <p className="ma-info">{info ?? "Toque num item e depois num espaço (ou arraste) pra mover. Armaduras vão nos espaços de cima."}</p>
+          </>
+        ) : tab === "creative" ? (
+          <>
+            <input className="ma-search" placeholder="🔍 Buscar item…" value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.stopPropagation()} />
+            <div className="ma-grid ma-creative">
+              {Object.values(ITEMS)
+                .filter((d) => !nq || norm(d.name).includes(nq))
+                .map((d) => (
+                  <button key={d.key} type="button" className="ma-slot ma-slot-lg" title={d.name} onClick={() => game.creativeGive(d.key)}>
+                    <ItemIcon item={d.key} size={40} />
+                  </button>
+                ))}
+            </div>
+            <div className="ma-grid">{Array.from({ length: 9 }, (_, k) => slot(k))}</div>
+            <p className="ma-info">Toque num item para pegar uma pilha. Modo criativo: blocos infinitos, quebra instantânea, voo (toque duas vezes em pular).</p>
           </>
         ) : (
           <>

@@ -361,6 +361,25 @@ function drawTile(name: TileName, put: Put): void {
       }
       break;
     }
+    case "tnt_top":
+    case "tnt_side": {
+      const side = name === "tnt_side";
+      for (let y = 0; y < N; y++) {
+        for (let x = 0; x < N; x++) {
+          let c = mul(hex(0xc8432b), 1 + (rnd(x, y, s) - 0.5) * 0.14);
+          if (side && y >= 5 && y <= 10) c = mul(hex(0xf0e6d2), 1 + (rnd(x, y, s) - 0.5) * 0.08);
+          if (side && y % 5 === 4 && (y < 5 || y > 10)) c = mul(c, 0.7);
+          put(x, y, c);
+        }
+      }
+      if (side) for (const [x, y] of [[3, 6], [4, 6], [3, 7], [3, 8], [4, 8], [3, 9], [4, 9], [6, 6], [7, 6], [8, 6], [7, 7], [7, 8], [7, 9], [10, 6], [11, 6], [10, 7], [10, 8], [11, 8], [10, 9], [12, 6]] as const) put(x, y, hex(0x5a1a10));
+      else {
+        for (let y = 6; y < 10; y++) for (let x = 6; x < 10; x++) put(x, y, hex(0x3a1a10));
+        put(7, 7, hex(0xffb02e));
+        put(8, 7, hex(0xffe27a));
+      }
+      break;
+    }
     case "sign": {
       for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) put(x, y, hex(0x000000), 0);
       for (let y = 3; y < 11; y++) {

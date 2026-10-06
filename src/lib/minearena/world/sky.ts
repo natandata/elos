@@ -13,6 +13,8 @@ export class Sky {
   private stars: THREE.Points;
   private fog: THREE.Fog;
   daylight = 1;
+  /** Tempo fechado (0–1): céu mais cinza e escuro. */
+  dim = 0;
   setClouds(on: boolean): void {
     this.clouds.visible = on && !this.fire;
   }
@@ -107,6 +109,7 @@ export class Sky {
     this.daylight = Math.min(1, Math.max(0, sunH * 2 + 0.3));
     const dusk = Math.max(0, 1 - Math.abs(sunH) * 4);
     const sky = NIGHT.clone().lerp(DAY, this.daylight).lerp(DUSK, dusk * 0.55);
+    if (this.dim > 0) sky.lerp(new THREE.Color(0x6b7380), this.dim * 0.55).multiplyScalar(1 - 0.3 * this.dim);
     (this.scene.background as THREE.Color).copy(sky);
     this.fog.color.copy(sky);
     const dir = new THREE.Vector3(Math.cos(ang), sunH, 0.3).normalize();
@@ -129,9 +132,9 @@ export class Sky {
     this.cloudMat.color.setRGB(shade, shade * (0.9 + 0.1 * dusk), shade * (1 - dusk * 0.2));
     (this.stars.material as THREE.PointsMaterial).opacity = Math.max(0, 1 - this.daylight * 1.6);
     this.sun.position.copy(cam).addScaledVector(dir, 60);
-    this.sun.intensity = 0.15 + this.daylight * 1.0;
+    this.sun.intensity = (0.15 + this.daylight * 1.0) * (1 - 0.5 * this.dim);
     this.ambient.intensity = 0.22 + this.daylight * 0.65;
-    const k = 0.2 + this.daylight * 0.8;
+    const k = (0.2 + this.daylight * 0.8) * (1 - 0.22 * this.dim);
     for (const m of this.worldMat) m.color.setRGB(k * (0.85 + 0.15 * this.daylight), k * (0.9 + 0.1 * this.daylight), k);
   }
 

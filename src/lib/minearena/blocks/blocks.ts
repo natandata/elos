@@ -110,7 +110,7 @@ export type BaseKey = (typeof BASE_KEYS)[number];
 export const MATS = ["planks", "cobble", "brick", "limestone", "sandstone", "cedar_planks"] as const;
 export type Mat = (typeof MATS)[number];
 type D4 = 0 | 1 | 2 | 3;
-export type BlockKey = BaseKey | "door_b" | "door_t" | `door_o${D4}${"b" | "t"}` | `ladder_${D4}` | `sign_${D4}` | `slab_${Mat}` | `stairs_${Mat}_${D4}`;
+export type BlockKey = BaseKey | "door_b" | "door_t" | `door_o${D4}${"b" | "t"}` | `ladder_${D4}` | `sign_${D4}` | "tnt" | `slab_${Mat}` | `stairs_${Mat}_${D4}`;
 const D4S: D4[] = [0, 1, 2, 3];
 const KEYS: BlockKey[] = [
   ...BASE_KEYS,
@@ -119,8 +119,11 @@ const KEYS: BlockKey[] = [
   ...D4S.flatMap((d) => [`door_o${d}b`, `door_o${d}t`] as BlockKey[]),
   ...D4S.map((d) => `ladder_${d}` as BlockKey),
   ...D4S.map((d) => `sign_${d}` as BlockKey),
+
   ...MATS.map((m) => `slab_${m}` as BlockKey),
   ...MATS.flatMap((m) => D4S.map((d) => `stairs_${m}_${d}` as BlockKey)),
+  // novos blocos entram SEMPRE no fim (os ids ficam guardados nos mundos salvos)
+  "tnt",
 ];
 
 /** Atalho: B.stone, B.water… */
@@ -193,7 +196,7 @@ const BASE_SPECS: Record<BaseKey, Spec> = {
   wheat_2: plant("Trigo (quase maduro)", 0x9ab53a, [drop("seeds", 1, 2), drop("wheat", 1, 1, 0.3)]),
   wheat_3: plant("Trigo maduro", 0xd9b13b, [drop("wheat", 1, 3), drop("seeds", 1, 3)]),
   lily: { ...plant("Lírio do campo", 0xf2f2f2, [drop("lily")]), placeable: true },
-  tallgrass: plant("Mato", 0x5da13a, [drop("seeds", 1, 1, 0.12)]),
+  tallgrass: plant("Mato", 0x5da13a, [drop("seeds", 1, 1, 0.12), drop("herb", 1, 1, 0.25)]),
   bed: blk("Esteira de dormir", 0xc2272d, 0.6, "axe", 0, [drop("bed")], "wood", { top: 0xc2272d, side: 0xb88a52, bottom: 0xb88a52 }),
   water_1: flow("water", 1),
   water_2: flow("water", 2),
@@ -233,6 +236,7 @@ for (const d of D4S) {
   GEN[`sign_${d}`] = blk("Placa", 0xa9794a, 0.5, "axe", 0, [drop("sign_0")], "wood", { solid: false, opaque: false, shape: "panel", pdir: d, placeable: d === 0 });
   GEN[`ladder_${d}`] = blk("Escada de mão", 0x9b6b3a, 0.4, "axe", 0, [drop("ladder_0")], "wood", { solid: false, opaque: false, shape: "panel", pdir: d, climb: true, placeable: d === 0 });
 }
+GEN.tnt = blk("Fogo e Enxofre", 0xd9533a, 0.2, "hand", 0, [drop("tnt")], "dirt", {});
 const MAT_NAME: Record<Mat, string> = { planks: "tábuas", cobble: "pedra lavrada", brick: "tijolo", limestone: "calcário", sandstone: "arenito", cedar_planks: "cedro" };
 const STAIR_BOXES: Box[][] = [
   [[0, 0, 0, 1, 0.5, 1], [0.5, 0.5, 0, 1, 1, 1]],

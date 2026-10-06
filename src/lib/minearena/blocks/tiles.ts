@@ -66,6 +66,8 @@ export const TILE_NAMES = [
   "door_t",
   "ladder",
   "sign",
+  "tnt_top",
+  "tnt_side",
 ] as const;
 export type TileName = (typeof TILE_NAMES)[number];
 
@@ -138,6 +140,7 @@ const BASE_TILES: Record<BaseKey, Tiles> = {
 };
 
 const GEN_TILES: Record<string, Tiles> = {
+  tnt: ["tnt_top", "tnt_side", "tnt_top"],
   door_b: ["planks", "door_b", "planks"],
   door_t: ["planks", "door_t", "planks"],
 };

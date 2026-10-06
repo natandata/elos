@@ -11,13 +11,14 @@ import { MOB_BY_ID } from "./entities/definitions";
 import { EntityManager, type Entity } from "./entities/manager";
 import { type EnchantKey, ENCHANT_BY_KEY, ROMAN, applyWear, durabilityLeft, enchantCost, enchantLevel, enchantLevelCost, enchantsFor, maxDurability, repair, repairMaterial, repairNeeded } from "./items/enchant";
 import { HOTBAR, Inventory, type Stack } from "./items/inventory";
-import { RARITY_COLOR, itemDef } from "./items/items";
+import { ITEMS, RARITY_COLOR, itemDef } from "./items/items";
 import { Particles } from "./particles/particles";
 import { type Body, hasGround, inLava, newBody, stepBody } from "./player/physics";
 import { type SavedContainer, type WorldSave, putWorld } from "./save/save";
 import { FUEL, SMELT, SMELT_TIME } from "./crafting/smelting";
 import { rollLoot } from "./structures/loot";
 import { Drops } from "./entities/drops";
+import { EFFECTS, type EffectKind } from "./items/effects";
 import { TRADES } from "./items/trades";
 import { buildMap } from "./world/minimap";
 import { LANDMARKS, LANDMARK_INTERVAL_S, LANDMARK_ORDER, type LandmarkSite, compass, pickLandmarkSite } from "./structures/landmarks";
@@ -67,6 +68,11 @@ export interface HudState {
   xpFrac: number;
   /** Dica do item na mão (bússola, relógio). */
   hint: string | null;
+  /** Efeitos ativos (poções e venenos). */
+  fx: { k: string; t: number }[];
+  /** Carga do arco (0–1) e clarão de relâmpago (0–1). */
+  charge: number;
+  flash: number;
   /** Cabeça dentro de água ou lava (tinge a tela). */
   submerged: "water" | "lava" | null;
 }
@@ -194,6 +200,26 @@ export class MineArena {
   private lmFxT = 0;
   private drops!: Drops;
   private signs: Record<string, string> = {};
+  private creative = false;
+  private flying = false;
+  private lastJump = 0;
+  private effects = new Map<string, { t: number }>();
+  private poisonT = 0;
+  private regenFxT = 0;
+  private charge = 0;
+  private baseFov = 75;
+  private fuses: { x: number; y: number; z: number; t: number; mesh: THREE.Mesh }[] = [];
+  private weather: "clear" | "rain" | "storm" = "clear";
+  private wxT = 240 + Math.random() * 240;
+  private wxK = 0;
+  private wxFlash = 0;
+  private thunderT = 10;
+  private rainObj: THREE.LineSegments | null = null;
+  private rainP = new Float32Array(420 * 3);
+  private rainTop = new Int16Array(24 * 24);
+  private rainTopT = 0;
+  private rainGx = 0;
+  private rainGz = 0;
   private fishing: { x: number; y: number; z: number; wait: number; bite: number; mesh: THREE.Mesh } | null = null;
   private xp = 0;
   private sat = 5;
@@ -287,6 +313,8 @@ export class MineArena {
     this.drops.load(save.drops);
     this.xp = save.xp ?? 0;
     this.signs = { ...(save.signs ?? {}) };
+    this.creative = save.mode === "creative";
+    this.inventory.infinite = this.creative;
     this.deathSpot = save.deathSpot ?? null;
 
     this.spawn = save.spawn ?? findSpawn(save.seed);
@@ -368,6 +396,7 @@ export class MineArena {
     this.input.moveY = y;
   }
   setHold(key: "mine" | "use" | "jump" | "sprint" | "guard" | "sneak", on: boolean): void {
+    if (key === "jump" && on) this.jumpTap();
     this.input[key] = on;
   }
   addLook(dx: number, dy: number): void {
@@ -380,6 +409,7 @@ export class MineArena {
   /** Aplica as opções do jogador (campo de visão, distância, sensibilidade, som, gráficos). */
   applySettings(s: Settings): void {
     this.camera.fov = s.fov || (this.mobile ? 70 : 75);
+    this.baseFov = this.camera.fov;
     this.camera.updateProjectionMatrix();
     const q = s.quality >= 0 ? s.quality : this.mobile ? 1 : 2;
     this.quality = q;
@@ -457,6 +487,7 @@ export class MineArena {
       landmarks: this.landmarks,
       xp: this.xp,
       signs: this.signs,
+      mode: this.creative ? "creative" : "survival",
       drops: this.drops.toJSON(),
       deathSpot: this.deathSpot ?? undefined,
       time: this.time,
@@ -497,6 +528,8 @@ export class MineArena {
     this.cleanup.forEach((f) => f());
     if (document.pointerLockElement) document.exitPointerLock();
     this.endFishing();
+    for (const f of this.fuses) this.scene.remove(f.mesh);
+    if (this.rainObj) this.scene.remove(this.rainObj);
     this.drops.dispose();
     this.entities.dispose();
     this.particles.dispose();
@@ -537,6 +570,7 @@ export class MineArena {
       if (this.uiOpen || this.paused) return;
       if (e.code.startsWith("Digit") && e.code !== "Digit0") this.inventory.select(Number(e.code.slice(5)) - 1);
       if (e.code === "KeyQ" && !e.repeat) this.dropHeld(e.ctrlKey);
+      if (e.code === "Space" && !e.repeat) this.jumpTap();
       if (e.code === "KeyW" && !e.repeat) {
         const now = performance.now();
         this.wDouble = now - this.lastW < 300;
@@ -608,6 +642,7 @@ export class MineArena {
       net: (kind: string, data: Record<string, number>) => {
         if (this.role === "host") this.net?.send("fx", { k: kind, d: data });
       },
+      effect: (k: string, s: number) => this.addEffect(k, s),
       healPlayer: (n: number) => {
         this.health = Math.min(PLAYER.maxHealth, this.health + n);
       },
@@ -641,6 +676,22 @@ export class MineArena {
     return left;
   }
 
+  private fireBow(held: NonNullable<ReturnType<MineArena["heldDef"]>>, dir: THREE.Vector3, c: number): void {
+    const r = held.ranged;
+    if (!r) return;
+    if (!this.creative && !this.inventory.remove(r.ammo, 1)) {
+      this.cb.onMessage(`Sem munição (${itemDef(r.ammo)?.name ?? r.ammo}).`, "warn");
+      return;
+    }
+    const e = this.camera.position;
+    const power = 0.35 + 0.65 * c;
+    this.atkCd = r.cooldown * 0.5;
+    this.swing = 1;
+    this.sfx.play("bow");
+    this.entities.shoot(r.shape, e.x + dir.x * 0.5, e.y + dir.y * 0.5 - 0.1, e.z + dir.z * 0.5, dir.x, dir.y, dir.z, r.speed * (0.55 + 0.45 * c), r.dmg * power * (1 + 0.2 * enchantLevel(this.inventory.held(), "certeira")), r.gravity, "player");
+    this.wearHeld(1);
+  }
+
   /** Larga um item (ou pilha) na frente do jogador. */
   dropStack(s: NonNullable<Stack>): void {
     const dir = new THREE.Vector3();
@@ -659,6 +710,384 @@ export class MineArena {
     s.count -= n;
     if (s.count <= 0) this.inventory.slots[this.inventory.selected] = null;
     this.inventory.changed();
+  }
+
+  // ---------- efeitos (poções, veneno…) ----------
+  addEffect(kind: string, secs: number): void {
+    const d = EFFECTS[kind as EffectKind];
+    if (!d || (this.creative && d.bad)) return;
+    const cur = this.effects.get(kind);
+    this.effects.set(kind, { t: Math.max(secs, cur?.t ?? 0) });
+    this.cb.onMessage(`${d.icon} ${d.name}`, d.bad ? "warn" : "good");
+  }
+
+  private effectTick(dt: number): void {
+    if (!this.alive) {
+      this.effects.clear();
+      return;
+    }
+    for (const [k, v] of this.effects) {
+      v.t -= dt;
+      if (v.t <= 0) {
+        this.effects.delete(k);
+        continue;
+      }
+      if (k === "poison") {
+        this.poisonT += dt;
+        if (this.poisonT >= 1.2) {
+          this.poisonT = 0;
+          if (this.health > 1) {
+            this.health -= 1;
+            this.hurtFlash = Math.max(this.hurtFlash, 0.4);
+            this.sfx.play("hurt");
+          }
+        }
+      } else if (k === "regen") {
+        this.regenFxT += dt;
+        if (this.regenFxT >= 1.5) {
+          this.regenFxT = 0;
+          this.health = Math.min(PLAYER.maxHealth, this.health + 1);
+        }
+      }
+    }
+  }
+
+  // ---------- clima ----------
+  setWeather(k: "clear" | "rain" | "storm", quiet = false): void {
+    this.weather = k;
+    this.wxT = k === "clear" ? 240 + Math.random() * 360 : k === "rain" ? 120 + Math.random() * 180 : 60 + Math.random() * 90;
+    if (this.role === "host") this.net?.send("wx", { k });
+    if (!quiet) this.cb.onMessage(k === "rain" ? "🌧 Começou a chover." : k === "storm" ? "⛈ Uma tempestade se aproxima!" : "☀ O tempo abriu.", "info");
+  }
+
+  private nextWeather(): void {
+    const r = Math.random();
+    if (this.weather === "clear") this.setWeather(r < 0.7 ? "rain" : "storm");
+    else if (this.weather === "rain") this.setWeather(r < 0.8 ? "clear" : "storm");
+    else this.setWeather(r < 0.5 ? "rain" : "clear");
+  }
+
+  private weatherTick(dt: number): void {
+    if (this.dimension !== "overworld") {
+      this.wxK = 0;
+      this.sky.dim = 0;
+      this.sfx.setRain(0);
+      if (this.rainObj) this.rainObj.visible = false;
+      return;
+    }
+    if (this.role !== "guest") {
+      this.wxT -= dt;
+      if (this.wxT <= 0) this.nextWeather();
+    }
+    const target = this.weather === "clear" ? 0 : this.weather === "rain" ? 0.7 : 1;
+    this.wxK += (target - this.wxK) * Math.min(1, dt * 0.4);
+    this.sky.dim = this.wxK;
+    this.wxFlash = Math.max(0, this.wxFlash - dt * 3);
+    const b = this.body;
+    const px = this.camera.position.x;
+    const py = this.camera.position.y;
+    const pz = this.camera.position.z;
+    const exposed = this.world.surfaceY(Math.floor(b.x), Math.floor(b.z)) <= Math.floor(b.y + 1.6);
+    const biome = biomeAt(this.baseSeed, b.x, b.z);
+    const snow = biome === "hermom" || biome === "montanha" || b.y >= 50;
+    this.sfx.setRain(this.wxK * (exposed ? 1 : 0.25) * (snow ? 0.3 : 1));
+    if (this.weather === "storm" && this.wxK > 0.6) {
+      this.thunderT -= dt;
+      if (this.thunderT <= 0) {
+        this.thunderT = 6 + Math.random() * 14;
+        this.wxFlash = 1;
+        setTimeout(() => this.sfx.thunder(), 400 + Math.random() * 1200);
+      }
+    }
+    const N = 420;
+    if (!this.rainObj) {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(N * 6), 3));
+      this.rainObj = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0xb8d4ff, transparent: true, opacity: 0.5, depthWrite: false }));
+      this.rainObj.frustumCulled = false;
+      this.scene.add(this.rainObj);
+      for (let i = 0; i < N; i++) {
+        this.rainP[i * 3] = px + (Math.random() - 0.5) * 28;
+        this.rainP[i * 3 + 1] = py + Math.random() * 18 - 4;
+        this.rainP[i * 3 + 2] = pz + (Math.random() - 0.5) * 28;
+      }
+    }
+    const show = this.wxK > 0.03;
+    this.rainObj.visible = show;
+    if (!show) return;
+    (this.rainObj.material as THREE.LineBasicMaterial).color.setHex(snow ? 0xffffff : 0xb8d4ff);
+    this.rainTopT -= dt;
+    if (this.rainTopT <= 0) {
+      this.rainTopT = 0.5;
+      this.rainGx = Math.floor(px) - 12;
+      this.rainGz = Math.floor(pz) - 12;
+      for (let iz = 0; iz < 24; iz++) for (let ix = 0; ix < 24; ix++) this.rainTop[ix + iz * 24] = this.world.surfaceY(this.rainGx + ix, this.rainGz + iz);
+    }
+    const speed = snow ? 2.6 : 24;
+    const len = snow ? 0.12 : 0.7;
+    const pos = this.rainObj.geometry.getAttribute("position") as THREE.BufferAttribute;
+    const arr = pos.array as Float32Array;
+    const count = Math.floor(N * Math.min(1, this.wxK * 1.1));
+    for (let i = 0; i < N; i++) {
+      let x = this.rainP[i * 3];
+      let y = this.rainP[i * 3 + 1] - speed * dt;
+      let z = this.rainP[i * 3 + 2];
+      if (snow) x += Math.sin(this.playedSeconds * 1.3 + i) * 0.4 * dt;
+      if (x < px - 14) x += 28;
+      else if (x > px + 14) x -= 28;
+      if (z < pz - 14) z += 28;
+      else if (z > pz + 14) z -= 28;
+      const ix = Math.floor(x) - this.rainGx;
+      const iz = Math.floor(z) - this.rainGz;
+      const top = ix >= 0 && ix < 24 && iz >= 0 && iz < 24 ? this.rainTop[ix + iz * 24] : -1;
+      if (y < top + 1 || y < py - 12) {
+        y = py + 10 + Math.random() * 8;
+        x = px + (Math.random() - 0.5) * 28;
+        z = pz + (Math.random() - 0.5) * 28;
+      }
+      this.rainP[i * 3] = x;
+      this.rainP[i * 3 + 1] = y;
+      this.rainP[i * 3 + 2] = z;
+      const o = i * 6;
+      arr[o] = x;
+      arr[o + 1] = y;
+      arr[o + 2] = z;
+      arr[o + 3] = x + (snow ? 0 : 0.05);
+      arr[o + 4] = y + len;
+      arr[o + 5] = z;
+    }
+    this.rainObj.geometry.setDrawRange(0, count * 2);
+    pos.needsUpdate = true;
+  }
+
+  // ---------- Fogo e Enxofre (explosivo) ----------
+  private primeTnt(x: number, y: number, z: number, fuse = 3): void {
+    if (this.world.getBlock(x, y, z) === B.tnt) this.world.setBlock(x, y, z, B.air);
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.98, 0.98), new THREE.MeshBasicMaterial({ color: 0xd9533a }));
+    mesh.position.set(x + 0.5, y + 0.5, z + 0.5);
+    this.scene.add(mesh);
+    this.fuses.push({ x, y, z, t: fuse, mesh });
+    this.sfx.play("fire");
+  }
+
+  private fuseTick(dt: number): void {
+    for (let i = this.fuses.length - 1; i >= 0; i--) {
+      const f = this.fuses[i];
+      f.t -= dt;
+      (f.mesh.material as THREE.MeshBasicMaterial).color.setHex(Math.floor(f.t * 6) % 2 === 0 ? 0xffffff : 0xd9533a);
+      f.mesh.scale.setScalar(1 + Math.max(0, 1 - f.t) * 0.12);
+      if (f.t <= 0) {
+        this.scene.remove(f.mesh);
+        f.mesh.geometry.dispose();
+        (f.mesh.material as THREE.Material).dispose();
+        this.fuses.splice(i, 1);
+        this.explode(f.x + 0.5, f.y + 0.5, f.z + 0.5, 3.4);
+      }
+    }
+  }
+
+  /** Explosão: destrói blocos (menos obsidiana e rocha-mãe), fere criaturas e o jogador, acende outros barris. */
+  explode(cx: number, cy: number, cz: number, r: number): void {
+    const x0 = Math.floor(cx);
+    const y0 = Math.floor(cy);
+    const z0 = Math.floor(cz);
+    const R = Math.ceil(r);
+    for (let dx = -R; dx <= R; dx++) {
+      for (let dy = -R; dy <= R; dy++) {
+        for (let dz = -R; dz <= R; dz++) {
+          if (Math.hypot(dx, dy, dz) > r + (Math.random() - 0.5) * 0.8) continue;
+          const x = x0 + dx;
+          const y = y0 + dy;
+          const z = z0 + dz;
+          const id = this.world.getBlock(x, y, z);
+          if (id === B.air || id === B.bedrock || id === B.obsidian || BLOCKS[id].fluid || !Number.isFinite(BLOCKS[id].hardness)) continue;
+          if (id === B.tnt) {
+            this.primeTnt(x, y, z, 0.3 + Math.random() * 0.6);
+            continue;
+          }
+          if (Math.random() < 0.25 && BLOCKS[id].loot[0]) this.dropItem(BLOCKS[id].loot[0].item, 1, x + 0.5, y + 0.5, z + 0.5);
+          this.crops.delete(`${x},${y},${z}`);
+          this.world.setBlock(x, y, z, B.air, true);
+        }
+      }
+    }
+    for (const e of this.entities.list) {
+      if (e.dead || e.def.behavior === "hero") continue;
+      const d = Math.hypot(e.body.x - cx, e.body.y - cy, e.body.z - cz);
+      if (d < r * 2.4) this.entities.hurt(e, 20 * (1 - d / (r * 2.4)), (e.body.x - cx) / (d + 0.1), (e.body.z - cz) / (d + 0.1), true);
+    }
+    const b = this.body;
+    const dp = Math.hypot(b.x - cx, b.y + 0.9 - cy, b.z - cz);
+    if (dp < r * 2.4) this.damagePlayer(16 * (1 - dp / (r * 2.4)), cx, cz, true);
+    this.particles.burst(cx, cy, cz, 0xffb02e, 40, 7, 0.3, 3);
+    this.particles.burst(cx, cy, cz, 0x555555, 30, 5, 0.35, 2);
+    this.sfx.play("boss");
+    this.sfx.play("fire");
+  }
+
+  // ---------- modo criativo e comandos ----------
+  isCreative(): boolean {
+    return this.creative;
+  }
+
+  private setCreative(on: boolean): void {
+    this.creative = on;
+    this.inventory.infinite = on;
+    this.flying = false;
+    if (on) {
+      this.health = PLAYER.maxHealth;
+      this.effects.clear();
+    }
+    this.inventory.changed();
+  }
+
+  creativeGive(key: string): void {
+    const d = itemDef(key);
+    if (!d || !this.creative) return;
+    const left = this.inventory.addStack({ item: key, count: d.maxStack });
+    if (left === d.maxStack) this.cb.onMessage("Mochila cheia!", "warn");
+    else this.sfx.play("pickup");
+  }
+
+  private jumpTap(): void {
+    const now = performance.now();
+    if (this.creative && now - this.lastJump < 320) {
+      this.flying = !this.flying;
+      this.cb.onMessage(this.flying ? "✈ Voando (toque duas vezes em pular pra pousar)" : "Você parou de voar.", "info");
+    }
+    this.lastJump = now;
+  }
+
+  private findItem(q: string): string | null {
+    if (itemDef(q)) return q;
+    const norm = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const n = norm(q.trim());
+    const all = Object.values(ITEMS);
+    return (all.find((d) => norm(d.name) === n) ?? all.find((d) => d.key.includes(n.replace(/\s+/g, "_"))) ?? all.find((d) => norm(d.name).includes(n)))?.key ?? null;
+  }
+
+  private runCommand(text: string): void {
+    if (this.role === "guest") {
+      this.cb.onMessage("Só o anfitrião usa comandos.", "warn");
+      return;
+    }
+    const parts = text.slice(1).trim().split(/\s+/);
+    const cmd = (parts.shift() ?? "").toLowerCase();
+    const say = (m: string, tone: "info" | "good" | "warn" = "info") => this.cb.onMessage(m, tone);
+    const b = this.body;
+    switch (cmd) {
+      case "help":
+      case "ajuda":
+        say("Comandos: /gamemode · /give · /time · /weather · /tp · /heal · /kill · /xp · /clear · /seed");
+        break;
+      case "gamemode":
+      case "gm": {
+        const m = (parts[0] ?? "").toLowerCase();
+        if (m.startsWith("c")) {
+          this.setCreative(true);
+          say("Modo criativo: blocos infinitos, quebra instantânea e voo (toque duas vezes em pular).", "good");
+        } else if (m.startsWith("s")) {
+          this.setCreative(false);
+          say("Modo sobrevivência.", "good");
+        } else say("Use: /gamemode survival ou /gamemode creative", "warn");
+        break;
+      }
+      case "give": {
+        const key = this.findItem(parts.slice(0, parts.length > 1 && /^\d+$/.test(parts[parts.length - 1]) ? -1 : undefined).join(" "));
+        if (!key) {
+          say("Item não encontrado.", "warn");
+          break;
+        }
+        const last = parts[parts.length - 1];
+        const n = parts.length > 1 && /^\d+$/.test(last) ? Math.min(2304, Number(last)) : itemDef(key)!.maxStack;
+        const left = this.inventory.addStack({ item: key, count: n });
+        say(`+${n - left} ${itemDef(key)!.name}`, "good");
+        break;
+      }
+      case "time": {
+        const v = (parts[parts.length - 1] ?? "").toLowerCase();
+        const t: Record<string, number> = { day: 0.1, dia: 0.1, noon: 0.25, meiodia: 0.25, sunset: 0.5, tarde: 0.5, night: 0.62, noite: 0.62, midnight: 0.75, meianoite: 0.75, dawn: 0, manha: 0.02 };
+        if (v in t) {
+          this.time = t[v];
+          say("Hora ajustada.", "good");
+        } else say("Use: /time day | noon | sunset | night | midnight", "warn");
+        break;
+      }
+      case "weather":
+      case "clima": {
+        const w = (parts[0] ?? "").toLowerCase();
+        if (w === "clear" || w === "limpo" || w === "sol") this.setWeather("clear");
+        else if (w === "rain" || w === "chuva") this.setWeather("rain");
+        else if (w === "storm" || w === "tempestade") this.setWeather("storm");
+        else say("Use: /weather clear | rain | storm", "warn");
+        break;
+      }
+      case "tp": {
+        if (parts[0] === "spawn" || parts[0] === "home") {
+          b.x = this.spawn.x;
+          b.y = this.spawn.y;
+          b.z = this.spawn.z;
+        } else {
+          const [x, y, z] = parts.map(Number);
+          if (![x, y, z].every(Number.isFinite)) {
+            say("Use: /tp x y z   ou   /tp spawn", "warn");
+            break;
+          }
+          b.x = x + 0.5;
+          b.y = y;
+          b.z = z + 0.5;
+        }
+        b.vx = b.vy = b.vz = 0;
+        this.ready = false;
+        say(`Teleportado para ${Math.floor(b.x)}, ${Math.floor(b.y)}, ${Math.floor(b.z)}.`, "good");
+        break;
+      }
+      case "heal":
+        this.health = PLAYER.maxHealth;
+        this.hunger = PLAYER.maxHunger;
+        this.sat = 10;
+        say("Vida e fome restauradas.", "good");
+        break;
+      case "kill":
+        this.health = 0.01;
+        this.invuln = 0;
+        this.damagePlayer(999, b.x, b.z, false);
+        break;
+      case "xp": {
+        const n = Number(parts[0]);
+        if (Number.isFinite(n) && n > 0) {
+          this.addXp(Math.floor(n));
+          say(`+${Math.floor(n)} de experiência.`, "good");
+        } else say("Use: /xp 100", "warn");
+        break;
+      }
+      case "clear":
+      case "limpar":
+        this.inventory.slots.fill(null);
+        this.inventory.changed();
+        say("Mochila limpa.", "good");
+        break;
+      case "seed":
+        say(`Seed do mundo: ${this.baseSeed}`);
+        break;
+      default:
+        say(`Comando desconhecido: /${cmd}. Digite /help.`, "warn");
+    }
+  }
+
+  sendChat(text: string): void {
+    const t = text.trim().slice(0, 140);
+    if (!t) return;
+    if (t.startsWith("/")) {
+      this.runCommand(t);
+      return;
+    }
+    if (!this.net) {
+      this.cb.onMessage(`Você: ${t}  (digite / para comandos)`, "info");
+      return;
+    }
+    this.net.send("chat", { text: t, name: this.me?.name ?? "Jogador" });
+    this.cb.onMessage(`Você: ${t}`, "info");
   }
 
   // ---------- placas, comércio, mapa e pesca ----------
@@ -789,6 +1218,7 @@ export class MineArena {
 
   /** Cansaço: a saciedade acaba primeiro, depois a fome. */
   private exhaust(a: number): void {
+    if (this.creative) return;
     if (this.sat > 0) this.sat = Math.max(0, this.sat - a * 1.4);
     else this.hunger = Math.max(0, this.hunger - a);
   }
@@ -821,7 +1251,7 @@ export class MineArena {
   }
 
   private damagePlayer(amount: number, fx: number, fz: number, blockable = true): void {
-    if (!this.alive || this.invuln > 0) return;
+    if (!this.alive || this.invuln > 0 || this.creative) return;
     let kb = 6;
     let flash = 1;
     const shield = this.inventory.offhand;
@@ -846,7 +1276,7 @@ export class MineArena {
         this.inventory.changed();
       }
     }
-    const taken = amount * (1 - Math.min(0.7, this.inventory.armorDefense() * 0.035)) * this.diffMul;
+    const taken = amount * (1 - Math.min(0.7, this.inventory.armorDefense() * 0.035)) * this.diffMul * (this.effects.has("resist") ? 0.65 : 1);
     if (taken > 0.4) this.wearArmor();
     this.health -= taken;
     this.invuln = 0.5;
@@ -932,6 +1362,7 @@ export class MineArena {
 
     this.playedSeconds += dt;
     this.time = (this.time + dt / DAY_SECONDS) % 1;
+    this.weatherTick(dt);
     if (this.dimension === "geena") this.sky.updateFire();
     else this.sky.update(this.time, this.camera.position);
     this.portalCd = Math.max(0, this.portalCd - dt);
@@ -971,6 +1402,8 @@ export class MineArena {
     this.exploration(dt);
     this.drops.update(dt, b.x, b.y, b.z, this.alive && this.sleepT <= 0, (s) => this.pickup(s));
     this.fishingTick(dt);
+    this.fuseTick(dt);
+    this.effectTick(dt);
     this.ambience(dt);
     this.landmarkFx(dt);
     this.tutorialTick();
@@ -997,6 +1430,11 @@ export class MineArena {
 
   private syncCamera(): void {
     const b = this.body;
+    const tf = this.baseFov * (1 - 0.12 * this.charge);
+    if (Math.abs(this.camera.fov - tf) > 0.05) {
+      this.camera.fov = tf;
+      this.camera.updateProjectionMatrix();
+    }
     const speed = Math.hypot(b.vx, b.vz);
     this.bobAmt = this.bobOn && b.onGround && !this.uiOpen && !this.paused ? Math.min(1, speed / PLAYER.walk) : 0;
     this.eyeY += ((this.sneaking ? PLAYER.eye - 0.3 : PLAYER.eye) - this.eyeY) * 0.3;
@@ -1023,9 +1461,9 @@ export class MineArena {
     const my = blocked ? 0 : this.input.moveY;
     const len = Math.hypot(mx, my);
     this.updateGuard();
-    this.sneaking = !blocked && this.input.sneak && !b.inWater;
+    this.sneaking = !blocked && this.input.sneak && !b.inWater && !this.flying;
     const sprint = !blocked && !this.guarding && !this.sneaking && this.input.sprint && my > 0;
-    const sp = (sprint ? PLAYER.sprint : PLAYER.walk) * (b.inWater ? 0.55 : 1) * (this.guarding ? 0.6 : 1) * (this.sneaking ? 0.35 : 1);
+    const sp = (sprint ? PLAYER.sprint : PLAYER.walk) * (b.inWater ? 0.55 : 1) * (this.guarding ? 0.6 : 1) * (this.sneaking ? 0.35 : 1) * (this.effects.has("slow") ? 0.55 : 1) * (this.effects.has("swift") ? 1.35 : 1) * (this.flying ? 2.2 : 1);
     const sin = Math.sin(this.yaw);
     const cos = Math.cos(this.yaw);
     const nx = len > 1 ? mx / len : mx;
@@ -1044,7 +1482,11 @@ export class MineArena {
 
     const jump = !blocked && this.input.jump;
     const onLadder = !b.inWater && (CLIMBABLE[this.world.getBlock(Math.floor(b.x), Math.floor(b.y + 0.3), Math.floor(b.z))] === 1 || CLIMBABLE[this.world.getBlock(Math.floor(b.x), Math.floor(b.y + 1.1), Math.floor(b.z))] === 1);
-    if (b.inWater) {
+    if (this.flying) {
+      b.vy += ((jump ? 8 : this.input.sneak ? -8 : 0) - b.vy) * Math.min(1, dt * 8);
+      this.fallV = 0;
+      if (b.onGround && this.input.sneak) this.flying = false;
+    } else if (b.inWater) {
       b.vy += (jump ? 30 : -10) * dt;
       b.vy = Math.max(-3, Math.min(3.2, b.vy));
       // na superfície, encostado na margem: pula pra fora da água
@@ -1143,6 +1585,10 @@ export class MineArena {
         const tool = held?.tool;
         const heldStack = this.inventory.held();
         const info = breakInfo(def, tool?.type ?? "hand", tool?.tier ?? 0, (tool?.speed ?? 1) * (1 + 0.3 * enchantLevel(heldStack, "zelo")));
+        if (this.creative && Number.isFinite(info.time)) {
+          info.time = 0.06;
+          info.harvest = false;
+        }
         const key = `${hit.x},${hit.y},${hit.z}`;
         if (key !== this.mineKey) {
           this.mineKey = key;
@@ -1175,6 +1621,17 @@ export class MineArena {
     (this.sel.material as THREE.MeshBasicMaterial).map = this.cracks[Math.min(9, Math.floor(this.mineProgress * 10))];
     this.sel.visible = this.selLines.visible && this.mineProgress > 0.03;
 
+    // ---- arco: segure pra carregar, solte pra atirar ----
+    const bow = held?.ranged && held.ranged.shape === "arrow" ? held.ranged : null;
+    if (bow && !blocked && !this.guarding) {
+      if (this.input.use) {
+        if (this.creative || this.inventory.count(bow.ammo) > 0) this.charge = Math.min(1, this.charge + dt / 0.9);
+      } else if (this.charge > 0) {
+        if (this.charge >= 0.2 && this.atkCd <= 0) this.fireBow(held!, dir, this.charge);
+        this.charge = 0;
+      }
+    } else this.charge = 0;
+
     // ---- usar (colocar, comer, atirar, conversar) ----
     if (!blocked && this.input.use) {
       if (!this.prevUse || this.useCd <= 0) this.useAction(hit, ePick, dir, !this.prevUse);
@@ -1187,6 +1644,7 @@ export class MineArena {
     const w = held?.weapon;
     const hs = this.inventory.held();
     let dmg = (w?.dmg ?? 1) + enchantLevel(hs, "fio") * 1.5 + (e.def.evil ? enchantLevel(hs, "combate") * 3 : 0);
+    if (this.effects.has("strength")) dmg *= 1.4;
     const crit = !this.body.onGround && this.body.vy < -1;
     if (crit) dmg *= 1.5;
     if (e.def.evil && held?.key === "sword_spirit") dmg *= 1.6;
@@ -1376,6 +1834,11 @@ export class MineArena {
     // mirando numa planta, enxada e sementes valem pro chão embaixo dela
     const onPlant = !!hit && blockDef(hit.id).shape === "cross";
     const tgt = hit && onPlant ? { x: hit.x, y: hit.y - 1, z: hit.z, id: this.world.getBlock(hit.x, hit.y - 1, hit.z) } : hit;
+    // acender o Fogo e Enxofre com o tição do altar
+    if (held.key === "ember_brand" && hit && hit.id === B.tnt) {
+      this.primeTnt(hit.x, hit.y, hit.z);
+      return;
+    }
     // acender o portal do Abismo com o tição do altar
     if (held.key === "ember_brand" && hit && hit.id === B.obsidian) {
       if (this.role !== "solo") {
@@ -1412,6 +1875,7 @@ export class MineArena {
     const eye = this.camera.position;
     // 3) arco / funda
     if (held.ranged) {
+      if (held.ranged.shape === "arrow") return;
       if (this.atkCd > 0) return;
       const r = held.ranged;
       if (!this.inventory.remove(r.ammo, 1)) {
@@ -1425,6 +1889,19 @@ export class MineArena {
       this.wearHeld(1);
       return;
     }
+    // poção: bebe e devolve o frasco
+    if (edge && held.potion) {
+      const p = held.potion;
+      if (p.kind === "heal") {
+        this.health = Math.min(PLAYER.maxHealth, this.health + (p.heal ?? 8));
+        this.cb.onMessage(`💖 ${held.name}`, "good");
+      } else this.addEffect(p.kind, p.secs);
+      this.inventory.consumeHeld(1);
+      if (this.inventory.add("vial", 1) > 0) this.dropItem("vial", 1, this.body.x, this.body.y + 1, this.body.z);
+      this.sfx.play("eat");
+      this.useCd = 0.5;
+      return;
+    }
     // 4) comer
     if (held.food) {
       if (this.hunger >= PLAYER.maxHunger - 0.5 && this.health >= PLAYER.maxHealth) return;
@@ -1432,6 +1909,7 @@ export class MineArena {
       this.sat = Math.min(this.hunger, this.sat + held.food.hunger * 0.9);
       this.health = Math.min(PLAYER.maxHealth, this.health + held.food.heal);
       this.inventory.consumeHeld(1);
+      if ((held.key === "meat" || held.key === "fish") && Math.random() < 0.35) this.addEffect("poison", 6);
       this.sfx.play("eat");
       this.useCd = 0.6;
       return;
@@ -1717,13 +2195,6 @@ export class MineArena {
     if (!silent) this.cb.onMessage(was === "host" ? "Sala fechada." : "Você saiu da sala.", "info");
   }
 
-  sendChat(text: string): void {
-    const t = text.trim().slice(0, 140);
-    if (!t || !this.net) return;
-    this.net.send("chat", { text: t, name: this.me?.name ?? "Jogador" });
-    this.cb.onMessage(`Você: ${t}`, "info");
-  }
-
   private announceCount(): void {
     if (this.role === "host" && this.ann && this.me) this.ann.update({ hostId: this.me.id, hostName: this.me.name, name: this.worldName, players: 1 + this.remotes.list.size });
   }
@@ -1772,6 +2243,7 @@ export class MineArena {
       net.on("dmg", (m) => this.damagePlayer(m.amount as number, m.fx as number, m.fz as number));
       net.on("loot", (m) => this.give(m.item as string, m.count as number));
       net.on("fx", (m) => this.entities.visualEvent(m.k as string, m.d as Record<string, number>));
+      net.on("wx", (m) => this.setWeather(m.k as "clear" | "rain" | "storm", true));
       net.on("lm", (m) => {
         this.landmarks.push({ id: m.id as LandmarkSite["id"], x: m.x as number, z: m.z as number, gy: m.gy as number });
       });
@@ -1871,6 +2343,7 @@ export class MineArena {
       return;
     }
     this.sleepT = 2.8;
+    this.setWeather("clear", true);
     this.sfx.play("ui");
     this.cb.onMessage("Dormindo… 💤  Ponto de renascimento definido.", "info");
   }
@@ -2046,7 +2519,7 @@ export class MineArena {
   /** Gasta `n` usos do item da mão; se quebrar, some da barra. */
   private wearHeld(n = 1): void {
     const s = this.inventory.held();
-    if (!s || !itemDef(s.item)?.durability) return;
+    if (this.creative || !s || !itemDef(s.item)?.durability) return;
     const name = itemDef(s.item)?.name ?? s.item;
     if (applyWear(s, n)) {
       this.inventory.slots[this.inventory.selected] = null;
@@ -2474,6 +2947,9 @@ export class MineArena {
       guarding: this.guarding,
       submerged: this.submerged,
       hint: this.hintText(),
+      fx: [...this.effects].map(([k, v]) => ({ k, t: Math.ceil(v.t) })),
+      charge: Math.round(this.charge * 20) / 20,
+      flash: Math.round(this.wxFlash * 10) / 10,
       xpLevel: this.xpLevel(),
       xpFrac: Math.round(this.xpFrac() * 20) / 20,
       quest: this.dimension === "overworld" ? this.questText() : null,

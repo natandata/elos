@@ -1,6 +1,7 @@
 "use client";
 
 import type { HudState } from "@/lib/minearena/game";
+import { EFFECTS, type EffectKind } from "@/lib/minearena/items/effects";
 import { ItemIcon } from "./ItemIcon";
 
 export type Msg = { id: number; text: string; tone: "info" | "good" | "warn" | "rare" };
@@ -46,6 +47,21 @@ export function Hud({ hud, msgs, onSelect }: { hud: HudState; msgs: Msg[]; onSel
         {hud.biome ? <small>{hud.biome}</small> : null}
         {hud.coords ? <small>📍 {hud.coords}</small> : null}
       </div>
+      {hud.flash > 0 ? <div className="ma-flash" style={{ opacity: hud.flash * 0.85 }} aria-hidden /> : null}
+      {hud.charge > 0 ? (
+        <div className="ma-charge" aria-hidden>
+          <i style={{ width: `${Math.round(hud.charge * 100)}%` }} data-full={hud.charge >= 1} />
+        </div>
+      ) : null}
+      {hud.fx.length > 0 ? (
+        <div className="ma-fx">
+          {hud.fx.map((f) => (
+            <span key={f.k} data-bad={EFFECTS[f.k as EffectKind]?.bad} title={EFFECTS[f.k as EffectKind]?.name}>
+              {EFFECTS[f.k as EffectKind]?.icon} {f.t}s
+            </span>
+          ))}
+        </div>
+      ) : null}
       {hud.hint ? <div className="ma-hint">{hud.hint}</div> : null}
       {hud.quest ? <div className="ma-quest">{hud.quest}</div> : null}
       {hud.allies.length > 0 ? <div className="ma-allies">🛡 {hud.allies.join(" · ")}</div> : null}

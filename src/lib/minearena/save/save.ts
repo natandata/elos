@@ -12,6 +12,8 @@ export interface WorldSave {
   playedSeconds: number;
   /** Monumentos bíblicos já revelados neste mundo. */
   landmarks?: LandmarkSite[];
+  /** Modo de jogo. */
+  mode?: "survival" | "creative";
   /** Textos das placas ("x,y,z" → texto). */
   signs?: Record<string, string>;
   /** Experiência total do jogador. */

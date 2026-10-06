@@ -86,7 +86,10 @@ export class Inventory {
   held(): Stack {
     return this.slots[this.selected];
   }
+  /** Modo criativo: blocos e itens não acabam. */
+  infinite = false;
   consumeHeld(n = 1): void {
+    if (this.infinite) return;
     const s = this.slots[this.selected];
     if (!s) return;
     s.count -= n;

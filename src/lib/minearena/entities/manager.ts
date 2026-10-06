@@ -65,6 +65,8 @@ export interface ManagerHooks {
   /** Co-op (anfitrião): eventos só visuais para os convidados. */
   net?(kind: string, data: Record<string, number>): void;
   healPlayer(n: number): void;
+  /** Aplica um efeito (veneno…) no jogador local. */
+  effect?(kind: string, secs: number): void;
   give(item: string, count: number): void;
   /** Solta o saque no chão, onde a criatura caiu. */
   drop?(item: string, count: number, x: number, y: number, z: number): void;
@@ -681,7 +683,10 @@ export class EntityManager {
         e.atkCd = def.attackCooldown;
         e.atkAnim = 0.01;
         if (target.ent) this.hurt(target.ent, def.dmg, Math.sin(e.yaw) * 0.6, Math.cos(e.yaw) * 0.6, false);
-        else this.hooks.damagePlayer(def.dmg, b.x, b.z, target.pid);
+        else {
+          this.hooks.damagePlayer(def.dmg, b.x, b.z, target.pid);
+          if (def.effect && !target.pid) this.hooks.effect?.(def.effect.kind, def.effect.secs);
+        }
       }
     }
 

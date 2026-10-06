@@ -54,6 +54,8 @@ export interface MobDef {
   gift?: { item: string; count: number }[];
   /** Item que faz o animal entrar no cio (reprodução). */
   breeds?: string;
+  /** Efeito aplicado no jogador a cada golpe. */
+  effect?: { kind: string; secs: number };
   /** Criatura maligna: a Espada do Espírito fere mais. */
   evil?: boolean;
 }
@@ -225,6 +227,7 @@ export const MOBS: MobDef[] = [
   },
   {
     id: "serpente",
+    effect: { kind: "poison", secs: 6 },
     name: "Serpente",
     behavior: "hostile",
     rarity: "incomum",
@@ -293,6 +296,7 @@ export const MOBS: MobDef[] = [
   },
   {
     id: "escorpiao",
+    effect: { kind: "poison", secs: 5 },
     name: "Escorpião do Deserto",
     behavior: "hostile",
     rarity: "incomum",

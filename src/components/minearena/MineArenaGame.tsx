@@ -143,7 +143,7 @@ function Play({ save, rotated, settings, onSettings, onExit, me, sb, net }: { sa
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.code === "KeyT" && gameRef.current?.coopRole !== "solo" && !paused && !dialog && !bag && !chat) {
+      if (e.code === "KeyT" && !paused && !dialog && !bag && !chat) {
         e.preventDefault();
         gameRef.current?.setUiOpen(true);
         setChat(true);
@@ -213,7 +213,7 @@ function Play({ save, rotated, settings, onSettings, onExit, me, sb, net }: { sa
           }}
         />
       ) : null}
-      {hud?.coop && !hud.loading ? (
+      {hud && !hud.loading ? (
         <button type="button" className="ma-chat-btn" aria-label="Conversar" onClick={() => { game?.setUiOpen(true); setChat(true); }}>
           💬
         </button>
@@ -271,7 +271,7 @@ export function MineArenaGame({ me }: { me?: Peer }) {
     };
   }, []);
 
-  const create = async (name: string, seedText: string) => {
+  const create = async (name: string, seedText: string, mode: "survival" | "creative") => {
     enterImmersive();
     const seed = seedText ? seedFromString(seedText) : Math.floor(Math.random() * 2 ** 31);
     const spawn = findSpawn(seed);
@@ -288,6 +288,7 @@ export function MineArenaGame({ me }: { me?: Peer }) {
       spawn,
       inventory: { slots: [], armor: [null, null, null, null], selected: 0 },
       mods: {},
+      mode,
       discoveries: [],
       heroesMet: [],
       kills: 0,
@@ -365,7 +366,7 @@ export function MineArenaGame({ me }: { me?: Peer }) {
           enterImmersive();
           setActive(w);
         }}
-        onCreate={(n, s) => void create(n, s)}
+        onCreate={(n, s, m) => void create(n, s, m)}
         onDelete={(w) => {
           void deleteWorld(w.id).then(refresh);
         }}

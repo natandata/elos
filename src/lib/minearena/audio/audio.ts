@@ -182,7 +182,41 @@ export class Sound {
     }
   }
 
+  private rainNode: { src: AudioBufferSourceNode; gain: GainNode } | null = null;
+
+  /** Som contínuo de chuva (0 = silêncio). */
+  setRain(v: number): void {
+    const c = this.rainNode ? this.ctx : v > 0.02 ? this.ensure() : null;
+    if (!c || !this.noise) return;
+    if (!this.rainNode) {
+      const src = c.createBufferSource();
+      src.buffer = this.noise;
+      src.loop = true;
+      const f = c.createBiquadFilter();
+      f.type = "bandpass";
+      f.frequency.value = 1800;
+      f.Q.value = 0.4;
+      const gain = c.createGain();
+      gain.gain.value = 0;
+      src.connect(f).connect(gain).connect(c.destination);
+      src.start();
+      this.rainNode = { src, gain };
+    }
+    this.rainNode.gain.gain.setTargetAtTime(this.muted ? 0 : v * 0.16 * this.volume, c.currentTime, 0.4);
+  }
+
+  thunder(): void {
+    this.tone(55, 1.8, "sawtooth", 0.3, -15);
+    this.hiss(1.4, 0.5, 320);
+  }
+
   dispose(): void {
+    try {
+      this.rainNode?.src.stop();
+    } catch {
+      // já parado
+    }
+    this.rainNode = null;
     void this.ctx?.close();
     this.ctx = null;
   }

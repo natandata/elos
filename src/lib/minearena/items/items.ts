@@ -20,6 +20,8 @@ export interface ItemDef {
   weapon?: { dmg: number; cooldown: number; reach: number };
   armor?: { slot: 0 | 1 | 2 | 3; def: number };
   food?: { hunger: number; heal: number };
+  /** Poção: efeito, duração e cura imediata. */
+  potion?: { kind: "heal" | "poison" | "slow" | "regen" | "strength" | "swift" | "resist"; secs: number; heal?: number };
   /** Usos até quebrar (ausente = não quebra). */
   durability?: number;
   /** Escudo: fração do dano de frente que ele segura. */
@@ -61,6 +63,14 @@ add({ key: "bucket_water", name: "Balde com água", kind: "tool", icon: "🪣", 
 add({ key: "bucket_lava", name: "Balde com lava", kind: "tool", icon: "🪣", color: 0xff6a1a, rarity: "raro", maxStack: 1 });
 mat("feather", "Pena", "🪶", 0xf2f2f2);
 mat("dung", "Esterco", "💩", 0x6a4a2a);
+mat("herb", "Erva do campo", "🌿", 0x5da13a);
+add({ key: "vial", name: "Frasco de barro", kind: "material", icon: "🏺", color: 0xb06a3a, maxStack: 16 });
+const potion = (key: string, name: string, color: number, p: NonNullable<ItemDef["potion"]>) => add({ key, name, kind: "material", icon: "🧪", color, rarity: "incomum", maxStack: 8, potion: p });
+potion("potion_heal", "Bálsamo de Gileade", 0xe0405a, { kind: "heal", secs: 0, heal: 10 });
+potion("potion_regen", "Óleo da Alegria", 0x3fd68a, { kind: "regen", secs: 40 });
+potion("potion_strength", "Força de Sansão", 0xd9533a, { kind: "strength", secs: 90 });
+potion("potion_swift", "Pés de Gazela", 0xf0c93a, { kind: "swift", secs: 90 });
+potion("potion_resist", "Escudo do Senhor", 0x4aa3ff, { kind: "resist", secs: 90 });
 add({ key: "compass", name: "Bússola do peregrino", kind: "tool", icon: "🧭", color: 0xd7dce4, rarity: "incomum", maxStack: 1 });
 add({ key: "clock", name: "Relógio de Acaz", kind: "tool", icon: "🕰️", color: 0xf0c93a, rarity: "incomum", maxStack: 1 });
 add({ key: "map", name: "Mapa de pergaminho", kind: "tool", icon: "🗺️", color: 0xe8d9b0, rarity: "incomum", maxStack: 1 });

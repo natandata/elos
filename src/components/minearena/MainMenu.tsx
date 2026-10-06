@@ -37,7 +37,7 @@ export function MainMenu({
 }: {
   worlds: WorldSave[] | null;
   onPlay: (w: WorldSave) => void;
-  onCreate: (name: string, seed: string) => void;
+  onCreate: (name: string, seed: string, mode: "survival" | "creative") => void;
   onDelete: (w: WorldSave) => void;
   onOptions: () => void;
   /** Co-op: entrar numa sala (precisa de quem sou e do cliente Supabase). */
@@ -47,6 +47,7 @@ export function MainMenu({
   const [view, setView] = useState<"home" | "new" | "load" | "coop">("home");
   const [name, setName] = useState("Meu mundo");
   const [seed, setSeed] = useState("");
+  const [mode, setMode] = useState<"survival" | "creative">("survival");
   const [confirm, setConfirm] = useState<string | null>(null);
   const latest = worlds?.[0];
 
@@ -95,7 +96,7 @@ export function MainMenu({
             className="ma-form"
             onSubmit={(e) => {
               e.preventDefault();
-              onCreate(name.trim() || "Meu mundo", seed.trim());
+              onCreate(name.trim() || "Meu mundo", seed.trim(), mode);
             }}
           >
             <label>
@@ -106,6 +107,14 @@ export function MainMenu({
               Seed (opcional — a mesma seed gera o mesmo mundo)
               <input value={seed} maxLength={24} placeholder="deixe vazio pra sortear" onChange={(e) => setSeed(e.target.value)} />
             </label>
+            <div className="ma-modes">
+              <button type="button" className="ma-opt" data-on={mode === "survival"} onClick={() => setMode("survival")}>
+                ⚔ Sobrevivência
+              </button>
+              <button type="button" className="ma-opt" data-on={mode === "creative"} onClick={() => setMode("creative")}>
+                ✨ Criativo
+              </button>
+            </div>
             <button type="submit" className="ma-btn ma-btn-gold">
               ▶ Criar e jogar
             </button>
