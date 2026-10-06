@@ -608,7 +608,7 @@ export class MineArena {
       if (e.code.startsWith("Digit") && e.code !== "Digit0") this.inventory.select(Number(e.code.slice(5)) - 1);
       if (e.code === "KeyQ" && !e.repeat) this.dropHeld(e.ctrlKey);
       if (e.code === "Space" && !e.repeat) this.jumpTap();
-      if (e.code === "KeyW" && !e.repeat) {
+      if ((e.code === "KeyW" || e.code === "ArrowUp") && !e.repeat) {
         const now = performance.now();
         this.wDouble = now - this.lastW < 300;
         this.lastW = now;
@@ -618,7 +618,7 @@ export class MineArena {
       if (["Space", "ArrowUp", "ArrowDown"].includes(e.code)) e.preventDefault();
     });
     on("keyup", (e) => {
-      if (e.code === "KeyW") this.wDouble = false;
+      if (e.code === "KeyW" || e.code === "ArrowUp") this.wDouble = false;
       keys.delete(e.code);
       sync();
     });
@@ -1466,7 +1466,7 @@ export class MineArena {
 
   // ---------- laço ----------
   private frame(dt: number): void {
-    this.sfx.track(!this.paused && this.ready);
+    this.sfx.track(!this.paused && this.ready && !this.story);
     if (!this.paused) this.tick(dt);
     this.renderer.render(this.scene, this.camera);
   }
@@ -3181,6 +3181,7 @@ export class MineArena {
         else if (kind === "place") this.sfx.play("place");
         else if (kind === "eat") this.sfx.play("eat");
         else if (kind === "rumble") this.sfx.ambient("rumble");
+        else if (kind === "thunder") this.sfx.thunder();
         else this.storyMusic?.sfx(kind);
       },
       saveNow: () => void this.saveNow(),
@@ -3195,15 +3196,32 @@ export class MineArena {
     if (!st) return;
     const m = st.map;
     const b = this.body;
-    if (b.x >= -1 && b.z >= -1 && b.x <= m.w + 1 && b.z <= m.d + 1 && b.y >= -8) return;
-    const to = st.respawnPoint() ?? { x: m.spawn.x + 0.5, y: 40, z: m.spawn.z + 0.5, yaw: m.spawn.yaw };
-    b.x = to.x;
-    b.y = to.y + 1;
-    b.z = to.z;
-    b.vx = b.vy = b.vz = 0;
-    this.yaw = to.yaw;
-    this.invuln = 2;
-    this.cb.onMessage("Fique dentro da área da história.", "warn");
+    if (b.y < -8 || !Number.isFinite(b.x + b.y + b.z)) {
+      const to = st.respawnPoint() ?? { x: m.spawn.x + 0.5, y: 40, z: m.spawn.z + 0.5, yaw: m.spawn.yaw };
+      b.x = to.x;
+      b.y = to.y + 1;
+      b.z = to.z;
+      b.vx = b.vy = b.vz = 0;
+      this.yaw = to.yaw;
+      this.invuln = 2;
+      return;
+    }
+    // parede invisível
+    const L = st.limits();
+    if (b.x < L.x0) {
+      b.x = L.x0;
+      b.vx = Math.max(0, b.vx);
+    } else if (b.x > L.x1) {
+      b.x = L.x1;
+      b.vx = Math.min(0, b.vx);
+    }
+    if (b.z < L.z0) {
+      b.z = L.z0;
+      b.vz = Math.max(0, b.vz);
+    } else if (b.z > L.z1) {
+      b.z = L.z1;
+      b.vz = Math.min(0, b.vz);
+    }
   }
 
   /** Câmera da cutscene (por cima da câmera do jogador) e tremor. */

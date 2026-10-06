@@ -2,7 +2,7 @@
 import { B } from "../../blocks/blocks";
 import { fbm2, smoothstep } from "../../world/noise";
 import type { MapEnv, StoryMapDef } from "../types";
-import { type Column, type ChunkCtx, buildChunk, outside, scatter, tree } from "./builder";
+import { type Column, type ChunkCtx, buildChunk, scatter, tree } from "./builder";
 
 export const NOAH_W = 128;
 export const NOAH_D = 112;
@@ -88,9 +88,6 @@ function height(x: number, z: number): number {
   let h = 24 + fbm2(SEED, x / 26, z / 26, 3) * 4;
   const dm = Math.hypot(x - 74, z - 56);
   h = 24 + (h - 24) * smoothstep(14, 30, dm);
-  const edge = Math.min(x, z, NOAH_W - 1 - x, NOAH_D - 1 - z);
-  if (edge < 12) h += smoothstep(12, 0, edge) * 10;
-  if (edge < 0) h = Math.min(58, h + -edge * 3 + 8);
   // colina ao nordeste: terreno alto
   const dh = Math.hypot(x - 108, z - 20);
   if (dh < 18) h += smoothstep(18, 0, dh) * 8;
@@ -99,16 +96,14 @@ function height(x: number, z: number): number {
 
 function column(x: number, z: number): Column {
   let h = height(x, z);
-  const out = outside(x, z, NOAH_W, NOAH_D);
-  const edge = Math.min(x, z, NOAH_W - 1 - x, NOAH_D - 1 - z);
   let top: number = B.grass;
   let water = 0;
   const dr = Math.abs(z - riverZ(x));
-  if (out === 0 && dr < 3.2 && z > 80) {
+  if (dr < 3.2 && z > 80) {
     h = 21;
     water = 23;
     top = B.sand;
-  } else if (out === 0 && dr < 4.8 && z > 80) {
+  } else if (dr < 4.8 && z > 80) {
     top = B.sand;
     h = Math.min(h, 23);
   }
@@ -117,7 +112,6 @@ function column(x: number, z: number): Column {
     h = 24;
     top = B.dirt;
   }
-  if (out > 0 || edge < 5) top = h > 40 ? B.snow : h > 30 ? B.stone : top === B.sand ? B.sand : B.stone;
   return { h, top, sub: top === B.sand ? B.sand : top === B.stone || top === B.snow ? B.stone : B.dirt, water };
 }
 
@@ -131,7 +125,6 @@ function decorate(c: ChunkCtx, env: MapEnv): void {
     for (let lx = 0; lx < 16; lx++) {
       const x = c.x0 + lx;
       const z = c.z0 + lz;
-      if (outside(x, z, NOAH_W, NOAH_D) > 0) continue;
       const k = column(x, z);
       if (k.water || k.top !== B.grass) continue;
       const r = c.rand(x, z, 3);
@@ -143,7 +136,6 @@ function decorate(c: ChunkCtx, env: MapEnv): void {
   }
   // floresta densa a oeste (madeira para a arca) e árvores esparsas no resto
   scatter(c, 6, 8, 13, (x, z, r) => {
-    if (outside(x, z, NOAH_W, NOAH_D) > 0 || Math.min(x, z, NOAH_W - 1 - x, NOAH_D - 1 - z) < 3) return;
     const k = column(x, z);
     if (k.water || k.top !== B.grass) return;
     if (x >= ARK.x0 - 8 && x <= ARK.x1 + 8 && z >= ARK.z0 - 8 && z <= ARK.z1 + 8) return;

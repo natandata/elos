@@ -28,12 +28,6 @@ function height(x: number, z: number): number {
   const dm = Math.hypot(x - 56, z - 64);
   h = 24 + (h - 24) * smoothstep(8, 26, dm);
   if (z < PLATEAU_EDGE) h = 36 + fbm2(SEED + 5, x / 20, z / 20, 2) * 2;
-  const edge = Math.min(x, z, EDEN_W - 1 - x, EDEN_D - 1 - z);
-  const corridor = x >= 92 && Math.abs(z - 62) <= 4;
-  if (!corridor) {
-    if (edge < 12) h += smoothstep(12, 0, edge) * 11;
-    if (edge < 0) h = Math.min(58, h + -edge * 3 + 8);
-  }
   for (const s of [EDEN_SITES.knowledge, EDEN_SITES.life]) {
     const d = Math.hypot(x - s.x, z - s.z);
     if (d < 9) h = 24 + smoothstep(9, 3, d) * 2.4;
@@ -44,7 +38,6 @@ function height(x: number, z: number): number {
 function column(x: number, z: number, env: MapEnv): Column {
   let h = height(x, z);
   const out = outside(x, z, EDEN_W, EDEN_D);
-  const edge = Math.min(x, z, EDEN_W - 1 - x, EDEN_D - 1 - z);
   const grass = env.fallen ? B.dry_grass : B.grass;
   let top: number = grass;
   let water = 0;
@@ -53,7 +46,7 @@ function column(x: number, z: number, env: MapEnv): Column {
   const rx = riverX(z);
   const dr = Math.abs(x - rx);
   const wr = riverW(z);
-  const inRiver = out === 0 && dr < wr && z >= 0;
+  const inRiver = dr < wr;
   if (inRiver) {
     if (z < PLATEAU_EDGE) {
       h -= 3;
@@ -69,7 +62,7 @@ function column(x: number, z: number, env: MapEnv): Column {
       water = 23;
       top = B.sand;
     }
-  } else if (out === 0 && dr < wr + 1.6 && z > PLATEAU_EDGE + 2) {
+  } else if (dr < wr + 1.6 && z > PLATEAU_EDGE + 2) {
     top = B.sand;
     h = Math.min(h, 23);
   }
@@ -83,8 +76,7 @@ function column(x: number, z: number, env: MapEnv): Column {
     h = Math.min(h, 23);
   }
 
-  if (out > 0 || edge < 5) top = h > 40 ? B.snow : h > 30 ? B.stone : top === B.sand ? B.sand : B.stone;
-  else if (z < PLATEAU_EDGE && z >= PLATEAU_EDGE - 1 && !inRiver) top = B.stone;
+  if (z < PLATEAU_EDGE && z >= PLATEAU_EDGE - 1 && !inRiver) top = B.stone;
   else if (z >= PLATEAU_EDGE && z <= PLATEAU_EDGE + 2 && height(x, z) >= 30) top = B.stone;
   if (x >= 92 && Math.abs(z - 62) <= 4 && out === 0) top = B.limestone;
   return { h, top, sub: top === B.sand ? B.sand : top === B.snow ? B.stone : top === B.stone || top === B.limestone ? B.stone : B.dirt, water, fall };
@@ -101,7 +93,6 @@ function decorate(c: ChunkCtx, env: MapEnv): void {
     for (let lx = 0; lx < 16; lx++) {
       const x = c.x0 + lx;
       const z = c.z0 + lz;
-      if (outside(x, z, EDEN_W, EDEN_D) > 0) continue;
       const k = column(x, z, env);
       if (k.water || k.top !== (env.fallen ? B.dry_grass : B.grass)) continue;
       const r = c.rand(x, z, 3);
@@ -118,7 +109,6 @@ function decorate(c: ChunkCtx, env: MapEnv): void {
   }
   // árvores
   scatter(c, 7, 8, 11, (x, z, r) => {
-    if (outside(x, z, EDEN_W, EDEN_D) > 0 || Math.min(x, z, EDEN_W - 1 - x, EDEN_D - 1 - z) < 3) return;
     const k = column(x, z, env);
     if (k.water || k.top !== (env.fallen ? B.dry_grass : B.grass)) return;
     if (Math.hypot(x - 56, z - 64) < 13 && r < 0.9) return;

@@ -18,7 +18,7 @@ export const LEARN: Record<string, LearnCard> = {
     ref: "Gênesis 3",
     characters: ["Deus", "Adão", "Eva", "A serpente"],
     concepts: ["Tentação", "Desobediência", "Consequência", "A primeira promessa (Gênesis 3:15)"],
-    gameNote: "A mudança do jardim (grama e folhas secas) é uma representação visual das consequências; o texto bíblico fala da maldição da terra por causa do homem.",
+    gameNote: "O choro de Adão e Eva e a conversa da serpente na árvore são dramatização; o texto bíblico não descreve esses detalhes. A mudança do jardim (grama e folhas secas) é uma representação visual das consequências; o texto bíblico fala da maldição da terra por causa do homem.",
   },
   caim_abel: {
     title: "CAIM E ABEL",
@@ -36,6 +36,6 @@ export const LEARN: Record<string, LearnCard> = {
     ref: "Gênesis 6–9",
     characters: ["Noé", "Sem, Cam e Jafé", "Deus"],
     concepts: ["Obediência", "Fé em ação", "Aliança", "O arco-íris"],
-    gameNote: "Coletar madeira, construir parte do casco e guiar os animais é a forma do jogo de viver a história. A Bíblia não detalha esses passos.",
+    gameNote: "A multidão do lado de fora, as falas do povo e a tempestade com raios são dramatização do que a Bíblia resume em Gênesis 7:21–23 (não informa quantas pessoas eram). Coletar madeira, construir parte do casco e guiar os animais é a forma do jogo de viver a história. A Bíblia não detalha esses passos.",
   },
 };

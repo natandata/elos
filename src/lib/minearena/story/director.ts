@@ -10,7 +10,7 @@ import { CUTSCENES } from "./data/cutscenes";
 import { DIALOGUES } from "./data/dialogues";
 import { STORY_MOBS } from "./data/mobs";
 import { MISSION_BY_ID, MISSIONS_OF } from "./data/missions";
-import { ARK, ARK_INSIDE, arkBlocks, arkDoorCells } from "./maps/noah";
+import { ARK, ARK_INSIDE, arkBlocks, arkDoorCells, noahColumn } from "./maps/noah";
 import { EDEN_SITES } from "./maps/eden";
 import { loadProgress, saveProgress } from "./progress";
 import type { ChapterDef, CutStep, Cutscene, MapEnv, Mission, Objective, StoryHud, StoryMapDef, StoryProgress, StorySession, StoryUi, Vec3, Zone } from "./types";
@@ -43,6 +43,7 @@ export interface StoryHost {
 
 type Runner = { cut: Cutscene; i: number; wait: { kind: string; left: number } | null; skip: boolean; then: (() => void) | null };
 
+const ARARAT_LIFT = 16;
 const fmt = (n: number) => Math.round(n);
 const dist2 = (ax: number, az: number, bx: number, bz: number) => Math.hypot(ax - bx, az - bz);
 const inZone = (z: Zone, x: number, zz: number) => dist2(x, zz, z.x, z.z) <= z.r;
@@ -141,6 +142,25 @@ export class StoryDirector {
     this.enterMission(first, true);
   }
 
+  /** Paredes invisíveis: até onde o jogador e os personagens podem ir. */
+  limits(player = true): { x0: number; x1: number; z0: number; z1: number } {
+    const m = this.map;
+    let x1 = m.w - 1.2;
+    if (player && this.session.flags.sealed && (this.chapter.id === "queda" || this.chapter.id === "eden")) x1 = Math.min(x1, EDEN_SITES.gate.x - 1.5);
+    return { x0: 1.2, x1, z0: 1.2, z1: m.d - 1.2 };
+  }
+
+  private stepBounds(): void {
+    const L = this.limits(false);
+    for (const e of this.npcs.values()) {
+      const b = e.body;
+      if (b.x < L.x0 + 1) b.x = L.x0 + 1;
+      else if (b.x > L.x1 - 1) b.x = L.x1 - 1;
+      if (b.z < L.z0 + 1) b.z = L.z0 + 1;
+      else if (b.z > L.z1 - 1) b.z = L.z1 - 1;
+    }
+  }
+
   /** Carregou um jogo salvo no meio de uma missão: refaz (já no final) a cena que tinha sido interrompida. */
   private resumeMission(m: Mission): void {
     if (this.session.objIndex >= m.objectives.length) {
@@ -178,6 +198,8 @@ export class StoryDirector {
     this.stepLongEffects(dt);
     this.stepPaths();
     this.stepStuck(dt);
+    this.stepBounds();
+    this.stepStorm(dt);
     this.stepEffects(dt);
     if (this.shakeT > 0) this.shakeT = Math.max(0, this.shakeT - dt);
     if (!this.runner && !this.dlg && !this.ui.learn && !this.ui.chapterEnd && !this.ui.finale && this.mission && !this.busyMission) this.checkObjective(dt);
@@ -445,7 +467,7 @@ export class StoryDirector {
         const next = pts.shift();
         if (!next) {
           this.paths.delete(id);
-          if (e.story.tag?.startsWith("pair:")) e.story.hold = true;
+          if (e.story.tag?.startsWith("pair:") || e.story.tag === "crowd") e.story.hold = true;
         } else {
           e.story.goto = { x: next.x, z: next.z, speed: this.pathSpeed.get(id) ?? 2.6 };
           e.story.arrived = false;
@@ -673,6 +695,7 @@ export class StoryDirector {
     this.ui.bars = false;
     this.cine = null;
     this.tween = null;
+    this.storm = false;
     this.setFade(0, 0.6, "");
     this.hudCache = null;
     this.emit();
@@ -828,6 +851,7 @@ export class StoryDirector {
       case "env":
         if (s.time !== undefined) this.host.setTime(s.time, s.lock ?? true);
         if (s.weather) this.host.setWeather(s.weather);
+        if (s.weather === "clear") this.storm = false;
         if (s.rainbow !== undefined) this.host.rainbow(s.rainbow);
         break;
       case "teleport": {
@@ -916,6 +940,7 @@ export class StoryDirector {
         else if (f.kind === "holy" || f.kind === "light") this.host.burst(x + rnd() * 0.5, y + Math.random() * 5, z + rnd() * 0.5, 0xfffbe0, 5, 1.6, 0.14);
         else if (f.kind === "smoke") this.host.burst(x + rnd(), y + Math.random() * 2, z + rnd(), 0x6a6a6a, 3, 1, 0.2);
         else if (f.kind === "dust") this.host.burst(x + rnd() * 2, y + Math.random(), z + rnd() * 2, 0x9a8a60, 4, 1.8, 0.15);
+        else if (f.kind === "tears") this.host.burst(x + (Math.random() - 0.5) * 0.4, y + 1.6, z + (Math.random() - 0.5) * 0.4, 0x9fd8ff, 2, 0.5, 0.07);
         else if (f.kind === "lightning") this.host.burst(x, y + Math.random() * 6, z, 0xdfe8ff, 6, 4, 0.2);
       }
     }
@@ -947,6 +972,7 @@ export class StoryDirector {
       this.session.env.flood = to;
       this.liftArkTo(this.arkLiftTarget);
     }
+    if (this.floodLevel > 23) this.crowdDrown(99);
     this.longBusy = 0;
   }
   private longDone(): boolean {
@@ -991,9 +1017,11 @@ export class StoryDirector {
         }
         break;
       case "drain":
+        this.session.flags.ararat = true;
+        this.buildAraratMountain();
         this.setFlood(23, skip);
-        this.arkLiftTarget = 0;
-        if (skip) this.liftArkTo(0);
+        this.arkLiftTarget = this.restLift;
+        if (skip) this.liftArkTo(this.restLift);
         else {
           this.longBusy++;
           r.wait = { kind: "long", left: 0 };
@@ -1023,9 +1051,37 @@ export class StoryDirector {
         }
         break;
       }
-      case "teleportOutsideArk":
-        this.host.setPlayer(73.5, ARK.y0 + 1.05, 46, 0);
+      case "teleportOutsideArk": {
+        const gy = this.host.world.surfaceY(73, 49);
+        this.host.setPlayer(73.5, (gy >= 0 ? gy + 1 : ARK.y0 + 1) + 0.05, 49.6, 0);
         break;
+      }
+      case "storm":
+        this.storm = arg === "on";
+        this.stormT = 0.5;
+        break;
+      case "crowd":
+        this.crowdOn(skip);
+        break;
+      case "perchSerpent": {
+        const e = this.npcs.get("serpente");
+        if (e?.story) {
+          const x = 80.5;
+          const z = 60.5;
+          e.body.x = x;
+          e.body.z = z;
+          e.body.y = this.groundY(x, z, 40);
+          e.body.vy = 0;
+          e.story.hold = true;
+          e.story.face = { x: 78, z: 64 };
+        }
+        break;
+      }
+      case "angelStay": {
+        const e = this.npcs.get("anjo");
+        if (e?.story) e.story.hold = true;
+        break;
+      }
     }
   }
 
@@ -1076,9 +1132,10 @@ export class StoryDirector {
     if (this.floodLevel > 0 && this.floodLevel < 23) this.floodLevel = 23;
     if (this.floodLevel === 0 && level > 23) this.floodLevel = 23;
     this.floodTarget = level;
-    this.arkLiftTarget = Math.max(0, level - 25);
+    this.arkLiftTarget = Math.max(this.restLift, level - 25);
     if (skip) {
       const down = level < this.floodLevel;
+      if (level > 23) this.crowdDrown(99);
       this.floodLevel = level;
       this.session.env.flood = level;
       if (down) this.drainAbove(level);
@@ -1114,6 +1171,87 @@ export class StoryDirector {
     for (const e of this.npcs.values()) if (inside(e.body.x, e.body.y, e.body.z)) e.body.y += dy;
   }
 
+  // ---- tempestade, multidão e o monte Ararate (Noé)
+  private storm = false;
+  private stormT = 0;
+  private crowd: string[] = [];
+
+  private get restLift(): number {
+    return this.session.flags.ararat ? ARARAT_LIFT : 0;
+  }
+
+  /** A arca repousa no cume de um monte: ele surge sob o casco enquanto a água baixa. */
+  private buildAraratMountain(): void {
+    const w = this.host.world;
+    const top = ARK.y0 + ARARAT_LIFT - 1;
+    const P = 2;
+    for (let x = ARK.x0 - 16; x <= ARK.x1 + 16; x++) {
+      for (let z = ARK.z0 - 16; z <= ARK.z1 + 16; z++) {
+        const dx = Math.max(ARK.x0 - x, 0, x - ARK.x1);
+        const dz = Math.max(ARK.z0 - z, 0, z - ARK.z1);
+        const d = Math.hypot(dx, dz);
+        const s = d <= P ? top : Math.round(top - (d - P) * 1.4);
+        const g = noahColumn(x, z).h;
+        if (s <= g) continue;
+        for (let y = g + 1; y <= s; y++) w.setBlock(x, y, z, y === s ? (s >= top - 4 ? B.snow : B.stone) : B.stone, true);
+        for (let y = s + 1; y <= s + 10; y++) {
+          const id = w.getBlock(x, y, z);
+          if (id !== B.air && !(BLOCKS[id]?.key ?? "").startsWith("water")) w.setBlock(x, y, z, B.air, true);
+        }
+      }
+    }
+  }
+
+  private crowdOn(skip: boolean): void {
+    const mobs = ["povo_a", "povo_b", "povo_c", "povo_d"];
+    for (let i = 0; i < 44; i++) {
+      const id = `povo_${i}`;
+      const x = 60 + Math.random() * 28;
+      const z = 26 + Math.random() * 12;
+      const e = this.spawnNpc(id, mobs[i % 4], x, z, "crowd", false);
+      if (!e?.story) continue;
+      this.crowd.push(id);
+      e.story.face = { x: 73.5, z: ARK.z0 };
+      if (!skip) {
+        const tx = 66 + Math.random() * 15;
+        const tz = 44 + Math.random() * 4;
+        e.story.goto = { x: tx, z: tz, speed: 3.2 + Math.random() * 1.2 };
+        e.story.arrived = false;
+        this.paths.set(id, []);
+      }
+    }
+  }
+
+  /** Conforme a água sobe, a multidão do lado de fora é levada. */
+  private crowdDrown(level: number): void {
+    if (this.crowd.length === 0) return;
+    const n = level >= 35 ? this.crowd.length : level < 25 ? 0 : Math.ceil(this.crowd.length / Math.max(1, 35 - level));
+    for (let i = 0; i < n && this.crowd.length > 0; i++) {
+      const id = this.crowd.shift()!;
+      const e = this.npcs.get(id);
+      if (e) this.host.burst(e.body.x, e.body.y + 0.5, e.body.z, 0x7fb6ff, 14, 3.5, 0.2);
+      this.removeNpc(id);
+    }
+    if (n > 0) this.host.sfx("splash");
+  }
+
+  private stepStorm(dt: number): void {
+    if (!this.storm) return;
+    this.stormT -= dt;
+    if (this.stormT > 0) return;
+    this.stormT = 2 + Math.random() * 4;
+    const p = this.host.playerPos();
+    const x = p.x + (Math.random() - 0.5) * 70;
+    const z = p.z + (Math.random() - 0.5) * 70;
+    for (let y = 24; y < 70; y += 3) this.host.burst(x + (Math.random() - 0.5), y, z, 0xeaf0ff, 6, 5, 0.3);
+    this.host.setTime(0.5, true);
+    window.setTimeout(() => this.storm && this.host.setTime(0.3, true), 110);
+    window.setTimeout(() => this.storm && this.host.setTime(0.5, true), 200);
+    window.setTimeout(() => this.storm && this.host.setTime(0.3, true), 280);
+    window.setTimeout(() => this.host.sfx("thunder"), 250 + Math.random() * 500);
+    this.host.shake(0.5, 0.15);
+  }
+
   private flTimer = 0;
   private stepLongEffects(dt: number): void {
     // construção da arca
@@ -1146,6 +1284,7 @@ export class StoryDirector {
         if (this.floodLevel < this.floodTarget) {
           this.floodLevel++;
           this.applyWater(this.floodLevel);
+          this.crowdDrown(this.floodLevel);
         } else if (this.floodLevel > this.floodTarget) {
           this.floodLevel--;
           this.drainAbove(this.floodLevel);

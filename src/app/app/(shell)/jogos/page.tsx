@@ -8,6 +8,7 @@ import { difficultyChip } from "@/lib/games/difficulty";
 import { liveGameStreak, playDifficulty, todaysPlays } from "@/lib/games/status";
 import { createClient } from "@/lib/supabase/server";
 import { ArenaCover } from "@/components/games/ArenaCover";
+import { arenaAsleep } from "@/lib/games/curfew";
 import { DressTeaserText } from "@/components/games/dress/DressTeaser";
 import type { GameKey } from "@/lib/games/catalog";
 import { GAME_TEASER, isReleased } from "@/lib/games/release";
@@ -75,7 +76,7 @@ export default async function JogosPage() {
     <>
       <PageHeader title="🎮 Jogos" subtitle="Aprenda a Bíblia jogando, ganhe XP e junte cartas." />
 
-      {hide("arena") ? null : <ArenaCover />}
+      {hide("arena") ? null : <ArenaCover asleep={arenaAsleep() && profile.role !== "admin"} />}
 
       {hide("memory") ? null : (
       <Link href="/app/jogos/memoria" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-amber-400 bg-[#2a2a3a] shadow-lg transition active:scale-[0.99]">

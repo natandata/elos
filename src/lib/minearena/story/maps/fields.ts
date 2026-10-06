@@ -2,7 +2,7 @@
 import { B } from "../../blocks/blocks";
 import { fbm2 } from "../../world/noise";
 import type { MapEnv, StoryMapDef } from "../types";
-import { type Column, type ChunkCtx, buildChunk, outside, scatter, tree } from "./builder";
+import { type Column, type ChunkCtx, buildChunk, scatter, tree } from "./builder";
 
 export const FIELDS_W = 96;
 export const FIELDS_D = 80;
@@ -12,11 +12,7 @@ export const FIELDS_SITES = { abelAltar: { x: 28, z: 40 }, cainAltar: { x: 68, z
 
 function column(x: number, z: number, env: MapEnv): Column {
   void env;
-  const out = outside(x, z, FIELDS_W, FIELDS_D);
-  const edge = Math.min(x, z, FIELDS_W - 1 - x, FIELDS_D - 1 - z);
   let h = Math.round(24 + fbm2(SEED, x / 22, z / 22, 3) * 4);
-  if (edge < 10) h += Math.round((10 - edge) * 1.1);
-  if (out > 0) h = Math.min(58, h + out * 3 + 6);
   let top: number = B.dry_grass;
   const w = FIELDS_SITES.wheat;
   if (x >= w.x0 && x <= w.x1 && z >= w.z0 && z <= w.z1) {
@@ -24,7 +20,6 @@ function column(x: number, z: number, env: MapEnv): Column {
     top = B.farmland;
   }
   for (const a of [FIELDS_SITES.abelAltar, FIELDS_SITES.cainAltar]) if (Math.hypot(x - a.x, z - a.z) < 5) h = 24;
-  if (out > 0 || edge < 4) top = h > 38 ? B.snow : B.stone;
   return { h, top, sub: top === B.stone || top === B.snow ? B.stone : B.dirt, water: 0 };
 }
 
@@ -42,7 +37,6 @@ function decorate(c: ChunkCtx, env: MapEnv): void {
       const x = c.x0 + lx;
       const z = c.z0 + lz;
       const k = column(x, z, env);
-      if (outside(x, z, FIELDS_W, FIELDS_D) > 0) continue;
       if (k.top === B.farmland) {
         // fileiras de trigo maduro com um corredor entre elas
         c.set(x, k.h + 1, z, (x - w.x0) % 4 === 3 ? B.air : B.wheat_3);
@@ -52,7 +46,7 @@ function decorate(c: ChunkCtx, env: MapEnv): void {
     }
   }
   scatter(c, 9, 8, 17, (x, z, r) => {
-    if (outside(x, z, FIELDS_W, FIELDS_D) > 0 || Math.min(x, z, FIELDS_W - 1 - x, FIELDS_D - 1 - z) < 3 || r > 0.4) return;
+    if (r > 0.4) return;
     const k = column(x, z, env);
     if (k.top !== B.dry_grass) return;
     for (const a of [FIELDS_SITES.abelAltar, FIELDS_SITES.cainAltar]) if (Math.hypot(x - a.x, z - a.z) < 9) return;

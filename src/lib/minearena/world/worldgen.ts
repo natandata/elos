@@ -83,12 +83,18 @@ export function biomeAt(seed: number, x: number, z: number): BiomeId {
 
 /** Procura um ponto de terra firme perto da origem pra o jogador nascer. */
 export function findSpawn(seed: number): { x: number; y: number; z: number } {
-  for (let r = 0; r < 500; r += 6) {
-    for (let a = 0; a < 8; a++) {
-      const x = Math.round(Math.cos((a / 8) * Math.PI * 2) * r);
-      const z = Math.round(Math.sin((a / 8) * Math.PI * 2) * r);
-      const c = columnInfo(seed, x, z);
-      if (c.h > SEA_LEVEL + 1 && c.biome !== "montanha" && !c.river) return { x: x + 0.5, y: c.h + 1.2, z: z + 0.5 };
+  // começa em terreno baixo e verde (nada de pico nevado ou deserto no primeiro minuto)
+  const good = new Set<BiomeId>(["planicie", "floresta", "savana"]);
+  for (const strict of [true, false]) {
+    for (let r = 0; r < 500; r += 6) {
+      for (let a = 0; a < 8; a++) {
+        const x = Math.round(Math.cos((a / 8) * Math.PI * 2) * r);
+        const z = Math.round(Math.sin((a / 8) * Math.PI * 2) * r);
+        const c = columnInfo(seed, x, z);
+        if (c.h <= SEA_LEVEL + 1 || c.river || c.biome === "montanha" || c.biome === "hermom") continue;
+        if (strict && (!good.has(c.biome) || c.h > SEA_LEVEL + 14)) continue;
+        return { x: x + 0.5, y: c.h + 1.2, z: z + 0.5 };
+      }
     }
   }
   const c = columnInfo(seed, 0, 0);

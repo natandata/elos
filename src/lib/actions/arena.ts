@@ -3,6 +3,7 @@
 import { randomInt } from "node:crypto";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { arenaAsleep } from "@/lib/games/curfew";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ARENA_CARD_BY_KEY, MAX_CARD_LEVEL, STARTER_DECK, isValidDeck, rankBotBoost, upgradeCost } from "@/lib/arena/cards";
 import { arenaIndexFor, chestFinds, deckAllowed, isCardUnlocked } from "@/lib/arena/arenas";
@@ -30,6 +31,7 @@ async function currentPlayer() {
     .eq("id", user.id)
     .maybeSingle<{ id: string; role: string }>();
   if (!profile) redirect("/");
+  if (arenaAsleep() && profile.role !== "admin") redirect("/app/jogos");
   if (profile.role !== "cria" && profile.role !== "leader" && profile.role !== "admin") throw new Error("A Arena é só para crias e líderes.");
   return { supabase, userId: profile.id };
 }

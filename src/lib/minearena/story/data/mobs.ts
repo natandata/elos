@@ -37,6 +37,13 @@ export const STORY_MOBS: Record<string, MobDef> = {
   adao_pele: hum("adao_pele", "Adão", "O primeiro homem", { skin: 0xc58a58, hair: 0x4a2a14, hairStyle: "short", shirt: 0x8a6a42, pants: 0x7a5a38, belt: 0x4a3018, fur: 0x8a6a42, scale: 1.04 }),
   eva_pele: hum("eva_pele", "Eva", "A mulher", { skin: 0xd9a574, hair: 0x6a3a1e, hairStyle: "long", shirt: 0x8a6a42, pants: 0x7a5a38, robe: true, belt: 0x4a3018, fur: 0x8a6a42 }),
   serpente: { ...calm("serpente", "serpente_story"), name: "A serpente", behavior: "passive" },
+  // o querubim que guarda o jardim (Gênesis 3:24)
+  anjo: hum("anjo", "Querubim", "Guarda do jardim", { skin: 0xf3dfc0, hair: 0xf0d890, hairStyle: "long", shirt: 0xffffff, pants: 0xf4f4ff, robe: true, belt: 0xe0c050, staff: true, scale: 1.3 }),
+  // o povo da terra nos dias de Noé
+  povo_a: hum("povo_a", "Povo", "", { skin: 0xc58a58, hair: 0x2a1a10, shirt: 0xa05a3a, pants: 0x6a4e2e }),
+  povo_b: hum("povo_b", "Povo", "", { skin: 0xd9a574, hair: 0x6a3a1e, hairStyle: "long", shirt: 0x4a6a9a, pants: 0x5a4a3a, robe: true }),
+  povo_c: hum("povo_c", "Povo", "", { skin: 0xa8703f, hair: 0x1a1008, shirt: 0x7a8a3a, pants: 0x4a3a2a }),
+  povo_d: hum("povo_d", "Povo", "", { skin: 0xe0b080, hair: 0x8a5a2a, hairStyle: "long", shirt: 0xb04a5a, pants: 0x6a5a4a, robe: true }),
   // Caim e Abel
   caim: hum("caim", "Caim", "O lavrador", { skin: 0xbf8450, hair: 0x2a1a10, hairStyle: "short", shirt: 0x9a7a4a, pants: 0x6a4e2e, belt: 0x4a3018, bulk: 1.12 }),
   abel: hum("abel", "Abel", "O pastor", { skin: 0xd09a6a, hair: 0x6a4020, hairStyle: "short", shirt: 0xe8e0c8, pants: 0xcfc4a4, belt: 0xc89a3a, staff: true }),

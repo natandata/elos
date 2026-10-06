@@ -48,7 +48,7 @@ export type CutStep =
   | { t: "npcExit"; npc: string }
   | { t: "npcFace"; npc: string; target: string | Vec2 }
   | { t: "pose"; npc: string; pose: Pose; dur?: number }
-  | { t: "effect"; kind: "sparkle" | "glow" | "fire" | "smoke" | "lightning" | "light" | "dust" | "holy"; at: Vec3; dur?: number }
+  | { t: "effect"; kind: "sparkle" | "glow" | "fire" | "smoke" | "lightning" | "light" | "dust" | "holy" | "tears"; at: Vec3; dur?: number }
   | { t: "env"; time?: number; weather?: "clear" | "rain" | "storm"; lock?: boolean; tint?: number; fog?: number; rainbow?: boolean }
   | { t: "teleport"; target: string; to: Vec3; yaw?: number }
   | { t: "music"; track: string }

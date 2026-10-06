@@ -42,7 +42,6 @@ export const MISSIONS: Mission[] = [
     desc: "Conheça o primeiro homem, que cuida do jardim.",
     ref: "Gênesis 2:15–17",
     npc: "adao",
-    spawn: [{ mob: "adao", at: { x: 58, z: 63 }, id: "adao" }],
     objectives: [{ k: "talk", npc: "adao", dialogue: "adam_1", text: "Fale com Adão." }],
     next: "eden_5",
   },

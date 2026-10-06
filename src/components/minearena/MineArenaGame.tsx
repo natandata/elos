@@ -178,15 +178,31 @@ function Play({ save, rotated, settings, onSettings, onExit, onStoryNav, storyCh
     return () => window.removeEventListener("keydown", onKey);
   }, [bag, paused, dialog, chat, extra, openBag, closeBag, closeExtra]);
 
+  useEffect(() => {
+    const noSelect = (e: Event) => {
+      if (!(e.target instanceof Element && e.target.closest("input,textarea"))) e.preventDefault();
+    };
+    const clear = () => {
+      const sel = window.getSelection();
+      if (sel && !sel.isCollapsed) sel.removeAllRanges();
+    };
+    document.addEventListener("selectstart", noSelect);
+    document.addEventListener("selectionchange", clear);
+    return () => {
+      document.removeEventListener("selectstart", noSelect);
+      document.removeEventListener("selectionchange", clear);
+    };
+  }, []);
+
   const resume = () => {
     gameRef.current?.setPaused(false);
     setPaused(false);
   };
 
   return (
-    <div className={rotated ? "ma-root ma-rot" : "ma-root"} data-touch={settings.touchSize} onContextMenu={(e) => e.preventDefault()} onDragStart={(e) => e.preventDefault()}>
+    <div className={rotated ? "ma-root ma-rot" : "ma-root"} data-touch={settings.touchSize} data-mobile={mobile ? "1" : "0"} onContextMenu={(e) => e.preventDefault()} onDragStart={(e) => e.preventDefault()}>
       <canvas ref={canvasRef} className="ma-canvas" />
-      {game && hud && !hud.loading && !hud.cinematic ? <Hud hud={hud} msgs={msgs} onSelect={(i) => game.inventory.select(i)} /> : null}
+      {game && hud && !hud.loading && !hud.cinematic && !paused && !options ? <Hud hud={hud} msgs={msgs} onSelect={(i) => game.inventory.select(i)} /> : null}
       {game && hud && !hud.loading && game.story ? <StoryOverlay game={game} ui={storyUi} hud={hud} /> : null}
       {game && hud && !hud.loading && mobile && !bag && !extra && !dialog && !paused && hud.alive && !hud.cinematic && !storyUi?.dialogue && !storyUi?.learn && !storyUi?.chapterEnd ? (
         <TouchControls game={game} rotated={rotated} shield={!!hud.offhand} onInventory={() => openBag("bag")} onPause={() => {
@@ -278,7 +294,7 @@ export function MineArenaGame({ me }: { me?: Peer }) {
   // música no menu (dentro do mundo quem toca é o jogo, com a mesma faixa)
   useEffect(() => {
     if (active) return;
-    const tick = () => setTheme(settings.music, settings.volume / 100);
+    const tick = () => setTheme(settings.music && !storyOpen, settings.volume / 100);
     tick();
     const id = window.setInterval(tick, 1600);
     window.addEventListener("pointerdown", tick);
@@ -286,7 +302,7 @@ export function MineArenaGame({ me }: { me?: Peer }) {
       window.clearInterval(id);
       window.removeEventListener("pointerdown", tick);
     };
-  }, [active, settings.music, settings.volume]);
+  }, [active, storyOpen, settings.music, settings.volume]);
   useEffect(() => () => setTheme(false, 0), []);
   const changeSettings = (s: Settings) => {
     setSettings(s);

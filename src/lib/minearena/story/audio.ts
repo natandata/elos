@@ -93,6 +93,12 @@ export class StoryMusic {
       case "pickup":
         this.note(880, 0.14, "sine", 0.07);
         break;
+      case "cry":
+        [392, 370, 349, 330].forEach((f, k) => window.setTimeout(() => this.note(f, 0.7, "sine", 0.05), k * 420));
+        break;
+      case "splash":
+        this.note(180, 0.35, "triangle", 0.05);
+        break;
       default:
         break;
     }

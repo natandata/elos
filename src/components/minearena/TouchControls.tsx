@@ -13,7 +13,16 @@ export function TouchControls({ game, rotated, shield, onInventory, onPause }: {
   const look = useRef({ x: 0, y: 0, id: -1 });
   const dirs = useRef<Record<Dir, boolean>>({ up: false, down: false, left: false, right: false });
 
-  const press = (d: Dir, on: boolean) => {
+  const lastUp = useRef(0);
+  const press = (d: Dir, on: boolean, at = 0) => {
+    if (d === "up") {
+      // dois toques rápidos em "frente": corre enquanto segurar
+      if (on) {
+        const now = at;
+        if (now - lastUp.current < 320) game.setHold("sprint", true);
+        lastUp.current = now;
+      } else game.setHold("sprint", false);
+    }
     dirs.current[d] = on;
     const c = dirs.current;
     game.setMove((c.right ? 1 : 0) - (c.left ? 1 : 0), (c.up ? 1 : 0) - (c.down ? 1 : 0));
@@ -26,7 +35,7 @@ export function TouchControls({ game, rotated, shield, onInventory, onPause }: {
       aria-label={label}
       onPointerDown={(e) => {
         e.currentTarget.setPointerCapture(e.pointerId);
-        press(d, true);
+        press(d, true, e.timeStamp);
       }}
       onPointerUp={() => press(d, false)}
       onPointerCancel={() => press(d, false)}
