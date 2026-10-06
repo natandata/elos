@@ -76,7 +76,7 @@ const STRUCTURES: Record<StructureId, StructureDef> = {
     rzA: 17,
     rzB: 17,
     clearH: 8,
-    weights: { planicie: 4, floresta: 4 },
+    weights: { planicie: 4, floresta: 4, savana: 3, oasis: 2 },
     residents: [
       { mob: "aldeao", dx: 4, dz: 1 },
       { mob: "aldeao_b", dx: -4, dz: -1 },
@@ -106,7 +106,7 @@ const STRUCTURES: Record<StructureId, StructureDef> = {
     rzA: 8,
     rzB: 11,
     clearH: 12,
-    weights: { planicie: 2, deserto: 3 },
+    weights: { planicie: 2, deserto: 3, savana: 1, libano: 1 },
     residents: [
       { mob: "filisteu", dx: 4, dz: 3 },
       { mob: "filisteu", dx: -4, dz: 3 },
@@ -151,7 +151,7 @@ const STRUCTURES: Record<StructureId, StructureDef> = {
     rzA: 4,
     rzB: 17,
     clearH: 16,
-    weights: { planicie: 1, floresta: 1, deserto: 1, montanha: 3 },
+    weights: { planicie: 1, floresta: 1, deserto: 1, montanha: 3, libano: 3, hermom: 2, savana: 1 },
     residents: [{ mob: "filisteu", dx: 0, dz: 6 }],
     build(b) {
       b.fill(-3, 0, -3, 3, 0, 3, B.cobble);
@@ -178,7 +178,7 @@ const STRUCTURES: Record<StructureId, StructureDef> = {
     rzA: 13,
     rzB: 13,
     clearH: 8,
-    weights: { deserto: 3, planicie: 1, montanha: 1 },
+    weights: { deserto: 3, planicie: 1, montanha: 1, savana: 1 },
     residents: [{ mob: "filisteu", dx: 3, dz: 3 }],
     build(b) {
       for (let dx = -12; dx <= 12; dx++) {

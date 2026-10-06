@@ -347,6 +347,64 @@ function drawTile(name: TileName, put: Put): void {
       }
       break;
     }
+    case "obsidian": {
+      for (let y = 0; y < N; y++) {
+        for (let x = 0; x < N; x++) {
+          const v = rnd(Math.floor(x / 2), Math.floor(y / 2), s);
+          put(x, y, mul(hex(0x241640), 0.7 + v * 0.7 + (rnd(x, y, s + 1) < 0.05 ? 0.8 : 0)));
+        }
+      }
+      break;
+    }
+    case "cedar_log_side": {
+      for (let x = 0; x < N; x++) {
+        const col = 0.78 + rnd(x, 0, s) * 0.4 + (x % 4 === 0 ? -0.2 : 0);
+        for (let y = 0; y < N; y++) put(x, y, mul(hex(0x7a4a32), col * (1 + (rnd(x, y, s + 1) - 0.5) * 0.16)));
+      }
+      break;
+    }
+    case "cedar_log_top": {
+      for (let y = 0; y < N; y++) {
+        for (let x = 0; x < N; x++) {
+          const d = Math.max(Math.abs(x - 7.5), Math.abs(y - 7.5));
+          if (d > 6.6) put(x, y, mul(hex(0x6a3a28), 0.9 + rnd(x, y, s) * 0.2));
+          else put(x, y, mul(Math.floor(d) % 2 ? hex(0xc98a5a) : hex(0xd9a070), 1 + (rnd(x, y, s + 1) - 0.5) * 0.1));
+        }
+      }
+      break;
+    }
+    case "cedar_planks": {
+      for (let y = 0; y < N; y++) {
+        const board = Math.floor(y / 4);
+        const tone = 0.9 + rnd(board, 0, s) * 0.22;
+        for (let x = 0; x < N; x++) {
+          let k = tone * (1 + (rnd(x, y, s + 1) - 0.5) * 0.12);
+          if (y % 4 === 3) k *= 0.7;
+          if ((x + board * 5) % 16 === 0) k *= 0.8;
+          put(x, y, mul(hex(0xb4623e), k));
+        }
+      }
+      break;
+    }
+    case "cedar_leaves": {
+      for (let y = 0; y < N; y++) {
+        for (let x = 0; x < N; x++) {
+          if (rnd(x, y, s) < 0.18) put(x, y, hex(0x000000), 0);
+          else put(x, y, mul(hex(0x2f6a4a), 0.65 + rnd(x, y, s + 1) * 0.7));
+        }
+      }
+      break;
+    }
+    case "palm_leaves": {
+      for (let y = 0; y < N; y++) {
+        for (let x = 0; x < N; x++) {
+          const frond = (x + y) % 5 === 0 || (x - y + 16) % 5 === 0;
+          if (rnd(x, y, s) < 0.3 && !frond) put(x, y, hex(0x000000), 0);
+          else put(x, y, mul(frond ? hex(0x9cc24a) : hex(0x6a9a2e), 0.75 + rnd(x, y, s + 1) * 0.5));
+        }
+      }
+      break;
+    }
     case "limestone": {
       noiseFill(put, hex(0xe8e0cc), 0.08, s);
       for (let y = 0; y < N; y++) {

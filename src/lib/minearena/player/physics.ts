@@ -1,5 +1,5 @@
 // Física de corpo (AABB) compartilhada por jogador e criaturas.
-import { B } from "../blocks/blocks";
+import { isFluid } from "../blocks/blocks";
 import type { World } from "../world/world";
 
 export interface Body {
@@ -64,9 +64,9 @@ export function stepBody(world: World, b: Body, dt: number): void {
     }
   }
   const wb = world.getBlock(Math.floor(b.x), Math.floor(b.y + 0.4), Math.floor(b.z));
-  b.inWater = wb === B.water;
+  b.inWater = isFluid(wb, "water");
 }
 
 export function inLava(world: World, b: Body): boolean {
-  return world.getBlock(Math.floor(b.x), Math.floor(b.y + 0.3), Math.floor(b.z)) === B.lava;
+  return isFluid(world.getBlock(Math.floor(b.x), Math.floor(b.y + 0.3), Math.floor(b.z)), "lava");
 }

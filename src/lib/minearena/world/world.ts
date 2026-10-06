@@ -117,7 +117,11 @@ export class World {
     return blockDef(ch.data[idx(x & 15, y, z & 15)]).solid;
   }
 
-  setBlock(x: number, y: number, z: number, id: number): void {
+  /** Chamado a cada bloco alterado (a simulação de fluidos escuta aqui). */
+  onChange: ((x: number, y: number, z: number) => void) | null = null;
+
+  /** `defer`: não remonta a malha na hora (a atualização do mundo remonta em lote). */
+  setBlock(x: number, y: number, z: number, id: number, defer = false): void {
     if (y < 0 || y >= WORLD_H) return;
     const cx = x >> 4;
     const cz = z >> 4;
@@ -130,13 +134,24 @@ export class World {
     let m = this.mods.get(k);
     if (!m) this.mods.set(k, (m = new Map()));
     m.set(i, id);
-    this.mesh(ch);
     const lx = x & 15;
     const lz = z & 15;
-    if (lx === 0) this.remeshAt(cx - 1, cz);
-    if (lx === 15) this.remeshAt(cx + 1, cz);
-    if (lz === 0) this.remeshAt(cx, cz - 1);
-    if (lz === 15) this.remeshAt(cx, cz + 1);
+    if (defer) {
+      ch.needsMesh = true;
+      for (const [dx, dz] of [[-1, 0], [1, 0], [0, -1], [0, 1]] as const) {
+        if ((dx === -1 && lx === 0) || (dx === 1 && lx === 15) || (dz === -1 && lz === 0) || (dz === 1 && lz === 15)) {
+          const n = this.chunks.get(ckey(cx + dx, cz + dz));
+          if (n) n.needsMesh = true;
+        }
+      }
+    } else {
+      this.mesh(ch);
+      if (lx === 0) this.remeshAt(cx - 1, cz);
+      if (lx === 15) this.remeshAt(cx + 1, cz);
+      if (lz === 0) this.remeshAt(cx, cz - 1);
+      if (lz === 15) this.remeshAt(cx, cz + 1);
+    }
+    this.onChange?.(x, y, z);
   }
   private remeshAt(cx: number, cz: number): void {
     const c = this.chunks.get(ckey(cx, cz));
@@ -306,7 +321,7 @@ export class World {
           for (let f = 0; f < 6; f++) {
             const fd = FACES[f];
             const nid = get(x + fd.n[0], y + fd.n[1], z + fd.n[2]);
-            if (nid === id) continue;
+            if (nid === id || (def.fluid && BLOCKS[nid].fluid === def.fluid)) continue;
             const nd = BLOCKS[nid];
             if (nd.opaque) continue;
             if (def.liquid && f === 3) continue;
@@ -315,7 +330,9 @@ export class World {
             let light = 1;
             if (!def.glow) light = ny >= hTop ? 1 : Math.max(0.26, 1 - (hTop - ny) * 0.11);
             const k = fd.shade * jitter * light;
-            const lowTop = def.liquid && get(x, y + 1, z) !== id;
+            const aboveId = get(x, y + 1, z);
+            const lowTop = def.liquid && !(def.fluid && BLOCKS[aboveId].fluid === def.fluid);
+            const fluidH = def.fluid ? Math.max(0.12, ((def.level ?? 8) / (def.fluid === "water" ? 8 : 4)) * 0.88) : 1;
             const base = P.length / 3;
             // oclusão ambiente: escurece cantos onde blocos se encontram
             const ao = AO_BUF;
@@ -341,7 +358,7 @@ export class World {
             for (let v = 0; v < 4; v++) {
               const c = fd.c[v];
               let vy: number = c[1];
-              if (lowTop && vy === 1) vy = 0.88;
+              if (lowTop && vy === 1) vy = fluidH;
               P.push(x + c[0], y + vy, z + c[2]);
               C.push(k * ao[v], k * ao[v], k * ao[v]);
               const t = faceUV[f];
@@ -400,7 +417,7 @@ export class World {
   }
 
   /** Raio voxel (DDA). Ignora ar e líquidos. */
-  raycast(ox: number, oy: number, oz: number, dx: number, dy: number, dz: number, maxDist: number): RayHit | null {
+  raycast(ox: number, oy: number, oz: number, dx: number, dy: number, dz: number, maxDist: number, includeLiquid = false): RayHit | null {
     let x = Math.floor(ox);
     let y = Math.floor(oy);
     let z = Math.floor(oz);
@@ -419,7 +436,7 @@ export class World {
     let t = 0;
     for (let i = 0; i < 64 && t <= maxDist; i++) {
       const id = this.getBlock(x, y, z);
-      if (id !== 0 && !BLOCKS[id].liquid) return { x, y, z, nx, ny, nz, id, dist: t };
+      if (id !== 0 && (includeLiquid || !BLOCKS[id].liquid)) return { x, y, z, nx, ny, nz, id, dist: t };
       if (tx < ty && tx < tz) {
         x += sx;
         t = tx;

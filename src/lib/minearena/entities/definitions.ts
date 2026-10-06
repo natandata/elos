@@ -69,7 +69,7 @@ export const MOBS: MobDef[] = [
     breeds: "wheat",
     model: { kind: "beast", variant: "sheep", scale: 1, body: 0xf1efe6, head: 0xd9c3a3, legs: 0xd9c3a3, accent: 0 },
     loot: [L("meat", 1, 2), L("wool", 1, 2, 0.85), L("leather", 1, 1, 0.3)],
-    spawn: { time: "day", biomes: ["planicie", "floresta"], weight: 10, group: [2, 4] },
+    spawn: { time: "day", biomes: ["planicie", "floresta", "savana"], weight: 10, group: [2, 4] },
   },
   {
     id: "camelo",
@@ -85,7 +85,7 @@ export const MOBS: MobDef[] = [
     attackCooldown: 1,
     model: { kind: "beast", variant: "camel", scale: 1, body: 0xc9a05c, head: 0xb98d4a, legs: 0xb98d4a, accent: 0 },
     loot: [L("leather", 1, 2), L("meat", 1, 2)],
-    spawn: { time: "day", biomes: ["deserto"], weight: 8, group: [1, 2] },
+    spawn: { time: "day", biomes: ["deserto", "oasis", "savana"], weight: 8, group: [1, 2] },
   },
   {
     id: "aldeao",
@@ -147,7 +147,7 @@ export const MOBS: MobDef[] = [
     breeds: "wheat",
     model: { kind: "beast", variant: "ox", scale: 1, body: 0x8a5a36, head: 0x7a4a2a, legs: 0x5a3a22, accent: 0xf2e9d8 },
     loot: [L("meat", 2, 3), L("leather", 1, 2)],
-    spawn: { time: "day", biomes: ["planicie"], weight: 8, group: [1, 3] },
+    spawn: { time: "day", biomes: ["planicie", "savana"], weight: 8, group: [1, 3] },
   },
   {
     id: "galo",
@@ -181,7 +181,7 @@ export const MOBS: MobDef[] = [
     breeds: "wheat",
     model: { kind: "beast", variant: "sheep", scale: 0.95, body: 0xb0a89a, head: 0xe8e0d0, legs: 0x6a5f55, accent: 0 },
     loot: [L("meat", 1, 2), L("leather", 0, 1, 0.5)],
-    spawn: { time: "day", biomes: ["montanha", "planicie"], weight: 6, group: [1, 3] },
+    spawn: { time: "day", biomes: ["montanha", "libano", "hermom", "planicie"], weight: 6, group: [1, 3] },
   },
   {
     id: "urso",
@@ -197,7 +197,7 @@ export const MOBS: MobDef[] = [
     attackCooldown: 1.3,
     model: { kind: "beast", variant: "bear", scale: 1.05, body: 0x5a3d2a, head: 0x4a3222, legs: 0x3a2618, accent: 0 },
     loot: [L("meat", 2, 3), L("leather", 1, 3)],
-    spawn: { time: "day", biomes: ["floresta", "montanha"], weight: 2, group: [1, 1] },
+    spawn: { time: "day", biomes: ["floresta", "montanha", "libano"], weight: 2, group: [1, 1] },
   },
   {
     id: "leao",
@@ -213,7 +213,7 @@ export const MOBS: MobDef[] = [
     attackCooldown: 1.2,
     model: { kind: "beast", variant: "lion", scale: 1.05, body: 0xc9a05c, head: 0xc9a05c, legs: 0xb98d4a, accent: 0x7a4a22 },
     loot: [L("leather", 1, 2), L("meat", 1, 2)],
-    spawn: { time: "any", biomes: ["deserto", "planicie"], weight: 2, group: [1, 1] },
+    spawn: { time: "any", biomes: ["deserto", "planicie", "savana"], weight: 2, group: [1, 1] },
   },
   {
     id: "serpente",
@@ -229,7 +229,7 @@ export const MOBS: MobDef[] = [
     attackCooldown: 0.9,
     model: { kind: "beast", variant: "snake", scale: 1, body: 0x5a7a2a, head: 0x4a6a22, legs: 0, accent: 0x8a9a3a },
     loot: [],
-    spawn: { time: "any", biomes: ["floresta", "planicie", "deserto"], weight: 4, group: [1, 1] },
+    spawn: { time: "any", biomes: ["floresta", "planicie", "deserto", "savana", "oasis"], weight: 4, group: [1, 1] },
   },
   // ---- neutro ----
   {
@@ -263,7 +263,7 @@ export const MOBS: MobDef[] = [
     attackCooldown: 1.1,
     model: { kind: "humanoid", scale: 0.95, skin: 0xc58a5a, hair: 0x2a1c14, hairStyle: "bald", shirt: 0x8a3b30, pants: 0x4a3a2a, shoes: 0x2e2218, helm: 0xb7791f, plume: 0xc41e1e, shield: 0x2a4fa8, belt: 0x6b4a2a, sword: 0xc9ced6 },
     loot: [L("coal", 0, 2, 0.5), L("raw_iron", 1, 1, 0.22), L("bread", 1, 1, 0.2), L("arrow", 1, 3, 0.35)],
-    spawn: { time: "night", biomes: ["planicie", "floresta", "montanha", "lago"], weight: 10, group: [1, 3], underground: true },
+    spawn: { time: "night", biomes: ["planicie", "floresta", "montanha", "lago", "savana", "libano", "hermom", "oasis"], weight: 10, group: [1, 3], underground: true },
   },
   {
     id: "escorpiao",
@@ -279,7 +279,7 @@ export const MOBS: MobDef[] = [
     attackCooldown: 0.9,
     model: { kind: "beast", variant: "scorpion", scale: 1.1, body: 0x6b2a1e, head: 0x7d3324, legs: 0x4a1d15, accent: 0xa03a2a },
     loot: [L("coal", 0, 1, 0.5), L("raw_gold", 1, 1, 0.12)],
-    spawn: { time: "any", biomes: ["deserto"], weight: 7, group: [1, 2] },
+    spawn: { time: "any", biomes: ["deserto", "oasis"], weight: 7, group: [1, 2] },
   },
   // ---- boss ----
   {

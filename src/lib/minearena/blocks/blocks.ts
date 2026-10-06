@@ -31,6 +31,9 @@ export interface BlockDef {
   placeable: boolean;
   /** "cross" = planta em X (flores, mato, plantações). */
   shape?: "cube" | "cross";
+  /** Fluidos: tipo e nível (fonte = nível máximo: água 8, lava 4). */
+  fluid?: "water" | "lava";
+  level?: number;
 }
 
 const KEYS = [
@@ -69,6 +72,21 @@ const KEYS = [
   "lily",
   "tallgrass",
   "bed",
+  "water_1",
+  "water_2",
+  "water_3",
+  "water_4",
+  "water_5",
+  "water_6",
+  "water_7",
+  "lava_1",
+  "lava_2",
+  "lava_3",
+  "obsidian",
+  "cedar_log",
+  "cedar_leaves",
+  "cedar_planks",
+  "palm_leaves",
 ] as const;
 export type BlockKey = (typeof KEYS)[number];
 
@@ -93,6 +111,19 @@ const blk = (name: string, c: number, hardness: number, tool: ToolType, tier: nu
   ...extra,
 });
 
+const flow = (kind: "water" | "lava", level: number): Spec => ({
+  ...blk(kind === "water" ? "Água corrente" : "Lava corrente", kind === "water" ? 0x3a76d6 : 0xff6a1a, Infinity, "hand", 0, [], "dirt", {
+    solid: false,
+    opaque: false,
+    liquid: true,
+    blend: kind === "water",
+    glow: kind === "lava",
+    placeable: false,
+    fluid: kind,
+    level,
+  }),
+});
+
 const plant = (name: string, c: number, loot: LootEntry[]): Spec =>
   blk(name, c, 0.05, "hand", 0, loot, "leaf", { solid: false, opaque: false, shape: "cross", placeable: false });
 
@@ -111,8 +142,8 @@ const SPECS: Record<BlockKey, Spec> = {
   iron_ore: blk("Minério de ferro", 0xc79a78, 6, "pick", 2, [drop("raw_iron")], "stone"),
   gold_ore: blk("Minério de ouro", 0xf3d34d, 7, "pick", 3, [drop("raw_gold")], "stone"),
   sapphire_ore: blk("Minério de safira", 0x2b6fe0, 8, "pick", 3, [drop("sapphire")], "stone", { glow: true }),
-  water: blk("Água", 0x3a76d6, Infinity, "hand", 0, [], "dirt", { solid: false, opaque: false, liquid: true, blend: true, placeable: false }),
-  lava: blk("Lava", 0xff6a1a, Infinity, "hand", 0, [], "stone", { solid: false, opaque: false, liquid: true, glow: true, placeable: false }),
+  water: blk("Água", 0x3a76d6, Infinity, "hand", 0, [], "dirt", { solid: false, opaque: false, liquid: true, blend: true, placeable: false, fluid: "water", level: 8 }),
+  lava: blk("Lava", 0xff6a1a, Infinity, "hand", 0, [], "stone", { solid: false, opaque: false, liquid: true, glow: true, placeable: false, fluid: "lava", level: 4 }),
   glass: blk("Vidro", 0xcfe9f2, 0.4, "hand", 0, [], "glass", { opaque: false, blend: true }),
   brick: blk("Tijolo de barro", 0xa4533b, 4, "pick", 1, [drop("brick")], "stone"),
   bedrock: blk("Rocha-mãe", 0x2b2b2e, Infinity, "hand", 0, [], "stone", { placeable: false }),
@@ -131,6 +162,21 @@ const SPECS: Record<BlockKey, Spec> = {
   lily: { ...plant("Lírio do campo", 0xf2f2f2, [drop("lily")]), placeable: true },
   tallgrass: plant("Mato", 0x5da13a, [drop("seeds", 1, 1, 0.12)]),
   bed: blk("Esteira de dormir", 0xc2272d, 0.6, "axe", 0, [drop("bed")], "wood", { top: 0xc2272d, side: 0xb88a52, bottom: 0xb88a52 }),
+  water_1: flow("water", 1),
+  water_2: flow("water", 2),
+  water_3: flow("water", 3),
+  water_4: flow("water", 4),
+  water_5: flow("water", 5),
+  water_6: flow("water", 6),
+  water_7: flow("water", 7),
+  lava_1: flow("lava", 1),
+  lava_2: flow("lava", 2),
+  lava_3: flow("lava", 3),
+  obsidian: blk("Obsidiana", 0x1d1233, 14, "pick", 4, [drop("obsidian")], "stone"),
+  cedar_log: blk("Tronco de cedro", 0x6a3a28, 2.5, "axe", 0, [drop("cedar_log")], "wood", { top: 0xb9825a, bottom: 0xb9825a }),
+  cedar_leaves: blk("Folhas de cedro", 0x2f6a4a, 0.25, "hand", 0, [drop("stick", 1, 2, 0.3)], "leaf", { opaque: false }),
+  cedar_planks: blk("Tábuas de cedro do Líbano", 0xa8583a, 1.8, "axe", 0, [drop("cedar_planks")], "wood"),
+  palm_leaves: blk("Palmas de tamareira", 0x7aa83a, 0.25, "hand", 0, [drop("stick", 1, 1, 0.2), drop("dates", 1, 2, 0.18)], "leaf", { opaque: false }),
   furnace_lit: blk("Fornalha acesa", 0x6a6a6e, 3.5, "pick", 1, [drop("furnace")], "stone", { glow: true, placeable: false }),
 };
 
@@ -138,6 +184,15 @@ export const BLOCKS: BlockDef[] = KEYS.map((key, id) => ({ id, key, ...SPECS[key
 export const BLOCK_BY_KEY = new Map(BLOCKS.map((b) => [b.key, b]));
 
 export const blockDef = (id: number): BlockDef => BLOCKS[id] ?? BLOCKS[0];
+
+export const FLUID_MAX = { water: 8, lava: 4 } as const;
+/** Bloco de fluido com esse nível (fonte = máximo). */
+export const fluidId = (kind: "water" | "lava", level: number): number =>
+  kind === "water" ? (level >= 8 ? B.water : B.water_1 + level - 1) : level >= 4 ? B.lava : B.lava_1 + level - 1;
+export const isFluid = (id: number, kind?: "water" | "lava"): boolean => {
+  const f = BLOCKS[id]?.fluid;
+  return !!f && (!kind || f === kind);
+};
 
 /** Segundos pra quebrar com a ferramenta dada, e se o drop vale. */
 export function breakInfo(def: BlockDef, toolType: ToolType, toolTier: number, toolSpeed: number): { time: number; harvest: boolean } {

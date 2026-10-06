@@ -1,6 +1,7 @@
 // Motor do MINEARENA: laço do jogo, jogador, mineração, construção, combate, save e ponte com a interface.
 import * as THREE from "three";
-import { B, BLOCKS, type BlockKey, blockDef, breakInfo } from "./blocks/blocks";
+import { B, BLOCKS, type BlockKey, FLUID_MAX, blockDef, breakInfo, fluidId, isFluid } from "./blocks/blocks";
+import { FluidSim } from "./world/fluids";
 import { AUTOSAVE_S, DAY_SECONDS, PLAYER, REACH, RENDER_DISTANCE } from "./config/config";
 import { Sound } from "./audio/audio";
 import { MOB_BY_ID } from "./entities/definitions";
@@ -91,6 +92,7 @@ export class MineArena {
   private scene = new THREE.Scene();
   private camera: THREE.PerspectiveCamera;
   private world: World;
+  private fluids: FluidSim;
   private sky: Sky;
   private particles: Particles;
   private entities: EntityManager;
@@ -175,6 +177,8 @@ export class MineArena {
 
     this.world = new World(save.seed, this.scene);
     this.world.loadMods(save.mods);
+    this.fluids = new FluidSim(this.world);
+    this.world.onChange = (x, y, z) => this.fluids.poke(x, y, z);
     const far = this.radius * 16 - 6;
     this.sky = new Sky(this.scene, far, [this.world.matO, this.world.matT]);
     this.particles = new Particles(this.scene);
@@ -519,6 +523,7 @@ export class MineArena {
     this.particles.update(dt);
     this.tickFurnaces(dt);
     this.tickCrops(dt);
+    this.fluids.update(dt);
     if (this.sleepT > 0) {
       const prev = this.sleepT;
       this.sleepT = Math.max(0, this.sleepT - dt);
@@ -767,6 +772,38 @@ export class MineArena {
       this.useCd = 0.4;
       return;
     }
+    // balde: pega e solta fluido
+    if (held.key === "bucket") {
+      const e0 = this.camera.position;
+      const lh = this.world.raycast(e0.x, e0.y, e0.z, dir.x, dir.y, dir.z, REACH, true);
+      const fk = lh ? BLOCKS[lh.id].fluid : undefined;
+      if (lh && fk && BLOCKS[lh.id].level === FLUID_MAX[fk]) {
+        this.world.setBlock(lh.x, lh.y, lh.z, B.air);
+        this.inventory.slots[this.inventory.selected] = { item: fk === "water" ? "bucket_water" : "bucket_lava", count: 1 };
+        this.inventory.changed();
+        this.sfx.play("place");
+        this.swing = 1;
+      }
+      return;
+    }
+    if (held.key === "bucket_water" || held.key === "bucket_lava") {
+      if (hit) {
+        const kind = held.key === "bucket_water" ? "water" : "lava";
+        const plant = blockDef(hit.id).shape === "cross";
+        const bx = plant ? hit.x : hit.x + hit.nx;
+        const by = plant ? hit.y : hit.y + hit.ny;
+        const bz = plant ? hit.z : hit.z + hit.nz;
+        const cur = this.world.getBlock(bx, by, bz);
+        if (cur === B.air || BLOCKS[cur].shape === "cross" || (BLOCKS[cur].fluid && BLOCKS[cur].level !== FLUID_MAX[BLOCKS[cur].fluid!])) {
+          this.world.setBlock(bx, by, bz, fluidId(kind, FLUID_MAX[kind]));
+          this.inventory.slots[this.inventory.selected] = { item: "bucket", count: 1 };
+          this.inventory.changed();
+          this.sfx.play("place");
+          this.swing = 1;
+        }
+      }
+      return;
+    }
     // mirando numa planta, enxada e sementes valem pro chão embaixo dela
     const onPlant = !!hit && blockDef(hit.id).shape === "cross";
     const tgt = hit && onPlant ? { x: hit.x, y: hit.y - 1, z: hit.z, id: this.world.getBlock(hit.x, hit.y - 1, hit.z) } : hit;
@@ -849,7 +886,7 @@ export class MineArena {
   }
 
   private hydrated(x: number, y: number, z: number): boolean {
-    for (let dx = -4; dx <= 4; dx++) for (let dz = -4; dz <= 4; dz++) if (this.world.getBlock(x + dx, y, z + dz) === B.water) return true;
+    for (let dx = -4; dx <= 4; dx++) for (let dz = -4; dz <= 4; dz++) if (isFluid(this.world.getBlock(x + dx, y, z + dz), "water")) return true;
     return false;
   }
 

@@ -49,6 +49,9 @@ mat("leather", "Couro", "🟫", 0x8a5a33);
 mat("wool", "Lã", "🧶", 0xf2f2f2);
 mat("wheat", "Trigo", "🌾", 0xd9b13b);
 mat("seeds", "Sementes de trigo", "🌱", 0x9ab53a);
+add({ key: "bucket", name: "Balde de ferro", kind: "tool", icon: "🪣", color: 0xc9ced6, rarity: "incomum", maxStack: 1 });
+add({ key: "bucket_water", name: "Balde com água", kind: "tool", icon: "🪣", color: 0x3a76d6, rarity: "incomum", maxStack: 1 });
+add({ key: "bucket_lava", name: "Balde com lava", kind: "tool", icon: "🪣", color: 0xff6a1a, rarity: "raro", maxStack: 1 });
 mat("feather", "Pena", "🪶", 0xf2f2f2);
 
 // ---- comida ----
@@ -58,6 +61,7 @@ food("bread", "Pão", "🍞", 0xc98b3c, 5, 1);
 food("apple", "Maçã", "🍎", 0xd63a3a, 3, 1);
 food("meat", "Carne crua", "🥩", 0xc4504a, 2, 0);
 food("cooked_meat", "Carne assada", "🍖", 0x9a5a2b, 8, 2, "incomum");
+food("dates", "Tâmaras", "🌴", 0x8a4a22, 3, 1);
 
 // ---- ferramentas e armas por tier ----
 export const TOOL_TIERS = [

@@ -47,6 +47,12 @@ export const TILE_NAMES = [
   "tallgrass",
   "bed_top",
   "bed_side",
+  "obsidian",
+  "cedar_log_side",
+  "cedar_log_top",
+  "cedar_leaves",
+  "cedar_planks",
+  "palm_leaves",
 ] as const;
 export type TileName = (typeof TILE_NAMES)[number];
 
@@ -92,6 +98,21 @@ export const BLOCK_TILES: Record<BlockKey, [TileName, TileName, TileName, TileNa
   lily: ["lily", "lily", "lily"],
   tallgrass: ["tallgrass", "tallgrass", "tallgrass"],
   bed: ["bed_top", "bed_side", "planks"],
+  water_1: ["water", "water", "water"],
+  water_2: ["water", "water", "water"],
+  water_3: ["water", "water", "water"],
+  water_4: ["water", "water", "water"],
+  water_5: ["water", "water", "water"],
+  water_6: ["water", "water", "water"],
+  water_7: ["water", "water", "water"],
+  lava_1: ["lava", "lava", "lava"],
+  lava_2: ["lava", "lava", "lava"],
+  lava_3: ["lava", "lava", "lava"],
+  obsidian: ["obsidian", "obsidian", "obsidian"],
+  cedar_log: ["cedar_log_top", "cedar_log_side", "cedar_log_top"],
+  cedar_leaves: ["cedar_leaves", "cedar_leaves", "cedar_leaves"],
+  cedar_planks: ["cedar_planks", "cedar_planks", "cedar_planks"],
+  palm_leaves: ["palm_leaves", "palm_leaves", "palm_leaves"],
 };
 
 /** UV [u0, v0, u1, v1] do tile (com meia-margem de pixel pra não vazar). */

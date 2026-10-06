@@ -5,13 +5,17 @@ import { fbm2, noise3, rand01, smoothstep } from "./noise";
 import type { LootTable } from "../structures/loot";
 import { CELL, STRUCTURE_BY_ID, structureAt } from "../structures/structures";
 
-export type BiomeId = "planicie" | "floresta" | "deserto" | "montanha" | "lago";
+export type BiomeId = "planicie" | "floresta" | "deserto" | "montanha" | "lago" | "oasis" | "savana" | "libano" | "hermom";
 export const BIOME_NAME: Record<BiomeId, string> = {
   planicie: "Planícies de Sarom",
   floresta: "Floresta de Basã",
   deserto: "Deserto de Sur",
   montanha: "Montes de Efraim",
   lago: "Águas de Merom",
+  oasis: "Oásis de En-Gedi",
+  savana: "Campos de Sitim",
+  libano: "Montes do Líbano",
+  hermom: "Monte Hermom",
 };
 
 export interface Column {
@@ -38,10 +42,17 @@ export function columnInfo(seed: number, x: number, z: number): Column {
   }
   h = Math.floor(Math.min(WORLD_H - 8, Math.max(4, h)));
 
+  const desertish = temp > 0.56 && moist < 0.5;
+  const oasisK = desertish && !river && h > SEA_LEVEL - 2 && h <= SEA_LEVEL + 9 ? smoothstep(0.5, 0.62, fbm2(seed + 61, x / 70, z / 70, 2)) : 0;
+  if (oasisK > 0) h = Math.floor(h + (SEA_LEVEL - 1 - h) * oasisK);
+
   let biome: BiomeId;
-  if (h <= SEA_LEVEL) biome = "lago";
-  else if (h >= 44) biome = "montanha";
-  else if (temp > 0.56 && moist < 0.5) biome = "deserto";
+  if (oasisK > 0.12) biome = "oasis";
+  else if (h <= SEA_LEVEL) biome = "lago";
+  else if (h >= 52) biome = "hermom";
+  else if (h >= 44) biome = moist > 0.5 ? "libano" : "montanha";
+  else if (desertish) biome = "deserto";
+  else if (temp > 0.5 && moist < 0.5) biome = "savana";
   else if (moist > 0.52) biome = "floresta";
   else biome = "planicie";
   return { h, biome, river };
@@ -89,13 +100,14 @@ export function generateChunk(seed: number, cx: number, cz: number): { data: Uin
       const { h, biome } = columnInfo(seed, wx, wz);
       heights[lx + lz * CHUNK] = h;
       const desert = biome === "deserto";
-      const beach = h <= SEA_LEVEL + 1 && biome !== "montanha";
+      const rocky = biome === "montanha" || biome === "hermom";
+      const beach = h <= SEA_LEVEL + 1 && !rocky;
 
       for (let y = 0; y <= h; y++) {
         let id: number;
         if (y === 0) id = B.bedrock;
-        else if (y === h) id = desert || beach || h <= SEA_LEVEL ? B.sand : biome === "montanha" ? (h >= 52 ? B.snow : B.stone) : B.grass;
-        else if (y >= h - 3) id = desert || beach || h <= SEA_LEVEL ? (desert && y < h - 2 ? B.sandstone : B.sand) : biome === "montanha" ? B.stone : B.dirt;
+        else if (y === h) id = desert || beach || h <= SEA_LEVEL ? B.sand : rocky ? (h >= 52 || biome === "hermom" ? B.snow : B.stone) : B.grass;
+        else if (y >= h - 3) id = desert || beach || h <= SEA_LEVEL ? (desert && y < h - 2 ? B.sandstone : B.sand) : rocky ? B.stone : B.dirt;
         else id = B.stone;
 
         if (y > 1 && y < h - 3) {
@@ -117,9 +129,9 @@ export function generateChunk(seed: number, cx: number, cz: number): { data: Uin
       for (let y = h + 1; y <= SEA_LEVEL; y++) data[idx(lx, y, lz)] = B.water;
       if (data[idx(lx, h, lz)] === B.grass && h > SEA_LEVEL && h + 1 < WORLD_H) {
         const fr = rand01(seed + 310, wx, 0, wz);
-        if (fr < 0.08) data[idx(lx, h + 1, lz)] = B.tallgrass;
-        else if (fr < 0.095 && (biome === "planicie" || biome === "floresta")) data[idx(lx, h + 1, lz)] = B.lily;
-        if (fr < 0.095 && h + 1 > maxY) maxY = h + 1;
+        if (fr < (biome === "savana" ? 0.2 : 0.08)) data[idx(lx, h + 1, lz)] = B.tallgrass;
+        else if (fr < 0.095 && (biome === "planicie" || biome === "floresta" || biome === "oasis")) data[idx(lx, h + 1, lz)] = B.lily;
+        if (fr < 0.2 && h + 1 > maxY) maxY = h + 1;
       }
       maxY = Math.max(maxY, h, h < SEA_LEVEL ? SEA_LEVEL : 0);
     }
@@ -135,31 +147,57 @@ export function generateChunk(seed: number, cx: number, cz: number): { data: Uin
     if (y > maxY) maxY = y;
   };
 
-  // árvores e cactos (olham uma margem em volta pra copas que cruzam a borda do chunk)
-  for (let tx = x0 - 2; tx < x0 + CHUNK + 2; tx++) {
-    for (let tz = z0 - 2; tz < z0 + CHUNK + 2; tz++) {
+  // árvores (carvalho, cedro do Líbano, acácia de Sitim, tamareira) e cactos; olham uma margem pra copas que cruzam a borda
+  for (let tx = x0 - 4; tx < x0 + CHUNK + 4; tx++) {
+    for (let tz = z0 - 4; tz < z0 + CHUNK + 4; tz++) {
       const r = rand01(seed + 201, tx, 0, tz);
-      if (r > 0.04) continue;
+      if (r > 0.06) continue;
       const c = columnInfo(seed, tx, tz);
-      if (c.h <= SEA_LEVEL + 1 || c.river) continue;
-      if (c.biome === "deserto") {
-        if (r < 0.006) {
-          const ch = 2 + Math.floor(rand01(seed + 203, tx, 1, tz) * 2);
-          for (let k = 1; k <= ch; k++) put(tx, c.h + k, tz, B.cactus, true);
+      if (c.river || c.h <= SEA_LEVEL) continue;
+      const rr = (i: number) => rand01(seed + 202, tx, i, tz);
+      const dens: Record<string, number> = { deserto: 0.004, oasis: 0.05, savana: 0.007, libano: 0.05, floresta: 0.035, planicie: 0.005 };
+      const kind = c.biome === "deserto" ? (r < 0.0025 ? "cactus" : "palm") : c.biome === "oasis" ? "palm" : c.biome === "savana" ? "acacia" : c.biome === "libano" ? "cedar" : c.biome === "floresta" || c.biome === "planicie" ? "oak" : null;
+      if (!kind || r >= (kind === "cactus" ? 0.006 : (dens[c.biome] ?? 0))) continue;
+      if (kind !== "palm" && c.h <= SEA_LEVEL + 1) continue;
+      if (kind === "cactus") {
+        const ch = 2 + Math.floor(rr(1) * 2);
+        for (let k = 1; k <= ch; k++) put(tx, c.h + k, tz, B.cactus, true);
+      } else if (kind === "palm") {
+        const th = 5 + Math.floor(rr(1) * 3);
+        for (let k = 1; k <= th; k++) put(tx, c.h + k, tz, B.log, false);
+        const top = c.h + th;
+        put(tx, top + 1, tz, B.palm_leaves, true);
+        for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]] as const) {
+          for (let i = 1; i <= 3; i++) put(tx + dx * i, top + (i === 3 ? 0 : 1), tz + dz * i, B.palm_leaves, true);
         }
-        continue;
-      }
-      const density = c.biome === "floresta" ? 0.035 : c.biome === "planicie" ? 0.005 : 0;
-      if (r >= density) continue;
-      const th = 4 + Math.floor(rand01(seed + 202, tx, 1, tz) * 3);
-      for (let k = 1; k <= th; k++) put(tx, c.h + k, tz, B.log, false);
-      const top = c.h + th;
-      for (let ly = top - 2; ly <= top + 1; ly++) {
-        const rad = ly >= top ? 1 : 2;
-        for (let dx = -rad; dx <= rad; dx++) {
-          for (let dz = -rad; dz <= rad; dz++) {
-            if (Math.abs(dx) === rad && Math.abs(dz) === rad && (rad === 1 || rand01(seed + 204, tx + dx, ly, tz + dz) < 0.5)) continue;
-            put(tx + dx, ly, tz + dz, B.leaves, true);
+      } else if (kind === "acacia") {
+        const th = 4 + Math.floor(rr(1) * 2);
+        for (let k = 1; k <= th; k++) put(tx, c.h + k, tz, B.log, false);
+        const top = c.h + th;
+        for (let ly = top + 1; ly <= top + 2; ly++) {
+          const rad = ly === top + 1 ? 3 : 2;
+          for (let dx = -rad; dx <= rad; dx++) for (let dz = -rad; dz <= rad; dz++) if (!(Math.abs(dx) === rad && Math.abs(dz) === rad)) put(tx + dx, ly, tz + dz, B.leaves, true);
+        }
+      } else if (kind === "cedar") {
+        const th = 9 + Math.floor(rr(1) * 5);
+        for (let k = 1; k <= th; k++) put(tx, c.h + k, tz, B.cedar_log, false);
+        const top = c.h + th;
+        for (let ly = c.h + 4; ly <= top + 1; ly++) {
+          const frac = (top + 1 - ly) / (th - 3);
+          const rad = ly === top + 1 ? 0 : Math.min(3, Math.max(1, Math.round(frac * 3.2)));
+          for (let dx = -rad; dx <= rad; dx++) for (let dz = -rad; dz <= rad; dz++) if (!(rad > 1 && Math.abs(dx) === rad && Math.abs(dz) === rad)) put(tx + dx, ly, tz + dz, B.cedar_leaves, true);
+        }
+      } else {
+        const th = 4 + Math.floor(rr(1) * 3);
+        for (let k = 1; k <= th; k++) put(tx, c.h + k, tz, B.log, false);
+        const top = c.h + th;
+        for (let ly = top - 2; ly <= top + 1; ly++) {
+          const rad = ly >= top ? 1 : 2;
+          for (let dx = -rad; dx <= rad; dx++) {
+            for (let dz = -rad; dz <= rad; dz++) {
+              if (Math.abs(dx) === rad && Math.abs(dz) === rad && (rad === 1 || rand01(seed + 204, tx + dx, ly, tz + dz) < 0.5)) continue;
+              put(tx + dx, ly, tz + dz, B.leaves, true);
+            }
           }
         }
       }

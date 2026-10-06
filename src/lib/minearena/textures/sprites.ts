@@ -151,6 +151,22 @@ function draw(def: ItemDef): HTMLCanvasElement {
     pen.line(7, 4, 13, 4, lo);
     pen.line(13, 3, 13, 6, m);
     pen.p(7, 3, hi);
+  } else if (id === "bucket" || id === "bucket_water" || id === "bucket_lava") {
+    const iron = hex(0xc9ced6);
+    pen.rows([[5, 3, 12], [6, 3, 12], [7, 4, 11], [8, 4, 11], [9, 4, 11], [10, 4, 11], [11, 5, 10], [12, 5, 10]], iron);
+    pen.rows([[5, 3, 4], [6, 3, 3], [7, 4, 4], [8, 4, 4]], hex(0xeef1f6));
+    pen.rows([[11, 5, 10], [12, 5, 10]], hex(0x8a909c));
+    pen.line(3, 4, 12, 4, hex(0x6a707c));
+    pen.p(3, 5, hex(0x6a707c));
+    pen.p(12, 5, hex(0x6a707c));
+    if (id !== "bucket") {
+      const f = id === "bucket_water" ? hex(0x3a76d6) : hex(0xff7a1a);
+      pen.line(4, 5, 11, 5, f);
+      pen.line(5, 6, 10, 6, id === "bucket_water" ? hex(0x6aa0f0) : hex(0xffd23a));
+    }
+  } else if (id === "dates") {
+    for (const [x, y] of [[5, 6], [8, 5], [10, 8], [6, 10], [9, 11]] as const) pen.disc(x, y, 1, m, lo);
+    pen.line(7, 2, 8, 4, hex(0x4a9a3a));
   } else if (id === "seeds") {
     for (const [x, y] of [[5, 6], [9, 5], [7, 9], [11, 9], [4, 11], [8, 12]] as const) {
       pen.disc(x, y, 1, m, lo);

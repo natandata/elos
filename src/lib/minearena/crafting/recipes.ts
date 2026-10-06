@@ -17,6 +17,7 @@ const i = (item: string, count = 1): Ingredient => ({ item, count });
 
 // básico (sem bancada)
 rec("planks", 4, [i("log")]);
+rec("planks", 4, [i("cedar_log")]);
 rec("stick", 4, [i("planks", 2)]);
 rec("crafting_table", 1, [i("planks", 4)]);
 rec("pebble", 8, [i("cobble")]);
@@ -42,6 +43,8 @@ for (const s of ARMOR_SETS) {
 rec("brick", 4, [i("dirt", 2), i("sand", 2)], "bancada");
 rec("bed", 1, [i("wool", 3), i("planks", 3)], "bancada");
 rec("arrow", 4, [i("stick"), i("feather")]);
+rec("bucket", 1, [i("iron_ingot", 3)], "bancada");
+rec("cedar_planks", 4, [i("cedar_log")]);
 rec("chest", 1, [i("planks", 8)], "bancada");
 rec("furnace", 1, [i("cobble", 8)], "bancada");
 rec("limestone", 4, [i("sandstone", 4)], "bancada");
