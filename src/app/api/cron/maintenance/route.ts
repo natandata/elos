@@ -33,12 +33,12 @@ export async function GET(request: NextRequest) {
   const { error: settleError } = await supabase.rpc("settle_leader_mission_xp");
   if (settleError) console.error("settle_leader_mission_xp falhou:", settleError);
 
-  // Arena dos Heróis: quem ficou dias sem devocional perde 25% dos troféus por dia sem anotar
+  // Arena dos Heróis: quem ficou dias sem devocional perde 50% dos troféus por dia sem anotar
   const { data: penalized, error: penaltyError } = await supabase.rpc("arena_devotional_penalties");
   if (penaltyError) console.error("arena_devotional_penalties falhou:", penaltyError);
   for (const p of (penalized ?? []) as { user_id: string; lost: number; missed_days: number }[]) {
     const title = "📖 Sem devocional, menos troféus";
-    const body = `${p.missed_days === 1 ? "Você ficou 1 dia" : `Você ficou ${p.missed_days} dias`} sem o devocional e perdeu ${p.lost} 🏆 na Arena dos Heróis (25% por dia). Faça o devocional todo dia!`;
+    const body = `${p.missed_days === 1 ? "Você ficou 1 dia" : `Você ficou ${p.missed_days} dias`} sem o devocional e perdeu ${p.lost} 🏆 na Arena dos Heróis (50% por dia). Faça o devocional todo dia!`;
     try {
       await supabase.from("notifications").insert({ user_id: p.user_id, title, body, link: "/app/devocional", category: "jogos" });
       await sendPushToUsers([p.user_id], { title, body, url: "/app/devocional" });
