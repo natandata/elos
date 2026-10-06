@@ -1085,6 +1085,7 @@ export class StoryDirector {
           if (wait) {
             this.longBusy++;
             this.structWait = true;
+            r.wait = { kind: "long", left: 0 };
           }
         }
         break;

@@ -284,7 +284,7 @@ export const GENESIS_MISSIONS: Mission[] = [
     desc: "No Egito, o Senhor era com José.",
     ref: "Gênesis 39:1–6",
     spawn: [
-      { mob: "potifar", at: { x: 112, z: 62 }, id: "potifar" },
+      { mob: "potifar", at: { x: 112, z: 63 }, id: "potifar", y: 25.1 },
       { mob: "jose", at: { x: 106, z: 70 }, id: "jose" },
     ],
     objectives: [
@@ -301,8 +301,8 @@ export const GENESIS_MISSIONS: Mission[] = [
     desc: "Dois servos do Faraó têm sonhos.",
     ref: "Gênesis 40:1–23",
     spawn: [
-      { mob: "jose", at: { x: 126, z: 88 }, id: "jose" },
-      { mob: "copeiro", at: { x: 130, z: 90 }, id: "copeiro" },
+      { mob: "jose", at: { x: 126, z: 91 }, id: "jose", y: 25.1 },
+      { mob: "copeiro", at: { x: 130, z: 91 }, id: "copeiro", y: 25.1 },
     ],
     objectives: [{ k: "talk", npc: "copeiro", dialogue: "jos_cup", text: "Fale com o copeiro do Faraó, na prisão." }],
     onComplete: "jos_forgotten",
@@ -495,6 +495,7 @@ export const GENESIS_CUTSCENES: Record<string, Cutscene> = {
     id: "bab_tower",
     steps: [
       ...open,
+      { t: "teleport", target: "player", to: { x: 36, y: -1, z: 70 }, yaw: 0 },
       cam(v(26, 40, 24), v(babX, 34, babZ), 3),
       say("Povo", "Vamos, façamos tijolos e queimemo-los bem! Edifiquemo-nos uma cidade e uma torre cujo cume toque nos céus!", "Gênesis 11:3–4"),
       { t: "call", fn: "build", arg: "babel_tower", wait: true },
@@ -654,6 +655,7 @@ export const GENESIS_CUTSCENES: Record<string, Cutscene> = {
       fade(1, 1.2),
       night,
       { t: "music", track: "abraao_noite" },
+      { t: "teleport", target: "player", to: { x: 110, y: -1, z: 38 }, yaw: 0 },
       at(v(112, 46, 40), v(116, 44, 24)),
       fade(0, 2),
       say("Narrador", "Jacó chegou a um certo lugar e, tomando uma das pedras, pô-a por travesseiro e deitou-se ali. E sonhou.", "Gênesis 28:11"),
@@ -756,6 +758,7 @@ export const GENESIS_CUTSCENES: Record<string, Cutscene> = {
       go("irmao_b", 34, 55, 2.6),
       go("jose", 36, 54, 2.6, true),
       say("Narrador", "Quando José chegou, tiraram-lhe a túnica e o lançaram numa cova vazia, onde não havia água.", "Gênesis 37:23–24"),
+      { t: "teleport", target: "jose", to: { x: 36.5, y: 20.2, z: 52.5 } },
       { t: "call", fn: "outfit", arg: "jose:jose" },
       cap("Os irmãos se sentaram para comer.", 3, "Gênesis 37:25"),
       { t: "env", time: 0.3, weather: "clear", lock: true },
@@ -780,7 +783,7 @@ export const GENESIS_CUTSCENES: Record<string, Cutscene> = {
       say("Narrador", "Depois disso, a mulher de Potifar pôs os olhos em José, e ele recusou fazer o mal contra Deus. Ela o acusou falsamente.", "Gênesis 39:7–18"),
       say("Narrador", "Potifar ficou muito irado e lançou José na prisão, onde ficavam os presos do rei. Mas o Senhor estava com José e lhe deu graça aos olhos do carcereiro.", "Gênesis 39:19–21"),
       fade(1, 2),
-      { t: "teleport", target: "player", to: { x: 124, y: -1, z: 94 }, yaw: Math.PI },
+      { t: "teleport", target: "player", to: { x: 128, y: -1, z: 86 }, yaw: 0 },
       fade(0, 2),
       ...close,
     ],
@@ -789,7 +792,7 @@ export const GENESIS_CUTSCENES: Record<string, Cutscene> = {
     id: "jos_forgotten",
     steps: [
       ...open,
-      cam(v(124, 32, 100), v(128, 28, 90), 3),
+      cam(v(124, 32, 84), v(128, 28, 92), 3),
       { t: "call", fn: "removeNpc", arg: "copeiro" },
       fade(1, 2, "Dois anos depois…"),
       wait(1),

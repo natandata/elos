@@ -20,9 +20,10 @@ const i = (item: string, count = 1): Ingredient => ({ item, count });
 
 // básico (sem bancada)
 rec("planks", 4, [i("log")]);
-rec("planks", 4, [i("cedar_log")]);
 rec("stick", 4, [i("planks", 2)]);
+rec("stick", 4, [i("cedar_planks", 2)]);
 rec("crafting_table", 1, [i("planks", 4)]);
+rec("crafting_table", 1, [i("cedar_planks", 4)]);
 rec("pebble", 8, [i("cobble")]);
 rec("bread", 1, [i("wheat", 3)]);
 rec("arrow", 4, [i("stick"), i("coal")]);
