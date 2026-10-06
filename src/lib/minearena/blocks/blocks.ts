@@ -55,6 +55,7 @@ const KEYS = [
   "crafting_table",
   "gold_block",
   "cactus",
+  "limestone",
 ] as const;
 export type BlockKey = (typeof KEYS)[number];
 
@@ -87,9 +88,9 @@ const SPECS: Record<BlockKey, Spec> = {
   cobble: blk("Pedra lavrada", 0x6a6a6e, 4, "pick", 1, [drop("cobble")], "stone"),
   sand: blk("Areia", 0xe3d398, 0.6, "shovel", 0, [drop("sand")], "sand"),
   sandstone: blk("Arenito", 0xd2b977, 2, "pick", 1, [drop("sandstone")], "stone"),
-  log: blk("Tronco", 0x5d4630, 2.5, "axe", 0, [drop("log")], "wood", { top: 0xb08a50, bottom: 0xb08a50 }),
-  planks: blk("Tábuas", 0xb88a52, 1.8, "axe", 0, [drop("planks")], "wood"),
-  leaves: blk("Folhas", 0x3f8a2e, 0.25, "hand", 0, [drop("stick", 1, 2, 0.25), drop("apple", 1, 1, 0.07)], "leaf"),
+  log: blk("Tronco de carvalho", 0x5d4630, 2.5, "axe", 0, [drop("log")], "wood", { top: 0xb08a50, bottom: 0xb08a50 }),
+  planks: blk("Tábuas de cedro", 0xb88a52, 1.8, "axe", 0, [drop("planks")], "wood"),
+  leaves: blk("Folhas de carvalho", 0x3f8a2e, 0.25, "hand", 0, [drop("stick", 1, 2, 0.25), drop("apple", 1, 1, 0.07)], "leaf", { opaque: false }),
   coal_ore: blk("Minério de carvão", 0x34343a, 5, "pick", 1, [drop("coal", 1, 2)], "stone"),
   iron_ore: blk("Minério de ferro", 0xc79a78, 6, "pick", 2, [drop("raw_iron")], "stone"),
   gold_ore: blk("Minério de ouro", 0xf3d34d, 7, "pick", 3, [drop("raw_gold")], "stone"),
@@ -97,12 +98,13 @@ const SPECS: Record<BlockKey, Spec> = {
   water: blk("Água", 0x3a76d6, Infinity, "hand", 0, [], "dirt", { solid: false, opaque: false, liquid: true, blend: true, placeable: false }),
   lava: blk("Lava", 0xff6a1a, Infinity, "hand", 0, [], "stone", { solid: false, opaque: false, liquid: true, glow: true, placeable: false }),
   glass: blk("Vidro", 0xcfe9f2, 0.4, "hand", 0, [], "glass", { opaque: false, blend: true }),
-  brick: blk("Tijolos", 0xa4533b, 4, "pick", 1, [drop("brick")], "stone"),
+  brick: blk("Tijolo de barro", 0xa4533b, 4, "pick", 1, [drop("brick")], "stone"),
   bedrock: blk("Rocha-mãe", 0x2b2b2e, Infinity, "hand", 0, [], "stone", { placeable: false }),
   snow: blk("Neve", 0xf2f6fa, 0.3, "shovel", 0, [drop("snow")], "dirt", { side: 0x7b5a33, sideTop: 0xf2f6fa, bottom: 0x7b5a33 }),
-  crafting_table: blk("Bancada", 0x8a5d33, 2, "axe", 0, [drop("crafting_table")], "wood", { top: 0xa9794a, bottom: 0xb88a52 }),
-  gold_block: blk("Bloco de ouro", 0xf0c93a, 6, "pick", 3, [drop("gold_block")], "stone"),
+  crafting_table: blk("Bancada de carpinteiro", 0x8a5d33, 2, "axe", 0, [drop("crafting_table")], "wood", { top: 0xa9794a, bottom: 0xb88a52 }),
+  gold_block: blk("Bloco de ouro de Ofir", 0xf0c93a, 6, "pick", 3, [drop("gold_block")], "stone"),
   cactus: blk("Cacto", 0x2f8f43, 0.6, "hand", 0, [drop("cactus")], "leaf"),
+  limestone: blk("Calcário do templo", 0xe8e0cc, 3, "pick", 1, [drop("limestone")], "stone"),
 };
 
 export const BLOCKS: BlockDef[] = KEYS.map((key, id) => ({ id, key, ...SPECS[key] }));

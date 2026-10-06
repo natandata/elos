@@ -1035,3 +1035,4 @@ input[type="datetime-local"] {
 .ma-root[data-touch="1"] .ma-actions { transform: scale(1.2); transform-origin: bottom right; }
 .ma-root[data-touch="2"] .ma-dpad { transform: scale(1.45); transform-origin: bottom left; }
 .ma-root[data-touch="2"] .ma-actions { transform: scale(1.45); transform-origin: bottom right; }
+.ma-pix { image-rendering: pixelated; display: block; filter: drop-shadow(0 1px 0 rgba(0,0,0,0.5)); pointer-events: none; }

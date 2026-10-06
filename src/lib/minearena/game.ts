@@ -1,6 +1,6 @@
 // Motor do MINEARENA: laço do jogo, jogador, mineração, construção, combate, save e ponte com a interface.
 import * as THREE from "three";
-import { B, BLOCKS, blockDef, breakInfo } from "./blocks/blocks";
+import { B, BLOCKS, type BlockKey, blockDef, breakInfo } from "./blocks/blocks";
 import { AUTOSAVE_S, DAY_SECONDS, PLAYER, REACH, RENDER_DISTANCE } from "./config/config";
 import { Sound } from "./audio/audio";
 import { MOB_BY_ID } from "./entities/definitions";
@@ -11,6 +11,9 @@ import { Particles } from "./particles/particles";
 import { type Body, inLava, newBody, stepBody } from "./player/physics";
 import { type WorldSave, putWorld } from "./save/save";
 import { type Settings, DEFAULT_SETTINGS } from "./config/settings";
+import { BLOCK_TILES, type TileName } from "./blocks/tiles";
+import { cachedTile, createCracks } from "./textures/atlas";
+import { spritePixels } from "./textures/sprites";
 import { Sky } from "./world/sky";
 import { World } from "./world/world";
 import { BIOME_NAME, biomeAt, findSpawn } from "./world/worldgen";
@@ -132,6 +135,8 @@ export class MineArena {
   private selLines: THREE.LineSegments;
   private hand = new THREE.Group();
   private handKey = "";
+  private handTex = new Map<TileName, THREE.CanvasTexture>();
+  private cracks: THREE.CanvasTexture[];
   private dialogEnt: Entity | null = null;
   private cleanup: (() => void)[] = [];
   private id: string;
@@ -180,7 +185,8 @@ export class MineArena {
     }
 
     const selGeo = new THREE.BoxGeometry(1.004, 1.004, 1.004);
-    this.sel = new THREE.Mesh(selGeo, new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0, depthWrite: false }));
+    this.cracks = createCracks();
+    this.sel = new THREE.Mesh(selGeo, new THREE.MeshBasicMaterial({ map: this.cracks[0], transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
     this.selLines = new THREE.LineSegments(new THREE.EdgesGeometry(selGeo), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 }));
     this.sel.visible = false;
     this.selLines.visible = false;
@@ -297,6 +303,8 @@ export class MineArena {
     this.sky.dispose();
     this.world.dispose();
     this.sfx.dispose();
+    this.cracks.forEach((t) => t.dispose());
+    this.handTex.forEach((t) => t.dispose());
     this.sel.geometry.dispose();
     (this.sel.material as THREE.Material).dispose();
     this.selLines.geometry.dispose();
@@ -654,7 +662,8 @@ export class MineArena {
       this.mineProgress = 0;
       this.mineKey = "";
     }
-    (this.sel.material as THREE.MeshBasicMaterial).opacity = this.mineProgress * 0.55;
+    (this.sel.material as THREE.MeshBasicMaterial).map = this.cracks[Math.min(9, Math.floor(this.mineProgress * 10))];
+    this.sel.visible = this.selLines.visible && this.mineProgress > 0.03;
 
     // ---- usar (colocar, comer, atirar, conversar) ----
     if (!blocked && this.input.use) {
@@ -851,6 +860,19 @@ export class MineArena {
   }
 
   // ---------- mão (primeira pessoa) ----------
+  private tileTex(name: TileName): THREE.CanvasTexture {
+    let t = this.handTex.get(name);
+    if (!t) {
+      t = new THREE.CanvasTexture(cachedTile(name));
+      t.magFilter = THREE.NearestFilter;
+      t.minFilter = THREE.NearestFilter;
+      t.generateMipmaps = false;
+      t.colorSpace = THREE.SRGBColorSpace;
+      this.handTex.set(name, t);
+    }
+    return t;
+  }
+
   private rebuildHand(): void {
     const held = this.inventory.held();
     const key = held ? held.item : "";
@@ -859,29 +881,40 @@ export class MineArena {
     this.hand.traverse((o) => {
       const m = o as THREE.Mesh;
       m.geometry?.dispose();
-      (m.material as THREE.Material | undefined)?.dispose?.();
+      const mat = m.material as THREE.Material | THREE.Material[] | undefined;
+      if (Array.isArray(mat)) mat.forEach((x) => x.dispose());
+      else mat?.dispose?.();
     });
     this.hand.clear();
-    const mat = (c: number) => new THREE.MeshBasicMaterial({ color: c });
-    const box = (w: number, h: number, d: number, c: number, x = 0, y = 0, z = 0) => {
-      const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(c));
-      m.position.set(x, y, z);
-      return m;
-    };
+    this.hand.rotation.set(0, 0, 0);
     const def = held ? itemDef(held.item) : undefined;
     if (!def) {
-      this.hand.add(box(0.18, 0.18, 0.55, 0xc58a5a, 0, 0, -0.1));
-    } else if (def.kind === "block") {
-      this.hand.add(box(0.3, 0.3, 0.3, def.color));
-    } else if (def.kind === "tool" || def.kind === "weapon") {
-      this.hand.add(box(0.05, 0.5, 0.05, 0x7a5230, 0, 0.05, 0));
-      if (def.kind === "weapon") this.hand.add(box(0.07, 0.4, 0.02, def.color, 0, 0.42, 0), box(0.22, 0.04, 0.06, 0x6a4a2a, 0, 0.2, 0));
-      else this.hand.add(box(0.28, 0.1, 0.06, def.color, 0, 0.3, 0));
-      this.hand.rotation.set(0, 0, 0);
-    } else if (def.kind === "ranged") {
-      this.hand.add(box(0.05, 0.5, 0.05, def.color, 0, 0.1, 0), box(0.16, 0.05, 0.05, 0xd7c9a6, 0.04, 0.1, 0));
+      // braço nu
+      const arm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.6), new THREE.MeshBasicMaterial({ color: 0xc58a5a }));
+      arm.position.set(0, 0, -0.1);
+      this.hand.add(arm);
+    } else if (def.block !== undefined) {
+      const tiles = BLOCK_TILES[BLOCKS[def.block].key as BlockKey];
+      const order: TileName[] = [tiles[1], tiles[1], tiles[0], tiles[2], tiles[1], tiles[1]];
+      const mats = order.map((n) => new THREE.MeshBasicMaterial({ map: this.tileTex(n), alphaTest: 0.5, transparent: false }));
+      const cube = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.32, 0.32), mats);
+      cube.rotation.set(0.2, 0.7, 0);
+      this.hand.add(cube);
     } else {
-      this.hand.add(box(0.2, 0.2, 0.2, def.color));
+      const px = spritePixels(def.key);
+      if (px.length > 0) {
+        const geo = new THREE.BoxGeometry(1 / 16, 1 / 16, 1.6 / 16);
+        const mesh = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ color: 0xffffff }), px.length);
+        const m4 = new THREE.Matrix4();
+        px.forEach((p, i) => {
+          m4.makeTranslation((p.x - 7.5) / 16, (7.5 - p.y) / 16, 0);
+          mesh.setMatrixAt(i, m4);
+          mesh.setColorAt(i, new THREE.Color().setRGB(p.r, p.g, p.b, THREE.SRGBColorSpace));
+        });
+        mesh.scale.setScalar(0.52);
+        mesh.rotation.set(0, -0.5, 0.15);
+        this.hand.add(mesh);
+      }
     }
   }
 

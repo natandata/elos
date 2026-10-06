@@ -1,6 +1,8 @@
 // Mundo em chunks: geração, malhas (só faces visíveis), edição de blocos e raycast.
 import * as THREE from "three";
-import { B, BLOCKS, blockDef, rgb } from "../blocks/blocks";
+import { B, BLOCKS, type BlockKey, blockDef } from "../blocks/blocks";
+import { BLOCK_TILES, tileIndex, tileUV } from "../blocks/tiles";
+import { createAtlas } from "../textures/atlas";
 import { CHUNK, WORLD_H } from "../config/config";
 import { rand01 } from "./noise";
 import { generateChunk } from "./worldgen";
@@ -30,7 +32,15 @@ const FACES = [
   { n: [0, 0, -1], c: [[1, 0, 0], [0, 0, 0], [0, 1, 0], [1, 1, 0]], shade: 0.76 },
 ] as const;
 
-const COLORS = BLOCKS.map((b) => ({ top: rgb(b.top), side: rgb(b.side), bottom: rgb(b.bottom), sideTop: rgb(b.sideTop ?? b.side) }));
+/** UV do tile de cada face (0 lado +x… 2 topo, 3 base) por bloco. */
+const FACE_UV = BLOCKS.map((b) => {
+  const t = BLOCK_TILES[b.key as BlockKey];
+  const side = tileUV(tileIndex(t[1]));
+  return [side, side, tileUV(tileIndex(t[0])), tileUV(tileIndex(t[2])), side, side];
+});
+
+const AO_LEVEL = [0.52, 0.7, 0.85, 1];
+const AO_BUF = [1, 1, 1, 1];
 
 export interface RayHit {
   x: number;
@@ -50,6 +60,7 @@ export class World {
   readonly group = new THREE.Group();
   readonly matO: THREE.MeshBasicMaterial;
   readonly matT: THREE.MeshBasicMaterial;
+  private atlas: THREE.CanvasTexture;
   private order: { cx: number; cz: number }[] = [];
   private lastPcx = Infinity;
   private lastPcz = Infinity;
@@ -59,8 +70,9 @@ export class World {
     public seed: number,
     scene: THREE.Scene,
   ) {
-    this.matO = new THREE.MeshBasicMaterial({ vertexColors: true });
-    this.matT = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.72, depthWrite: false, side: THREE.DoubleSide });
+    this.atlas = createAtlas();
+    this.matO = new THREE.MeshBasicMaterial({ map: this.atlas, vertexColors: true, alphaTest: 0.5 });
+    this.matT = new THREE.MeshBasicMaterial({ map: this.atlas, vertexColors: true, transparent: true, opacity: 0.8, depthWrite: false, side: THREE.DoubleSide });
     scene.add(this.group);
   }
 
@@ -239,9 +251,11 @@ export class World {
 
     const po: number[] = [];
     const co: number[] = [];
+    const uo: number[] = [];
     const io: number[] = [];
     const pt: number[] = [];
     const ct: number[] = [];
+    const ut: number[] = [];
     const it: number[] = [];
     const wx0 = ch.cx * CHUNK;
     const wz0 = ch.cz * CHUNK;
@@ -254,8 +268,9 @@ export class World {
           const def = BLOCKS[id];
           const P = def.blend ? pt : po;
           const C = def.blend ? ct : co;
+          const UV = def.blend ? ut : uo;
           const I = def.blend ? it : io;
-          const col = COLORS[id];
+          const faceUV = FACE_UV[id];
           const jitter = 0.94 + rand01(this.seed, wx0 + x, y, wz0 + z) * 0.1;
           const hTop = hm[x + z * CHUNK];
 
@@ -273,28 +288,76 @@ export class World {
             const k = fd.shade * jitter * light;
             const lowTop = def.liquid && get(x, y + 1, z) !== id;
             const base = P.length / 3;
+            // oclusão ambiente: escurece cantos onde blocos se encontram
+            const ao = AO_BUF;
+            if (def.opaque) {
+              const ax = f >> 1;
+              const t1: number = ax === 0 ? 1 : 0;
+              const t2: number = ax === 2 ? 1 : 2;
+              const ox = x + fd.n[0];
+              const oy = y + fd.n[1];
+              const oz = z + fd.n[2];
+              for (let v = 0; v < 4; v++) {
+                const c = fd.c[v];
+                const s1 = c[t1] === 1 ? 1 : -1;
+                const s2 = c[t2] === 1 ? 1 : -1;
+                const d1 = [t1 === 0 ? s1 : 0, t1 === 1 ? s1 : 0, t1 === 2 ? s1 : 0];
+                const d2 = [t2 === 0 ? s2 : 0, t2 === 1 ? s2 : 0, t2 === 2 ? s2 : 0];
+                const a = BLOCKS[get(ox + d1[0], oy + d1[1], oz + d1[2])].opaque ? 1 : 0;
+                const b = BLOCKS[get(ox + d2[0], oy + d2[1], oz + d2[2])].opaque ? 1 : 0;
+                const k2 = BLOCKS[get(ox + d1[0] + d2[0], oy + d1[1] + d2[1], oz + d1[2] + d2[2])].opaque ? 1 : 0;
+                ao[v] = AO_LEVEL[a && b ? 0 : 3 - (a + b + k2)];
+              }
+            } else ao[0] = ao[1] = ao[2] = ao[3] = 1;
             for (let v = 0; v < 4; v++) {
               const c = fd.c[v];
               let vy: number = c[1];
               if (lowTop && vy === 1) vy = 0.88;
               P.push(x + c[0], y + vy, z + c[2]);
-              let rgbc: [number, number, number];
-              if (f === 2) rgbc = col.top;
-              else if (f === 3) rgbc = col.bottom;
-              else rgbc = c[1] === 1 && def.sideTop !== undefined ? col.sideTop : col.side;
-              C.push(rgbc[0] * k, rgbc[1] * k, rgbc[2] * k);
+              C.push(k * ao[v], k * ao[v], k * ao[v]);
+              const t = faceUV[f];
+              let tu: number;
+              let tv: number;
+              switch (f) {
+                case 0:
+                  tu = 1 - c[2];
+                  tv = c[1];
+                  break;
+                case 1:
+                  tu = c[2];
+                  tv = c[1];
+                  break;
+                case 2:
+                  tu = c[0];
+                  tv = c[2];
+                  break;
+                case 3:
+                  tu = c[0];
+                  tv = 1 - c[2];
+                  break;
+                case 4:
+                  tu = c[0];
+                  tv = c[1];
+                  break;
+                default:
+                  tu = 1 - c[0];
+                  tv = c[1];
+              }
+              UV.push(t[0] + tu * (t[2] - t[0]), t[1] + tv * (t[3] - t[1]));
             }
-            I.push(base, base + 1, base + 2, base, base + 2, base + 3);
+            if (ao[0] + ao[2] < ao[1] + ao[3]) I.push(base + 1, base + 2, base + 3, base + 1, base + 3, base);
+            else I.push(base, base + 1, base + 2, base, base + 2, base + 3);
           }
         }
       }
     }
 
-    const build = (pos: number[], colr: number[], ind: number[], mat: THREE.Material): THREE.Mesh | null => {
+    const build = (pos: number[], colr: number[], uvs: number[], ind: number[], mat: THREE.Material): THREE.Mesh | null => {
       if (ind.length === 0) return null;
       const g = new THREE.BufferGeometry();
       g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(pos), 3));
       g.setAttribute("color", new THREE.BufferAttribute(new Float32Array(colr), 3));
+      g.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(uvs), 2));
       g.setIndex(new THREE.BufferAttribute(new Uint32Array(ind), 1));
       g.computeBoundingSphere();
       const m = new THREE.Mesh(g, mat);
@@ -302,8 +365,8 @@ export class World {
       this.group.add(m);
       return m;
     };
-    ch.meshO = build(po, co, io, this.matO);
-    ch.meshT = build(pt, ct, it, this.matT);
+    ch.meshO = build(po, co, uo, io, this.matO);
+    ch.meshT = build(pt, ct, ut, it, this.matT);
     if (ch.meshT) ch.meshT.renderOrder = 2;
   }
 
@@ -366,5 +429,6 @@ export class World {
     this.group.removeFromParent();
     this.matO.dispose();
     this.matT.dispose();
+    this.atlas.dispose();
   }
 }
