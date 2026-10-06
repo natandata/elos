@@ -219,7 +219,7 @@ export class MineArena {
     this.input.moveX = x;
     this.input.moveY = y;
   }
-  setHold(key: "mine" | "use" | "jump", on: boolean): void {
+  setHold(key: "mine" | "use" | "jump" | "sprint", on: boolean): void {
     this.input[key] = on;
   }
   addLook(dx: number, dy: number): void {
@@ -504,7 +504,7 @@ export class MineArena {
     const mx = blocked ? 0 : this.input.moveX;
     const my = blocked ? 0 : this.input.moveY;
     const len = Math.hypot(mx, my);
-    const sprint = !blocked && (this.input.sprint || (this.mobile && len > 0.95)) && my > 0;
+    const sprint = !blocked && this.input.sprint && my > 0;
     const sp = (sprint ? PLAYER.sprint : PLAYER.walk) * (b.inWater ? 0.55 : 1);
     const sin = Math.sin(this.yaw);
     const cos = Math.cos(this.yaw);

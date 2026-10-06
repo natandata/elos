@@ -1,30 +1,46 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import type { MineArena } from "@/lib/minearena/game";
-
-const RADIUS = 52;
 
 /** Com o jogo girado 90°, o eixo da tela vira o eixo do jogo: (x, y) → (y, -x). */
 const mapDelta = (dx: number, dy: number, rotated: boolean): [number, number] => (rotated ? [dy, -dx] : [dx, dy]);
 
-/** Controles de toque: manche virtual, arrastar pra olhar e botões de ação. */
-export function TouchControls({ game, rotated, onInventory, onPause }: { game: MineArena; rotated: boolean; onInventory: () => void; onPause: () => void }) {
-  const [knob, setKnob] = useState<{ x: number; y: number } | null>(null);
-  const origin = useRef({ x: 0, y: 0, id: -1 });
-  const look = useRef({ x: 0, y: 0, id: -1 });
+type Dir = "up" | "down" | "left" | "right";
 
-  const hold = (key: "mine" | "use" | "jump") => ({
+/** Controles de toque no estilo do Minecraft mobile: setas à esquerda, pular e ações à direita, arrastar pra olhar. */
+export function TouchControls({ game, rotated, onInventory, onPause }: { game: MineArena; rotated: boolean; onInventory: () => void; onPause: () => void }) {
+  const look = useRef({ x: 0, y: 0, id: -1 });
+  const dirs = useRef<Record<Dir, boolean>>({ up: false, down: false, left: false, right: false });
+
+  const press = (d: Dir, on: boolean) => {
+    dirs.current[d] = on;
+    const c = dirs.current;
+    game.setMove((c.right ? 1 : 0) - (c.left ? 1 : 0), (c.up ? 1 : 0) - (c.down ? 1 : 0));
+  };
+  const arrow = (d: Dir, label: string, glyph: string) => (
+    <button
+      type="button"
+      className="ma-pad"
+      data-dir={d}
+      aria-label={label}
+      onPointerDown={(e) => {
+        e.currentTarget.setPointerCapture(e.pointerId);
+        press(d, true);
+      }}
+      onPointerUp={() => press(d, false)}
+      onPointerCancel={() => press(d, false)}
+    >
+      {glyph}
+    </button>
+  );
+  const hold = (key: "mine" | "use" | "jump" | "sprint") => ({
     onPointerDown: (e: React.PointerEvent) => {
       e.currentTarget.setPointerCapture(e.pointerId);
       game.setHold(key, true);
     },
-    onPointerUp: () => {
-      game.setHold(key, false);
-    },
-    onPointerCancel: () => {
-      game.setHold(key, false);
-    },
+    onPointerUp: () => game.setHold(key, false),
+    onPointerCancel: () => game.setHold(key, false),
   });
 
   return (
@@ -46,48 +62,25 @@ export function TouchControls({ game, rotated, onInventory, onPause }: { game: M
         onPointerCancel={() => (look.current.id = -1)}
       />
 
-      <div
-        className="ma-stick"
-        onPointerDown={(e) => {
-          e.currentTarget.setPointerCapture(e.pointerId);
-          const r = e.currentTarget.getBoundingClientRect();
-          origin.current = { x: r.left + r.width / 2, y: r.top + r.height / 2, id: e.pointerId };
-          setKnob({ x: 0, y: 0 });
-        }}
-        onPointerMove={(e) => {
-          if (origin.current.id !== e.pointerId) return;
-          let [dx, dy] = mapDelta(e.clientX - origin.current.x, e.clientY - origin.current.y, rotated);
-          const d = Math.hypot(dx, dy);
-          if (d > RADIUS) {
-            dx = (dx / d) * RADIUS;
-            dy = (dy / d) * RADIUS;
-          }
-          game.setMove(dx / RADIUS, -dy / RADIUS);
-          setKnob({ x: dx, y: dy });
-        }}
-        onPointerUp={() => {
-          origin.current.id = -1;
-          game.setMove(0, 0);
-          setKnob(null);
-        }}
-        onPointerCancel={() => {
-          origin.current.id = -1;
-          game.setMove(0, 0);
-          setKnob(null);
-        }}
-      >
-        <i style={{ transform: knob ? `translate(${knob.x}px, ${knob.y}px)` : undefined }} />
+      <div className="ma-dpad">
+        {arrow("up", "Frente", "▲")}
+        {arrow("left", "Esquerda", "◀")}
+        <button type="button" className="ma-pad ma-pad-mid" aria-label="Correr" {...hold("sprint")}>
+          ◆
+        </button>
+        {arrow("right", "Direita", "▶")}
+        {arrow("down", "Trás", "▼")}
       </div>
 
       <div className="ma-actions">
-        <button type="button" className="ma-act ma-act-big" {...hold("mine")} aria-label="Quebrar ou atacar">
-          ⛏
+        <button type="button" className="ma-act" {...hold("jump")} aria-label="Pular">
+          ◇
         </button>
         <button type="button" className="ma-act" {...hold("use")} aria-label="Usar, colocar ou conversar">
           🖐
         </button>
-        <button type="button" className="ma-act" {...hold("jump")} aria-label="Pular">
-          ⤒
+        <button type="button" className="ma-act ma-act-big" {...hold("mine")} aria-label="Quebrar ou atacar">
+          ⛏
         </button>
       </div>
       <div className="ma-top-btns">
