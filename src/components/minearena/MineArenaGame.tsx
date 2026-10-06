@@ -169,7 +169,7 @@ function Play({ save, rotated, settings, onSettings, onExit, me, sb, net }: { sa
   };
 
   return (
-    <div className={rotated ? "ma-root ma-rot" : "ma-root"} data-touch={settings.touchSize}>
+    <div className={rotated ? "ma-root ma-rot" : "ma-root"} data-touch={settings.touchSize} onContextMenu={(e) => e.preventDefault()} onDragStart={(e) => e.preventDefault()}>
       <canvas ref={canvasRef} className="ma-canvas" />
       {game && hud && !hud.loading ? <Hud hud={hud} msgs={msgs} onSelect={(i) => game.inventory.select(i)} /> : null}
       {game && hud && !hud.loading && mobile && !bag && !extra && !dialog && !paused && hud.alive ? (
@@ -356,7 +356,7 @@ export function MineArenaGame({ me }: { me?: Peer }) {
     );
   }
   return (
-    <div className={rotated ? "ma-root ma-rot" : "ma-root"}>
+    <div className={rotated ? "ma-root ma-rot" : "ma-root"} onContextMenu={(e) => e.preventDefault()}>
       <MainMenu
         notice={notice}
         coop={me && sb ? { sb, myId: me.id, busy: joining, error: joinError, onJoin: (r) => void join(r) } : undefined}

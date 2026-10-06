@@ -1108,3 +1108,9 @@ input[type="datetime-local"] {
 .ma-creative { grid-template-columns: repeat(auto-fill, minmax(46px, 1fr)); max-height: 38vh; overflow: auto; }
 .ma-hotbar { position: relative; z-index: 6; touch-action: manipulation; }
 .ma-hotbar .ma-slot { touch-action: manipulation; }
+/* MineArena no celular: sem seleção de texto, menu de segurar, destaque de toque nem zoom por toque duplo */
+.ma-root, .ma-root * { -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; }
+.ma-root button, .ma-root a { touch-action: manipulation; }
+.ma-root img, .ma-root canvas { -webkit-user-drag: none; user-drag: none; pointer-events: auto; }
+.ma-root input, .ma-root textarea { -webkit-user-select: text; user-select: text; touch-action: auto; }
+.ma-root { overscroll-behavior: none; }
