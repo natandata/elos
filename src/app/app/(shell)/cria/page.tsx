@@ -12,6 +12,7 @@ import { CriaDaSemana } from "@/components/CriaDaSemana";
 import { OpenChallengeBanner } from "@/components/OpenChallengeBanner";
 import { GamesBanner } from "@/components/games/GamesBanner";
 import { EloWeeklyGoal } from "@/components/games/EloWeeklyGoal";
+import { todayBR } from "@/lib/games/engine";
 import { liveGameStreak, todaysPlays } from "@/lib/games/status";
 import { MissionSpotlight, type SpotlightMission } from "@/components/missions/MissionSpotlight";
 import { StoriesTray } from "@/components/profile/StoriesTray";
@@ -210,7 +211,8 @@ export default async function CriaDashboard() {
   ).filter((d) => (d.challenger_id === profile.id ? d.challenger_score === null : d.opponent_score === null)).length;
   const weeklyRows = (weeklyRankRes.data ?? []) as { weekly_xp: number }[];
   const eloWeeklyXp = weeklyRows.reduce((sum, r) => sum + Number(r.weekly_xp), 0);
-  const eloWeeklyGoal = Math.max(40, weeklyRows.length * 8);
+  // A partir de 12/10/2026 a meta semanal é de 1000 XP para todos os Elos.
+  const eloWeeklyGoal = todayBR() >= "2026-10-12" ? 1000 : Math.max(40, weeklyRows.length * 8);
 
   const lastSeenAt = (presenceRes.data as { last_seen_at: string } | null)?.last_seen_at ?? null;
   const daysSinceLastVisit = lastSeenAt
