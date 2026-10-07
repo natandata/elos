@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { ARENA_CARDS, ARENA_CARD_BY_KEY, shortName } from "@/lib/arena/cards";
 import { ARENAS, type ArenaTheme } from "@/lib/arena/arenas";
-import { CAMPAIGN_CARDS, CAMPAIGN_COMBOS, CAMPAIGN_KEYS, activeCombos, inCombo, type Combo } from "@/lib/arena/campaignCards";
+import { CAMPAIGN_CARDS, CAMPAIGN_COMBOS, activeCombos, inCombo, type Combo } from "@/lib/arena/campaignCards";
 import { drawLimbs } from "./arenaLimbs";
 import { CardArt } from "./CardArt";
 import { TEAM, buildBackground, drawTower, layoutFor, type Layout } from "./arenaRender";
@@ -397,7 +397,7 @@ export function ArenaPlayfield({
             ctx.fill();
             if (canFilter && !flash) ctx.filter = `brightness(${1.18 + pulse * 0.15}) saturate(1.15)`;
           }
-          if (CAMPAIGN_KEYS.has(e.card) && e.variant === 0) {
+          if (!e.flying && e.variant === 0) {
             const atkT = an ? (tickF - an.atk) / 9 : -1;
             drawLimbs(ctx, img, -w / 2, -h * 0.97, w, h, gait, moving, atkT >= 0 && atkT < 1 ? atkT : -1, 1, tickF * 0.16 + e.id);
           } else {
