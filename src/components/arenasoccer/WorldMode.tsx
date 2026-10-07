@@ -14,7 +14,7 @@ import { ArenaSoccerOnline } from "./ArenaSoccerOnline";
 import { KitChip } from "./ArenaSoccerPlay";
 
 export type WorldApi = typeof realApi;
-type Tab = "jogo" | "tabela" | "mundo" | "amigos" | "praca";
+type Tab = "jogo" | "treino" | "tabela" | "mundo" | "amigos" | "praca";
 type Online = { id: string; name: string; team: string; ovr: number; league: string };
 const PRACA = "soccer-world-praca";
 
@@ -69,6 +69,9 @@ export function WorldMode({ color, myId, myName, onRecord, onBack, api = realApi
   });
   const [online, setOnline] = useState<Online[]>([]);
   const [duel, setDuel] = useState<{ mode: "create" | "join"; room?: string; to?: string } | null>(null);
+  const [trainSpec, setTrainSpec] = useState<PlaySpec | null>(null);
+  const [trainOpp, setTrainOpp] = useState<string | null>(null);
+  const [trainLevel, setTrainLevel] = useState<"easy" | "normal" | "hard">("normal");
   const [invite, setInvite] = useState<{ from: string; room: string } | null>(null);
   const chRef = useRef<RealtimeChannel | null>(null);
   const pending = useRef<MatchResult | null>(null);
@@ -154,7 +157,7 @@ export function WorldMode({ color, myId, myName, onRecord, onBack, api = realApi
       <div className="space-y-3">
         <section className="card p-4">
           <p className="text-lg font-black">🌍 Mundo aberto</p>
-          <p className="mt-1 text-xs text-[var(--muted)]">A carreira online: todos os jogadores vivem nos mesmos campeonatos (Brasileiro, Espanhol, Inglês e Francês), com a mesma tabela, a mesma artilharia e a mesma linha do tempo. Os jogos são sempre depois das 20h, na segunda, terça, quinta ou sábado; quem não jogar tem o jogo simulado. Veja o que os amigos estão fazendo e se encontre com eles na Praça.</p>
+          <p className="mt-1 text-xs text-[var(--muted)]">A carreira online: todos os jogadores vivem nos mesmos campeonatos (Brasileiro, Espanhol, Inglês e Francês), com a mesma tabela, a mesma artilharia e a mesma linha do tempo. Os jogos são sempre no domingo, às 15h, a partir de 01/11; quem não jogar tem o jogo simulado. Veja o que os amigos estão fazendo e se encontre com eles na Praça.</p>
           <p className="mt-2 text-xs text-[var(--muted)]">{view.players.length} {view.players.length === 1 ? "jogador já está" : "jogadores já estão"} no mundo.</p>
         </section>
         {!canPlay ? (
@@ -236,6 +239,19 @@ export function WorldMode({ color, myId, myName, onRecord, onBack, api = realApi
     const lvl = levelFor(effStr(c, team), opp.str);
     setSpec({ match: { teams: [arrange([meP, ...mates], 0), cpuLineup(opp, 3)], secs: 120, goalsToWin: 9 }, kits: [k0, k1], names: [team.name, opp.name], level: ["normal", lvl], label: `${LEAGUES.find((l) => l.key === m.league)?.short} · rodada ${view.round + 1}` });
   };
+
+  const startTraining = () => {
+    const tOpp = trainOpp ? tmap.get(trainOpp) : null;
+    if (!team || !tOpp) return;
+    const c = { pos: m.pos, name: m.name, num: m.num, ovr: m.ovr } as CareerSave;
+    const { me: meP, mates } = lineup(c, team);
+    const [k0, k1] = resolveKits(kitOf(team), kitOf(tOpp));
+    setTrainSpec({ match: { teams: [arrange([meP, ...mates], 0), cpuLineup(tOpp, 3)], secs: 120, goalsToWin: 9 }, kits: [k0, k1], names: [team.name, tOpp.name], level: ["normal", trainLevel], label: "Treino · não vale na tabela" });
+  };
+
+  if (trainSpec) {
+    return <ArenaSoccerGame mode="3v3" level="normal" color={color} spec={trainSpec} onFinish={() => {}} onExit={() => setTrainSpec(null)} />;
+  }
 
   if (spec) {
     return (
@@ -328,8 +344,8 @@ export function WorldMode({ color, myId, myName, onRecord, onBack, api = realApi
         </section>
       ) : null}
 
-      <div className="grid grid-cols-5 gap-1">
-        {([["jogo", "Jogo"], ["tabela", "Liga"], ["mundo", "Mundo"], ["amigos", "Amigos"], ["praca", "Praça"]] as [Tab, string][]).map(([k, l]) => (
+      <div className="grid grid-cols-6 gap-1">
+        {([["jogo", "Jogo"], ["treino", "Treino"], ["tabela", "Liga"], ["mundo", "Mundo"], ["amigos", "Amigos"], ["praca", "Praça"]] as [Tab, string][]).map(([k, l]) => (
           <button key={k} type="button" onClick={() => setTab(k)} className={`rounded-xl py-2 text-[13px] font-black ${tab === k ? "bg-[var(--accent)] text-[var(--accent-ink)]" : "bg-[var(--line)] text-[var(--muted)]"}`}>{l}{k === "praca" && online.length ? ` (${online.length})` : ""}</button>
         ))}
       </div>
@@ -362,7 +378,7 @@ export function WorldMode({ color, myId, myName, onRecord, onBack, api = realApi
             ) : (
               <p className="mt-2 text-sm">A temporada acabou. A próxima começa em breve.</p>
             )}
-            <p className="mt-2 text-[11px] text-[var(--muted)]">Os jogos são sempre depois das 20h, na segunda, terça, quinta ou sábado. Quem não joga na noite tem o jogo simulado, com desempenho menor.</p>
+            <p className="mt-2 text-[11px] text-[var(--muted)]">Os jogos são sempre no domingo, às 15h. Quem não joga na hora tem o jogo simulado, com desempenho menor.</p>
           </section>
 
           {m.offers.length > 0 ? (
@@ -398,6 +414,30 @@ export function WorldMode({ color, myId, myName, onRecord, onBack, api = realApi
         </>
       ) : null}
 
+      {tab === "treino" ? (
+        <section className="card space-y-3 p-4">
+          <p className="text-lg font-black">🏋️ Treino</p>
+          <p className="text-xs text-[var(--muted)]">Jogue um amistoso contra qualquer time da sua liga, quando quiser. Não vale na tabela, não muda sua experiência nem sua reputação: é só para praticar.</p>
+          <div className="grid grid-cols-3 gap-2">
+            {([["easy", "Fácil"], ["normal", "Normal"], ["hard", "Difícil"]] as const).map(([k, l]) => (
+              <button key={k} type="button" onClick={() => setTrainLevel(k)} className={`rounded-xl py-2 text-sm font-black ${trainLevel === k ? "bg-[var(--accent)] text-[var(--accent-ink)]" : "bg-[var(--line)] text-[var(--muted)]"}`}>{l}</button>
+            ))}
+          </div>
+          <ul className="grid max-h-[40vh] grid-cols-1 gap-1.5 overflow-y-auto sm:grid-cols-2">
+            {(teams ?? []).filter((t) => t.id !== m.team).sort((a, b) => b.str - a.str).map((t) => (
+              <li key={t.id}>
+                <button type="button" onClick={() => setTrainOpp(t.id)} className={`flex w-full items-center gap-2 rounded-xl p-2 text-left ${trainOpp === t.id ? "bg-emerald-500/25 ring-2 ring-emerald-400" : "bg-[var(--line)]"}`}>
+                  <KitChip t={t} />
+                  <span className="min-w-0 flex-1 truncate text-sm font-bold">{t.name}</span>
+                  <small className="text-xs text-[var(--muted)]">{t.str}</small>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <button type="button" disabled={!trainOpp || !team} onClick={startTraining} className="btn btn-primary w-full !py-3 disabled:opacity-50">▶ Começar o treino</button>
+        </section>
+      ) : null}
+
       {tab === "tabela" ? (
         <>
           <section className="card overflow-hidden p-2">
@@ -429,7 +469,7 @@ export function WorldMode({ color, myId, myName, onRecord, onBack, api = realApi
       {tab === "mundo" ? (
         <section className="card p-3">
           <p className="mb-2 text-sm font-black">📰 Linha do tempo do mundo</p>
-          {view.feed.length === 0 ? <p className="text-xs text-[var(--muted)]">Nada aconteceu ainda. Os jogos começam na segunda-feira, 12/10, às 20h.</p> : (
+          {view.feed.length === 0 ? <p className="text-xs text-[var(--muted)]">Nada aconteceu ainda. Os jogos começam no domingo, 01/11, às 15h.</p> : (
             <ul className="space-y-1.5">
               {view.feed.map((f, i) => (
                 <li key={i} className="flex gap-2 text-xs"><span aria-hidden>{f.kind === "title" ? "🏆" : f.kind === "transfer" ? "✍️" : f.kind === "offer" ? "📨" : f.kind === "join" ? "👋" : f.kind === "level" ? "⬆️" : f.kind === "season" ? "📅" : "⚽"}</span><span className="min-w-0 flex-1">{f.text}</span><small className="shrink-0 text-[var(--muted)]">{ago(f.at)}</small></li>
