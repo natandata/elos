@@ -14,6 +14,8 @@ export type StoreInput = {
   status: "scheduled" | "dev";
   /** "AAAA-MM-DDTHH:mm" no horário de Brasília */
   releaseLocal: string;
+  /** preço em moedas ("" = sem preço) */
+  price: string;
   active: boolean;
   sort: number;
 };
@@ -54,6 +56,13 @@ export async function saveStoreItem(input: StoreInput): Promise<{ error?: string
   const href = safePath(input.href);
   if (input.cover.trim() && !cover) return { error: "A capa precisa começar com / ou https://." };
   if (input.href.trim() && !href) return { error: "O link do jogo precisa começar com /." };
+  const priceTxt = String(input.price ?? "").trim();
+  let price_coins: number | null = null;
+  if (priceTxt) {
+    const n = Number(priceTxt);
+    if (!Number.isInteger(n) || n < 0 || n > 1_000_000) return { error: "O preço precisa ser um número inteiro de moedas." };
+    price_coins = n;
+  }
   const row = {
     title,
     emoji: input.emoji.trim().slice(0, 8) || "🎮",
@@ -62,6 +71,7 @@ export async function saveStoreItem(input: StoreInput): Promise<{ error?: string
     href: href && href.startsWith("/") ? href : null,
     status: input.status,
     release_at,
+    price_coins,
     active: input.active,
     sort: Math.round(Number.isFinite(input.sort) ? input.sort : 0),
     updated_at: new Date().toISOString(),
@@ -82,4 +92,19 @@ export async function deleteStoreItem(id: string): Promise<{ error?: string }> {
   revalidatePath("/app/jogos");
   revalidatePath("/app/admin/loja");
   return {};
+}
+
+/** Admin: dá (ou tira, com valor negativo) moedas de um jogador. */
+export async function grantCoins(userId: string, amount: number, reason: string): Promise<{ error?: string; balance?: number }> {
+  const db = await adminOnly();
+  if (!db) return { error: "Sem permissão." };
+  if (!Number.isInteger(amount) || amount === 0 || Math.abs(amount) > 1_000_000) return { error: "Informe uma quantidade inteira de moedas." };
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data, error } = await db.rpc("coin_adjust", { p_user: userId, p_delta: amount, p_reason: reason.trim().slice(0, 120) || "Ajuste do admin", p_by: user?.id ?? null });
+  if (error) return { error: amount < 0 ? "O jogador não tem moedas suficientes." : "Não foi possível dar as moedas." };
+  revalidatePath("/app/jogos");
+  return { balance: Number(data) };
 }

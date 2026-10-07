@@ -3,12 +3,13 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { deleteStoreItem, saveStoreItem, type StoreInput } from "@/lib/actions/store";
+import { COIN } from "@/lib/games/coins";
 import type { StoreItem } from "@/lib/games/store";
 
 /** ISO (UTC) -> "AAAA-MM-DDTHH:mm" no horário de Brasília. */
 const toLocal = (iso: string | null): string => (iso ? new Date(new Date(iso).getTime() - 3 * 3600_000).toISOString().slice(0, 16) : "");
 
-const blank = (sort: number): StoreInput => ({ title: "", emoji: "🎮", blurb: "", cover: "", href: "", status: "dev", releaseLocal: "", active: true, sort });
+const blank = (sort: number): StoreInput => ({ title: "", emoji: "🎮", blurb: "", cover: "", href: "", status: "dev", releaseLocal: "", price: "", active: true, sort });
 
 function Editor({ initial, id, isNew, onDone }: { initial: StoreInput; id?: string; isNew?: boolean; onDone?: () => void }) {
   const router = useRouter();
@@ -66,6 +67,10 @@ function Editor({ initial, id, isNew, onDone }: { initial: StoreInput; id?: stri
           <input type="datetime-local" className="input mt-1" value={f.releaseLocal} onChange={(e) => set("releaseLocal", e.target.value)} />
         </label>
       ) : null}
+      <label className="block text-xs font-bold text-[var(--muted)]">
+        Preço em {COIN.name.toLowerCase()} {COIN.emoji} (vazio = sem preço)
+        <input type="number" min={0} step={1} className="input mt-1" value={f.price} onChange={(e) => set("price", e.target.value)} placeholder="Ex.: 500" />
+      </label>
       <input className="input" value={f.cover} onChange={(e) => set("cover", e.target.value)} placeholder="Capa (opcional): /dress/capa.webp ou https://…" aria-label="Capa" />
       <input className="input" value={f.href} onChange={(e) => set("href", e.target.value)} placeholder="Link do jogo (opcional): /app/jogos/vestir" aria-label="Link do jogo" />
       <div className="flex items-center gap-3">
@@ -101,7 +106,7 @@ export function StoreManager({ items }: { items: StoreItem[] }) {
         <Editor
           key={`${it.id}-${it.release_at}-${it.status}-${it.active}`}
           id={it.id}
-          initial={{ title: it.title, emoji: it.emoji, blurb: it.blurb, cover: it.cover ?? "", href: it.href ?? "", status: it.status, releaseLocal: toLocal(it.release_at), active: it.active, sort: it.sort }}
+          initial={{ title: it.title, emoji: it.emoji, blurb: it.blurb, cover: it.cover ?? "", href: it.href ?? "", status: it.status, releaseLocal: toLocal(it.release_at), price: it.price_coins === null ? "" : String(it.price_coins), active: it.active, sort: it.sort }}
         />
       ))}
       <h2 className="pt-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">Novo jogo na Loja</h2>

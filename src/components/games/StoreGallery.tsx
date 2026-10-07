@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { fmtCoins } from "@/lib/games/coins";
 import type { StoreItem } from "@/lib/games/store";
 
 function parts(ms: number) {
@@ -63,6 +64,9 @@ function Card({ item }: { item: StoreItem }) {
           {item.emoji} {item.title}
         </span>
         {item.blurb ? <span className="mt-0.5 block text-xs text-[var(--muted)]">{item.blurb}</span> : null}
+        {item.price_coins !== null ? (
+          <span className="mt-2 mr-2 inline-block rounded-full bg-amber-100 px-3 py-0.5 text-[11px] font-black text-amber-900">{item.price_coins === 0 ? "Grátis" : fmtCoins(item.price_coins)}</span>
+        ) : null}
         {open ? <span className="mt-2 inline-block rounded-full bg-rose-600 px-3 py-0.5 text-[11px] font-black text-white">▶ JOGAR</span> : null}
         {!scheduled ? <span className="mt-2 inline-block rounded-full bg-[var(--line)] px-3 py-0.5 text-[11px] font-black text-[var(--muted)]">Estamos construindo</span> : null}
       </span>
@@ -80,11 +84,16 @@ function Card({ item }: { item: StoreItem }) {
 }
 
 /** Galeria "Loja" da Sala de Jogos: jogos com data marcada (contagem regressiva) e jogos em produção. */
-export function StoreGallery({ items }: { items: StoreItem[] }) {
+export function StoreGallery({ items, balance }: { items: StoreItem[]; balance: number }) {
   if (items.length === 0) return null;
   return (
     <section className="mb-5" aria-label="Loja">
-      <h2 className="mb-1 text-lg font-black">🛍️ Loja</h2>
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <h2 className="text-lg font-black">🛍️ Loja</h2>
+        <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-900" title="Seu saldo de moedas">
+          Seu saldo: {fmtCoins(balance)}
+        </span>
+      </div>
       <p className="mb-2 text-xs text-[var(--muted)]">Em breve você poderá trocar XP por moedas e comprar jogos aqui. Jogo comprado fica liberado para você jogar.</p>
       <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2">
         {items.map((it) => (

@@ -1,0 +1,2 @@
+-- Moeda dos jogos: saldo por jogador (coin_wallets) e extrato (coin_ledger). Só o servidor mexe no saldo, via coin_adjust.
+-- (aplicada via MCP; ver as funções e políticas no banco)

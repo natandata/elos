@@ -29,7 +29,7 @@ export default async function JogosPage() {
   const { profile } = await requireRole("cria", "leader", "admin");
   const supabase = await createClient();
 
-  const [plays, cardsRes, duelsRes, weekRes, boardRes, storeRes] = await Promise.all([
+  const [plays, cardsRes, duelsRes, weekRes, boardRes, storeRes, walletRes] = await Promise.all([
     todaysPlays(supabase, profile.id),
     supabase.from("user_cards").select("card_key", { count: "exact", head: true }).eq("user_id", profile.id),
     supabase
@@ -41,7 +41,9 @@ export default async function JogosPage() {
     supabase.rpc("game_week_ranking"),
     supabase.rpc("game_elo_board"),
     supabase.from("store_items").select(STORE_COLUMNS).eq("active", true).order("sort").order("created_at"),
+    supabase.from("coin_wallets").select("balance").eq("user_id", profile.id).maybeSingle<{ balance: number }>(),
   ]);
+  const coinBalance = walletRes.data?.balance ?? 0;
   const storeItems = (storeRes.data ?? []) as StoreItem[];
 
   const [dressOpen, mineOpen, rushOpen, vis] = await Promise.all([gameOpenFor("dress", profile.id), gameOpenFor("minearena", profile.id), gameOpenFor("biblerush", profile.id), getVisibilities()]);
@@ -143,7 +145,7 @@ export default async function JogosPage() {
         </Link>
       )}
 
-      <StoreGallery items={storeItems} />
+      <StoreGallery items={storeItems} balance={coinBalance} />
 
       {hide("biblerush") || !rushOpen ? null : (
         <Link href="/app/jogos/biblerush" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-amber-400 bg-gradient-to-br from-[#1f3a5f] via-[#2e5a7a] to-[#c9a15a] p-4 shadow-lg transition active:scale-[0.99]">
