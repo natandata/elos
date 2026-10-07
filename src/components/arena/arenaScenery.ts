@@ -525,7 +525,78 @@ function sparkle(e: Env, x: number, y: number, r: number, color: string) {
 
 // ------------------------------------------------------------ cenários da campanha
 
+/** Um detalhe de assinatura por arena (no rio ou nas bordas), discreto, para dar identidade sem poluir. */
+function campaignAccent(e: Env, key: string) {
+  const r = e.r;
+  switch (key) {
+    case "c-selva": {
+      // vitórias-régias no rio e cipós pendurados no alto
+      for (const [x, y] of [[2.2, 12.2], [6.4, 13.6], [9.6, 12.3], [13.8, 13.5], [8.2, 12.9]] as const) {
+        ell(e, x, y, 0.5, 0.2, "#3a9a48", "#1f6a2b", 0.03);
+        flower(e, x + 0.1, y - 0.1, 0.12, "#f472b6");
+      }
+      for (const x of [3.4, 7.0, 12.2]) {
+        line(e, x, 0, x + 0.2, 1.6 + r() * 0.8, "#2e7d32", 0.07);
+        ell(e, x + 0.2, 1.9, 0.18, 0.1, "#43a047");
+      }
+      break;
+    }
+    case "c-paris": {
+      // barquinho no Sena
+      poly(e, [[6.9, 13.0], [9.1, 13.0], [8.7, 13.6], [7.3, 13.6]], "#f8fafc", "#1d4ed8", 0.04);
+      rect(e, 7.6, 12.45, 0.9, 0.55, "#93c5fd", "#1d4ed8", 0.03, 0.06);
+      line(e, 8.05, 12.45, 8.05, 11.9, "#1d4ed8", 0.04);
+      poly(e, [[8.05, 11.9], [8.5, 12.05], [8.05, 12.2]], "#dc2626");
+      break;
+    }
+    case "c-quartel": {
+      // cerca de arame farpado junto ao rio
+      for (const y of [11.25, 14.75]) {
+        for (let x = 0.4; x < 15.6; x += 1.4) {
+          line(e, x, y, x, y - 0.35, "#4a3f20", 0.05);
+          line(e, x - 0.1, y - 0.25, x + 0.2, y - 0.1, "#6b7280", 0.025);
+        }
+      }
+      break;
+    }
+    case "c-rock": {
+      // feixes de luz caindo do alto do palco
+      for (const [x, c] of [[4, "rgba(244,114,182,0.22)"], [8, "rgba(96,165,250,0.22)"], [12, "rgba(250,204,21,0.2)"]] as const) {
+        poly(e, [[x - 0.2, 0], [x + 0.2, 0], [x + 1.6, 7], [x - 1.6, 7]], c);
+      }
+      break;
+    }
+    case "c-aula": {
+      // régua e lápis atravessando o corredor
+      rect(e, 5.2, 12.6, 5.6, 0.5, "#fde68a", "#a16207", 0.03, 0.05);
+      for (let x = 5.5; x < 10.6; x += 0.5) line(e, x, 12.6, x, 12.85, "#a16207", 0.02);
+      break;
+    }
+    case "c-igreja": {
+      // estandartes vermelhos no alto e velas no corredor
+      for (const x of [2.2, 13.8]) {
+        poly(e, [[x - 0.35, 0.2], [x + 0.35, 0.2], [x + 0.35, 2.2], [x, 1.8], [x - 0.35, 2.2]], "#b91c1c", "#facc15", 0.03);
+      }
+      break;
+    }
+    case "c-casamento": {
+      // pétalas boiando e lacinho de fita
+      for (let i = 0; i < 16; i++) ell(e, 0.5 + r() * 15, 11.9 + r() * 2.2, 0.12, 0.06, ["#f9a8d4", "#fff", "#fda4af"][i % 3], undefined, 0.02, r() * 3);
+      break;
+    }
+    case "c-gabinete": {
+      // quadros dourados na parede do fundo
+      for (const [x, w] of [[2.6, 1.6], [13.4, 1.6], [8, 2.2]] as const) {
+        rect(e, x - w / 2, 0.2, w, 1.5, "#facc15", "#a16207", 0.04, 0.04);
+        rect(e, x - w / 2 + 0.12, 0.32, w - 0.24, 1.26, "#1e3a5f", undefined, 0.02, 0.03);
+      }
+      break;
+    }
+  }
+}
+
 function campaignScenery(e: Env, key: string) {
+  campaignAccent(e, key);
   const L = 1.3;
   const R = 14.7;
   const r = e.r;

@@ -12,4 +12,22 @@ export const CAMPAIGN_CARDS: ArenaCard[] = [
   { key: "zepa", short: "Pastor Zepa", name: "Pastor Zepa", emoji: "📖", art: true, kind: "unit", cost: 7, desc: "O mais forte: ao chegar, um clarão cega o adversário por 1,5 s. Acerta em área, derruba muros e cura os aliados.", hp: 900, dmg: 70, atkSpeed: 1.2, range: 1.5, speed: 1.3, radius: 0.65, canHitAir: true, splash: 1.2, unitTowerMult: 1.2, blind: 1.5, heal: { amount: 60, secs: 2, radius: 5 } },
 ];
 
+/** Combo: com o Henrique e a Amandinha vivos do mesmo lado, os demais personagens brilham e dão +5% de dano. */
+export const CAMPAIGN_COMBO = { a: "henrique", b: "amandinha", dmg: 1.05 } as const;
+
+/** O combo está ativo para este lado? */
+export function comboActive(entities: readonly { side: number; card: string; type: string; hp: number }[], side: number): boolean {
+  let a = false;
+  let b = false;
+  for (const e of entities) {
+    if (e.side !== side || e.type !== "unit" || e.hp <= 0) continue;
+    if (e.card === CAMPAIGN_COMBO.a) a = true;
+    else if (e.card === CAMPAIGN_COMBO.b) b = true;
+  }
+  return a && b;
+}
+
+/** Quem recebe o brilho e o bônus: todos menos o próprio par. */
+export const inCombo = (card: string): boolean => card !== CAMPAIGN_COMBO.a && card !== CAMPAIGN_COMBO.b;
+
 export const CAMPAIGN_KEYS = new Set(CAMPAIGN_CARDS.map((c) => c.key));

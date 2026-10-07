@@ -19,6 +19,16 @@ export type ArenaTheme = {
   rock: string;
   /** Chance (0–1) de um enfeite da margem ser pedra em vez de arbusto. */
   rockChance: number;
+  /** campanha: marcas no chão que dão identidade ao lugar */
+  floor?: "planks" | "marble" | "stage" | "sand" | "petals" | "jungle" | "paving";
+  /** campanha: escurece de leve as bordas da tela (cor com transparência) */
+  vignette?: string;
+  /** campanha: faixa decorativa nos caminhos (tapete) */
+  carpet?: string;
+  /** campanha: cor da ponte [tábua, borda] */
+  bridge?: [string, string];
+  /** campanha: cor do tablado das torres [topo, base] */
+  tower?: [string, string];
 };
 
 export type BiblicalArena = {

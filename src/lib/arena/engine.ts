@@ -1,5 +1,6 @@
 import { ARENA_CARDS, ARENA_CARD_BY_KEY, ATALAIA, SANTUARIO, botLevelForArena, levelMult, type ArenaCard } from "./cards";
 import { CARD_UNLOCK_ARENA } from "./arenas";
+import { CAMPAIGN_COMBO, comboActive, inCombo } from "./campaignCards";
 import { botDecide } from "./bot";
 import {
   BRIDGES,
@@ -272,7 +273,8 @@ function knockBack(from: Entity, target: Entity) {
 }
 
 function dealAttack(state: GameState, e: Entity, target: Entity, ev: GameEvent[]) {
-  const dmg = e.dmg * (target.type === "tower" ? e.towerMult : 1);
+  const combo = e.type === "unit" && inCombo(e.card) && comboActive(state.entities, e.side) ? CAMPAIGN_COMBO.dmg : 1;
+  const dmg = e.dmg * combo * (target.type === "tower" ? e.towerMult : 1);
   target.hp -= dmg;
   if (e.hitSlow > 0 && target.type === "unit") {
     const stillSlow = state.tick < target.slowUntil;
@@ -286,8 +288,8 @@ function dealAttack(state: GameState, e: Entity, target: Entity, ev: GameEvent[]
     for (const o of state.entities) {
       if (o === target || o.side === e.side || o.type !== "unit" || o.hp <= 0) continue;
       if (dist(target.x, target.y, o.x, o.y) <= e.splash) {
-        o.hp -= e.dmg;
-        ev.push({ t: "hit", id: o.id, x: o.x, y: o.y, dmg: e.dmg, side: o.side });
+        o.hp -= e.dmg * combo;
+        ev.push({ t: "hit", id: o.id, x: o.x, y: o.y, dmg: e.dmg * combo, side: o.side });
       }
     }
   }

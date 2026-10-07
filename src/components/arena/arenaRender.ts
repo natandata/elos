@@ -51,6 +51,88 @@ const TOWER_POS: [number, number, number, number][] = [
   [W / 2, H - 2.5, 4.4, 3.4],
 ];
 
+/** Marcas no chão da campanha: tábuas, mármore, palco, areia, pétalas, folhas, calçamento. Sutis, só para dar identidade. */
+function drawFloor(g: CanvasRenderingContext2D, th: ArenaTheme, kind: NonNullable<ArenaTheme["floor"]>, X: (x: number) => number, Y: (y: number) => number, s: number, left: number, right: number, top: number, bottom: number) {
+  const r = rng(53);
+  const lw = Math.max(1, s * 0.03);
+  const hline = (y: number) => {
+    g.beginPath();
+    g.moveTo(X(left), Y(y));
+    g.lineTo(X(right), Y(y));
+    g.stroke();
+  };
+  const vline = (x: number) => {
+    g.beginPath();
+    g.moveTo(X(x), Y(top));
+    g.lineTo(X(x), Y(bottom));
+    g.stroke();
+  };
+  g.save();
+  g.lineWidth = lw;
+  switch (kind) {
+    case "planks": {
+      g.strokeStyle = "rgba(40,20,5,0.14)";
+      let row = 0;
+      for (let y = top; y < bottom; y += 0.7, row++) {
+        hline(y);
+        for (let x = left + ((row * 1.9) % 3.1); x < right; x += 3.1) {
+          g.beginPath();
+          g.moveTo(X(x), Y(y));
+          g.lineTo(X(x), Y(y + 0.7));
+          g.stroke();
+        }
+      }
+      break;
+    }
+    case "marble": {
+      g.strokeStyle = "rgba(90,70,50,0.18)";
+      for (let x = Math.floor(left); x < right; x += 2) vline(x);
+      for (let y = Math.floor(top); y < bottom; y += 2) hline(y);
+      break;
+    }
+    case "stage": {
+      g.strokeStyle = "rgba(190,120,255,0.2)";
+      for (let x = Math.floor(left); x < right; x += 2) vline(x);
+      for (let y = Math.floor(top); y < bottom; y += 2) hline(y);
+      break;
+    }
+    case "sand": {
+      for (let i = 0; i < 90; i++) {
+        g.fillStyle = r() < 0.5 ? "rgba(60,50,20,0.16)" : "rgba(255,240,190,0.14)";
+        g.beginPath();
+        g.ellipse(X(left + r() * (right - left)), Y(top + r() * (bottom - top)), s * (0.05 + r() * 0.09), s * 0.04, 0, 0, Math.PI * 2);
+        g.fill();
+      }
+      break;
+    }
+    case "petals": {
+      for (let i = 0; i < 70; i++) {
+        g.fillStyle = ["rgba(249,168,212,0.55)", "rgba(255,255,255,0.6)", "rgba(253,164,175,0.5)"][i % 3];
+        g.beginPath();
+        g.ellipse(X(left + r() * (right - left)), Y(top + r() * (bottom - top)), s * 0.1, s * 0.05, r() * 3, 0, Math.PI * 2);
+        g.fill();
+      }
+      break;
+    }
+    case "jungle": {
+      for (let i = 0; i < 40; i++) {
+        g.fillStyle = "rgba(10,60,20,0.14)";
+        g.beginPath();
+        g.ellipse(X(left + r() * (right - left)), Y(top + r() * (bottom - top)), s * (0.4 + r() * 0.5), s * (0.25 + r() * 0.3), r() * 3, 0, Math.PI * 2);
+        g.fill();
+      }
+      break;
+    }
+    case "paving": {
+      g.strokeStyle = "rgba(90,80,60,0.1)";
+      for (let x = Math.floor(left); x < right; x += 1) vline(x);
+      for (let y = Math.floor(top); y < bottom; y += 1) hline(y);
+      break;
+    }
+  }
+  g.restore();
+}
+
 /** Fundo estático (grama, caminhos, rio, pontes, árvores): desenhado uma vez por tamanho. */
 export function buildBackground(l: Layout, dpr: number, th: ArenaTheme = ARENAS[0].theme, key: string = ARENAS[0].key): HTMLCanvasElement {
   const c = document.createElement("canvas");
@@ -87,6 +169,8 @@ export function buildBackground(l: Layout, dpr: number, th: ArenaTheme = ARENAS[
   g.fillStyle = grad;
   g.fillRect(0, 0, l.cw, l.ch);
 
+  if (th.floor) drawFloor(g, th, th.floor, X, Y, s, left, right, top, bottom);
+
   // caminhos de terra
   const PATH = th.path;
   const PATH_EDGE = th.pathEdge;
@@ -97,6 +181,12 @@ export function buildBackground(l: Layout, dpr: number, th: ArenaTheme = ARENAS[
     g.fillStyle = PATH;
     roundRect(g, X(x), Y(y), w * s, h * s, s * 0.28);
     g.fill();
+    if (th.carpet) {
+      g.strokeStyle = th.carpet;
+      g.lineWidth = Math.max(1.5, s * 0.06);
+      roundRect(g, X(x) + s * 0.16, Y(y) + s * 0.16, Math.max(1, w * s - s * 0.32), Math.max(1, h * s - s * 0.32), s * 0.12);
+      g.stroke();
+    }
   };
   for (const lx of [4, W - 4]) pathRect(lx - 0.8, 5.5, 1.6, H - 11); // pistas
   pathRect(4 - 0.8, 2.2, W - 8 + 1.6, 1.5); // do Santuário às pistas (em cima)
@@ -147,11 +237,11 @@ export function buildBackground(l: Layout, dpr: number, th: ArenaTheme = ARENAS[
     const w = 2.4 * s;
     const y0 = Y(RIVER_TOP - 0.3);
     const h = (RIVER_BOT - RIVER_TOP + 0.6) * s;
-    g.fillStyle = "#6b4423";
+    g.fillStyle = th.bridge?.[1] ?? "#6b4423";
     g.fillRect(x0 - 3, y0 - 2, w + 6, h + 4);
-    g.fillStyle = "#b27a40";
+    g.fillStyle = th.bridge?.[0] ?? "#b27a40";
     g.fillRect(x0, y0, w, h);
-    g.strokeStyle = "#7d5128";
+    g.strokeStyle = th.bridge?.[1] ?? "#7d5128";
     g.lineWidth = Math.max(1.5, s * 0.06);
     for (let px = x0 + w / 6; px < x0 + w - 1; px += w / 6) {
       g.beginPath();
@@ -182,8 +272,8 @@ export function buildBackground(l: Layout, dpr: number, th: ArenaTheme = ARENAS[
     roundRect(g, px, py + s * 0.12, w * s, h * s, s * 0.35);
     g.fill();
     const stone = g.createLinearGradient(0, py, 0, py + h * s);
-    stone.addColorStop(0, "#c3cad3");
-    stone.addColorStop(1, "#98a1ad");
+    stone.addColorStop(0, th.tower?.[0] ?? "#c3cad3");
+    stone.addColorStop(1, th.tower?.[1] ?? "#98a1ad");
     g.fillStyle = stone;
     roundRect(g, px, py, w * s, h * s, s * 0.35);
     g.fill();
@@ -241,6 +331,13 @@ export function buildBackground(l: Layout, dpr: number, th: ArenaTheme = ARENAS[
   }
   // cenário próprio de cada arena (a passagem bíblica do lugar)
   drawScenery({ g, s, X, Y, left, right, r: rng(97) }, key);
+  if (th.vignette) {
+    const vg = g.createRadialGradient(l.cw / 2, l.ch / 2, Math.min(l.cw, l.ch) * 0.35, l.cw / 2, l.ch / 2, Math.hypot(l.cw, l.ch) * 0.55);
+    vg.addColorStop(0, "rgba(0,0,0,0)");
+    vg.addColorStop(1, th.vignette);
+    g.fillStyle = vg;
+    g.fillRect(0, 0, l.cw, l.ch);
+  }
   // cercas de madeira no fundo do campo (como na referência)
   g.fillStyle = "#8a5a2b";
   for (const fy of key === "eden" || key === "ela" ? [0.15, H - 0.15] : []) {

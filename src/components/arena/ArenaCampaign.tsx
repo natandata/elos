@@ -208,6 +208,8 @@ export function ArenaCampaign({ open, admin, cleared: initialCleared, tiers: ini
           })}
         </ul>
       ) : (
+        <>
+        <p className="card p-3 text-xs"><b>✨ Combo:</b> com o <b>Henrique</b> e a <b>Amandinha</b> vivos em campo do mesmo lado, os outros personagens brilham e dão <b>+5% de dano</b>. Vale para você e para o computador.</p>
         <ul className="grid grid-cols-2 gap-2">
           {CAMPAIGN_CARDS.map((c) => (
             <li key={c.key} className="card flex flex-col p-2.5">
@@ -218,6 +220,7 @@ export function ArenaCampaign({ open, admin, cleared: initialCleared, tiers: ini
             </li>
           ))}
         </ul>
+        </>
       )}
 
       {stage ? (
