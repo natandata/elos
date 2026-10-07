@@ -117,7 +117,7 @@ function makeUnit(state: GameState, card: ArenaCard, side: Side, player: number,
   const hp = Math.round((card.hp ?? 100) * m);
   return {
     id: state.nextId++, side, type: "unit", card: card.key, lane: -1, x, y, px: x, py: y,
-    hp, maxHp: hp, radius: card.radius ?? 0.5, dmg: Math.round((card.dmg ?? 10) * m),
+    hp, maxHp: hp, radius: (card.radius ?? 0.5) * (card.crew && variant > 0 ? 0.5 : 1), dmg: Math.round((card.dmg ?? 10) * m),
     atkTicks: Math.max(1, Math.round((card.atkSpeed ?? 1) * TICKS_PER_SEC)), range: card.range ?? 0.8,
     speed: (card.speed ?? 1.5) / TICKS_PER_SEC, flying: !!card.flying, towersOnly: !!card.towersOnly,
     canHitAir: !!card.canHitAir, splash: card.splash ?? 0, towerMult: card.unitTowerMult ?? 1,

@@ -404,7 +404,7 @@ export function ArenaPlayfield({
         const card = ARENA_CARD_BY_KEY.get(e.card);
         // um nome por grupo: tropas coladas (ex.: os 3 Gideões) dividem o mesmo rótulo
         const crowded = namesDrawn.some((n) => Math.abs(n.x - x) < s * 1.3 && Math.abs(n.y - headY) < s * 0.7);
-        if (card && spawnP >= 1 && !crowded) {
+        if (card && spawnP >= 1 && !crowded && !(card.crew && e.variant > 0)) {
           namesDrawn.push({ x, y: headY });
           const fs = Math.max(8, Math.round(s * 0.33));
           const ny = headY - (e.hp < e.maxHp ? 11 : 3);
