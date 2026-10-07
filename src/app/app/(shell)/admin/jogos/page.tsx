@@ -50,10 +50,11 @@ export default async function AdminJogosPage() {
     const rel = g.key in GAME_RELEASES ? (g.key as ReleasedGame) : null;
     const when = rel ? new Date(GAME_RELEASES[rel]).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" }) : null;
     const v = vis[g.key];
-    const now = v === "visible" ? "Todos os jogadores veem agora." : v === "hidden" ? "Escondido: só você (admin) vê." : rel && !isReleased(rel) ? `Automático: fechado até ${when}.` : "Automático: aberto para todos.";
+    const now = v === "visible" ? "Todos os jogadores veem agora." : v === "hidden" ? "Escondido: só você (admin) e quem tem acesso antecipado veem." : rel && !isReleased(rel) ? `Automático: fechado até ${when}.` : "Automático: aberto para todos.";
     return { key: g.key, emoji: g.emoji, title: g.title, visibility: v, note: now };
   });
-  const pending = (Object.keys(GAME_RELEASES) as ReleasedGame[]).filter((g) => !isReleased(g));
+  // o acesso antecipado vale para jogos ainda fechados pela data e para jogos escondidos pelo botão de visibilidade
+  const pending = (Object.keys(GAME_RELEASES) as ReleasedGame[]).filter((g) => !isReleased(g) || vis[g] === "hidden");
   let users: EAUser[] = [];
   const granted = new Map<string, string[]>();
   const db = pending.length > 0 ? createAdminClient() : null;
@@ -110,7 +111,7 @@ export default async function AdminJogosPage() {
       <section className="mb-6">
         <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">Visibilidade para os jogadores</h2>
         <p className="mb-3 text-xs text-[var(--muted)]">
-          Automático segue a data de lançamento (jogos sem data ficam abertos). Visível abre para todos agora. Oculto esconde o jogo de todos, só você continua vendo.
+          Automático segue a data de lançamento (jogos sem data ficam abertos). Visível abre para todos agora. Oculto esconde o jogo de todos, só você e quem tem acesso antecipado continuam vendo.
         </p>
         <GameVisibility rows={rows} />
       </section>
@@ -123,7 +124,7 @@ export default async function AdminJogosPage() {
       {pending.length > 0 ? (
         <section className="mb-6">
           <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">Acesso antecipado</h2>
-          <p className="mb-3 text-xs text-[var(--muted)]">Libere um jogo ainda não lançado para jogadores específicos. Para todos os outros ele continua fechado até a data de abertura.</p>
+          <p className="mb-3 text-xs text-[var(--muted)]">Libere um jogo ainda não lançado, ou escondido por você, para jogadores específicos. Para todos os outros ele continua fechado.</p>
           <div className="space-y-3">
             {pending.map((g) => (
               <EarlyAccessManager key={g} game={g} title={RELEASE_TITLES[g]} users={users} granted={granted.get(g) ?? []} />

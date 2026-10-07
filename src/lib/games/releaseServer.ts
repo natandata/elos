@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { GAME_KEYS, type GameKey, type Visibility } from "./catalog";
@@ -12,8 +13,16 @@ export async function getVisibilities(): Promise<Record<GameKey, Visibility>> {
   return out;
 }
 
-/** O jogo está escondido pelo admin para esta pessoa? (admin sempre enxerga) */
-export const isHiddenFor = (vis: Visibility, role: string): boolean => vis === "hidden" && role !== "admin";
+/** Jogos em que esta pessoa tem acesso antecipado (concedido pelo admin). A tabela só o admin lê, então vai pelo cliente de serviço. */
+export const getEarlyAccess = cache(async (userId: string): Promise<Set<string>> => {
+  const admin = createAdminClient();
+  if (!admin) return new Set();
+  const { data } = await admin.from("game_early_access").select("game").eq("user_id", userId);
+  return new Set(((data ?? []) as { game: string }[]).map((r) => r.game));
+});
+
+/** O jogo está escondido pelo admin para esta pessoa? (admin e quem tem acesso antecipado sempre enxergam) */
+export const isHiddenFor = (vis: Visibility, role: string, early = false): boolean => vis === "hidden" && role !== "admin" && !early;
 
 /** O jogo já está liberado pra esta pessoa? Respeita o botão do admin (visível/oculto); no automático, conta de teste, admin e quem recebeu acesso antecipado passam antes da data. */
 export async function gameOpenFor(game: ReleasedGame, userId: string): Promise<boolean> {
@@ -22,9 +31,11 @@ export async function gameOpenFor(game: ReleasedGame, userId: string): Promise<b
   const vis = setting?.visibility ?? "auto";
   if (vis === "visible") return true;
   if (vis === "hidden") {
+    // escondido para todos, menos o admin e quem recebeu acesso antecipado
     if (!admin) return false;
     const { data } = await admin.from("profiles").select("role").eq("id", userId).maybeSingle<{ role: string }>();
-    return data?.role === "admin";
+    if (data?.role === "admin") return true;
+    return (await getEarlyAccess(userId)).has(game);
   }
   if (isReleased(game)) return true;
   if (!admin) return false;

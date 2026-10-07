@@ -2,7 +2,7 @@ import { WeeklyGameCard } from "@/components/games/WeeklyGameCard";
 import { requireProfile } from "@/lib/auth";
 import { GAME_KEYS } from "@/lib/games/catalog";
 import { isReleased } from "@/lib/games/release";
-import { getVisibilities, isHiddenFor } from "@/lib/games/releaseServer";
+import { getEarlyAccess, getVisibilities, isHiddenFor } from "@/lib/games/releaseServer";
 import { lockedGames } from "@/lib/games/storeAccess";
 import { WEEKLY_META, type WeeklyGame } from "@/lib/games/weekly";
 import { createClient } from "@/lib/supabase/server";
@@ -19,7 +19,8 @@ export async function ArenaLaunchCard() {
   const supabase = await createClient();
   const [{ profile }, vis, res] = await Promise.all([requireProfile(), getVisibilities(), supabase.rpc("weekly_games_stats")]);
   const locked = await lockedGames(supabase, profile.id, profile.role);
+  const early = await getEarlyAccess(profile.id);
   const rows = (Array.isArray(res.data) ? res.data : []) as WeeklyGame[];
-  const allowed = GAME_KEYS.filter((k) => k in WEEKLY_META && !isHiddenFor(vis[k], profile.role) && !locked.has(k) && (k !== "dress" || vis[k] === "visible" || isReleased("dress")) && (k !== "arenasoccer" || isReleased("arenasoccer") || profile.role === "admin")).map(String);
+  const allowed = GAME_KEYS.filter((k) => k in WEEKLY_META && !isHiddenFor(vis[k], profile.role, early.has(k)) && !locked.has(k) && (k !== "dress" || vis[k] === "visible" || isReleased("dress") || early.has("dress")) && (k !== "arenasoccer" || isReleased("arenasoccer") || profile.role === "admin" || early.has("arenasoccer"))).map(String);
   return <WeeklyGameCard initial={rows} allowed={allowed} since={sundayLabel()} />;
 }
