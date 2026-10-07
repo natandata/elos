@@ -3,8 +3,7 @@ import { ArenaSoccerClient, type SoccerStats } from "@/components/arenasoccer/Ar
 import { DressCountdown } from "@/components/games/dress/DressTeaser";
 import { PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
-import { GAME_RELEASES } from "@/lib/games/release";
-import { gameOpenFor } from "@/lib/games/releaseServer";
+import { gameOpenFor, getReleaseDates } from "@/lib/games/releaseServer";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata = { title: "ArenaSoccer" };
@@ -13,7 +12,8 @@ export default async function ArenaSoccerPage() {
   const { profile } = await requireRole("cria", "leader", "admin");
 
   if (!(await gameOpenFor("arenasoccer", profile.id))) {
-    const day = new Date(GAME_RELEASES.arenasoccer).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", timeZone: "America/Sao_Paulo" });
+    const dates = await getReleaseDates();
+    const day = new Date(dates.arenasoccer).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", timeZone: "America/Sao_Paulo" });
     return (
       <>
         <PageHeader title="⚽ ArenaSoccer" subtitle="Futebol arcade de física." />
@@ -25,7 +25,7 @@ export default async function ArenaSoccerPage() {
           <p className="text-2xl font-black">Em breve!</p>
           <p className="mt-2 text-sm text-[var(--muted)]">Chega à Loja dia {day}. Compre com denários e jogue.</p>
           <div className="mt-4">
-            <DressCountdown game="arenasoccer" />
+            <DressCountdown game="arenasoccer" at={dates.arenasoccer} />
           </div>
         </section>
         <Link href="/app/jogos" className="btn btn-ghost w-full">

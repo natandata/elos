@@ -3,14 +3,14 @@ import { DressCountdown } from "@/components/games/dress/DressTeaser";
 import { MineArenaClient } from "@/components/minearena/MineArenaClient";
 import { PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
-import { GAME_RELEASES } from "@/lib/games/release";
-import { gameOpenFor } from "@/lib/games/releaseServer";
+import { gameOpenFor, getReleaseDates } from "@/lib/games/releaseServer";
 
 export default async function MineArenaPage() {
   const { profile } = await requireRole("cria", "leader", "admin");
 
   if (!(await gameOpenFor("minearena", profile.id))) {
-    const day = new Date(GAME_RELEASES.minearena).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", timeZone: "America/Sao_Paulo" });
+    const dates = await getReleaseDates();
+    const day = new Date(dates.minearena).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", timeZone: "America/Sao_Paulo" });
     return (
       <>
         <PageHeader title="⛏️ MineArena" subtitle="Construa. Explore. Enfrente." />
@@ -27,7 +27,7 @@ export default async function MineArenaPage() {
             Um mundo de blocos em 3D para explorar, minerar, construir e enfrentar criaturas, com heróis da Bíblia ao seu lado. Abre dia {day}.
           </p>
           <div className="mt-4">
-            <DressCountdown game="minearena" />
+            <DressCountdown game="minearena" at={dates.minearena} />
           </div>
         </section>
         <Link href="/app/jogos" className="btn btn-ghost w-full">

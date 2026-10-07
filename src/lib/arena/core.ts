@@ -62,6 +62,10 @@ export type Entity = {
   knock: number;
   /** membro do grupo que entrou junto (0 = o próprio personagem); define a arte */
   variant: number;
+  /** tick em que entrou em campo */
+  born: number;
+  /** Amandinha: já chamou os reforços */
+  reinforced: boolean;
 };
 
 export type GameState = {
@@ -104,7 +108,8 @@ export type GameEvent =
   | { t: "spell"; key: string; x: number; y: number; r: number }
   | { t: "death"; id: number; x: number; y: number; tower: boolean; card: string; side: Side; flying: boolean; radius: number }
   | { t: "spawn"; x: number; y: number; card: string }
-  | { t: "blind"; side: Side; ticks: number };
+  | { t: "blind"; side: Side; ticks: number }
+  | { t: "dodge"; id: number; x: number; y: number };
 
 // ------------------------------------------------------------ sorteio
 

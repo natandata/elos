@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushToUsers } from "@/lib/push-server";
 import { isReleased } from "@/lib/games/release";
+import { getReleaseDates } from "@/lib/games/releaseServer";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +50,9 @@ export async function GET(request: NextRequest) {
 
   // Lançamento do Vista o Herói (09/10/2026): avisa todo mundo uma única vez, no dia da liberação
   const brToday = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
-  if (isReleased("dress") && brToday === "2026-10-09") {
+  const dates = await getReleaseDates();
+  const dayOf = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+  if (isReleased("dress", false, Date.now(), dates) && brToday === dayOf(dates.dress)) {
     const title = "👗 Novo jogo: Vista o Herói!";
     const body = "Vista os heróis da Bíblia do jeito certo e junte Bilhetes Dourados. Já está liberado na sala de jogos!";
     const { data: already } = await supabase.from("notifications").select("id").eq("title", title).limit(1);
@@ -64,7 +67,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Lançamento do MineArena (01/11/2026): avisa todo mundo uma única vez, no dia da liberação
-  if (isReleased("minearena") && brToday === "2026-11-01") {
+  if (isReleased("minearena", false, Date.now(), dates) && brToday === dayOf(dates.minearena)) {
     const title = "⛏️ Novo jogo: MineArena!";
     const body = "Construa, explore e enfrente criaturas num mundo de blocos em 3D, com heróis da Bíblia. Já está liberado na sala de jogos!";
     const { data: already } = await supabase.from("notifications").select("id").eq("title", title).limit(1);
@@ -79,7 +82,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Lançamento do Bible Rush (01/11/2026): avisa todo mundo uma única vez, se o admin não o escondeu
-  if (isReleased("biblerush") && brToday === "2026-11-01") {
+  if (isReleased("biblerush", false, Date.now(), dates) && brToday === dayOf(dates.biblerush)) {
     const { data: setting } = await supabase.from("game_settings").select("visibility").eq("game", "biblerush").maybeSingle<{ visibility: string }>();
     if (setting?.visibility !== "hidden") {
       const title = "🛶 Novo jogo: Bible Rush!";
@@ -97,7 +100,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Passarela do Vista o Herói: fecha os dias cuja votação já acabou (tema de D vota em D e D+1; fecha em D+2)
-  if (isReleased("dress")) {
+  if (isReleased("dress", false, Date.now(), dates)) {
     const base = new Date(`${brToday}T00:00:00Z`);
     base.setUTCDate(base.getUTCDate() - 2);
     const cutoff = base.toISOString().slice(0, 10);

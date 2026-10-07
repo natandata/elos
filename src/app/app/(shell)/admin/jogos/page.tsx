@@ -2,9 +2,10 @@ import Link from "next/link";
 import { PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import { EarlyAccessManager, type EAUser } from "@/components/games/EarlyAccessManager";
-import { GAME_RELEASES, isReleased, type ReleasedGame } from "@/lib/games/release";
+import { GAME_RELEASES, hasDate, releasedNow, type ReleasedGame } from "@/lib/games/release";
+import { ReleaseDates, type DateRow } from "@/components/games/ReleaseDates";
 import { GAME_CATALOG } from "@/lib/games/catalog";
-import { getVisibilities } from "@/lib/games/releaseServer";
+import { getReleaseDates, getVisibilities } from "@/lib/games/releaseServer";
 import { GameVisibility, type VisRow } from "@/components/games/GameVisibility";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ArenaDifficulty } from "@/components/games/ArenaDifficulty";
@@ -45,16 +46,18 @@ export default async function AdminJogosPage() {
   await requireRole("admin");
 
   const vis = await getVisibilities();
+  const dates = await getReleaseDates();
+  const dateRows: DateRow[] = (Object.keys(GAME_RELEASES) as ReleasedGame[]).map((g) => ({ game: g, title: RELEASE_TITLES[g], current: dates[g], fallback: GAME_RELEASES[g], custom: dates[g] !== GAME_RELEASES[g], none: !hasDate(dates[g]) }));
   const arenaDifficulty = await loadArenaDifficulty(createAdminClient());
   const rows: VisRow[] = GAME_CATALOG.map((g) => {
     const rel = g.key in GAME_RELEASES ? (g.key as ReleasedGame) : null;
-    const when = rel ? new Date(GAME_RELEASES[rel]).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" }) : null;
+    const when = rel ? new Date(dates[rel]).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" }) : null;
     const v = vis[g.key];
-    const now = v === "visible" ? "Todos os jogadores veem agora." : v === "hidden" ? "Escondido: só você (admin) e quem tem acesso antecipado veem." : rel && !isReleased(rel) ? `Automático: fechado até ${when}.` : "Automático: aberto para todos.";
+    const now = v === "visible" ? "Todos os jogadores veem agora." : v === "hidden" ? "Escondido: só você (admin) e quem tem acesso antecipado veem." : rel && !releasedNow(rel, dates) ? (hasDate(dates[rel]) ? `Automático: fechado até ${when}.` : "Automático: fechado até você liberar.") : "Automático: aberto para todos.";
     return { key: g.key, emoji: g.emoji, title: g.title, visibility: v, note: now };
   });
   // o acesso antecipado vale para jogos ainda fechados pela data e para jogos escondidos pelo botão de visibilidade
-  const pending = (Object.keys(GAME_RELEASES) as ReleasedGame[]).filter((g) => !isReleased(g) || vis[g] === "hidden");
+  const pending = (Object.keys(GAME_RELEASES) as ReleasedGame[]).filter((g) => !releasedNow(g, dates) || vis[g] === "hidden");
   let users: EAUser[] = [];
   const granted = new Map<string, string[]>();
   const db = pending.length > 0 ? createAdminClient() : null;
@@ -82,7 +85,7 @@ export default async function AdminJogosPage() {
         </p>
         <ul className="space-y-2">
           {GAMES.map((g) => {
-            const open = g.release ? isReleased(g.release) : true;
+            const open = g.release ? releasedNow(g.release, dates) : true;
             return (
               <li key={g.href}>
                 <Link href={g.href} className="card flex items-center gap-3 p-3 transition active:scale-[0.99]">
@@ -98,7 +101,7 @@ export default async function AdminJogosPage() {
                     <span className="shrink-0 rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-black text-emerald-800">Disponível</span>
                   ) : (
                     <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-black text-amber-800">
-                      Só admin · abre {new Date(GAME_RELEASES[g.release!]).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" })}
+                      Só admin · abre {new Date(dates[g.release!]).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" })}
                     </span>
                   )}
                 </Link>
@@ -114,6 +117,12 @@ export default async function AdminJogosPage() {
           Automático segue a data de lançamento (jogos sem data ficam abertos). Visível abre para todos agora. Oculto esconde o jogo de todos, só você e quem tem acesso antecipado continuam vendo.
         </p>
         <GameVisibility rows={rows} />
+      </section>
+
+      <section className="mb-6">
+        <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">Datas de acesso</h2>
+        <p className="mb-3 text-xs text-[var(--muted)]">Defina quando cada jogo abre para os jogadores (horário de Brasília). Dá para adiantar ou adiar a qualquer momento.</p>
+        <ReleaseDates rows={dateRows} />
       </section>
 
       <section className="mb-6">

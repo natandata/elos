@@ -1,8 +1,8 @@
 import { WeeklyGameCard } from "@/components/games/WeeklyGameCard";
 import { requireProfile } from "@/lib/auth";
 import { GAME_KEYS } from "@/lib/games/catalog";
-import { isReleased } from "@/lib/games/release";
-import { getEarlyAccess, getVisibilities, isHiddenFor } from "@/lib/games/releaseServer";
+import { releasedNow } from "@/lib/games/release";
+import { getEarlyAccess, getReleaseDates, getVisibilities, isHiddenFor } from "@/lib/games/releaseServer";
 import { lockedGames } from "@/lib/games/storeAccess";
 import { WEEKLY_META, type TrophyLeader, type WeeklyGame } from "@/lib/games/weekly";
 import { createClient } from "@/lib/supabase/server";
@@ -20,8 +20,9 @@ export async function ArenaLaunchCard() {
   const [{ profile }, vis, res, tro] = await Promise.all([requireProfile(), getVisibilities(), supabase.rpc("weekly_games_stats"), supabase.rpc("trophy_top3")]);
   const locked = await lockedGames(supabase, profile.id, profile.role);
   const early = await getEarlyAccess(profile.id);
+  const dates = await getReleaseDates();
   const rows = (Array.isArray(res.data) ? res.data : []) as WeeklyGame[];
-  const allowed = GAME_KEYS.filter((k) => k in WEEKLY_META && !isHiddenFor(vis[k], profile.role, early.has(k)) && !locked.has(k) && (k !== "dress" || vis[k] === "visible" || isReleased("dress") || early.has("dress")) && (k !== "arenasoccer" || isReleased("arenasoccer") || profile.role === "admin" || early.has("arenasoccer"))).map(String);
+  const allowed = GAME_KEYS.filter((k) => k in WEEKLY_META && !isHiddenFor(vis[k], profile.role, early.has(k)) && !locked.has(k) && (k !== "dress" || vis[k] === "visible" || releasedNow("dress", dates) || early.has("dress")) && (k !== "arenasoccer" || releasedNow("arenasoccer", dates) || profile.role === "admin" || early.has("arenasoccer"))).map(String);
   const trophies = (Array.isArray(tro.data) ? tro.data : []) as TrophyLeader[];
   return <WeeklyGameCard initial={rows} initialTrophies={trophies} allowed={allowed} since={sundayLabel()} />;
 }

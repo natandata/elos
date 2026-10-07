@@ -1,6 +1,6 @@
 import { ARENA_CARDS, ARENA_CARD_BY_KEY, ATALAIA, SANTUARIO, botLevelForArena, levelMult, type ArenaCard } from "./cards";
 import { CARD_UNLOCK_ARENA } from "./arenas";
-import { CAMPAIGN_COMBO, comboActive, inCombo } from "./campaignCards";
+import { DODGE, REINFORCE, comboMults } from "./campaignCards";
 import { botDecide } from "./bot";
 import {
   BRIDGES,
@@ -20,6 +20,7 @@ import {
   inDeployZone,
   inField,
   nearestBridge,
+  nextRand,
   onBridge,
   shuffleWith,
   teamOf,
@@ -57,7 +58,7 @@ function makeTower(id: number, side: Side, kind: "atalaia" | "santuario", lane: 
     id, side, type: "tower", card: kind, lane, x, y, px: x, py: y,
     hp: t.hp, maxHp: t.hp, radius: t.radius, dmg: t.dmg, atkTicks: Math.round(t.atkSpeed * TICKS_PER_SEC),
     range: t.range, speed: 0, flying: false, towersOnly: false, canHitAir: true, splash: 0, towerMult: 1,
-    hitSlow: 0, hitSlowTicks: 0, healAmount: 0, healTicks: 0, healRadius: 0, cd: 0, slowUntil: 0, slowAmount: 0, knock: 0, variant: 0,
+    hitSlow: 0, hitSlowTicks: 0, healAmount: 0, healTicks: 0, healRadius: 0, cd: 0, slowUntil: 0, slowAmount: 0, knock: 0, variant: 0, born: 0, reinforced: false,
   };
 }
 
@@ -124,7 +125,7 @@ function makeUnit(state: GameState, card: ArenaCard, side: Side, player: number,
     canHitAir: !!card.canHitAir, splash: card.splash ?? 0, towerMult: card.unitTowerMult ?? 1,
     hitSlow: card.hitSlow?.amount ?? 0, hitSlowTicks: Math.round((card.hitSlow?.secs ?? 0) * TICKS_PER_SEC),
     healAmount: card.heal?.amount ?? 0, healTicks: Math.round((card.heal?.secs ?? 0) * TICKS_PER_SEC), healRadius: card.heal?.radius ?? 0,
-    cd: 0, slowUntil: 0, slowAmount: 0, knock: card.knockback ?? 0, variant,
+    cd: 0, slowUntil: 0, slowAmount: 0, knock: card.knockback ?? 0, variant, born: state.tick, reinforced: false,
   };
 }
 
@@ -273,7 +274,14 @@ function knockBack(from: Entity, target: Entity) {
 }
 
 function dealAttack(state: GameState, e: Entity, target: Entity, ev: GameEvent[]) {
-  const combo = e.type === "unit" && inCombo(e.card) && comboActive(state.entities, e.side) ? CAMPAIGN_COMBO.dmg : 1;
+  const combo = e.type === "unit" ? comboMults(state.entities, e.side, e.card).dmg : 1;
+  // Mbappé desvia de metade dos ataques de Marcelinho e Henrique
+  if (target.type === "unit" && DODGE.from.has(e.card) && target.card === DODGE.card && nextRand(state, target.side) < DODGE.chance) {
+    ev.push({ t: "attack", from: e.id, to: target.id, fromCard: e.card, x1: e.x, y1: e.y, x2: target.x, y2: target.y, ranged: e.range > 1.5, side: e.side, dmg: 0 });
+    ev.push({ t: "dodge", id: target.id, x: target.x, y: target.y });
+    e.cd = e.atkTicks;
+    return;
+  }
   const dmg = e.dmg * combo * (target.type === "tower" ? e.towerMult : 1);
   target.hp -= dmg;
   if (e.hitSlow > 0 && target.type === "unit") {
@@ -288,6 +296,10 @@ function dealAttack(state: GameState, e: Entity, target: Entity, ev: GameEvent[]
     for (const o of state.entities) {
       if (o === target || o.side === e.side || o.type !== "unit" || o.hp <= 0) continue;
       if (dist(target.x, target.y, o.x, o.y) <= e.splash) {
+        if (DODGE.from.has(e.card) && o.card === DODGE.card && nextRand(state, o.side) < DODGE.chance) {
+          ev.push({ t: "dodge", id: o.id, x: o.x, y: o.y });
+          continue;
+        }
         o.hp -= e.dmg * combo;
         ev.push({ t: "hit", id: o.id, x: o.x, y: o.y, dmg: e.dmg * combo, side: o.side });
       }
@@ -334,8 +346,29 @@ function followAlly(state: GameState, e: Entity) {
   moveToward(e, wx, wy, e.speed * slowed);
 }
 
+/** Amandinha: depois de 5 s viva, chegam mais 3 de cada bichinho que a acompanha. */
+function reinforce(state: GameState, e: Entity, ev: GameEvent[]) {
+  const card = ARENA_CARD_BY_KEY.get(e.card);
+  if (e.reinforced || e.card !== REINFORCE.card || e.variant !== 0 || !card?.crew) return;
+  if (state.tick - e.born < REINFORCE.afterSecs * TICKS_PER_SEC) return;
+  e.reinforced = true;
+  const side = e.side;
+  const f = side === 0 ? 1 : -1;
+  const n = REINFORCE.each;
+  for (let v = 1; v < card.crew.length; v++) {
+    for (let i = 0; i < n; i++) {
+      const a = ((i + (v - 1) * n) / ((card.crew.length - 1) * n)) * Math.PI * 2;
+      const x = Math.min(W - 0.3, Math.max(0.3, e.x + Math.cos(a) * 1.0));
+      const y = e.y + Math.sin(a) * 0.8 * f;
+      state.entities.push(makeUnit(state, card, side, side, x, y, v));
+    }
+  }
+  ev.push({ t: "spawn", x: e.x, y: e.y, card: card.key });
+}
+
 function updateUnit(state: GameState, e: Entity, ev: GameEvent[]) {
   if (e.cd > 0) e.cd--;
+  reinforce(state, e, ev);
   healAllies(state, e, ev);
   if (e.dmg <= 0) {
     followAlly(state, e);
@@ -347,7 +380,7 @@ function updateUnit(state: GameState, e: Entity, ev: GameEvent[]) {
     if (e.cd <= 0) dealAttack(state, e, target, ev);
     return;
   }
-  const slowed = state.tick < e.slowUntil ? 1 - e.slowAmount : 1;
+  const slowed = (state.tick < e.slowUntil ? 1 - e.slowAmount : 1) * comboMults(state.entities, e.side, e.card).speed;
   const [wx, wy] = waypoint(e, target.x, target.y);
   moveToward(e, wx, wy, e.speed * slowed);
 }

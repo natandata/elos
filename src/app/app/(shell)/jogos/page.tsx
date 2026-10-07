@@ -11,7 +11,8 @@ import { ArenaCover } from "@/components/games/ArenaCover";
 import { arenaAsleep } from "@/lib/games/curfew";
 import { DressTeaserText } from "@/components/games/dress/DressTeaser";
 import type { GameKey } from "@/lib/games/catalog";
-import { GAME_TEASER, isReleased } from "@/lib/games/release";
+import { GAME_TEASER, releasedNow } from "@/lib/games/release";
+import { getReleaseDates } from "@/lib/games/releaseServer";
 import { lockedGames } from "@/lib/games/storeAccess";
 import { XpExchange } from "@/components/games/XpExchange";
 import { StoreGallery } from "@/components/games/StoreGallery";
@@ -55,6 +56,7 @@ export default async function JogosPage() {
   const ownedIds = ((ownedRes.data ?? []) as { item_id: string }[]).map((o) => o.item_id);
   const storeItems = (storeRes.data ?? []) as StoreItem[];
 
+  const dates = await getReleaseDates();
   const [dressOpen, mineOpen, rushOpen, soccerOpen, vis] = await Promise.all([gameOpenFor("dress", profile.id), gameOpenFor("minearena", profile.id), gameOpenFor("biblerush", profile.id), gameOpenFor("arenasoccer", profile.id), getVisibilities()]);
   const locked = await lockedGames(supabase, profile.id, profile.role);
   const early = await getEarlyAccess(profile.id);
@@ -127,7 +129,7 @@ export default async function JogosPage() {
             </span>
             <span className="text-lg font-black [text-shadow:0_2px_6px_#000]">Vista o Herói · em breve</span>
             <span className="rounded-full bg-black/60 px-3 py-0.5 text-xs font-black text-amber-200">
-              Abre em <DressTeaserText />
+              Abre em <DressTeaserText at={dates.dress} />
             </span>
           </span>
         </Link>
@@ -152,7 +154,7 @@ export default async function JogosPage() {
             </span>
             <span className="text-lg font-black [text-shadow:0_2px_6px_#000]">MineArena · em breve</span>
             <span className="rounded-full bg-black/60 px-3 py-0.5 text-xs font-black text-amber-200">
-              Abre em <DressTeaserText game="minearena" />
+              Abre em <DressTeaserText game="minearena" at={dates.minearena} />
             </span>
           </span>
         </Link>
@@ -179,7 +181,7 @@ export default async function JogosPage() {
           </span>
           <p className="text-2xl font-black tracking-wide text-amber-100 [text-shadow:0_2px_0_#3a2208]">BIBLE RUSH</p>
           <p className="mt-0.5 text-sm font-bold text-white/90">Histórias da Bíblia, uma missão de cada vez.</p>
-          <span className="mt-3 inline-block rounded-full bg-rose-600 px-3 py-0.5 text-[11px] font-black text-white">{isReleased("biblerush") ? "NOVO" : "SÓ ADMIN"}</span>
+          <span className="mt-3 inline-block rounded-full bg-rose-600 px-3 py-0.5 text-[11px] font-black text-white">{releasedNow("biblerush", dates) ? "NOVO" : "SÓ ADMIN"}</span>
         </Link>
       )}
 

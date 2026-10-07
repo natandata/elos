@@ -112,6 +112,10 @@ export function applyEvent(ev: GameEvent, tick: number, anims: Map<number, Anim>
       }
       break;
     }
+    case "dodge":
+      fx.push({ k: "float", x: ev.x, y: ev.y - 1.5, text: "Desviou!", color: "#7dd3fc", t0: tick, dur: 26, big: true });
+      fx.push({ k: "ring", x: ev.x, y: ev.y + 0.2, t0: tick, dur: 10, color: "#7dd3fc", r: 0.9 });
+      break;
     case "heal":
       if (ev.amount > 0) {
         fx.push({ k: "float", x: ev.x, y: ev.y - 1.3, text: `+${ev.amount}`, color: "#69db7c", t0: tick, dur: 24, big: false });

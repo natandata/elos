@@ -5,7 +5,7 @@ import { DressCountdown } from "@/components/games/dress/DressTeaser";
 import { VhStage } from "@/components/games/dress/Vh";
 import { requireRole } from "@/lib/auth";
 import { todayBR } from "@/lib/games/engine";
-import { gameOpenFor } from "@/lib/games/releaseServer";
+import { gameOpenFor, getReleaseDates } from "@/lib/games/releaseServer";
 import { ticketTitle } from "@/lib/games/dress/ranks";
 import { createClient } from "@/lib/supabase/server";
 
@@ -33,7 +33,7 @@ export default async function VestirPage() {
           <p className="vh-title text-3xl">Em breve!</p>
           <p className="mt-2 text-sm text-purple-100">Um jogo novo chega no dia 09 de outubro. Vista heroínas da Bíblia, descubra as roupas certas e junte Bilhetes Dourados.</p>
           <div className="mt-4">
-            <DressCountdown />
+            <DressCountdown at={(await getReleaseDates()).dress} />
           </div>
         </div>
         <Link href="/app/jogos" className="vh-btn vh-btn-dark mt-4">

@@ -2,7 +2,7 @@ import { cache } from "react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { GAME_KEYS, type GameKey, type Visibility } from "./catalog";
-import { isReleased, type ReleasedGame } from "./release";
+import { GAME_RELEASES, isReleased, type ReleaseDates, type ReleasedGame } from "./release";
 
 /** Visibilidade definida pelo admin para cada jogo (padrão: auto, ou seja, segue a data de lançamento). */
 export async function getVisibilities(): Promise<Record<GameKey, Visibility>> {
@@ -12,6 +12,16 @@ export async function getVisibilities(): Promise<Record<GameKey, Visibility>> {
   for (const r of (data ?? []) as { game: string; visibility: Visibility }[]) if (r.game in out) out[r.game as GameKey] = r.visibility;
   return out;
 }
+
+/** Datas de abertura em vigor: as do código, trocadas pelas que o admin definiu (game_settings.open_at). */
+export const getReleaseDates = cache(async (): Promise<ReleaseDates> => {
+  const out: ReleaseDates = { ...GAME_RELEASES };
+  const admin = createAdminClient();
+  if (!admin) return out;
+  const { data } = await admin.from("game_settings").select("game, open_at").not("open_at", "is", null);
+  for (const r of (data ?? []) as { game: string; open_at: string }[]) if (r.game in out) out[r.game as ReleasedGame] = r.open_at;
+  return out;
+});
 
 /** Jogos em que esta pessoa tem acesso antecipado (concedido pelo admin). A tabela só o admin lê, então vai pelo cliente de serviço. */
 export const getEarlyAccess = cache(async (userId: string): Promise<Set<string>> => {
@@ -29,6 +39,7 @@ export async function gameOpenFor(game: ReleasedGame, userId: string): Promise<b
   const admin = createAdminClient();
   const { data: setting } = admin ? await admin.from("game_settings").select("visibility").eq("game", game).maybeSingle<{ visibility: Visibility }>() : { data: null };
   const vis = setting?.visibility ?? "auto";
+  const dates = await getReleaseDates();
   if (vis === "visible") return true;
   if (vis === "hidden") {
     // oculto: só o admin e quem tem acesso antecipado
@@ -37,10 +48,10 @@ export async function gameOpenFor(game: ReleasedGame, userId: string): Promise<b
     if (data?.role === "admin") return true;
     return (await getEarlyAccess(userId)).has(game);
   }
-  if (isReleased(game)) return true;
+  if (isReleased(game, false, Date.now(), dates)) return true;
   if (!admin) return false;
   const { data } = await admin.from("profiles").select("is_test_account, role").eq("id", userId).maybeSingle<{ is_test_account: boolean | null; role: string }>();
-  if (isReleased(game, !!data?.is_test_account || data?.role === "admin")) return true;
+  if (isReleased(game, !!data?.is_test_account || data?.role === "admin", Date.now(), dates)) return true;
   const { data: early } = await admin.from("game_early_access").select("user_id").eq("game", game).eq("user_id", userId).maybeSingle();
   return !!early;
 }

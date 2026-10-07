@@ -5,7 +5,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { finishCampaign, startCampaign } from "@/lib/actions/arenaCampaign";
 import { CAMPAIGN_DECK, CAMPAIGN_STAGES, CAMPAIGN_TIERS, CAMPAIGN_XP, TIER_LABEL, stageBoost, stageUnlocked } from "@/lib/arena/campaign";
-import { CAMPAIGN_CARDS } from "@/lib/arena/campaignCards";
+import { CAMPAIGN_CARDS, CAMPAIGN_COMBOS } from "@/lib/arena/campaignCards";
 import { ARENA_CARD_BY_KEY } from "@/lib/arena/cards";
 import { inDeployZone, inField, type Input } from "@/lib/arena/core";
 import { createGame, step } from "@/lib/arena/engine";
@@ -18,7 +18,7 @@ type Tab = "arenas" | "cartas";
 type Phase = "menu" | "playing" | "finishing" | "result";
 
 /** Modo Campanha: 8 arenas em ordem, cada uma contra um personagem do ELOS. Todos veem; só quem tem acesso batalha. */
-export function ArenaCampaign({ open, admin, cleared: initialCleared, tiers: initialTiers }: { open: boolean; admin: boolean; cleared: number[]; tiers: number[] }) {
+export function ArenaCampaign({ open, admin, cleared: initialCleared, tiers: initialTiers, opensAt = null }: { open: boolean; admin: boolean; cleared: number[]; tiers: number[]; /** data de abertura definida pelo admin (ISO), se houver */ opensAt?: string | null }) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("arenas");
   const [phase, setPhase] = useState<Phase>("menu");
@@ -170,7 +170,7 @@ export function ArenaCampaign({ open, admin, cleared: initialCleared, tiers: ini
           Enfrente os 8 personagens do ELOS, um por arena, do mais fraco ao mais forte. Você e o computador jogam com o mesmo baralho dos 8. Cada arena precisa ser vencida 3 vezes: a 1ª batalha no nível normal, a 2ª 15% mais difícil e a 3ª 25% mais difícil. Vencendo as 3, a próxima arena é liberada e você ganha +{CAMPAIGN_XP} XP.
         </p>
         <p className="mt-2 text-xs font-bold">{cleared.length}/{CAMPAIGN_STAGES.length} arenas vencidas ({tiers.reduce((a, b) => a + b, 0)}/{CAMPAIGN_STAGES.length * CAMPAIGN_TIERS} batalhas){allDone ? " 🎉" : ""}</p>
-        {!open ? <p className="mt-2 rounded-xl bg-amber-100 px-3 py-2 text-xs font-black text-amber-900">🔒 A campanha ainda não foi liberada. Você pode ver as cartas e as arenas, mas só consegue batalhar quando ela abrir.</p> : null}
+        {!open ? <p className="mt-2 rounded-xl bg-amber-100 px-3 py-2 text-xs font-black text-amber-900">🔒 A campanha ainda não foi liberada. Você pode ver as cartas e as arenas, mas só consegue batalhar quando ela abrir{opensAt ? `: ${new Date(opensAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}` : ""}.</p> : null}
         {admin ? <p className="mt-2 text-[11px] font-bold text-sky-600">Admin: você pode jogar qualquer arena para testar.</p> : null}
       </section>
 
@@ -209,7 +209,13 @@ export function ArenaCampaign({ open, admin, cleared: initialCleared, tiers: ini
         </ul>
       ) : (
         <>
-        <p className="card p-3 text-xs"><b>✨ Combo:</b> com o <b>Henrique</b> e a <b>Amandinha</b> vivos em campo do mesmo lado, os outros personagens brilham e dão <b>+5% de dano</b>. Vale para você e para o computador.</p>
+        <div className="card space-y-1 p-3 text-xs">
+          <p className="font-black">✨ Combos</p>
+          {CAMPAIGN_COMBOS.map((c) => (
+            <p key={c.id}>Com <b>{c.label}</b> vivos em campo do mesmo lado, os outros personagens brilham e ganham <b>{c.effect}</b>.</p>
+          ))}
+          <p className="text-[var(--muted)]">Valem para você e para o computador.</p>
+        </div>
         <ul className="grid grid-cols-2 gap-2">
           {CAMPAIGN_CARDS.map((c) => (
             <li key={c.key} className="card flex flex-col p-2.5">

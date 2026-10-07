@@ -6,12 +6,12 @@ import { releaseAt, type ReleasedGame } from "@/lib/games/release";
 
 const nowMs = () => Date.now();
 
-function useLeft(game: ReleasedGame) {
+function useLeft(game: ReleasedGame, at?: string) {
   const router = useRouter();
-  const [left, setLeft] = useState(() => Math.max(0, releaseAt(game) - nowMs()));
+  const [left, setLeft] = useState(() => Math.max(0, (at ? new Date(at).getTime() : releaseAt(game)) - nowMs()));
   useEffect(() => {
     const t = setInterval(() => {
-      const l = Math.max(0, releaseAt(game) - nowMs());
+      const l = Math.max(0, (at ? new Date(at).getTime() : releaseAt(game)) - nowMs());
       setLeft(l);
       if (l === 0) {
         clearInterval(t);
@@ -19,7 +19,7 @@ function useLeft(game: ReleasedGame) {
       }
     }, 1000);
     return () => clearInterval(t);
-  }, [game, router]);
+  }, [game, at, router]);
   return left;
 }
 
@@ -29,8 +29,8 @@ function parts(ms: number) {
 }
 
 /** Contagem regressiva grande (página do jogo antes da liberação). */
-export function DressCountdown({ game = "dress" }: { game?: ReleasedGame }) {
-  const p = parts(useLeft(game));
+export function DressCountdown({ game = "dress", at }: { game?: ReleasedGame; at?: string }) {
+  const p = parts(useLeft(game, at));
   return (
     <div className="grid grid-cols-4 gap-2 text-center" aria-live="off">
       {(
@@ -51,8 +51,8 @@ export function DressCountdown({ game = "dress" }: { game?: ReleasedGame }) {
 }
 
 /** Texto curto "abre em 3d 04h" pro cartão da lista de jogos. */
-export function DressTeaserText({ game = "dress" }: { game?: ReleasedGame }) {
-  const p = parts(useLeft(game));
+export function DressTeaserText({ game = "dress", at }: { game?: ReleasedGame; at?: string }) {
+  const p = parts(useLeft(game, at));
   return (
     <span className="tabular-nums">
       {p.d > 0 ? `${p.d}d ` : ""}

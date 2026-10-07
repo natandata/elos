@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { ARENA_CARDS, ARENA_CARD_BY_KEY, shortName } from "@/lib/arena/cards";
 import { ARENAS, type ArenaTheme } from "@/lib/arena/arenas";
-import { CAMPAIGN_CARDS, CAMPAIGN_KEYS, comboActive, inCombo } from "@/lib/arena/campaignCards";
+import { CAMPAIGN_CARDS, CAMPAIGN_COMBOS, CAMPAIGN_KEYS, activeCombos, inCombo, type Combo } from "@/lib/arena/campaignCards";
 import { drawLimbs } from "./arenaLimbs";
 import { CardArt } from "./CardArt";
 import { TEAM, buildBackground, drawTower, layoutFor, type Layout } from "./arenaRender";
@@ -138,8 +138,8 @@ export function ArenaPlayfield({
   const [hud, setHud] = useState<Hud | null>(null);
   /** clarão do Pastor Zepa: cada vez que cega o meu lado, sobe um número e a tela fica branca por 1,5 s */
   const [blindKey, setBlindKey] = useState(0);
-  const [comboMsg, setComboMsg] = useState<{ mine: boolean; n: number } | null>(null);
-  const comboPrev = useRef<[boolean, boolean]>([false, false]);
+  const [comboMsg, setComboMsg] = useState<{ mine: boolean; n: number; combo: Combo } | null>(null);
+  const comboPrev = useRef<Set<string>>(new Set());
   const [selected, setSelected] = useState<number | null>(null);
   const [waiting, setWaiting] = useState(false);
   const [muted, setMuted] = useState(readMuted);
@@ -267,7 +267,7 @@ export function ArenaPlayfield({
       const lerp = (a: number, b: number) => a + (b - a) * alpha;
       const ordered = game.entities.map(view).sort((a, b) => (a.type === b.type ? a.y - b.y : a.type === "tower" ? -1 : 1));
       const namesDrawn: { x: number; y: number }[] = [];
-      const comboOn = [comboActive(game.entities, 0), comboActive(game.entities, 1)];
+      const comboOn = [activeCombos(game.entities, 0), activeCombos(game.entities, 1)];
       for (const e of ordered) {
         const an = animsRef.current.get(e.id);
         if (e.type === "tower") {
@@ -383,13 +383,14 @@ export function ArenaPlayfield({
         if (hasArt && img) {
           const h = e.radius * 4.4 * s;
           const w = (h * img.naturalWidth) / img.naturalHeight;
-          const glowing = comboOn[e.side] && inCombo(e.card);
-          if (glowing) {
+          const glowCombo = comboOn[e.side].find((c) => inCombo(c, e.card));
+          if (glowCombo) {
             // combo Henrique + Amandinha: o personagem brilha
             const pulse = 0.5 + 0.5 * Math.sin(tickF * 0.35 + e.id);
             const g = ctx.createRadialGradient(0, -h * 0.5, 0, 0, -h * 0.5, h * 0.85);
-            g.addColorStop(0, `rgba(255,240,150,${0.5 + pulse * 0.25})`);
-            g.addColorStop(1, "rgba(255,200,60,0)");
+            const blue = glowCombo.glow === "blue";
+            g.addColorStop(0, blue ? `rgba(150,220,255,${0.5 + pulse * 0.25})` : `rgba(255,240,150,${0.5 + pulse * 0.25})`);
+            g.addColorStop(1, blue ? "rgba(60,160,255,0)" : "rgba(255,200,60,0)");
             ctx.fillStyle = g;
             ctx.beginPath();
             ctx.ellipse(0, -h * 0.5, h * 0.7, h * 0.85, 0, 0, Math.PI * 2);
@@ -500,9 +501,13 @@ export function ArenaPlayfield({
         if (game.tick % 5 === 0) {
           // combo Henrique + Amandinha acabou de se formar: avisa
           for (const side of [0, 1] as const) {
-            const on = comboActive(game.entities, side);
-            if (on && !comboPrev.current[side]) setComboMsg({ mine: side === d.mySide, n: game.tick });
-            comboPrev.current[side] = on;
+            const now = new Set(activeCombos(game.entities, side).map((c) => c.id));
+            for (const c of CAMPAIGN_COMBOS) {
+              const k = `${side}:${c.id}`;
+              if (now.has(c.id) && !comboPrev.current.has(k)) setComboMsg({ mine: side === d.mySide, n: game.tick, combo: c });
+              if (now.has(c.id)) comboPrev.current.add(k);
+              else comboPrev.current.delete(k);
+            }
           }
         }
         acc -= STEP_MS;
@@ -608,7 +613,7 @@ export function ArenaPlayfield({
           {comboMsg ? (
             <div key={comboMsg.n} className="arena-combo pointer-events-none absolute inset-x-0 top-16 z-30 flex justify-center">
               <span className={`rounded-full px-4 py-1.5 text-sm font-black shadow-lg ring-2 ${comboMsg.mine ? "bg-amber-300 text-amber-950 ring-white" : "bg-rose-600 text-white ring-rose-200"}`}>
-                ✨ {comboMsg.mine ? "Combo" : "Combo do adversário"}: Henrique + Amandinha · +5% de dano
+                ✨ {comboMsg.mine ? "Combo" : "Combo do adversário"}: {comboMsg.combo.label} · {comboMsg.combo.effect}
               </span>
               <style>{`.arena-combo{animation:arenaCombo 2.6s ease-out forwards}@keyframes arenaCombo{0%{opacity:0;transform:translateY(-8px)}12%{opacity:1;transform:none}80%{opacity:1}100%{opacity:0}}`}</style>
             </div>
@@ -749,5 +754,7 @@ function mapEvent(e: GameEvent, vs: (s: Side) => Side): GameEvent {
       return { ...e, x: fx(e.x), y: fy(e.y) };
     case "blind":
       return { ...e, side: vs(e.side) };
+    case "dodge":
+      return { ...e, x: fx(e.x), y: fy(e.y) };
   }
 }

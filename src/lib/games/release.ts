@@ -18,11 +18,21 @@ export const GAME_TEASER: Record<keyof typeof GAME_RELEASES, boolean> = { dress:
 
 export type ReleasedGame = keyof typeof GAME_RELEASES;
 
-export const releaseAt = (game: ReleasedGame): number => new Date(GAME_RELEASES[game]).getTime();
+/** Datas de abertura de cada jogo (as do código, ou as que o admin ajustou). */
+export type ReleaseDates = Record<ReleasedGame, string>;
+
+/** Sem data (o admin é quem abre): usado pela Campanha da Arena. */
+export const NO_DATE_YEAR = 2090;
+export const hasDate = (iso: string): boolean => new Date(iso).getFullYear() < NO_DATE_YEAR;
+
+export const releaseAt = (game: ReleasedGame, dates: ReleaseDates = GAME_RELEASES): number => new Date(dates[game]).getTime();
 
 /** Contas de teste passam antes da data (pra testar sem expor o jogo). */
-export function isReleased(game: ReleasedGame, isTestAccount = false, now = Date.now()): boolean {
-  return isTestAccount || now >= releaseAt(game);
+export function isReleased(game: ReleasedGame, isTestAccount = false, now = Date.now(), dates: ReleaseDates = GAME_RELEASES): boolean {
+  return isTestAccount || now >= releaseAt(game, dates);
 }
 
-export const msUntilRelease = (game: ReleasedGame, now = Date.now()): number => Math.max(0, releaseAt(game) - now);
+export const msUntilRelease = (game: ReleasedGame, now = Date.now(), dates: ReleaseDates = GAME_RELEASES): number => Math.max(0, releaseAt(game, dates) - now);
+
+/** Já abriu agora (com as datas em vigor)? Esconde o relógio para poder usar em páginas do servidor. */
+export const releasedNow = (game: ReleasedGame, dates: ReleaseDates = GAME_RELEASES, isTestAccount = false): boolean => isReleased(game, isTestAccount, Date.now(), dates);
