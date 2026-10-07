@@ -21,8 +21,8 @@ export const getEarlyAccess = cache(async (userId: string): Promise<Set<string>>
   return new Set(((data ?? []) as { game: string }[]).map((r) => r.game));
 });
 
-/** O jogo está escondido pelo admin para esta pessoa? "Oculto" vale para todos, menos o admin (nem o acesso antecipado abre). */
-export const isHiddenFor = (vis: Visibility, role: string): boolean => vis === "hidden" && role !== "admin";
+/** O jogo está escondido pelo admin para esta pessoa? "Oculto" esconde de todos, menos do admin e de quem recebeu acesso antecipado (o acesso antecipado atravessa o oculto). */
+export const isHiddenFor = (vis: Visibility, role: string, early = false): boolean => vis === "hidden" && role !== "admin" && !early;
 
 /** O jogo já está liberado pra esta pessoa? Respeita o botão do admin (visível/oculto); no automático, conta de teste, admin e quem recebeu acesso antecipado passam antes da data. */
 export async function gameOpenFor(game: ReleasedGame, userId: string): Promise<boolean> {
@@ -31,10 +31,11 @@ export async function gameOpenFor(game: ReleasedGame, userId: string): Promise<b
   const vis = setting?.visibility ?? "auto";
   if (vis === "visible") return true;
   if (vis === "hidden") {
-    // oculto: só o admin
+    // oculto: só o admin e quem tem acesso antecipado
     if (!admin) return false;
     const { data } = await admin.from("profiles").select("role").eq("id", userId).maybeSingle<{ role: string }>();
-    return data?.role === "admin";
+    if (data?.role === "admin") return true;
+    return (await getEarlyAccess(userId)).has(game);
   }
   if (isReleased(game)) return true;
   if (!admin) return false;

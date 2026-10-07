@@ -21,7 +21,7 @@ export async function ArenaLaunchCard() {
   const locked = await lockedGames(supabase, profile.id, profile.role);
   const early = await getEarlyAccess(profile.id);
   const rows = (Array.isArray(res.data) ? res.data : []) as WeeklyGame[];
-  const allowed = GAME_KEYS.filter((k) => k in WEEKLY_META && !isHiddenFor(vis[k], profile.role) && !locked.has(k) && (k !== "dress" || vis[k] === "visible" || isReleased("dress") || early.has("dress")) && (k !== "arenasoccer" || isReleased("arenasoccer") || profile.role === "admin" || early.has("arenasoccer"))).map(String);
+  const allowed = GAME_KEYS.filter((k) => k in WEEKLY_META && !isHiddenFor(vis[k], profile.role, early.has(k)) && !locked.has(k) && (k !== "dress" || vis[k] === "visible" || isReleased("dress") || early.has("dress")) && (k !== "arenasoccer" || isReleased("arenasoccer") || profile.role === "admin" || early.has("arenasoccer"))).map(String);
   const trophies = (Array.isArray(tro.data) ? tro.data : []) as TrophyLeader[];
   return <WeeklyGameCard initial={rows} initialTrophies={trophies} allowed={allowed} since={sundayLabel()} />;
 }
