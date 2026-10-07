@@ -58,6 +58,10 @@ export type Entity = {
   cd: number;
   slowUntil: number;
   slowAmount: number;
+  /** cada golpe empurra o alvo (tiles) */
+  knock: number;
+  /** membro do grupo que entrou junto (0 = o próprio personagem); define a arte */
+  variant: number;
 };
 
 export type GameState = {
@@ -80,6 +84,8 @@ export type GameState = {
   over: boolean;
   /** null + over = empate */
   winner: Side | null;
+  /** campanha: até que tick cada lado está cego (não consegue jogar cartas) */
+  blind?: number[];
 };
 
 /** `side` é o lado (equipe); `player` só existe nas duplas (0–3) e, se faltar, vale o próprio lado. */
@@ -97,7 +103,8 @@ export type GameEvent =
   | { t: "heal"; id: number; x: number; y: number; amount: number }
   | { t: "spell"; key: string; x: number; y: number; r: number }
   | { t: "death"; id: number; x: number; y: number; tower: boolean; card: string; side: Side; flying: boolean; radius: number }
-  | { t: "spawn"; x: number; y: number; card: string };
+  | { t: "spawn"; x: number; y: number; card: string }
+  | { t: "blind"; side: Side; ticks: number };
 
 // ------------------------------------------------------------ sorteio
 

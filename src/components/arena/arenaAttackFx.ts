@@ -5,12 +5,12 @@
 const TAU = Math.PI * 2;
 
 /** Duração (ticks) do golpe corpo a corpo de cada herói; o resto usa a padrão. */
-export const MELEE_DUR: Record<string, number> = { sansao: 10, noe: 9, joao: 8, isaque: 8, josue: 8, daniel: 7, miguel: 7, gideao: 6, jose: 6, adao: 7, jaco: 7, nabucodonosor: 10 };
+export const MELEE_DUR: Record<string, number> = { sansao: 10, noe: 9, joao: 8, isaque: 8, josue: 8, daniel: 7, miguel: 7, gideao: 6, jose: 6, adao: 7, jaco: 7, nabucodonosor: 10, nery: 9 };
 /** Heróis à distância que ganham efeito ao acertar, e quanto ele dura. */
 export const IMPACT_DUR = 9;
-export const IMPACT_CARDS = new Set(["davi", "moises", "salomao", "ester", "maria", "eva", "isaias", "jeremias"]);
+export const IMPACT_CARDS = new Set(["davi", "moises", "salomao", "ester", "maria", "eva", "isaias", "jeremias", "tiaaline", "henrique", "marcelinho", "mbappe", "natanrebeca"]);
 /** Heróis à distância com projétil próprio (os outros usam o padrão). */
-export const CUSTOM_PROJ = new Set(["moises", "salomao", "ester", "maria", "isaias"]);
+export const CUSTOM_PROJ = new Set(["moises", "salomao", "ester", "maria", "isaias", "tiaaline", "henrique", "marcelinho", "mbappe", "natanrebeca"]);
 
 function star(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, points: number, rot: number, fill: string) {
   ctx.fillStyle = fill;
@@ -114,6 +114,32 @@ export function drawMelee(ctx: CanvasRenderingContext2D, s: number, card: string
         for (let i = 0; i < 3; i++) star(ctx, (i - 1) * s * (0.5 + q * 0.6), -s * (0.4 + q * 0.9) + (i % 2) * s * 0.2, s * 0.2, 5, q * 4 + i, "#ffe066");
         ctx.globalAlpha = 1;
       }
+      break;
+    }
+    case "nery": {
+      // soco de sargento: onda de choque que empurra, com poeira
+      ripple(ctx, s, 0, s * 0.2, p, 1.7, "rgba(255,244,214,0.95)");
+      ripple(ctx, s, 0, s * 0.2, Math.max(0, p - 0.15), 1.1, "rgba(214,189,140,0.9)");
+      ctx.rotate(ang);
+      ctx.strokeStyle = `rgba(250,250,250,${1 - p})`;
+      ctx.lineWidth = Math.max(2, s * 0.09);
+      ctx.lineCap = "round";
+      for (let i = -1; i <= 1; i++) {
+        ctx.beginPath();
+        ctx.moveTo(s * (0.3 + p * 0.3), i * s * 0.25);
+        ctx.lineTo(s * (0.9 + p * 1.0), i * s * 0.35);
+        ctx.stroke();
+      }
+      ctx.rotate(-ang);
+      ctx.globalAlpha = Math.max(0, 1 - p);
+      for (let i = 0; i < 6; i++) {
+        const a = (i * TAU) / 6 + 0.4;
+        ctx.fillStyle = i % 2 ? "#d8c7a3" : "#b9a37a";
+        ctx.beginPath();
+        ctx.arc(Math.cos(a) * s * (0.4 + p * 0.8), s * 0.3 + Math.sin(a) * s * 0.3 * (0.4 + p * 0.8) - p * s * 0.2, s * (0.14 + p * 0.1), 0, TAU);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
       break;
     }
     case "noe": {
@@ -382,6 +408,138 @@ export function drawProjectile(ctx: CanvasRenderingContext2D, s: number, card: s
       ctx.fill();
       break;
     }
+    case "tiaaline": {
+      // livros voando e girando em arco
+      const arcH = Math.sin(p * Math.PI) * s * 0.9;
+      for (const lag of [0, 0.18]) {
+        const q = p - lag;
+        if (q < 0) continue;
+        const bx = x1 + (x2 - x1) * q;
+        const by = y1 + (y2 - y1) * q - Math.sin(q * Math.PI) * s * 0.9;
+        ctx.save();
+        ctx.translate(bx, by);
+        ctx.rotate(q * 14 + lag * 5);
+        ctx.fillStyle = lag ? "#7c2d12" : "#1e3a8a";
+        ctx.strokeStyle = "#0f172a";
+        ctx.lineWidth = Math.max(1.5, s * 0.04);
+        ctx.fillRect(-s * 0.2, -s * 0.15, s * 0.4, s * 0.3);
+        ctx.strokeRect(-s * 0.2, -s * 0.15, s * 0.4, s * 0.3);
+        ctx.fillStyle = "#fef3c7";
+        ctx.fillRect(-s * 0.16, -s * 0.12, s * 0.34, s * 0.06);
+        ctx.fillStyle = "#facc15";
+        ctx.fillRect(-s * 0.2, -s * 0.15, s * 0.05, s * 0.3);
+        ctx.restore();
+      }
+      void arcH;
+      break;
+    }
+    case "henrique": {
+      // notas musicais saindo da guitarra
+      const glyphs = ["♪", "♫", "♬", "♩"];
+      const cols = ["#f472b6", "#60a5fa", "#fde047", "#a78bfa"];
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      for (let i = 0; i < 4; i++) {
+        const q = p - i * 0.09;
+        if (q < 0) continue;
+        const nx = x1 + (x2 - x1) * q + Math.sin(q * 12 + i) * s * 0.12;
+        const ny = y1 + (y2 - y1) * q + Math.cos(q * 9 + i) * s * 0.18 - s * 0.3;
+        ctx.font = `bold ${s * (0.75 - i * 0.06)}px system-ui, "Segoe UI Symbol", sans-serif`;
+        ctx.fillStyle = "rgba(0,0,0,0.55)";
+        ctx.fillText(glyphs[i], nx + s * 0.04, ny + s * 0.04);
+        ctx.fillStyle = cols[i];
+        ctx.fillText(glyphs[i], nx, ny);
+      }
+      break;
+    }
+    case "marcelinho": {
+      // boné girando em arco
+      const bx = hx;
+      const by = hy - Math.sin(p * Math.PI) * s * 1.0;
+      ctx.translate(bx, by);
+      ctx.rotate(p * 16);
+      ctx.fillStyle = "#d6c39a";
+      ctx.strokeStyle = "#3f2f12";
+      ctx.lineWidth = Math.max(1.5, s * 0.05);
+      ctx.beginPath();
+      ctx.arc(0, 0, s * 0.26, Math.PI, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "#1f1b16";
+      ctx.beginPath();
+      ctx.ellipse(s * 0.2, s * 0.02, s * 0.2, s * 0.07, 0, 0, TAU);
+      ctx.fill();
+      ctx.fillStyle = "#3f2f12";
+      ctx.beginPath();
+      ctx.arc(0, -s * 0.27, s * 0.05, 0, TAU);
+      ctx.fill();
+      break;
+    }
+    case "mbappe": {
+      // bandeiras da França e notas musicais
+      const items = [0, 1, 2];
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      for (const i of items) {
+        const q = p - i * 0.12;
+        if (q < 0) continue;
+        const ix = x1 + (x2 - x1) * q;
+        const iy = y1 + (y2 - y1) * q - Math.sin(q * Math.PI) * s * 0.5;
+        if (i % 2 === 0) {
+          ctx.save();
+          ctx.translate(ix, iy);
+          ctx.rotate(ang + Math.sin(q * 20) * 0.25);
+          ctx.strokeStyle = "#e5e7eb";
+          ctx.lineWidth = Math.max(1.5, s * 0.05);
+          ctx.beginPath();
+          ctx.moveTo(-s * 0.2, s * 0.2);
+          ctx.lineTo(-s * 0.2, -s * 0.2);
+          ctx.stroke();
+          const w = s * 0.14;
+          ctx.fillStyle = "#1d4ed8";
+          ctx.fillRect(-s * 0.2, -s * 0.2, w, s * 0.26);
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(-s * 0.2 + w, -s * 0.2, w, s * 0.26);
+          ctx.fillStyle = "#dc2626";
+          ctx.fillRect(-s * 0.2 + w * 2, -s * 0.2, w, s * 0.26);
+          ctx.restore();
+        } else {
+          ctx.font = `bold ${s * 0.7}px system-ui, "Segoe UI Symbol", sans-serif`;
+          ctx.fillStyle = "rgba(0,0,0,0.5)";
+          ctx.fillText("♪", ix + s * 0.04, iy + s * 0.04);
+          ctx.fillStyle = "#38bdf8";
+          ctx.fillText("♪", ix, iy);
+        }
+      }
+      break;
+    }
+    case "natanrebeca": {
+      // bola de fogo com rastro de chamas
+      for (let i = 4; i >= 1; i--) {
+        const q = Math.max(0, p - i * 0.045);
+        const tx = x1 + (x2 - x1) * q;
+        const ty = y1 + (y2 - y1) * q;
+        const g = ctx.createRadialGradient(tx, ty, 0, tx, ty, s * (0.3 - i * 0.04));
+        g.addColorStop(0, "rgba(251,146,60,0.7)");
+        g.addColorStop(1, "rgba(220,38,38,0)");
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(tx, ty, s * (0.3 - i * 0.04), 0, TAU);
+        ctx.fill();
+      }
+      const fl = 1 + Math.sin(tickF * 2.2) * 0.12;
+      const g2 = ctx.createRadialGradient(hx, hy, 0, hx, hy, s * 0.46 * fl);
+      g2.addColorStop(0, "rgba(255,255,220,1)");
+      g2.addColorStop(0.35, "rgba(253,224,71,0.98)");
+      g2.addColorStop(0.7, "rgba(249,115,22,0.9)");
+      g2.addColorStop(1, "rgba(220,38,38,0)");
+      ctx.fillStyle = g2;
+      ctx.beginPath();
+      ctx.arc(hx, hy, s * 0.46 * fl, 0, TAU);
+      ctx.fill();
+      break;
+    }
     case "maria": {
       // orbe azul suave de cuidado
       ctx.strokeStyle = "rgba(191,219,254,0.7)";
@@ -494,6 +652,64 @@ export function drawImpact(ctx: CanvasRenderingContext2D, s: number, card: strin
         ctx.rotate(i + p * 4);
         ctx.fillRect(-s * 0.06, -s * 0.04, s * 0.12, s * 0.08);
         ctx.restore();
+      }
+      ctx.globalAlpha = 1;
+      break;
+    }
+    case "tiaaline": {
+      // folhas de papel voando
+      for (let i = 0; i < 6; i++) {
+        const a = -Math.PI * (0.1 + 0.8 * (i / 5));
+        ctx.globalAlpha = Math.max(0, 1 - p);
+        ctx.fillStyle = i % 2 ? "#ffffff" : "#fef3c7";
+        ctx.save();
+        ctx.translate(Math.cos(a) * s * 0.8 * p, Math.sin(a) * s * 0.8 * p + p * p * s * 0.6);
+        ctx.rotate(i + p * 6);
+        ctx.fillRect(-s * 0.09, -s * 0.12, s * 0.18, s * 0.24);
+        ctx.restore();
+      }
+      ctx.globalAlpha = 1;
+      break;
+    }
+    case "henrique":
+    case "mbappe": {
+      // notas e estrelinhas
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = `bold ${s * 0.45}px system-ui, "Segoe UI Symbol", sans-serif`;
+      for (let i = 0; i < 4; i++) {
+        const a = -Math.PI * (0.15 + 0.7 * (i / 3));
+        ctx.globalAlpha = Math.max(0, 1 - p);
+        ctx.fillStyle = ["#f472b6", "#60a5fa", "#fde047", "#a78bfa"][i];
+        ctx.fillText(i % 2 ? "♫" : "♪", Math.cos(a) * s * 0.7 * p, Math.sin(a) * s * 0.7 * p - p * s * 0.3);
+      }
+      ctx.globalAlpha = 1;
+      star(ctx, 0, -s * 0.2, s * 0.22 * Math.sin(Math.min(1, p) * Math.PI), 5, p * 2, "rgba(255,240,150,0.95)");
+      break;
+    }
+    case "marcelinho": {
+      star(ctx, 0, -s * 0.2, s * 0.3 * Math.sin(Math.min(1, p) * Math.PI), 5, p * 3, "rgba(253,224,71,0.95)");
+      ripple(ctx, s, 0, s * 0.15, p, 0.9, "rgba(255,255,255,0.9)");
+      break;
+    }
+    case "natanrebeca": {
+      // explosão de fogo
+      const r = s * (0.3 + p * 0.9);
+      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+      g.addColorStop(0, `rgba(255,247,190,${0.95 * (1 - p)})`);
+      g.addColorStop(0.5, `rgba(249,115,22,${0.8 * (1 - p)})`);
+      g.addColorStop(1, "rgba(220,38,38,0)");
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, TAU);
+      ctx.fill();
+      for (let i = 0; i < 8; i++) {
+        const a = (i * TAU) / 8;
+        ctx.globalAlpha = Math.max(0, 1 - p);
+        ctx.fillStyle = i % 2 ? "#fde047" : "#fb923c";
+        ctx.beginPath();
+        ctx.arc(Math.cos(a) * s * 0.9 * p, Math.sin(a) * s * 0.65 * p - p * s * 0.2, s * 0.09 * (1 - p * 0.5), 0, TAU);
+        ctx.fill();
       }
       ctx.globalAlpha = 1;
       break;

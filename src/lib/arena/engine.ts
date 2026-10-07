@@ -19,6 +19,7 @@ import {
   inDeployZone,
   inField,
   nearestBridge,
+  onBridge,
   shuffleWith,
   teamOf,
   type Entity,
@@ -55,7 +56,7 @@ function makeTower(id: number, side: Side, kind: "atalaia" | "santuario", lane: 
     id, side, type: "tower", card: kind, lane, x, y, px: x, py: y,
     hp: t.hp, maxHp: t.hp, radius: t.radius, dmg: t.dmg, atkTicks: Math.round(t.atkSpeed * TICKS_PER_SEC),
     range: t.range, speed: 0, flying: false, towersOnly: false, canHitAir: true, splash: 0, towerMult: 1,
-    hitSlow: 0, hitSlowTicks: 0, healAmount: 0, healTicks: 0, healRadius: 0, cd: 0, slowUntil: 0, slowAmount: 0,
+    hitSlow: 0, hitSlowTicks: 0, healAmount: 0, healTicks: 0, healRadius: 0, cd: 0, slowUntil: 0, slowAmount: 0, knock: 0, variant: 0,
   };
 }
 
@@ -111,7 +112,7 @@ export function createGameDuo(seed: number, decks: string[][], levels?: Record<s
   return buildState(seed, decks, decks.map((_, i) => levels?.[i] ?? {}));
 }
 
-function makeUnit(state: GameState, card: ArenaCard, side: Side, player: number, x: number, y: number): Entity {
+function makeUnit(state: GameState, card: ArenaCard, side: Side, player: number, x: number, y: number, variant = 0): Entity {
   const m = levelMult(state.levels[player][card.key] ?? 1);
   const hp = Math.round((card.hp ?? 100) * m);
   return {
@@ -122,7 +123,7 @@ function makeUnit(state: GameState, card: ArenaCard, side: Side, player: number,
     canHitAir: !!card.canHitAir, splash: card.splash ?? 0, towerMult: card.unitTowerMult ?? 1,
     hitSlow: card.hitSlow?.amount ?? 0, hitSlowTicks: Math.round((card.hitSlow?.secs ?? 0) * TICKS_PER_SEC),
     healAmount: card.heal?.amount ?? 0, healTicks: Math.round((card.heal?.secs ?? 0) * TICKS_PER_SEC), healRadius: card.heal?.radius ?? 0,
-    cd: 0, slowUntil: 0, slowAmount: 0,
+    cd: 0, slowUntil: 0, slowAmount: 0, knock: card.knockback ?? 0, variant,
   };
 }
 
@@ -157,6 +158,7 @@ export function applyInput(state: GameState, input: Input, ev: GameEvent[] = [])
   if (state.over || !Number.isInteger(player) || player < 0 || player >= state.players) return false;
   const side = teamOf(state.players, player);
   if (input.side !== side) return false;
+  if (state.blind && state.tick < state.blind[side]) return false;
   if (!Number.isInteger(slot) || slot < 0 || slot >= HAND_SIZE) return false;
   if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
   const key = state.slots[player][slot];
@@ -172,10 +174,17 @@ export function applyInput(state: GameState, input: Input, ev: GameEvent[] = [])
   if (card.kind === "spell") {
     castSpell(state, card, side, player, x, y, ev);
   } else {
-    for (const [ox, oy] of spawnOffsets(card.count ?? 1, side)) {
-      state.entities.push(makeUnit(state, card, side, player, Math.min(W - 0.3, Math.max(0.3, x + ox)), y + oy));
-    }
+    spawnOffsets(card.count ?? 1, side).forEach(([ox, oy], i) => {
+      state.entities.push(makeUnit(state, card, side, player, Math.min(W - 0.3, Math.max(0.3, x + ox)), y + oy, i));
+    });
     ev.push({ t: "spawn", x, y, card: card.key });
+    if (card.blind) {
+      // brilho que cega o adversário: ele não joga cartas por um tempo
+      const ticks = Math.round(card.blind * TICKS_PER_SEC);
+      state.blind ??= [0, 0];
+      state.blind[1 - side] = Math.max(state.blind[1 - side], state.tick + ticks);
+      ev.push({ t: "blind", side: (1 - side) as Side, ticks });
+    }
   }
   return true;
 }
@@ -246,6 +255,22 @@ function moveToward(e: Entity, tx: number, ty: number, step: number) {
   }
 }
 
+/** Empurra o alvo para longe de quem bateu, sem sair do campo nem cair no rio fora das pontes. */
+function knockBack(from: Entity, target: Entity) {
+  const dx = target.x - from.x;
+  const dy = target.y - from.y;
+  const d = Math.sqrt(dx * dx + dy * dy) || 1;
+  const above = target.y < RIVER_TOP;
+  const below = target.y > RIVER_BOT;
+  let nx = target.x + (dx / d) * from.knock;
+  let ny = target.y + (dy / d) * from.knock;
+  nx = Math.min(W - 0.3, Math.max(0.3, nx));
+  ny = Math.min(H - 0.3, Math.max(0.3, ny));
+  if (!onBridge(nx) && ny > RIVER_TOP - 0.2 && ny < RIVER_BOT + 0.2) ny = above ? RIVER_TOP - 0.2 : below ? RIVER_BOT + 0.2 : target.y;
+  target.x = nx;
+  target.y = ny;
+}
+
 function dealAttack(state: GameState, e: Entity, target: Entity, ev: GameEvent[]) {
   const dmg = e.dmg * (target.type === "tower" ? e.towerMult : 1);
   target.hp -= dmg;
@@ -256,6 +281,7 @@ function dealAttack(state: GameState, e: Entity, target: Entity, ev: GameEvent[]
   }
   ev.push({ t: "attack", from: e.id, to: target.id, fromCard: e.card, x1: e.x, y1: e.y, x2: target.x, y2: target.y, ranged: e.range > 1.5, side: e.side, dmg });
   ev.push({ t: "hit", id: target.id, x: target.x, y: target.y, dmg, side: target.side });
+  if (e.knock > 0 && target.type === "unit" && !target.flying && target.hp > 0) knockBack(e, target);
   if (e.splash > 0) {
     for (const o of state.entities) {
       if (o === target || o.side === e.side || o.type !== "unit" || o.hp <= 0) continue;

@@ -43,6 +43,12 @@ export type ArenaCard = {
   hitSlow?: { amount: number; secs: number };
   /** Cura aliados por perto de tempos em tempos. */
   heal?: { amount: number; secs: number; radius: number };
+  /** cada golpe empurra o alvo (tiles) */
+  knockback?: number;
+  /** ao entrar em campo, cega o adversário por esses segundos (ele não joga cartas) */
+  blind?: number;
+  /** quando entram vários, a arte de cada membro (o primeiro é o personagem) */
+  crew?: string[];
   // --- poderes ---
   radiusSpell?: number;
   spellDmg?: number;

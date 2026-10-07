@@ -135,6 +135,8 @@ export function ArenaPlayfield({
   onOverRef.current = onOver;
 
   const [hud, setHud] = useState<Hud | null>(null);
+  /** clarão do Pastor Zepa: cada vez que cega o meu lado, sobe um número e a tela fica branca por 1,5 s */
+  const [blindKey, setBlindKey] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [waiting, setWaiting] = useState(false);
   const [muted, setMuted] = useState(readMuted);
@@ -173,10 +175,13 @@ export function ArenaPlayfield({
 
   useEffect(() => {
     for (const c of [...ARENA_CARDS, ...CAMPAIGN_CARDS]) {
-      if (!c.art || c.kind !== "unit" || spritesRef.current[c.key]) continue;
-      const img = new Image();
-      img.src = `/arena/${c.key}.webp`;
-      spritesRef.current[c.key] = img;
+      if (!c.art || c.kind !== "unit") continue;
+      for (const k of c.crew ?? [c.key]) {
+        if (spritesRef.current[k]) continue;
+        const img = new Image();
+        img.src = `/arena/${k}.webp`;
+        spritesRef.current[k] = img;
+      }
     }
   }, []);
 
@@ -268,7 +273,7 @@ export function ArenaPlayfield({
         const x = lerp(e.px, e.x) * s;
         const y = lerp(e.py, e.y) * s;
         const r = e.radius * s;
-        const img = spritesRef.current[e.card];
+        const img = spritesRef.current[ARENA_CARD_BY_KEY.get(e.card)?.crew?.[e.variant] ?? e.card];
         const hasArt = !!img && img.complete && img.naturalWidth > 0;
         const footBase = y + r * 0.9;
         const lift = e.flying ? 0.9 * s : 0;
@@ -458,12 +463,13 @@ export function ArenaPlayfield({
             if (step > an.steps) {
               an.steps = step;
               if (!e.flying && e.type === "unit" && fxRef.current.length < 120) {
-                fxRef.current.push({ k: "dust", x: vx(e.x), y: vy(e.y) + e.radius * 0.9, t0: game.tick, dur: 9, big: false });
+                fxRef.current.push({ k: "dust", x: vx(e.x), y: vy(e.y) + e.radius * 0.9, t0: game.tick, dur: 9, big: e.card === "nery" });
               }
             }
           }
         }
         for (const e of ev) {
+          if (e.t === "blind" && e.side === d.mySide) setBlindKey((k) => k + 1);
           const m: GameEvent = flip ? mapEvent(e, vs) : e;
           applyEvent(m, game.tick, animsRef.current, fxRef.current, shakeRef.current);
           soundRef.current?.onEvent(m);
@@ -569,6 +575,12 @@ export function ArenaPlayfield({
       <div className="mx-auto flex h-full w-full max-w-[480px] flex-col bg-[#4d8f3a]">
         <div ref={areaRef} className="relative min-h-0 flex-1 overflow-hidden">
           <canvas ref={canvasRef} onPointerDown={onCanvasPointer} className="absolute left-0 top-0 touch-none" />
+          {blindKey > 0 ? (
+            <div key={blindKey} className="arena-blind pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-white">
+              <span className="text-6xl" aria-hidden>✨</span>
+              <style>{`.arena-blind{animation:arenaBlind 1.5s ease-out forwards}@keyframes arenaBlind{0%{opacity:0}8%{opacity:1}70%{opacity:1}100%{opacity:0}}`}</style>
+            </div>
+          ) : null}
           <div className="pointer-events-none absolute left-2 top-2 flex items-center gap-2">
             <div className="flex h-11 w-11 items-center justify-center rounded-lg border-2 border-amber-300 bg-gradient-to-b from-rose-700 to-rose-950 text-2xl shadow-lg">🛡️</div>
             <div className="rounded-lg bg-black/65 px-2.5 py-1 leading-tight ring-1 ring-white/25">
@@ -697,5 +709,7 @@ function mapEvent(e: GameEvent, vs: (s: Side) => Side): GameEvent {
       return { ...e, x: fx(e.x), y: fy(e.y), side: vs(e.side) };
     case "spawn":
       return { ...e, x: fx(e.x), y: fy(e.y) };
+    case "blind":
+      return { ...e, side: vs(e.side) };
   }
 }
