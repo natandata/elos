@@ -1909,6 +1909,8 @@ export class MineArena {
     this.sfx.play("break");
     this.particles.burst(x + 0.5, y + 0.5, z + 0.5, def.top, 12, 4, 0.14);
     this.exhaust(0.012);
+    // tronco da base quebrado: a árvore inteira cai
+    if ((id === B.log || id === B.cedar_log) && !this.isLogId(this.world.getBlock(x, y - 1, z))) this.fellTree(x, y, z, harvest);
     if (!harvest) return;
     for (const l of def.loot) {
       if (Math.random() > l.chance) continue;
@@ -1918,6 +1920,104 @@ export class MineArena {
     }
     const ox = ORE_XP[def.key];
     if (ox) this.addXp(ox);
+  }
+
+  private isLogId(id: number): boolean {
+    return id === B.log || id === B.cedar_log;
+  }
+
+  /**
+   * Quebrou o tronco de baixo de uma árvore: derruba o resto do tronco e as folhas dela.
+   * Rende a madeira dos troncos, 2 frutas e 2 gravetos. Só vale pra árvore de verdade (tronco com folhas);
+   * pilar ou casa de troncos não cai. Folhas que ainda têm outro tronco por perto ficam.
+   */
+  private fellTree(bx: number, by: number, bz: number, harvest: boolean): void {
+    const key = (x: number, y: number, z: number) => `${x},${y},${z}`;
+    const logs = new Map<string, [number, number, number]>();
+    const queue: [number, number, number][] = [[bx, by, bz]];
+    const seen = new Set<string>([key(bx, by, bz)]);
+    while (queue.length > 0 && logs.size < 160) {
+      const [cx, cy, cz] = queue.pop()!;
+      for (let dy = 0; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dz = -1; dz <= 1; dz++) {
+            const x = cx + dx;
+            const y = cy + dy;
+            const z = cz + dz;
+            const k = key(x, y, z);
+            if (seen.has(k)) continue;
+            seen.add(k);
+            if (!this.isLogId(this.world.getBlock(x, y, z))) continue;
+            logs.set(k, [x, y, z]);
+            queue.push([x, y, z]);
+          }
+        }
+      }
+    }
+    if (logs.size === 0) return;
+    const isLeaf = (id: number) => !!BLOCKS[id]?.key.endsWith("leaves");
+    // folhas: a partir dos troncos, até 4 blocos de distância passando só por folhas
+    const leaves = new Map<string, [number, number, number, number]>();
+    let front: [number, number, number][] = [...logs.values()];
+    for (let depth = 0; depth < 4 && front.length > 0 && leaves.size < 700; depth++) {
+      const next: [number, number, number][] = [];
+      for (const [cx, cy, cz] of front) {
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dy = -1; dy <= 1; dy++) {
+            for (let dz = -1; dz <= 1; dz++) {
+              const x = cx + dx;
+              const y = cy + dy;
+              const z = cz + dz;
+              const k = key(x, y, z);
+              if (leaves.has(k) || logs.has(k)) continue;
+              const id = this.world.getBlock(x, y, z);
+              if (!isLeaf(id)) continue;
+              leaves.set(k, [x, y, z, id]);
+              next.push([x, y, z]);
+            }
+          }
+        }
+      }
+      front = next;
+    }
+    if (leaves.size === 0) return;
+    // folhas que ainda têm outro tronco (de outra árvore) por perto ficam
+    const keep = (x: number, y: number, z: number) => {
+      for (let dx = -3; dx <= 3; dx++) for (let dy = -3; dy <= 3; dy++) for (let dz = -3; dz <= 3; dz++) {
+        const k = key(x + dx, y + dy, z + dz);
+        if (logs.has(k) || (x + dx === bx && y + dy === by && z + dz === bz)) continue;
+        if (this.isLogId(this.world.getBlock(x + dx, y + dy, z + dz))) return true;
+      }
+      return false;
+    };
+    const falling = [...leaves.values()].filter(([x, y, z]) => !keep(x, y, z));
+    if (this.story) {
+      for (const [x, y, z] of logs.values()) if (!this.story.allowBreak(x, y, z, this.world.getBlock(x, y, z))) return;
+      for (const [x, y, z, id] of falling) if (!this.story.allowBreak(x, y, z, id)) return;
+    }
+    const tally = new Map<string, number>();
+    let palm = false;
+    for (const [x, y, z] of logs.values()) {
+      const id = this.world.getBlock(x, y, z);
+      this.world.setBlock(x, y, z, B.air);
+      this.story?.onBlockBroken(x, y, z, id);
+      const item = BLOCKS[id].loot[0]?.item;
+      if (item) tally.set(item, (tally.get(item) ?? 0) + 1);
+      if (tally.size < 3) this.particles.burst(x + 0.5, y + 0.5, z + 0.5, BLOCKS[id].top, 4, 3, 0.12);
+    }
+    for (const [x, y, z, id] of falling) {
+      this.world.setBlock(x, y, z, B.air);
+      if (BLOCKS[id].key === "palm_leaves") palm = true;
+      if (Math.random() < 0.25) this.particles.burst(x + 0.5, y + 0.5, z + 0.5, BLOCKS[id].top, 3, 3, 0.1);
+    }
+    this.sfx.play("break");
+    if (!harvest) return;
+    const ox = bx + 0.5;
+    const oz = bz + 0.5;
+    for (const [item, n] of tally) this.dropItem(item, n, ox, by + 0.6, oz);
+    this.dropItem(palm ? "dates" : "apple", 2, ox, by + 0.8, oz);
+    this.dropItem("stick", 2, ox, by + 0.8, oz);
+    this.cb.onMessage("A árvore caiu!", "info");
   }
 
   private useAction(hit: ReturnType<World["raycast"]>, ePick: { e: Entity; dist: number } | null, dir: THREE.Vector3, edge: boolean): void {
