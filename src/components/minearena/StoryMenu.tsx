@@ -7,9 +7,10 @@ import { STORY_ACHIEVEMENTS } from "@/lib/minearena/story/data/achievements";
 import { CAMPAIGNS, campaignOpen } from "@/lib/minearena/story/campaigns";
 import { RELICS } from "@/lib/minearena/story/data/relics";
 import { PUZZLES } from "@/lib/minearena/story/data/puzzles";
+import { StoryBook } from "./StoryBook";
 import type { ChapterDef, StoryProgress } from "@/lib/minearena/story/types";
 
-type View = "home" | "chapters" | "library" | "progress" | "achievements" | "relics";
+type View = "home" | "book" | "chapters" | "library" | "progress" | "achievements" | "relics";
 
 const statusOf = (c: ChapterDef, p: StoryProgress): "done" | "open" | "locked" | "soon" => {
   if (p.completed.includes(c.id)) return "done";
@@ -72,6 +73,9 @@ export function StoryMenu({ progress, hasSave, onPlay, onBack }: { progress: Sto
                 {nextSoon ? `O próximo capítulo, «${nextSoon.title}», chega em breve. A campanha jogável vai até o capítulo ${nextSoon.number - 1}.` : "Campanha concluída!"}
               </p>
             )}
+            <button type="button" className="ms-btn" onClick={() => setView("book")}>
+              📖 Livro da História ({progress.completed.length}/{total} páginas)
+            </button>
             <button type="button" className="ms-btn" onClick={() => setView("chapters")}>
               📜 Capítulos
             </button>
@@ -121,6 +125,7 @@ export function StoryMenu({ progress, hasSave, onPlay, onBack }: { progress: Sto
         </>
       ) : null}
 
+      {view === "book" ? <StoryBook progress={progress} onHunt={(id) => onPlay(id, true, true)} /> : null}
       {view === "relics" ? <RelicsView progress={progress} /> : null}
       {view === "progress" ? <ProgressView progress={progress} /> : null}
       {view === "library" ? <LibraryView progress={progress} /> : null}

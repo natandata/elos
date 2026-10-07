@@ -1469,3 +1469,36 @@ input[type="datetime-local"] {
 .ms-pz-hints li { padding: 4px 0; }
 .ms-pz-actions { display: flex; gap: 8px; margin-top: 6px; }
 .ms-pz-actions .ms-btn { flex: 1; padding: 9px 10px; font-size: 0.86rem; }
+
+/* ---- Livro da História (Modo História) ---- */
+.ms-bk-bar { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 8px auto; }
+.ms-bk-nav, .ms-bk-idx { min-height: 40px; padding: 0 16px; border: 2px solid #e8c25a; border-radius: 12px; background: #2a2012; color: #ffe9a8; font-size: 1rem; font-weight: 900; cursor: pointer; }
+.ms-bk-nav:disabled { opacity: 0.35; cursor: default; }
+.ms-bk-idx { flex: 1; max-width: 220px; font-size: 0.9rem; }
+.ms-bk-page { position: relative; margin: 6px auto 0; padding: 20px 20px 22px; border: 3px solid #8a5a1c; border-radius: 6px 14px 14px 6px; background: linear-gradient(90deg, #d8bd86 0, #f6e7b4 14px, #f6e7b4 100%); color: #2e1c08; box-shadow: inset 10px 0 14px -10px rgba(60, 30, 0, 0.5), 0 8px 24px rgba(0, 0, 0, 0.5); text-align: left; }
+.ms-bk-page > * { margin: 0 0 10px; }
+.ms-bk-period { text-align: center; font-size: 0.72rem; font-weight: 900; letter-spacing: 0.18em; color: #7a4a0a; }
+.ms-bk-k { font-size: 0.7rem; font-weight: 900; letter-spacing: 0.16em; color: #7a4a0a; }
+.ms-bk-title { font-size: 1.7rem; line-height: 1.1; font-weight: 900; color: #3a1f04; }
+.ms-bk-blank { text-align: center; color: #8a6a3a; letter-spacing: 0.3em; }
+.ms-bk-blank-text { text-align: center; font-size: 0.95rem; font-weight: 700; color: #5a3a14; }
+.ms-bk-sub { font-size: 0.95rem; font-style: italic; font-weight: 700; color: #5a3a14; }
+.ms-bk-ref { font-size: 0.85rem; font-weight: 900; color: #1b4f8f; }
+.ms-bk-text { font-size: 1rem; font-weight: 600; line-height: 1.6; color: #2e1c08; }
+.ms-bk-meta { font-size: 0.84rem; font-weight: 600; line-height: 1.45; color: #3a2610; }
+.ms-bk-note { padding: 8px 10px; border-radius: 10px; background: rgba(120, 80, 20, 0.14); font-size: 0.8rem; font-weight: 600; line-height: 1.45; color: #4a3010; }
+.ms-bk-relic { padding: 12px 14px; border: 2px dashed #8a5a1c; border-radius: 12px; background: rgba(120, 80, 20, 0.12); }
+.ms-bk-relic > * { margin: 0 0 8px; }
+.ms-bk-relic h4 { font-size: 0.98rem; font-weight: 900; color: #5a2e04; text-transform: none; letter-spacing: 0; }
+.ms-bk-relic p { font-size: 0.88rem; font-weight: 600; line-height: 1.5; color: #2e1c08; }
+.ms-bk-relic ol { margin: 0 0 10px; padding-left: 22px; list-style: decimal; font-size: 0.88rem; font-weight: 700; line-height: 1.5; color: #2e1c08; }
+.ms-bk-relic ol li { margin-bottom: 4px; }
+.ms-bk-relic-got { border-style: solid; border-color: #3f8f2a; background: rgba(90, 170, 60, 0.16); }
+.ms-bk-relic-got h4 { color: #1f5a10; }
+.ms-bk-index { margin: 6px auto 0; padding: 12px 14px; border: 2px solid #e8c25a; border-radius: 14px; background: #2a2012; }
+.ms-bk-index h3 { margin: 8px 0 4px; font-size: 0.74rem; font-weight: 900; letter-spacing: 0.14em; text-transform: uppercase; color: #e8c25a; }
+.ms-bk-index ul { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.ms-bk-index button { display: flex; width: 100%; align-items: center; gap: 8px; padding: 8px 10px; border: 2px solid #5a4420; border-radius: 10px; background: transparent; color: #cdbb90; font-size: 0.9rem; font-weight: 800; text-align: left; cursor: pointer; }
+.ms-bk-index button[data-done="true"] { border-color: #7fbf4a; color: #fff6dc; }
+.ms-bk-index button[data-on="true"] { background: rgba(232, 194, 90, 0.2); border-color: #ffd66b; }
+.ms-bk-index button i { margin-left: auto; font-style: normal; }
