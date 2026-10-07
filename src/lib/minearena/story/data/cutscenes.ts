@@ -225,6 +225,21 @@ export const CUTSCENES: Record<string, Cutscene> = {
       { t: "call", fn: "releaseCamera" },
     ],
   },
+  // Adão e Eva já estão escondidos quando a missão "Onde estás?" começa (evita Eva presa nas árvores no caminho)
+  fall_hide: {
+    id: "fall_hide",
+    steps: [
+      { t: "bars", on: true },
+      { t: "call", fn: "holdCamera" },
+      { t: "fade", to: 1, dur: 0.7, text: "Adão e Eva se esconderam entre as árvores…" },
+      { t: "teleport", target: "adao", to: { x: 30.5, y: 28, z: 76.5 } },
+      { t: "teleport", target: "eva", to: { x: 33.5, y: 28, z: 79.5 } },
+      { t: "wait", dur: 0.4 },
+      { t: "fade", to: 0, dur: 0.8 },
+      { t: "bars", on: false },
+      { t: "call", fn: "releaseCamera" },
+    ],
+  },
   fall_expulsion: {
     id: "fall_expulsion",
     steps: [

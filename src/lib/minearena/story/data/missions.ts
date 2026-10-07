@@ -108,6 +108,7 @@ const BASE_MISSIONS: Mission[] = [
     desc: "Deus procura o homem e a mulher, que se esconderam entre as árvores.",
     ref: "Gênesis 3:8–21",
     npc: "adao",
+    onStart: "fall_hide",
     objectives: [{ k: "talk", npc: "adao", dialogue: "fall_confront", text: "Encontre Adão e Eva, escondidos entre as árvores." }],
     onComplete: "fall_clothes",
     next: "fall_3",
