@@ -57,6 +57,8 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit }: { mode
   const pausedRef = useRef(false);
   const rotatedRef = useRef(false);
   const doneRef = useRef(false);
+  /** pediu para pular a abertura */
+  const skipRef = useRef(false);
   const phaseRef = useRef<Game["phase"]>("countdown");
   const onFinishRef = useRef(onFinish);
   const [round, setRound] = useState(0);
@@ -66,6 +68,7 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit }: { mode
   const [touch, setTouch] = useState(false);
   const [rotated, setRotated] = useState(false);
   const [end, setEnd] = useState<MatchResult | null>(null);
+  const [intro, setIntro] = useState(true);
   const [thumb, setThumb] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
@@ -118,6 +121,7 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit }: { mode
       const k = e.key.toLowerCase();
       if (MINE.includes(k)) e.preventDefault();
       if ((k === "escape" || k === "p") && !e.repeat) setPaused((p) => !p);
+      if ((k === " " || k === "enter") && !e.repeat) skipRef.current = true;
       keys.current.add(k);
     };
     const up = (e: KeyboardEvent) => {
@@ -148,6 +152,7 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit }: { mode
     if (!ctx) return;
     const g = newGame(mode);
     const fx = newFx();
+    skipRef.current = false;
     doneRef.current = false;
     phaseRef.current = "countdown";
     if (!sfxRef.current) sfxRef.current = new Sfx();
@@ -173,11 +178,26 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit }: { mode
     let raf = 0;
     let lastHud = "";
     const human = g.players[0];
+    let introCheered = false;
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame);
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
-      if (!pausedRef.current) {
+      if (!pausedRef.current && fx.intro) {
+        // abertura: a torcida vibra e os jogadores entram no campo (dá para pular)
+        if (!introCheered) {
+          introCheered = true;
+          sfx.cheer(2.4, 0.08);
+        }
+        fx.intro.t += dt;
+        stepFx(fx, dt);
+        if (skipRef.current || fx.intro.t >= fx.intro.dur) {
+          fx.intro = null;
+          skipRef.current = false;
+          sfx.whistle();
+          setIntro(false);
+        }
+      } else if (!pausedRef.current) {
         // entrada do jogador: teclado + joystick (na tela, "para cima" é o ataque quando o campo está girado)
         const k = keys.current;
         let sx = (k.has("d") || k.has("arrowright") ? 1 : 0) - (k.has("a") || k.has("arrowleft") ? 1 : 0);
@@ -203,6 +223,8 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit }: { mode
             confetti(fx, gx, g.h / 2);
             fx.rings.push({ x: gx, y: g.h / 2, life: 0.5, color: colors[e.team] });
             fx.shake = 9;
+            fx.cheer[e.team] = 3.2;
+            sfx.cheer(1.8, 0.09);
             fx.banner = { text: e.team === 0 ? "GOOOL!" : "GOL DO ADVERSÁRIO", color: e.team === 0 ? "#fde047" : "#fca5a5", t: 2.6 };
           } else if (e.k === "tick") sfx.tick();
           else if (e.k === "whistle") sfx.whistle();
@@ -244,6 +266,7 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit }: { mode
   const again = useCallback(() => {
     setEnd(null);
     setPaused(false);
+    setIntro(true);
     setHud({ s0: 0, s1: 0, time: fmt(MODES[mode].secs), overtime: false, phase: "countdown" });
     setRound((r) => r + 1);
   }, [mode]);
@@ -355,7 +378,12 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit }: { mode
       <div className="flex min-h-0 flex-1">
         {gutter ? <div className="flex w-[132px] shrink-0 items-end justify-center pb-3">{joystick}</div> : null}
         <div ref={wrapRef} className="relative min-w-0 flex-1">
-          <canvas ref={canvasRef} className="absolute inset-0 h-full w-full touch-none" />
+          <canvas ref={canvasRef} className="absolute inset-0 h-full w-full touch-none" onPointerDown={() => { if (intro) skipRef.current = true; }} />
+          {intro && !paused && !end ? (
+            <button type="button" onClick={(e) => { e.currentTarget.blur(); skipRef.current = true; }} className="absolute bottom-3 right-3 z-[5] rounded-full bg-black/60 px-4 py-2 text-sm font-black text-white shadow-lg backdrop-blur active:scale-95">
+              Pular abertura ⏭
+            </button>
+          ) : null}
           {hud.overtime && hud.phase !== "end" ? <p className="pointer-events-none absolute inset-x-0 top-1 text-center text-[11px] font-black uppercase tracking-wide text-amber-300 [text-shadow:0_1px_3px_#000]">Gol de ouro: o próximo gol vence</p> : null}
         </div>
         {gutter ? <div className="flex w-[132px] shrink-0 items-end justify-center pb-3">{kickBtn}</div> : null}

@@ -46,6 +46,28 @@ export class Sfx {
   goal(): void {
     [523, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.28, "triangle", 0.14, 0, i * 0.11));
   }
+  /** Torcida: ruído filtrado que sobe e desce (festa). */
+  cheer(dur = 1.6, vol = 0.07): void {
+    const c = this.ac();
+    if (!c) return;
+    const n = Math.floor(c.sampleRate * dur);
+    const buf = c.createBuffer(1, n, c.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    const f = c.createBiquadFilter();
+    f.type = "bandpass";
+    f.frequency.value = 900;
+    f.Q.value = 0.7;
+    const g = c.createGain();
+    const t0 = c.currentTime;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol, t0 + dur * 0.3);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    src.connect(f).connect(g).connect(c.destination);
+    src.start(t0);
+  }
   end(): void {
     [784, 659, 523].forEach((f, i) => this.tone(f, 0.35, "sine", 0.12, 0, i * 0.16));
   }
