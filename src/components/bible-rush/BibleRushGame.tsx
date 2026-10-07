@@ -1,5 +1,6 @@
 "use client";
 
+import { logMyGameActivity } from "@/lib/actions/gameActivity";
 import { useEffect, useRef, useState } from "react";
 import { RushLevel, type Result } from "@/lib/bible-rush/core/engine";
 import type { LevelDef, SaveData, Settings } from "@/lib/bible-rush/core/types";
@@ -84,6 +85,7 @@ export function BibleRushGame({ uid }: { uid: string }) {
       }
       next.bestScores[def.id] = Math.max(next.bestScores[def.id] ?? 0, result.score);
     } else next.challengeBest[result.mode] = Math.max(next.challengeBest[result.mode] ?? 0, result.score);
+    void logMyGameActivity("biblerush", `${result.mode === "campaign" ? `Fase ${def.number}` : `Desafio ${result.mode}`} · ${result.mode === "campaign" ? (result.won ? `venceu · ${result.stars}★` : "não passou") : "terminou"} · ${result.score} pts`).catch(() => null);
     const newAch = newlyUnlocked({ save: next, result, levelId: def.id });
     next.achievements.push(...newAch.map((a) => a.id));
     commit(next);

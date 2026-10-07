@@ -1,3 +1,4 @@
+import { GAME_CATALOG } from "@/lib/games/catalog";
 import { Bar, Card, PageHeader, StatCard } from "@/components/ui";
 import { needsWeeklyPushNudge, requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -21,6 +22,17 @@ const ACTIVITY_LABEL: Record<string, { icon: string; verb: string }> = {
   arena_duo: { icon: "👥", verb: "jogou em duplas na Arena" },
 };
 
+/** Ícone e verbo de cada atividade. "game:<chave>" vale para qualquer jogo do catálogo (inclusive os futuros). */
+function activityMeta(action: string): { icon: string; verb: string } {
+  if (ACTIVITY_LABEL[action]) return ACTIVITY_LABEL[action];
+  if (action === "game:store") return { icon: "🛍️", verb: "comprou na Loja de Jogos" };
+  if (action.startsWith("game:")) {
+    const g = GAME_CATALOG.find((x) => x.key === action.slice(5));
+    return { icon: g?.emoji ?? "🎮", verb: g ? `jogou ${g.title.replace(/ \(.*\)$/, "")}` : "jogou" };
+  }
+  return { icon: "•", verb: action };
+}
+
 export default async function AdminDashboard() {
   const { profile, viewingAs } = await requireRole("admin");
   const supabase = await createClient();
@@ -38,6 +50,8 @@ export default async function AdminDashboard() {
     statuses,
     eloRows,
     activityRes,
+    gameActivityRes,
+    gameExtraRes,
   ] = await Promise.all([
     supabase.from("profiles").select("id", { count: "exact", head: true }),
     supabase.from("profiles").select("id", { count: "exact", head: true }).eq("role", "cria"),
@@ -59,9 +73,19 @@ export default async function AdminDashboard() {
     supabase.from("v_latest_status").select("emotional_status, spiritual_status"),
     supabase.from("elos").select("id, name, profiles:profiles(id, role)"),
     supabase.rpc("admin_recent_activity", { p_exclude_user: profile.id }),
+    supabase.rpc("admin_recent_game_activity", { p_exclude_user: profile.id }),
+    supabase.rpc("admin_recent_game_activity_extra", { p_exclude_user: profile.id }),
   ]);
 
-  const activity = (activityRes.data ?? []) as {
+  const activity = ([...((activityRes.data ?? []) as unknown[]), ...((gameActivityRes.data ?? []) as unknown[]), ...((gameExtraRes.data ?? []) as unknown[])] as {
+    actor_id: string;
+    actor_name: string;
+    actor_role: string;
+    action: string;
+    detail: string;
+    created_at: string;
+  }[]).sort((a, b) => b.created_at.localeCompare(a.created_at));
+  type ActivityRows = {
     actor_id: string;
     actor_name: string;
     actor_role: string;
@@ -165,7 +189,7 @@ export default async function AdminDashboard() {
           ) : (
             <ul className="max-h-96 divide-y divide-[var(--line)] overflow-y-auto">
               {activity.map((a, i) => {
-                const meta = ACTIVITY_LABEL[a.action] ?? { icon: "•", verb: a.action };
+                const meta = activityMeta(a.action);
                 return (
                   <li key={i} className="flex items-start gap-3 p-3">
                     <span className="text-lg leading-none" aria-hidden>

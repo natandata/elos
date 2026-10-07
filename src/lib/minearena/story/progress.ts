@@ -1,4 +1,5 @@
 // Progresso da campanha (capítulos concluídos, biblioteca, conquistas), guardado neste aparelho.
+import { logMyGameActivity } from "@/lib/actions/gameActivity";
 import type { StoryProgress } from "./types";
 
 const KEY = "minearena:story:v1";
@@ -21,6 +22,13 @@ export function loadProgress(): StoryProgress {
 }
 
 export function saveProgress(p: StoryProgress): void {
+  try {
+    // capítulo recém concluído: avisa o painel do admin
+    const before = new Set(loadProgress().completed);
+    for (const id of p.completed) if (!before.has(id)) void logMyGameActivity("minearena", `Concluiu o capítulo "${id}" da história`).catch(() => null);
+  } catch {
+    // sem registro, segue o jogo
+  }
   try {
     localStorage.setItem(KEY, JSON.stringify(p));
   } catch {
