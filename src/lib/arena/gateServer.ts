@@ -10,6 +10,8 @@ const todayBR = () => new Date().toLocaleDateString("en-CA", { timeZone: "Americ
 export async function loadGate(supabase: SupabaseClient, userId: string): Promise<GateInfo> {
   const events: GateEvent[] = [];
   const { data: me } = await supabase.from("profiles").select("role").eq("id", userId).maybeSingle<{ role: string }>();
+  // o admin joga a Arena sem trava
+  if (me?.role === "admin") return describeGate({ locked: false, battles: 0, games: 0, limit: gateBattlesFor("admin") }, []);
   const iso = (v: string | null | undefined) => (v ? new Date(v).getTime() : NaN);
 
   const [pve, games] = await Promise.all([
