@@ -101,7 +101,7 @@ export function createGame(seed: number, playerDeck: string[], botDeck?: string[
   // o bônus multiplica vida e dano (equivale a níveis a mais, sem teto)
   const botLevel = opts.pvp ? 1 : 1 + (levelMult(botLevelForArena(opts.arena ?? 0)) * (1 + boost) - 1) / 0.05;
   const botLevels: Record<string, number> = {};
-  for (const c of ARENA_CARDS) botLevels[c.key] = botLevel;
+  for (const k of ARENA_CARD_BY_KEY.keys()) botLevels[k] = botLevel;
   if (opts.pvp) return buildState(seed, [playerDeck, botDeck], [opts.pvpLevels?.[0] ?? {}, opts.pvpLevels?.[1] ?? {}]);
   return buildState(seed, [playerDeck, botDeck], [opts.levels ?? {}, botLevels]);
 }

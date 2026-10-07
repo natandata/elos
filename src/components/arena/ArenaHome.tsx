@@ -198,6 +198,17 @@ export function ArenaHome({
               <span className="cr-text rounded-md bg-black/45 px-2 py-1 text-sm">{myElo ? myElo.points : 0}</span>
             </button>
 
+            {/* campanha: 8 arenas contra os personagens do ELOS */}
+            <Link href="/app/jogos/arena/campanha" className="cr-panel mt-2 flex items-center gap-2 px-3 py-2 active:translate-y-[2px]">
+              <span className="text-2xl" aria-hidden>
+                🛡️
+              </span>
+              <span className="min-w-0 flex-1 leading-tight">
+                <span className="cr-text block text-[15px]">Campanha</span>
+                <span className="cr-text block truncate text-[11px] opacity-90">8 arenas contra os personagens do ELOS</span>
+              </span>
+            </Link>
+
             {/* torneios criados pelo admin */}
             <Link
               href="/app/jogos/arena/torneios"

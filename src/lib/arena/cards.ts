@@ -1,6 +1,8 @@
 // Catálogo de cartas da Arena dos Heróis (client-safe).
 // Números em "tiles" (o campo tem 16 x 26) e segundos. Mexa aqui pra equilibrar.
 
+import { CAMPAIGN_CARDS, CAMPAIGN_KEYS } from "./campaignCards";
+
 export type CardKind = "unit" | "spell";
 
 export type ArenaCard = {
@@ -81,7 +83,8 @@ export const ARENA_CARDS: ArenaCard[] = [
 /** Nome curto da carta pra rótulos pequenos. */
 export const shortName = (c: ArenaCard) => c.short ?? c.name;
 
-export const ARENA_CARD_BY_KEY = new Map(ARENA_CARDS.map((c) => [c.key, c]));
+/** Inclui as cartas da campanha (o motor precisa enxergá-las); elas ficam de fora de `ARENA_CARDS` e dos baralhos normais. */
+export const ARENA_CARD_BY_KEY = new Map([...ARENA_CARDS, ...CAMPAIGN_CARDS].map((c) => [c.key, c]));
 
 /** Baralho inicial do jogador (a fase 1 ainda não tem montador de baralho). */
 export const STARTER_DECK = ["davi", "joao", "jose", "gideao", "sansao", "maria", "mar", "trombetas"];
@@ -92,7 +95,7 @@ export function isValidDeck(deck: unknown): deck is string[] {
     Array.isArray(deck) &&
     deck.length === 8 &&
     new Set(deck).size === 8 &&
-    deck.every((k) => typeof k === "string" && ARENA_CARD_BY_KEY.has(k))
+    deck.every((k) => typeof k === "string" && ARENA_CARD_BY_KEY.has(k) && !CAMPAIGN_KEYS.has(k))
   );
 }
 

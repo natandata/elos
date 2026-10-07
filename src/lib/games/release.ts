@@ -9,10 +9,12 @@ export const GAME_RELEASES = {
   biblerush: "2026-11-01T00:00:00-03:00",
   /** ArenaSoccer (futebol arcade 2D): à venda na Loja a partir de 00:00 de 01/11/2026. */
   arenasoccer: "2026-11-01T00:00:00-03:00",
+  /** Campanha da Arena dos Heróis: só abre quando o admin liberar (sem data; acesso antecipado por pessoa ou "visível" para todos). */
+  arenacampanha: "2099-01-01T00:00:00-03:00",
 } as const;
 
 /** Antes da data, aparece um cartão "em breve" para os jogadores? O Bible Rush fica invisível até abrir. */
-export const GAME_TEASER: Record<keyof typeof GAME_RELEASES, boolean> = { dress: true, minearena: true, biblerush: false, arenasoccer: false };
+export const GAME_TEASER: Record<keyof typeof GAME_RELEASES, boolean> = { dress: true, minearena: true, biblerush: false, arenasoccer: false, arenacampanha: false };
 
 export type ReleasedGame = keyof typeof GAME_RELEASES;
 

@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { ARENA_CARDS, ARENA_CARD_BY_KEY, shortName } from "@/lib/arena/cards";
-import { ARENAS } from "@/lib/arena/arenas";
+import { ARENAS, type ArenaTheme } from "@/lib/arena/arenas";
+import { CAMPAIGN_CARDS } from "@/lib/arena/campaignCards";
 import { CardArt } from "./CardArt";
 import { TEAM, buildBackground, drawTower, layoutFor, type Layout } from "./arenaRender";
 import { applyEvent, drawFx, newAnim, type Anim, type Fx } from "./arenaFx";
@@ -31,6 +32,8 @@ export type PlayDriver = {
   myPlayer?: number;
   /** índice da arena (cenário) */
   arena: number;
+  /** campanha: cenário próprio (cores, desenho e nome) no lugar das arenas bíblicas */
+  campaign?: { theme: ArenaTheme; scenery: string; name: string };
   /** nome de quem está do outro lado */
   opponentLabel: string;
   /** atraso das jogadas em ticks (1x1); 0 = imediato */
@@ -169,7 +172,7 @@ export function ArenaPlayfield({
   }, []);
 
   useEffect(() => {
-    for (const c of ARENA_CARDS) {
+    for (const c of [...ARENA_CARDS, ...CAMPAIGN_CARDS]) {
       if (!c.art || c.kind !== "unit" || spritesRef.current[c.key]) continue;
       const img = new Image();
       img.src = `/arena/${c.key}.webp`;
@@ -195,7 +198,7 @@ export function ArenaPlayfield({
     canvas.height = Math.round(l.ch * dpr);
     layoutRef.current = l;
     dprRef.current = dpr;
-    bgRef.current = buildBackground(l, dpr, ARENAS[driverRef.current.arena]?.theme, ARENAS[driverRef.current.arena]?.key);
+    bgRef.current = buildBackground(l, dpr, driverRef.current.campaign?.theme ?? ARENAS[driverRef.current.arena]?.theme, driverRef.current.campaign?.scenery ?? ARENAS[driverRef.current.arena]?.key);
   }, []);
 
   // ------------------------------------------------------------ desenho
@@ -570,7 +573,7 @@ export function ArenaPlayfield({
             <div className="flex h-11 w-11 items-center justify-center rounded-lg border-2 border-amber-300 bg-gradient-to-b from-rose-700 to-rose-950 text-2xl shadow-lg">🛡️</div>
             <div className="rounded-lg bg-black/65 px-2.5 py-1 leading-tight ring-1 ring-white/25">
               <p className="max-w-[170px] truncate text-base font-black text-white">{d.opponentLabel}</p>
-              <p className="text-xs font-bold text-amber-200">{ARENAS[d.arena]?.name ?? "Arena dos Heróis"}</p>
+              <p className="text-xs font-bold text-amber-200">{d.campaign?.name ?? ARENAS[d.arena]?.name ?? "Arena dos Heróis"}</p>
             </div>
           </div>
           <div className="pointer-events-none absolute right-2 top-2 rounded-lg border-2 border-white/40 bg-black/75 px-3 py-1 text-right shadow-lg">

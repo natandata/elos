@@ -10,7 +10,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { ArenaDifficulty } from "@/components/games/ArenaDifficulty";
 import { loadArenaDifficulty } from "@/lib/arena/difficultyServer";
 
-const RELEASE_TITLES: Record<ReleasedGame, string> = { dress: "👗 Vista o Herói (inclui a Passarela)", minearena: "⛏️ MineArena", biblerush: "🛶 Bible Rush", arenasoccer: "⚽ ArenaSoccer" };
+const RELEASE_TITLES: Record<ReleasedGame, string> = { dress: "👗 Vista o Herói (inclui a Passarela)", minearena: "⛏️ MineArena", biblerush: "🛶 Bible Rush", arenasoccer: "⚽ ArenaSoccer", arenacampanha: "🛡️ Campanha da Arena" };
 
 type Game = { href: string; emoji: string; title: string; hint: string; release?: keyof typeof GAME_RELEASES; needsElo?: boolean };
 
