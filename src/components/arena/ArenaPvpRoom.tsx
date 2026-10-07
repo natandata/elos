@@ -25,6 +25,8 @@ export type PvpRoomProps = {
   arena: number;
   seed: number;
   decks: [string[], string[] | null];
+  /** nível das cartas de cada lado (torneio); null = nível 1 */
+  levels?: unknown;
   /** convite ainda aberto (aguardando o convidado aceitar) */
   initialStatus: "invited" | "accepted" | "finished" | "declined" | "disputed";
   initialView: PvpView;
@@ -36,7 +38,7 @@ export type PvpRoomProps = {
 
 const PEER_SILENT_MS = 10_000;
 
-export function ArenaPvpRoom({ id, meSide, opponentName, arena, seed, decks, initialStatus, initialView, tournamentId, myId }: PvpRoomProps) {
+export function ArenaPvpRoom({ id, meSide, opponentName, arena, seed, decks, levels, initialStatus, initialView, tournamentId, myId }: PvpRoomProps) {
   const router = useRouter();
   const startedKey = `arena-pvp-started:${id}`;
   const [stage, setStage] = useState<Stage>(() => {
@@ -193,7 +195,7 @@ export function ArenaPvpRoom({ id, meSide, opponentName, arena, seed, decks, ini
     peerSeenRef.current = false;
     reportedRef.current = false;
     lastRecvRef.current = Date.now();
-    const ls = new Lockstep(seed, [decks[0], oppDeck], meSide, arena);
+    const ls = new Lockstep(seed, [decks[0], oppDeck], meSide, arena, levels);
     lsRef.current = ls;
     try {
       sessionStorage.setItem(startedKey, "0");
@@ -362,7 +364,7 @@ export function ArenaPvpRoom({ id, meSide, opponentName, arena, seed, decks, ini
           )}
         </div>
         <h2 className="mt-1 text-xl font-black">⚔️ Você x {opponentName}</h2>
-        <p className="text-sm text-[var(--muted)]">{arenaInfo?.name} · todos com cartas no nível 1</p>
+        <p className="text-sm text-[var(--muted)]">{arenaInfo?.name} · {levels ? "cartas nos níveis reais (vizinhos no ranking)" : "todos com cartas no nível 1"}</p>
 
         {stage === "invite" ? (
           iAmChallenger ? (

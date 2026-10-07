@@ -4,10 +4,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { randomInt, randomUUID } from "node:crypto";
 import { sendPushToUsers } from "@/lib/push-server";
 import { ARENA_CARD_BY_KEY, STARTER_DECK, isValidDeck } from "./cards";
-import { deckAllowed } from "./arenas";
+import { ARENAS, deckAllowed } from "./arenas";
 import { loadOwned } from "./owned";
 import { pickBattleCard, unlockedCards } from "./economy";
-import { advance, buildBracket, isFinished, normalizePrizes, placings, prizeIsEmpty, type TFormat, type TMatch, type TMatchStatus, type TPrize, type TPrizes, type TStatus } from "./tournament";
+import { FINAL_ARENA_KEY, advance, buildBracket, isFinished, normalizePrizes, placings, prizeIsEmpty, realLevelsApply, type TFormat, type TMatch, type TMatchStatus, type TPrize, type TPrizes, type TStatus } from "./tournament";
 
 export type TournamentRow = {
   id: string;
@@ -26,7 +26,16 @@ export type TournamentRow = {
   finished_at: string | null;
 };
 
-export type EntryRow = { id: string; tournament_id: string; user_id: string; partner_id: string | null; confirmed: boolean; created_at: string };
+export type EntryRow = {
+  id: string;
+  tournament_id: string;
+  user_id: string;
+  partner_id: string | null;
+  confirmed: boolean;
+  created_at: string;
+  /** posição no ranking da Arena quando o torneio começou (duplas: média) */
+  seed_pos: number | null;
+};
 
 type MatchRow = {
   id: string;
@@ -192,6 +201,21 @@ export async function onRoomFinished(admin: SupabaseClient, tournamentMatchId: s
   await applyWinner(admin, m.id, winner.id);
 }
 
+const rankOf = (admin: SupabaseClient) => async (userId: string): Promise<number | null> => {
+  const { data } = await admin.rpc("arena_rank_of", { p_user: userId });
+  return typeof data === "number" ? data : null;
+};
+
+/** Nível real das cartas do baralho do jogador (as que ele tem evoluídas). */
+async function deckLevels(admin: SupabaseClient, userId: string, deck: string[]): Promise<Record<string, number>> {
+  const { data } = await admin.from("arena_card_levels").select("card, level").eq("user_id", userId).in("card", deck);
+  const out: Record<string, number> = {};
+  for (const r of (data ?? []) as { card: string; level: number }[]) if (r.level > 1) out[r.card] = r.level;
+  return out;
+}
+
+const FINAL_ARENA = Math.max(0, ARENAS.findIndex((a) => a.key === FINAL_ARENA_KEY));
+
 /** Fecha as inscrições, sorteia o chaveamento e começa o torneio. */
 export async function startTournament(admin: SupabaseClient, tournamentId: string): Promise<{ error?: string }> {
   const { t, entries } = await loadAll(admin, tournamentId);
@@ -202,6 +226,13 @@ export async function startTournament(admin: SupabaseClient, tournamentId: strin
   for (let i = ids.length - 1; i > 0; i--) {
     const j = randomInt(0, i + 1);
     [ids[i], ids[j]] = [ids[j], ids[i]];
+  }
+  // posição de cada inscrito no ranking da Arena neste momento (vale pro torneio todo)
+  for (const e of entries) {
+    const pos = await Promise.all(entryUsers(e).map(rankOf(admin)));
+    const known = pos.filter((p): p is number => p !== null);
+    const seedPos = known.length === pos.length && known.length > 0 ? Math.round(known.reduce((a, b) => a + b, 0) / known.length) : null;
+    await admin.from("arena_tournament_entries").update({ seed_pos: seedPos }).eq("id", e.id);
   }
   const prizes = normalizePrizes(t.prizes);
   const places = (Math.min(prizes.places, ids.length === 2 ? 2 : 3) as 1 | 2 | 3);
@@ -253,13 +284,19 @@ export async function ensureRoom(admin: SupabaseClient, t: TournamentRow, matchI
   const b = list.find((e) => e.id === m.entry_b);
   if (!a || !b) return { error: "Inscrição não encontrada." };
   const seed = randomInt(1, 2 ** 31 - 1);
+  // a final é sempre na Nova Jerusalém; as outras fases, na arena do torneio
+  const { data: all } = await admin.from("arena_tournament_matches").select("round").eq("tournament_id", t.id).eq("bracket", "main");
+  const lastRound = Math.max(0, ...((all ?? []) as { round: number }[]).map((x) => x.round));
+  const arena = m.bracket === "main" && m.round === lastRound ? FINAL_ARENA : t.arena;
+  // vizinhos no ranking jogam com o nível real das cartas; os distantes, tudo no nível 1
+  const real = realLevelsApply(a.seed_pos, b.seed_pos);
 
   let roomId: string | undefined;
   if (t.format === "solo") {
     const [da, db] = await Promise.all([loadout(admin, a.user_id), loadout(admin, b.user_id)]);
     const { data } = await admin
       .from("arena_pvp")
-      .insert({ challenger_id: a.user_id, opponent_id: b.user_id, seed, arena: t.arena, challenger_deck: da, opponent_deck: db, status: "accepted", accepted_at: new Date().toISOString(), tournament_match_id: m.id })
+      .insert({ challenger_id: a.user_id, opponent_id: b.user_id, seed, arena, challenger_deck: da, opponent_deck: db, levels: real ? [await deckLevels(admin, a.user_id, da), await deckLevels(admin, b.user_id, db)] : null, status: "accepted", accepted_at: new Date().toISOString(), tournament_match_id: m.id })
       .select("id")
       .single<{ id: string }>();
     roomId = data?.id;
@@ -269,7 +306,7 @@ export async function ensureRoom(admin: SupabaseClient, t: TournamentRow, matchI
     const decks = await Promise.all(players.map((u) => loadout(admin, u)));
     const { data } = await admin
       .from("arena_duo")
-      .insert({ host_id: a.user_id, players, seed, arena: t.arena, decks, status: "accepted", tournament_match_id: m.id })
+      .insert({ host_id: a.user_id, players, seed, arena, decks, levels: real ? await Promise.all(players.map((u, i) => deckLevels(admin, u, decks[i]))) : null, status: "accepted", tournament_match_id: m.id })
       .select("id")
       .single<{ id: string }>();
     roomId = data?.id;
@@ -297,7 +334,7 @@ export type TournamentData = {
   matches: TMatch[];
   people: Map<string, Person>;
   /** nomes de cada inscrição, pra mostrar no chaveamento */
-  labels: Record<string, { names: string[]; elo: string | null }>;
+  labels: Record<string, { names: string[]; elo: string | null; pos: number | null }>;
 };
 
 export async function loadTournamentData(admin: SupabaseClient, id: string): Promise<TournamentData | null> {
@@ -312,7 +349,7 @@ export async function loadTournamentData(admin: SupabaseClient, id: string): Pro
   const labels: TournamentData["labels"] = {};
   for (const e of entries) {
     const ps = entryUsers(e).map((u) => people.get(u));
-    labels[e.id] = { names: ps.map((p) => p?.name ?? "?"), elo: ps[0]?.elo ?? null };
+    labels[e.id] = { names: ps.map((p) => p?.name ?? "?"), elo: ps[0]?.elo ?? null, pos: e.seed_pos ?? null };
   }
   return { t, entries, matches, people, labels };
 }

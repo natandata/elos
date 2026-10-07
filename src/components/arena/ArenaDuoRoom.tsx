@@ -27,6 +27,8 @@ export type DuoRoomProps = {
   arena: number;
   seed: number;
   decks: (string[] | null)[];
+  /** nível das cartas de cada jogador (torneio); null = nível 1 */
+  levels?: unknown;
   initialStatus: Status;
   initialView: DuoView;
   /** partida de torneio: mostra o caminho de volta e não fala de troféus */
@@ -37,7 +39,7 @@ export type DuoRoomProps = {
 
 const PEER_SILENT_MS = 10_000;
 
-export function ArenaDuoRoom({ id, me, names, arena, seed, decks, initialStatus, initialView, tournamentId, myId }: DuoRoomProps) {
+export function ArenaDuoRoom({ id, me, names, arena, seed, decks, levels, initialStatus, initialView, tournamentId, myId }: DuoRoomProps) {
   const router = useRouter();
   const startedKey = `arena-duo-started:${id}`;
   const mySide = teamOf(4, me) as Side;
@@ -200,7 +202,7 @@ export function ArenaDuoRoom({ id, me, names, arena, seed, decks, initialStatus,
     seenRef.current = new Set();
     reportedRef.current = false;
     lastRecvRef.current = [Date.now(), Date.now(), Date.now(), Date.now()];
-    lsRef.current = new Lockstep(seed, deckList as string[][], me, arena);
+    lsRef.current = new Lockstep(seed, deckList as string[][], me, arena, levels);
     try {
       sessionStorage.setItem(startedKey, "0");
     } catch {}
@@ -396,7 +398,7 @@ export function ArenaDuoRoom({ id, me, names, arena, seed, decks, initialStatus,
           )}
         </div>
         <h2 className="mt-1 text-center text-xl font-black">👥 Duplas</h2>
-        <p className="text-center text-sm text-[var(--muted)]">{arenaInfo?.name} · todos com cartas no nível 1</p>
+        <p className="text-center text-sm text-[var(--muted)]">{arenaInfo?.name} · {levels ? "cartas nos níveis reais (vizinhos no ranking)" : "todos com cartas no nível 1"}</p>
 
         <div className="mt-4 grid gap-3">
           <div>

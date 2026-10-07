@@ -33,6 +33,37 @@ export function normalizePrizes(raw: unknown): TPrizes {
 
 export const prizeIsEmpty = (p: TPrize) => p.xp === 0 && p.trophies === 0 && p.copies === 0;
 
+// ------------------------------------------------------------ regras das partidas
+
+/** Diferença máxima de posição no ranking pra valer o nível real das cartas (1º x 4º ainda vale; 1º x 5º, não). */
+export const NEAR_RANK = 3;
+/** A final de todo torneio é sempre nesta arena (Nova Jerusalém). */
+export const FINAL_ARENA_KEY = "nova";
+
+/**
+ * Posições no ranking (null = fora do ranking) dos dois lados: se estão perto, cada um
+ * joga com o nível real do seu baralho; se não, as cartas ficam no nível 1.
+ */
+export const realLevelsApply = (posA: number | null, posB: number | null): boolean => posA !== null && posB !== null && Math.abs(posA - posB) <= NEAR_RANK;
+
+export type StandingStatus = "champion" | "alive" | "out";
+export type Standing = { entryId: string; status: StandingStatus; round: number };
+
+/** Tabela de classificação: até que fase cada inscrito chegou e se ainda está na disputa. */
+export function standings(matches: TMatch[], entryIds: string[]): Standing[] {
+  const mains = matches.filter((m) => m.bracket === "main");
+  const R = mains.length ? Math.max(...mains.map((m) => m.round)) : 0;
+  const out: Standing[] = entryIds.map((entryId) => {
+    const mine = mains.filter((m) => m.entryA === entryId || m.entryB === entryId);
+    const round = mine.length ? Math.max(...mine.map((m) => m.round)) : 0;
+    const lost = mine.some((m) => m.winner && m.winner !== entryId);
+    const champion = mine.some((m) => m.round === R && m.winner === entryId);
+    return { entryId, round, status: champion ? "champion" : lost ? "out" : "alive" };
+  });
+  const rank = { champion: 0, alive: 1, out: 2 } as const;
+  return out.sort((a, b) => rank[a.status] - rank[b.status] || b.round - a.round);
+}
+
 // ------------------------------------------------------------ chaveamento
 
 export type TMatchStatus = "pending" | "ready" | "playing" | "done";

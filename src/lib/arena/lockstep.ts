@@ -8,7 +8,7 @@
 import { ARENA_CARD_BY_KEY } from "./cards";
 import { HAND_SIZE, inDeployZone, inField, teamOf, type GameEvent, type GameState, type Input, type Side } from "./core";
 import { createGame, createGameDuo, stateHash, step } from "./engine";
-import { DUO_HEARTBEAT, DUO_INPUT_DELAY, PVP_HEARTBEAT, PVP_INPUT_DELAY, PVP_MAX_INPUTS, orderInputs } from "./pvp";
+import { DUO_HEARTBEAT, DUO_INPUT_DELAY, PVP_HEARTBEAT, PVP_INPUT_DELAY, PVP_MAX_INPUTS, cleanLevels, orderInputs, pvpLevelsOf, type Levels } from "./pvp";
 
 /** Mensagem trocada entre os aparelhos. */
 export type Frame = {
@@ -52,12 +52,12 @@ export class Lockstep {
   desynced = false;
 
   /** `decks`: 2 (1x1) ou 4 (duplas); `me`: meu número de jogador. */
-  constructor(seed: number, decks: string[][], me: number, arena = 0) {
+  constructor(seed: number, decks: string[][], me: number, arena = 0, levels?: Levels) {
     this.n = decks.length;
     this.delay = this.n > 2 ? DUO_INPUT_DELAY : PVP_INPUT_DELAY;
     this.heartbeat = this.n > 2 ? DUO_HEARTBEAT : PVP_HEARTBEAT;
     this.lastSentTick = -this.heartbeat;
-    this.game = this.n === 2 ? createGame(seed, decks[0], decks[1], { arena, pvp: true }) : createGameDuo(seed, decks);
+    this.game = this.n === 2 ? createGame(seed, decks[0], decks[1], { arena, pvp: true, pvpLevels: pvpLevelsOf(levels) }) : createGameDuo(seed, decks, cleanLevels(levels, 4));
     this.me = me;
     this.mySide = teamOf(this.n, me);
     this.theirs = decks.map(() => []);

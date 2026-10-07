@@ -31,6 +31,8 @@ export type PvpRow = {
   why: string | null;
   rewarded: boolean;
   tournament_match_id: string | null;
+  /** nível das cartas [desafiante, convidado] (torneio entre vizinhos do ranking); null = todos no nível 1 */
+  levels: unknown;
   /** duelo de posição do Top 3 e a troca que ele fez (posições antes da troca) */
   rank_duel: boolean;
   rank_swap: { up: string; down: string; upPos: number; downPos: number } | null;
@@ -135,7 +137,7 @@ export async function settleArenaPvp(admin: SupabaseClient, id: string): Promise
   const [ownC, ownO] = await Promise.all([loadOwned(admin, row.challenger_id), loadOwned(admin, row.opponent_id)]);
   const decks: [string[], string[]] = [row.challenger_deck, row.opponent_deck];
   const deckOk = isValidDeck(decks[0]) && isValidDeck(decks[1]) && deckAllowed(decks[0], bestC, ownC) && deckAllowed(decks[1], bestO, ownO);
-  const outcome = deckOk ? resolvePvp(row.seed, decks, row.reports, row.arena, stale) : ({ kind: "disputed" } as const);
+  const outcome = deckOk ? resolvePvp(row.seed, decks, row.reports, row.arena, stale, row.levels) : ({ kind: "disputed" } as const);
   if (outcome.kind === "waiting") return row;
 
   const now = new Date().toISOString();

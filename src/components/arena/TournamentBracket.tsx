@@ -3,9 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { openTournamentMatch, setMatchWinner } from "@/lib/actions/tournaments";
-import { roundLabel, type TMatch } from "@/lib/arena/tournament";
+import { realLevelsApply, roundLabel, type TMatch } from "@/lib/arena/tournament";
 
-export type EntryLabel = { names: string[]; elo: string | null };
+export type EntryLabel = { names: string[]; elo: string | null; /** posição no ranking da Arena quando o torneio começou */ pos?: number | null };
 
 /** Chaveamento: rodadas lado a lado; o jogador abre a própria sala e o admin pode decidir uma partida. */
 export function TournamentBracket({
@@ -30,7 +30,7 @@ export function TournamentBracket({
   const R = Math.max(...mains.map((m) => m.round));
   const columns: { key: string; label: string; list: TMatch[] }[] = [];
   for (let r = 1; r <= R; r++) {
-    columns.push({ key: `m${r}`, label: roundLabel("main", r, R), list: mains.filter((m) => m.round === r).sort((a, b) => a.slot - b.slot) });
+    columns.push({ key: `m${r}`, label: r === R ? `${roundLabel("main", r, R)} · ✨ Nova Jerusalém` : roundLabel("main", r, R), list: mains.filter((m) => m.round === r).sort((a, b) => a.slot - b.slot) });
   }
   const bronze = matches.filter((m) => m.bracket === "bronze");
   if (bronze.length > 0) columns.push({ key: "b", label: roundLabel("bronze", R, R), list: bronze });
@@ -82,7 +82,10 @@ export function TournamentBracket({
                     const lost = m.winner && id && m.winner !== id;
                     return (
                       <div className={`flex items-center justify-between gap-1 rounded-lg px-2 py-1.5 text-sm font-bold ${won ? "bg-emerald-500/15 text-emerald-600" : lost ? "opacity-45 line-through" : "bg-[var(--bg)]"}`}>
-                        <span className="min-w-0 truncate">{name(id) ?? <span className="font-semibold text-[var(--muted)]">{m.status === "pending" ? "A definir" : "Folga"}</span>}</span>
+                        <span className="min-w-0 truncate">
+                          {id && labels[id]?.pos ? <span className="mr-1 text-[10px] font-black text-[var(--muted)]">#{labels[id].pos}</span> : null}
+                          {name(id) ?? <span className="font-semibold text-[var(--muted)]">{m.status === "pending" ? "A definir" : "Folga"}</span>}
+                        </span>
                         {won ? <span aria-hidden>✔</span> : null}
                       </div>
                     );
@@ -91,6 +94,9 @@ export function TournamentBracket({
                     <li key={m.id} className={`card space-y-1 p-2 ${mine ? "!border-amber-400" : ""}`}>
                       {side(m.entryA)}
                       {side(m.entryB)}
+                      {m.entryA && m.entryB && m.status !== "done" ? (
+                        <p className="text-[10px] font-bold text-[var(--muted)]">{realLevelsApply(labels[m.entryA]?.pos ?? null, labels[m.entryB]?.pos ?? null) ? "⬆️ Níveis reais das cartas" : "Cartas no nível 1"}</p>
+                      ) : null}
                       {running && ready && mine && !admin ? (
                         <button type="button" disabled={busy !== null} onClick={() => play(m.id)} className="btn btn-primary mt-1 w-full !py-2 !text-sm disabled:opacity-60">
                           {busy === m.id ? "Abrindo…" : m.status === "playing" ? "▶ Entrar na sala" : "⚔️ Jogar"}

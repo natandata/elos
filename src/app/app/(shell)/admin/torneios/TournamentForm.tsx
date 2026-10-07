@@ -104,7 +104,7 @@ export function TournamentForm({ item }: { item?: TournamentFormValue }) {
           <input name="starts_at" type="datetime-local" defaultValue={item?.startsLocal ?? ""} className={`${field} mt-1`} />
         </label>
       </div>
-      <p className="text-xs text-[var(--muted)]">A arena vale só pro torneio e pode ser qualquer uma, mesmo que os jogadores ainda não a tenham liberado. Nas duplas, cada dupla é de um mesmo Elo e enfrenta duplas de outros Elos.</p>
+      <p className="text-xs text-[var(--muted)]">A arena vale para todas as fases, menos a Final, que é sempre na Nova Jerusalém. Pode ser qualquer uma, mesmo que os jogadores ainda não a tenham liberado. Nas duplas, cada dupla é de um mesmo Elo e enfrenta duplas de outros Elos.</p>
 
       <div>
         <p className="mb-1 text-sm font-black">Quem ganha prêmio</p>

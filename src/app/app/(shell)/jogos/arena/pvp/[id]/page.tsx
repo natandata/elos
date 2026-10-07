@@ -54,6 +54,7 @@ export default async function ArenaPvpRoomPage({ params }: { params: Promise<{ i
         arena={row.arena}
         seed={row.seed}
         decks={[row.challenger_deck, row.opponent_deck]}
+        levels={row.levels}
         initialStatus={status}
         initialView={initial}
         tournamentId={tournamentId}

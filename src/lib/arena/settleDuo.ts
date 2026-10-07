@@ -29,6 +29,8 @@ export type DuoRow = {
   ticks: number | null;
   rewarded: boolean;
   tournament_match_id: string | null;
+  /** nível das cartas de cada jogador (torneio entre vizinhos do ranking); null = todos no nível 1 */
+  levels: unknown;
   winners: string[];
   outcome: Record<string, PlayerOutcome>;
   created_at: string;
@@ -88,7 +90,7 @@ export async function settleArenaDuo(admin: SupabaseClient, id: string): Promise
   const bests = await Promise.all(row.players.map((u) => bestOf(admin, u)));
   const owns = await Promise.all(row.players.map((u) => loadOwned(admin, u)));
   const decksOk = decks.every((d, i) => isValidDeck(d) && deckAllowed(d, bests[i], owns[i]));
-  const outcome = decksOk ? resolveDuo(row.seed, decks, row.reports, stale) : ({ kind: "disputed" } as const);
+  const outcome = decksOk ? resolveDuo(row.seed, decks, row.reports, stale, row.levels) : ({ kind: "disputed" } as const);
   if (outcome.kind === "waiting") return row;
 
   const now = new Date().toISOString();

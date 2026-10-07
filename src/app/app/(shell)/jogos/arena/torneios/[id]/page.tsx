@@ -5,7 +5,7 @@ import { TournamentPanel } from "@/components/arena/TournamentPanel";
 import { PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import { ARENAS } from "@/lib/arena/arenas";
-import { normalizePrizes, prizeText } from "@/lib/arena/tournament";
+import { NEAR_RANK, normalizePrizes, prizeText, roundLabel, standings } from "@/lib/arena/tournament";
 import { entryUsers, loadTournamentData } from "@/lib/arena/tournamentServer";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -43,6 +43,7 @@ export default async function TorneioPage({ params }: { params: Promise<{ id: st
   const places = [prizes.p1, prizes.p2, prizes.p3].slice(0, prizes.places);
   const full = !!t.max_entries && entries.length >= t.max_entries;
   const results = Array.isArray(t.results) ? t.results : [];
+  const finalRound = Math.max(1, ...matches.filter((m) => m.bracket === "main").map((m) => m.round));
 
   return (
     <>
@@ -53,7 +54,7 @@ export default async function TorneioPage({ params }: { params: Promise<{ id: st
         <img src={arena.art} alt="" className="h-20 w-auto shrink-0" draggable={false} />
         <div className="min-w-0 text-sm font-semibold">
           <p className="font-black">{arena.name}</p>
-          <p className="text-[var(--muted)]">Arena do torneio: todo mundo joga nela, mesmo quem ainda não a liberou.</p>
+          <p className="text-[var(--muted)]">Arena das fases até a semifinal: todo mundo joga nela, mesmo quem ainda não a liberou. A Final é sempre na ✨ Nova Jerusalém.</p>
           {t.starts_at ? <p className="text-xs text-[var(--muted)]">Início: {formatDateTime(t.starts_at)}</p> : null}
           {t.max_entries ? <p className="text-xs text-[var(--muted)]">Vagas: {confirmed.length}/{t.max_entries}</p> : null}
         </div>
@@ -75,6 +76,18 @@ export default async function TorneioPage({ params }: { params: Promise<{ id: st
           ))}
         </ul>
         {t.format === "duo" ? <p className="mt-1 text-xs text-[var(--muted)]">Nas duplas, cada jogador da dupla recebe o prêmio.</p> : null}
+      </section>
+
+      <section className="mb-4">
+        <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">Como funciona</h2>
+        <ul className="card space-y-1 p-3 text-sm font-semibold">
+          <li>⚔️ Mata-mata: quem perde está fora; os vencedores avançam de fase até a Final.</li>
+          <li>
+            🃏 Duelo entre vizinhos do ranking da Arena (até {NEAR_RANK} posições de diferença, ex.: 1º x 2º): cada um joga com o nível real do seu baralho.
+          </li>
+          <li>🃏 Duelo entre posições mais distantes (ou quem está fora do ranking): cartas no nível 1 para os dois.</li>
+          <li>✨ A Final é sempre na Arena Nova Jerusalém.</li>
+        </ul>
       </section>
 
       {t.rules ? (
@@ -118,6 +131,37 @@ export default async function TorneioPage({ params }: { params: Promise<{ id: st
         <section className="mb-4">
           <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">Chaveamento</h2>
           <TournamentBracket matches={matches} labels={labels} myEntryId={myConfirmed?.id ?? null} running={t.status === "running"} />
+        </section>
+      ) : null}
+
+      {matches.length > 0 ? (
+        <section className="mb-4">
+          <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">Classificação</h2>
+          <div className="card overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="text-left text-[11px] uppercase text-[var(--muted)]">
+                <tr>
+                  <th className="px-2.5 py-1.5">#</th>
+                  <th className="py-1.5">{t.format === "duo" ? "Dupla" : "Jogador"}</th>
+                  <th className="px-2.5 py-1.5 text-right">Fase</th>
+                </tr>
+              </thead>
+              <tbody>
+                {standings(matches, confirmed.map((e) => e.id)).map((s, i) => (
+                  <tr key={s.entryId} className={`border-t border-[var(--border,rgba(128,128,128,0.2))] ${s.status === "out" ? "opacity-55" : ""} ${s.entryId === myConfirmed?.id ? "bg-amber-400/10" : ""}`}>
+                    <td className="px-2.5 py-1.5 font-black">{i + 1}</td>
+                    <td className="min-w-0 py-1.5 font-bold">
+                      {labels[s.entryId]?.names.join(" + ")}
+                      {labels[s.entryId]?.pos ? <span className="ml-1 text-[10px] font-semibold text-[var(--muted)]">ranking #{labels[s.entryId].pos}</span> : null}
+                    </td>
+                    <td className="px-2.5 py-1.5 text-right text-xs font-bold">
+                      {s.status === "champion" ? "🏆 Campeão" : s.status === "out" ? `Eliminado · ${roundLabel("main", s.round, finalRound)}` : `Na disputa · ${roundLabel("main", s.round, finalRound)}`}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
       ) : null}
 

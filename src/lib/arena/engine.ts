@@ -45,6 +45,8 @@ export type GameOpts = {
   botBoost?: number;
   /** partida 1x1 entre jogadores: ninguém tem nível extra */
   pvp?: boolean;
+  /** 1x1: nível das cartas de cada lado (partida de torneio entre vizinhos do ranking); sem isso, todos no nível 1 */
+  pvpLevels?: [Record<string, number>, Record<string, number>];
 };
 
 function makeTower(id: number, side: Side, kind: "atalaia" | "santuario", lane: number, x: number, y: number): Entity {
@@ -100,12 +102,13 @@ export function createGame(seed: number, playerDeck: string[], botDeck?: string[
   const botLevel = opts.pvp ? 1 : 1 + (levelMult(botLevelForArena(opts.arena ?? 0)) * (1 + boost) - 1) / 0.05;
   const botLevels: Record<string, number> = {};
   for (const c of ARENA_CARDS) botLevels[c.key] = botLevel;
+  if (opts.pvp) return buildState(seed, [playerDeck, botDeck], [opts.pvpLevels?.[0] ?? {}, opts.pvpLevels?.[1] ?? {}]);
   return buildState(seed, [playerDeck, botDeck], [opts.levels ?? {}, botLevels]);
 }
 
 /** Partida em duplas: 4 baralhos (jogadores 0–1 = lado 0, 2–3 = lado 1), todos no nível 1. */
-export function createGameDuo(seed: number, decks: string[][]): GameState {
-  return buildState(seed, decks, decks.map(() => ({})));
+export function createGameDuo(seed: number, decks: string[][], levels?: Record<string, number>[]): GameState {
+  return buildState(seed, decks, decks.map((_, i) => levels?.[i] ?? {}));
 }
 
 function makeUnit(state: GameState, card: ArenaCard, side: Side, player: number, x: number, y: number): Entity {

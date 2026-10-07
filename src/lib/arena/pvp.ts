@@ -3,12 +3,36 @@
 // servidor pra confirmar o resultado) e a conferência dos relatórios dos dois.
 
 import { createGame, createGameDuo, step } from "./engine";
-import { isValidDeck } from "./cards";
+import { ARENA_CARD_BY_KEY, MAX_CARD_LEVEL, isValidDeck } from "./cards";
 import { MATCH_TICKS, teamOf, type Input, type Side } from "./core";
 import type { ArenaResult } from "./sim";
 import { stateHash } from "./engine";
 
 export const PVP_MAX_INPUTS = 600;
+
+/** Nível das cartas de cada jogador da sala (índice = jogador). Vem do banco, então é limpo antes de usar. */
+export type Levels = unknown;
+
+/** Só cartas que existem, com nível inteiro de 1 até o máximo. */
+export function cleanLevels(raw: Levels, n: number): Record<string, number>[] {
+  const list = Array.isArray(raw) ? raw : [];
+  return Array.from({ length: n }, (_, i) => {
+    const out: Record<string, number> = {};
+    const r = list[i];
+    if (r && typeof r === "object") {
+      for (const [k, v] of Object.entries(r as Record<string, unknown>)) {
+        const lv = Math.floor(Number(v));
+        if (ARENA_CARD_BY_KEY.has(k) && Number.isFinite(lv) && lv > 1) out[k] = Math.min(MAX_CARD_LEVEL, lv);
+      }
+    }
+    return out;
+  });
+}
+
+export function pvpLevelsOf(raw: Levels): [Record<string, number>, Record<string, number>] {
+  const [a, b] = cleanLevels(raw, 2);
+  return [a, b];
+}
 /** Atraso fixo das jogadas (ticks): dá tempo da jogada chegar no outro aparelho. */
 export const PVP_INPUT_DELAY = 8;
 /** De quantos em quantos ticks cada lado avisa até onde já mandou tudo. */
@@ -41,8 +65,8 @@ export function cleanSideInputs(raw: unknown, side: Side): Input[] {
   return orderInputs(out);
 }
 
-export function simulatePvp(seed: number, decks: [string[], string[]], inputs: Input[], arena = 0): ArenaResult {
-  const state = createGame(seed, decks[0], decks[1], { arena, pvp: true });
+export function simulatePvp(seed: number, decks: [string[], string[]], inputs: Input[], arena = 0, levels?: Levels): ArenaResult {
+  const state = createGame(seed, decks[0], decks[1], { arena, pvp: true, pvpLevels: pvpLevelsOf(levels) });
   const all = orderInputs(inputs);
   let cursor = 0;
   while (!state.over && state.tick < MATCH_TICKS + 1) {
@@ -63,8 +87,8 @@ export function cleanPlayerInputs(raw: unknown, player: number, players: number)
 }
 
 /** Refaz uma partida em duplas inteira (4 jogadores). */
-export function simulateDuo(seed: number, decks: string[][], inputs: Input[]): ArenaResult {
-  const state = createGameDuo(seed, decks);
+export function simulateDuo(seed: number, decks: string[][], inputs: Input[], levels?: Levels): ArenaResult {
+  const state = createGameDuo(seed, decks, cleanLevels(levels, 4));
   const all = orderInputs(inputs);
   let cursor = 0;
   while (!state.over && state.tick < MATCH_TICKS + 1) {
@@ -110,6 +134,7 @@ export function resolvePvp(
   arena = 0,
   /** o colega não mandou relatório e já passou do prazo */
   stale = false,
+  levels?: Levels,
 ): PvpOutcome {
   if (!isValidDeck(decks[0]) || !isValidDeck(decks[1])) return { kind: "disputed" };
   const c = reports.challenger;
@@ -129,7 +154,7 @@ export function resolvePvp(
     if (canon(cMine) !== canon(cleanSideInputs(o.theirs, 0)) || canon(oMine) !== canon(cleanSideInputs(c.theirs, 1))) {
       return { kind: "disputed" };
     }
-    const r = simulatePvp(seed, decks, [...cMine, ...oMine], arena);
+    const r = simulatePvp(seed, decks, [...cMine, ...oMine], arena, levels);
     return { kind: "finished", winner: r.winner, crowns: r.crowns, ticks: r.ticks, why: "played" };
   }
 
@@ -139,7 +164,7 @@ export function resolvePvp(
   const mySide: Side = c ? 0 : 1;
   const mine = cleanSideInputs(only.mine, mySide);
   const theirs = cleanSideInputs(only.theirs, (1 - mySide) as Side);
-  const r = simulatePvp(seed, decks, [...mine, ...theirs], arena);
+  const r = simulatePvp(seed, decks, [...mine, ...theirs], arena, levels);
   if (typeof only.left === "number") {
     // o colega sumiu no meio: quem ficou vence
     return { kind: "finished", winner: mySide, crowns: r.crowns, ticks: only.left, why: "left" };
@@ -176,6 +201,7 @@ export function resolveDuo(
   reports: Record<string, DuoReport | undefined>,
   /** passou o prazo de espera pelos relatórios que faltam */
   stale = false,
+  levels?: Levels,
 ): DuoOutcome {
   if (decks.length !== 4 || !decks.every((d) => isValidDeck(d))) return { kind: "disputed" };
   const present = [0, 1, 2, 3].filter((i) => reports[String(i)]);
@@ -197,7 +223,7 @@ export function resolveDuo(
     if (!candidates.every((c) => canon(c) === first)) return { kind: "disputed" };
     final[p] = candidates[0];
   }
-  const r = simulateDuo(seed, decks, final.flat());
+  const r = simulateDuo(seed, decks, final.flat(), levels);
   const resigned = [0, 1, 2, 3].map((i) => !!reports[String(i)]?.resigned);
   return { kind: "finished", winner: r.winner, crowns: r.crowns, ticks: r.ticks, resigned };
 }
