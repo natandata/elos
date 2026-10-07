@@ -3,6 +3,7 @@ import { Bar, Card, PageHeader, StatCard } from "@/components/ui";
 import { needsWeeklyPushNudge, requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { WeeklyPushNudge } from "@/components/push/WeeklyPushNudge";
+import { DailyPraiseSection } from "@/components/praise/DailyPraiseSection";
 import { formatDateTime, STATUS_LABEL, type StatusLevel } from "@/lib/types";
 
 const ACTIVITY_LABEL: Record<string, { icon: string; verb: string }> = {
@@ -122,6 +123,8 @@ export default async function AdminDashboard() {
       <PageHeader title="Dashboard" subtitle="Visão geral dos ELOS." />
 
       <WeeklyPushNudge eligible={showPushNudge} />
+
+      <DailyPraiseSection meId={profile.id} isAdmin />
 
       <section className="mb-6">
         <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">

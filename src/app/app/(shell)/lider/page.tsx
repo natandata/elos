@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArenaLaunchCard } from "@/components/games/ArenaLaunchCard";
 import { EbdAnnouncement } from "@/components/games/EbdAnnouncement";
+import { DailyPraiseSection } from "@/components/praise/DailyPraiseSection";
 import { Card, EmptyState, PageHeader, StatCard } from "@/components/ui";
 import { Avatar } from "@/components/Avatar";
 import { needsWeeklyPushNudge, requireRole } from "@/lib/auth";
@@ -225,6 +226,8 @@ export default async function LiderDashboard() {
       />
 
       <WeeklyPushNudge eligible={showPushNudge} />
+
+      <DailyPraiseSection meId={profile.id} />
 
       <EbdAnnouncement />
 
