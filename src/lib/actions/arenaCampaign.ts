@@ -16,12 +16,12 @@ export async function getCampaign(): Promise<CampaignState | { error: string }> 
   return campaignState(admin, profile.id);
 }
 
-export async function startCampaign(stage: number): Promise<{ error?: string; matchId?: string; seed?: number }> {
+export async function startCampaign(stage: number): Promise<{ error?: string; matchId?: string; seed?: number; tier?: number }> {
   const { profile, admin } = await ctx();
   if (!admin) return { error: "A campanha está indisponível agora." };
   const seed = randomInt(1, 2 ** 31 - 1);
   const r = await startCampaignMatch(admin, profile.id, stage, seed);
-  return r.error ? { error: r.error } : { matchId: r.matchId, seed };
+  return r.error ? { error: r.error } : { matchId: r.matchId, seed, tier: r.tier };
 }
 
 export async function finishCampaign(input: { matchId: string; inputs: unknown; surrender?: boolean }): Promise<CampaignFinish> {

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { finishCampaign, startCampaign } from "@/lib/actions/arenaCampaign";
-import { CAMPAIGN_DECK, CAMPAIGN_STAGES, CAMPAIGN_XP, stageUnlocked } from "@/lib/arena/campaign";
+import { CAMPAIGN_DECK, CAMPAIGN_STAGES, CAMPAIGN_TIERS, CAMPAIGN_XP, TIER_LABEL, stageBoost, stageUnlocked } from "@/lib/arena/campaign";
 import { CAMPAIGN_CARDS } from "@/lib/arena/campaignCards";
 import { ARENA_CARD_BY_KEY } from "@/lib/arena/cards";
 import { inDeployZone, inField, type Input } from "@/lib/arena/core";
@@ -18,11 +18,12 @@ type Tab = "arenas" | "cartas";
 type Phase = "menu" | "playing" | "finishing" | "result";
 
 /** Modo Campanha: 8 arenas em ordem, cada uma contra um personagem do ELOS. Todos veem; só quem tem acesso batalha. */
-export function ArenaCampaign({ open, admin, cleared: initialCleared }: { open: boolean; admin: boolean; cleared: number[] }) {
+export function ArenaCampaign({ open, admin, cleared: initialCleared, tiers: initialTiers }: { open: boolean; admin: boolean; cleared: number[]; tiers: number[] }) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("arenas");
   const [phase, setPhase] = useState<Phase>("menu");
   const [cleared, setCleared] = useState<number[]>(initialCleared);
+  const [tiers, setTiers] = useState<number[]>(initialTiers);
   const [sel, setSel] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [verdict, setVerdict] = useState<CampaignFinish | null>(null);
@@ -47,6 +48,7 @@ export function ArenaCampaign({ open, admin, cleared: initialCleared }: { open: 
     });
     setVerdict(res);
     if (res.cleared) setCleared(res.cleared);
+    if (res.tiers) setTiers(res.tiers);
     setPhase("result");
     router.refresh();
   }
@@ -58,7 +60,7 @@ export function ArenaCampaign({ open, admin, cleared: initialCleared }: { open: 
     setVerdict(null);
     setLaunching(true);
     const wait = new Promise<void>((r) => setTimeout(r, ARENA_LOAD_MS));
-    const res = await startCampaign(stage).catch(() => ({ error: "Sem conexão. Tente de novo." }) as { error?: string; matchId?: string; seed?: number });
+    const res = await startCampaign(stage).catch(() => ({ error: "Sem conexão. Tente de novo." }) as { error?: string; matchId?: string; seed?: number; tier?: number });
     if (res.error || !res.matchId || res.seed === undefined) {
       setLaunching(false);
       setError(res.error ?? "Não foi possível começar.");
@@ -70,7 +72,7 @@ export function ArenaCampaign({ open, admin, cleared: initialCleared }: { open: 
     matchRef.current = res.matchId;
     setLastStage(stage);
     logRef.current = [];
-    const game = createGame(res.seed, CAMPAIGN_DECK, CAMPAIGN_DECK, { botBoost: st.botBoost });
+    const game = createGame(res.seed, CAMPAIGN_DECK, CAMPAIGN_DECK, { botBoost: stageBoost(stage, res.tier ?? 0) });
     let pending: Input[] = [];
     setDriver({
       game,
@@ -133,8 +135,11 @@ export function ArenaCampaign({ open, admin, cleared: initialCleared }: { open: 
             <p className="mt-1 text-lg font-bold tabular-nums">👑 {r.crownsMe ?? 0} x {r.crownsBot ?? 0} 👑</p>
             {r.result === "win" ? (
               <>
-                <p className="mt-2 text-sm font-bold">{r.firstClear ? `Você venceu a ${st.name}!` : `Mais uma vitória na ${st.name}.`}</p>
-                {(r.xp ?? 0) > 0 ? <p className="mt-3 inline-block rounded-full bg-[var(--accent-soft)] px-4 py-1.5 text-lg font-black text-[var(--accent-strong)]">+{r.xp} XP</p> : <p className="mt-2 text-xs text-[var(--muted)]">O XP desta arena você já ganhou.</p>}
+                <p className="mt-2 text-sm font-bold">
+                  {r.advanced ? (r.firstClear ? `Você venceu a ${st.name}!` : `Batalha ${(r.tier ?? 0) + 1} de ${CAMPAIGN_TIERS} vencida na ${st.name}.`) : `Mais uma vitória na ${st.name}.`}
+                </p>
+                {r.advanced && !r.firstClear ? <p className="mt-2 rounded-2xl bg-sky-100 px-4 py-2 text-sm font-black text-sky-900">Próxima batalha: {TIER_LABEL[Math.min(CAMPAIGN_TIERS - 1, (r.tier ?? 0) + 1)]}</p> : null}
+                {(r.xp ?? 0) > 0 ? <p className="mt-3 inline-block rounded-full bg-[var(--accent-soft)] px-4 py-1.5 text-lg font-black text-[var(--accent-strong)]">+{r.xp} XP</p> : null}
                 {r.firstClear && next !== null ? <p className="mt-3 rounded-2xl bg-amber-100 px-4 py-2 text-sm font-black text-amber-900">🔓 Nova arena liberada: {CAMPAIGN_STAGES[next].name}</p> : null}
                 {r.firstClear && next === null ? <p className="mt-3 rounded-2xl bg-amber-100 px-4 py-2 text-sm font-black text-amber-900">🎉 Você zerou a campanha!</p> : null}
               </>
@@ -143,8 +148,9 @@ export function ArenaCampaign({ open, admin, cleared: initialCleared }: { open: 
         )}
         {phase === "result" ? (
           <div className="mt-6 grid gap-3">
-            <button type="button" onClick={() => void begin(lastStage)} className="btn btn-primary !py-3 !text-base">Jogar de novo</button>
-            {r?.result === "win" && next !== null && (admin || stageUnlocked(next, r.cleared ?? cleared)) ? <button type="button" onClick={() => void begin(next)} className="btn btn-primary !py-3 !text-base">Próxima arena ▶</button> : null}
+            {r?.result === "win" && r.advanced && !r.firstClear ? null : <button type="button" onClick={() => void begin(lastStage)} className="btn btn-primary !py-3 !text-base">Jogar de novo</button>}
+            {r?.result === "win" && r.advanced && !r.firstClear ? <button type="button" onClick={() => void begin(lastStage)} className="btn btn-primary !py-3 !text-base">Próxima batalha ▶</button> : null}
+            {r?.result === "win" && r.firstClear && next !== null ? <button type="button" onClick={() => void begin(next)} className="btn btn-primary !py-3 !text-base">Próxima arena ▶</button> : null}
             <button type="button" onClick={() => setPhase("menu")} className="btn btn-ghost">Voltar à Campanha</button>
           </div>
         ) : null}
@@ -161,9 +167,9 @@ export function ArenaCampaign({ open, admin, cleared: initialCleared }: { open: 
       <section className="card p-3">
         <p className="text-lg font-black">🛡️ Campanha</p>
         <p className="mt-1 text-xs text-[var(--muted)]">
-          Enfrente os 8 personagens do ELOS, um por arena, do mais fraco ao mais forte. Você e o computador jogam com o mesmo baralho dos 8. Vença uma arena para liberar a próxima e ganhe +{CAMPAIGN_XP} XP na primeira vitória em cada uma.
+          Enfrente os 8 personagens do ELOS, um por arena, do mais fraco ao mais forte. Você e o computador jogam com o mesmo baralho dos 8. Cada arena precisa ser vencida 3 vezes: a 1ª batalha no nível normal, a 2ª 15% mais difícil e a 3ª 25% mais difícil. Vencendo as 3, a próxima arena é liberada e você ganha +{CAMPAIGN_XP} XP.
         </p>
-        <p className="mt-2 text-xs font-bold">{cleared.length}/{CAMPAIGN_STAGES.length} arenas vencidas{allDone ? " 🎉" : ""}</p>
+        <p className="mt-2 text-xs font-bold">{cleared.length}/{CAMPAIGN_STAGES.length} arenas vencidas ({tiers.reduce((a, b) => a + b, 0)}/{CAMPAIGN_STAGES.length * CAMPAIGN_TIERS} batalhas){allDone ? " 🎉" : ""}</p>
         {!open ? <p className="mt-2 rounded-xl bg-amber-100 px-3 py-2 text-xs font-black text-amber-900">🔒 A campanha ainda não foi liberada. Você pode ver as cartas e as arenas, mas só consegue batalhar quando ela abrir.</p> : null}
         {admin ? <p className="mt-2 text-[11px] font-bold text-sky-600">Admin: você pode jogar qualquer arena para testar.</p> : null}
       </section>
@@ -191,6 +197,7 @@ export function ArenaCampaign({ open, admin, cleared: initialCleared }: { open: 
                     <span className="min-w-0 text-white">
                       <span className="block text-[11px] font-black uppercase tracking-wide text-amber-200">Arena {s.n} · {s.setting}</span>
                       <span className="block truncate text-lg font-black [text-shadow:0_2px_6px_#000]">{s.emoji} {boss.name}</span>
+                      <span className="block text-[11px] font-black text-white/90">{"●".repeat(tiers[i] ?? 0)}{"○".repeat(CAMPAIGN_TIERS - (tiers[i] ?? 0))} {tiers[i] >= CAMPAIGN_TIERS ? "vencida" : `batalha ${(tiers[i] ?? 0) + 1}/${CAMPAIGN_TIERS}`}</span>
                     </span>
                     <span className="shrink-0 text-2xl" aria-hidden>{done ? "✅" : locked ? "🔒" : "⚔️"}</span>
                   </span>
@@ -224,7 +231,8 @@ export function ArenaCampaign({ open, admin, cleared: initialCleared }: { open: 
               <p className="text-[11px] font-black uppercase tracking-wide text-amber-600">Arena {stage.n} · {stage.setting}</p>
               <p className="text-xl font-black">{stage.name}</p>
               <p className="mt-1 text-sm text-[var(--muted)]">{stage.blurb}</p>
-              <p className="mt-2 text-xs"><b>Chefe:</b> {ARENA_CARD_BY_KEY.get(stage.boss)?.name} · <b>Dificuldade:</b> {"★".repeat(Math.min(5, Math.ceil((sel! + 1) * 5 / 8)))}</p>
+              <p className="mt-2 text-xs font-bold">{(tiers[sel!] ?? 0) >= CAMPAIGN_TIERS ? `Arena vencida · rejogar no nível: ${TIER_LABEL[CAMPAIGN_TIERS - 1]}` : `Batalha ${(tiers[sel!] ?? 0) + 1} de ${CAMPAIGN_TIERS} · ${TIER_LABEL[tiers[sel!] ?? 0]}`}</p>
+              <p className="mt-1 text-xs"><b>Chefe:</b> {ARENA_CARD_BY_KEY.get(stage.boss)?.name} · <b>Dificuldade:</b> {"★".repeat(Math.min(5, Math.ceil((sel! + 1) * 5 / 8)))}</p>
               {error ? <p className="mt-2 text-xs font-bold text-rose-600">{error}</p> : null}
               <div className="mt-3 grid gap-2">
                 {canPlay(sel!) ? (

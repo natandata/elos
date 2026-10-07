@@ -81,6 +81,13 @@ export const CAMPAIGN_STAGES: CampaignStage[] = [
   },
 ];
 
+/** Cada arena é vencida 3 vezes: normal, 15% mais difícil e 25% mais difícil. */
+export const CAMPAIGN_TIERS = 3;
+export const TIER_LABEL = ["Normal", "15% mais difícil", "25% mais difícil"];
+const TIER_MULT = [1, 1.15, 1.25];
+/** Bônus de vida e dano do computador na batalha `tier` (0–2) da arena `stage`. */
+export const stageBoost = (stage: number, tier: number): number => (1 + CAMPAIGN_STAGES[stage].botBoost) * TIER_MULT[Math.max(0, Math.min(2, tier))] - 1;
+
 export const CAMPAIGN_STAGE_COUNT = CAMPAIGN_STAGES.length;
 
 /** A etapa `n` (0–7) está liberada, dado quais etapas já foram vencidas? */
