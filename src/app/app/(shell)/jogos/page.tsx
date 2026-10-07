@@ -58,6 +58,8 @@ export default async function JogosPage() {
   const [dressOpen, mineOpen, rushOpen, soccerOpen, vis] = await Promise.all([gameOpenFor("dress", profile.id), gameOpenFor("minearena", profile.id), gameOpenFor("biblerush", profile.id), gameOpenFor("arenasoccer", profile.id), getVisibilities()]);
   const locked = await lockedGames(supabase, profile.id, profile.role);
   const early = await getEarlyAccess(profile.id);
+  // quem tem acesso antecipado recebe o jogo da Loja de graça: aparece como já adquirido
+  const ownedAll = [...ownedIds, ...storeItems.filter((i) => i.game_key && early.has(i.game_key)).map((i) => i.id)];
   const hide = (k: GameKey) => isHiddenFor(vis[k], profile.role, early.has(k)) || locked.has(k);
   const showTile = (t: Tile) => !hide(t.game === "verse" ? "verse" : (t.game as GameKey));
   const tiles = TILES.filter(showTile);
@@ -167,7 +169,7 @@ export default async function JogosPage() {
         </Link>
       )}
 
-      <StoreGallery items={storeItems} balance={coinBalance} ownedIds={ownedIds} />
+      <StoreGallery items={storeItems} balance={coinBalance} ownedIds={ownedAll} />
       <XpExchange availableXp={availableXp} rate={xpRate} early={earlyExchange} />
 
       {hide("biblerush") || !rushOpen ? null : (
