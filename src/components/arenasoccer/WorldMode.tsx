@@ -8,6 +8,8 @@ import { effStr, lineup, POSITIONS, seasonLabel, type CareerSave, type Position 
 import { table, type Fixture } from "@/lib/arenasoccer/comp";
 import { arrange, cpuLineup, kitOf, levelFor, LEAGUES, loadLeague, resolveKits, type LeagueKey, type Team } from "@/lib/arenasoccer/teams";
 import { inLabel, whenLabel } from "@/lib/arenasoccer/worldCalendar";
+import { getFootballNews } from "@/lib/actions/soccerNews";
+import type { NewsItem } from "@/lib/arenasoccer/news";
 import { createClient } from "@/lib/supabase/client";
 import { ArenaSoccerGame, type MatchResult, type PlaySpec } from "./ArenaSoccerGame";
 import { ArenaSoccerOnline } from "./ArenaSoccerOnline";
@@ -69,6 +71,7 @@ export function WorldMode({ color, myId, myName, onRecord, onBack, api = realApi
   });
   const [online, setOnline] = useState<Online[]>([]);
   const [duel, setDuel] = useState<{ mode: "create" | "join"; room?: string; to?: string } | null>(null);
+  const [news, setNews] = useState<NewsItem[] | null>(null);
   const [trainSpec, setTrainSpec] = useState<PlaySpec | null>(null);
   const [trainOpp, setTrainOpp] = useState<string | null>(null);
   const [trainLevel, setTrainLevel] = useState<"easy" | "normal" | "hard">("normal");
@@ -99,6 +102,15 @@ export function WorldMode({ color, myId, myName, onRecord, onBack, api = realApi
       window.clearInterval(s);
     };
   }, [load]);
+
+  useEffect(() => {
+    if (tab !== "mundo" || news) return;
+    let stop = false;
+    getFootballNews().then((n) => !stop && setNews(n)).catch(() => !stop && setNews([]));
+    return () => {
+      stop = true;
+    };
+  }, [tab, news]);
 
   const lg = view?.league ?? null;
   useEffect(() => {
@@ -467,6 +479,27 @@ export function WorldMode({ color, myId, myName, onRecord, onBack, api = realApi
       ) : null}
 
       {tab === "mundo" ? (
+        <>
+        {news === null || news.length > 0 ? (
+          <section className="card border-2 border-amber-400 bg-gradient-to-br from-amber-500/10 to-transparent p-3">
+            <p className="mb-2 text-sm font-black">🌍 Mundo da bola · destaques da semana</p>
+            {news === null ? <p className="text-xs text-[var(--muted)]">Buscando as notícias…</p> : (
+              <ol className="space-y-2">
+                {news.map((n, i) => (
+                  <li key={n.url}>
+                    <a href={n.url} target="_blank" rel="noopener noreferrer" className="flex gap-2">
+                      <b className="text-lg font-black leading-tight text-amber-500">{i + 1}</b>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-black leading-snug">{n.title}</span>
+                        <small className="text-[11px] text-[var(--muted)]">{n.source} · {ago(new Date(n.at).toISOString())}</small>
+                      </span>
+                    </a>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </section>
+        ) : null}
         <section className="card p-3">
           <p className="mb-2 text-sm font-black">📰 Linha do tempo do mundo</p>
           {view.feed.length === 0 ? <p className="text-xs text-[var(--muted)]">Nada aconteceu ainda. Os jogos começam no domingo, 01/11, às 15h.</p> : (
@@ -477,6 +510,7 @@ export function WorldMode({ color, myId, myName, onRecord, onBack, api = realApi
             </ul>
           )}
         </section>
+        </>
       ) : null}
 
       {tab === "amigos" ? (
