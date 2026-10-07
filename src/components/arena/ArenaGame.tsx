@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { PageHeader } from "@/components/ui";
 import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -260,9 +259,16 @@ function ArenaGameInner({ onLaunching, winsToday, maxWins, initialDeck, initialT
               <button type="button" onClick={() => setPhase("intro")} className="btn btn-primary !py-3 !text-base">
                 Jogar de novo
               </button>
-              <Link href="/app/jogos" className="btn btn-ghost">
-                Voltar aos jogos
-              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  setTab("battle");
+                  setPhase("intro");
+                }}
+                className="btn btn-ghost"
+              >
+                Voltar à Batalha
+              </button>
             </div>
           ) : null}
         </div>
