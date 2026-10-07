@@ -15,9 +15,76 @@ export class Sky {
   daylight = 1;
   /** Tempo fechado (0–1): céu mais cinza e escuro. */
   dim = 0;
+  private cloudsOn = true;
   setClouds(on: boolean): void {
-    this.clouds.visible = on && !this.fire;
+    this.cloudsOn = on;
+    this.clouds.visible = on && !this.fire && this.starry < 0.02;
   }
+
+  // ---- céu extremamente estrelado (cena de Abraão contando as estrelas) ----
+  private starry = 0;
+  private starryTarget = 0;
+  private starLast = performance.now();
+  private starGroups: { pts: THREE.Points; phase: number; speed: number }[] = [];
+  private static readonly STARRY_SKY = new THREE.Color(0x02030f);
+
+  /** Liga/desliga o céu cheio de estrelas (surge e some devagar). */
+  setStarry(on: boolean): void {
+    this.starryTarget = on ? 1 : 0;
+    if (on && this.starGroups.length === 0) this.buildStarry();
+  }
+
+  private buildStarry(): void {
+    const R = 300;
+    const PALETTE = [new THREE.Color(0xffffff), new THREE.Color(0xcfe0ff), new THREE.Color(0xfff1c8), new THREE.Color(0xffd9b0), new THREE.Color(0xb8d0ff)];
+    const make = (n: number, size: number, pick: () => [number, number, number], bright: [number, number]) => {
+      const pos = new Float32Array(n * 3);
+      const col = new Float32Array(n * 3);
+      for (let i = 0; i < n; i++) {
+        const [x, y, z] = pick();
+        pos[i * 3] = x * R;
+        pos[i * 3 + 1] = y * R;
+        pos[i * 3 + 2] = z * R;
+        const c = PALETTE[Math.floor(Math.random() * PALETTE.length)];
+        const b = bright[0] + Math.random() * (bright[1] - bright[0]);
+        col[i * 3] = c.r * b;
+        col[i * 3 + 1] = c.g * b;
+        col[i * 3 + 2] = c.b * b;
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+      g.setAttribute("color", new THREE.BufferAttribute(col, 3));
+      const pts = new THREE.Points(g, new THREE.PointsMaterial({ size, vertexColors: true, sizeAttenuation: false, transparent: true, opacity: 0, fog: false, depthWrite: false, blending: THREE.AdditiveBlending }));
+      pts.frustumCulled = false;
+      pts.visible = false;
+      this.scene.add(pts);
+      return pts;
+    };
+    // direção aleatória na esfera, um pouco abaixo do horizonte também (o céu "desce" até o chão)
+    const sphere = (): [number, number, number] => {
+      const u = Math.random() * 1.1 - 0.1;
+      const a = Math.random() * Math.PI * 2;
+      const r = Math.sqrt(1 - u * u);
+      return [Math.cos(a) * r, u, Math.sin(a) * r];
+    };
+    // Via Láctea: faixa densa ao redor de um círculo máximo inclinado
+    const nrm = new THREE.Vector3(0.35, 0.82, 0.45).normalize();
+    const e1 = new THREE.Vector3().crossVectors(nrm, new THREE.Vector3(0, 0, 1)).normalize();
+    const e2 = new THREE.Vector3().crossVectors(nrm, e1).normalize();
+    const band = (): [number, number, number] => {
+      for (;;) {
+        const a = Math.random() * Math.PI * 2;
+        const off = (Math.random() + Math.random() + Math.random() - 1.5) * 0.2;
+        const v = e1.clone().multiplyScalar(Math.cos(a)).addScaledVector(e2, Math.sin(a)).addScaledVector(nrm, off).normalize();
+        if (v.y > -0.1) return [v.x, v.y, v.z];
+      }
+    };
+    this.starGroups = [
+      { pts: make(14000, 2.6, sphere, [0.7, 1.2]), phase: 0, speed: 1.1 },
+      { pts: make(5000, 3.8, sphere, [0.9, 1.3]), phase: 2, speed: 1.7 },
+      { pts: make(1200, 6, sphere, [1.1, 1.5]), phase: 4, speed: 2.3 },
+      { pts: make(24000, 2.4, band, [0.55, 1.1]), phase: 1, speed: 0.6 },
+    ];  }
   private fire = false;
   setMaterials(mats: THREE.MeshBasicMaterial[]): void {
     this.worldMat = mats;
@@ -118,6 +185,7 @@ export class Sky {
     this.moonMesh.position.copy(cam).addScaledVector(dir, -220);
     this.moonMesh.lookAt(cam);
     this.stars.position.copy(cam);
+    this.updateStarry(cam, sky);
     if ((this.cloudTick++ & 3) === 0) {
       for (const c of this.cloudPos) {
         c.x += 0.048;
@@ -138,7 +206,36 @@ export class Sky {
     for (const m of this.worldMat) m.color.setRGB(k * (0.85 + 0.15 * this.daylight), k * (0.9 + 0.1 * this.daylight), k);
   }
 
+  /** Sobe/desce o céu estrelado, escurece o fundo e faz as estrelas piscarem. */
+  private updateStarry(cam: THREE.Vector3, sky: THREE.Color): void {
+    const now = performance.now();
+    const dt = Math.min(0.1, (now - this.starLast) / 1000);
+    this.starLast = now;
+    const d = this.starryTarget - this.starry;
+    this.starry += Math.sign(d) * Math.min(Math.abs(d), dt / 2.5);
+    const k = this.starry;
+    const on = k > 0.001;
+    for (const g of this.starGroups) {
+      g.pts.visible = on && !this.fire;
+      if (!g.pts.visible) continue;
+      g.pts.position.copy(cam);
+      (g.pts.material as THREE.PointsMaterial).opacity = k * (0.82 + 0.18 * Math.sin(now / 1000 * g.speed + g.phase));
+    }
+    if (!on) return;
+    sky.lerp(Sky.STARRY_SKY, k);
+    (this.scene.background as THREE.Color).copy(sky);
+    this.fog.color.copy(sky);
+    this.moonMesh.visible = k < 0.5 && !this.fire;
+    this.clouds.visible = this.cloudsOn && !this.fire && k < 0.02;
+    (this.stars.material as THREE.PointsMaterial).opacity = Math.max((this.stars.material as THREE.PointsMaterial).opacity, k);
+  }
+
   dispose(): void {
+    for (const g of this.starGroups) {
+      g.pts.geometry.dispose();
+      (g.pts.material as THREE.Material).dispose();
+      g.pts.removeFromParent();
+    }
     for (const o of [this.sunMesh, this.moonMesh]) {
       o.geometry.dispose();
       (o.material as THREE.Material).dispose();

@@ -48,8 +48,8 @@ export type FeedPost = {
   viewerNames?: string[];
 };
 
-const REACTION_EMOJI: Record<string, string> = { like: "👍", pray: "🙏", fire: "🔥", clap: "👏" };
-const REACTION_ORDER = ["like", "pray", "fire", "clap"];
+const REACTION_EMOJI: Record<string, string> = { like: "❤️", laugh: "😂", pray: "🙏", fire: "🔥", clap: "👏" };
+const REACTION_ORDER = ["like", "laugh", "pray", "fire", "clap"];
 
 function FeedCommentRow({ comment, canDelete }: { comment: FeedComment; canDelete: boolean }) {
   const [state, action] = useActionState(deleteFeedComment, null);

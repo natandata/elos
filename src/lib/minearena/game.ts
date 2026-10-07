@@ -3335,6 +3335,7 @@ export class MineArena {
         this.wxT = 9999;
       },
       rainbow: (on) => this.setRainbow(on),
+      starry: (on) => this.sky.setStarry(on),
       burst: (x, y, z, color, n, speed, size) => this.particles.burst(x, y, z, color, n, speed, size),
       message: (text, tone) => this.cb.onMessage(text, tone),
       ui: (u) => this.cb.onStory?.(u),

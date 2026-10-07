@@ -120,11 +120,11 @@ export async function deleteFeedPost(_prev: Result | null, formData: FormData): 
   return { ok: true };
 }
 
-const REACTION_KINDS = ["like", "pray", "fire", "clap"];
-const REACTION_EMOJI: Record<string, string> = { like: "👍", pray: "🙏", fire: "🔥", clap: "👏" };
+const REACTION_KINDS = ["like", "laugh", "pray", "fire", "clap"];
+const REACTION_EMOJI: Record<string, string> = { like: "❤️", laugh: "😂", pray: "🙏", fire: "🔥", clap: "👏" };
 
 /**
- * Reação rápida (👍🙏🔥👏): clicar na mesma reação remove; clicar numa
+ * Reação rápida (❤️😂🙏🔥👏): clicar na mesma reação remove; clicar numa
  * diferente troca; se não tinha nenhuma, cria. Substituiu o antigo "curtir"
  * único — mais fácil de interagir sem precisar digitar um comentário.
  */
@@ -164,7 +164,7 @@ export async function toggleFeedLike(_prev: Result | null, formData: FormData): 
         if (authorId) {
           await sendPushToUsers([authorId as string], {
             title: "Reagiram na sua foto",
-            body: `${REACTION_EMOJI[kind] ?? "👍"} Alguém reagiu à sua foto no Explorar.`,
+            body: `${REACTION_EMOJI[kind] ?? "❤️"} Alguém reagiu à sua foto no Explorar.`,
             url: "/app/feed",
           });
         }

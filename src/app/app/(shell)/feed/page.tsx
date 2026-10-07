@@ -10,7 +10,7 @@ import { FeedPostCard, type FeedPost } from "@/components/feed/FeedPostCard";
 import { ROLE_LABEL, type Role } from "@/lib/types";
 import { stableSignedUrls } from "@/lib/signedUrls";
 
-const REACTION_KINDS = ["like", "pray", "fire", "clap"];
+const REACTION_KINDS = ["like", "laugh", "pray", "fire", "clap"];
 
 type PostRow = {
   id: string;

@@ -34,6 +34,8 @@ export interface StoryHost {
   setTime(t: number, lock: boolean): void;
   setWeather(w: "clear" | "rain" | "storm"): void;
   rainbow(on: boolean): void;
+  /** céu extremamente estrelado (cena das estrelas de Abraão) */
+  starry(on: boolean): void;
   burst(x: number, y: number, z: number, color: number, n: number, speed: number, size: number): void;
   message(text: string, tone: "info" | "good" | "warn" | "rare"): void;
   ui(u: StoryUi): void;
@@ -1157,6 +1159,9 @@ export class StoryDirector {
           this.longBusy++;
           r.wait = { kind: "long", left: 0 };
         }
+        break;
+      case "starry":
+        this.host.starry(arg === "on");
         break;
       case "rainbow":
         this.host.rainbow(arg === "on");
