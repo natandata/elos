@@ -37,6 +37,26 @@ export function TouchControls({ game, rotated, shield, swap, onInventory, onPaus
     const c = dirs.current;
     game.setMove((c.right ? 1 : 0) - (c.left ? 1 : 0), (c.up ? 1 : 0) - (c.down ? 1 : 0));
   };
+  // Deslizar o dedo da seta até o botão do centro aciona esse botão (pular, ou correr no modo normal) sem soltar a seta.
+  const centerRef = useRef<HTMLButtonElement>(null);
+  const centerOn = useRef(false);
+  const centerKey = swap ? "jump" : "sprint";
+  const slideTo = (x: number, y: number) => {
+    const r = centerRef.current?.getBoundingClientRect();
+    if (!r) return;
+    const pad = 3;
+    const inside = x >= r.left - pad && x <= r.right + pad && y >= r.top - pad && y <= r.bottom + pad;
+    if (inside === centerOn.current) return;
+    centerOn.current = inside;
+    game.setHold(centerKey, inside);
+  };
+  const release = (d: Dir) => {
+    if (centerOn.current) {
+      centerOn.current = false;
+      game.setHold(centerKey, false);
+    }
+    press(d, false);
+  };
   const arrow = (d: Dir, label: string, glyph: string) => (
     <button
       type="button"
@@ -47,9 +67,10 @@ export function TouchControls({ game, rotated, shield, swap, onInventory, onPaus
         e.currentTarget.setPointerCapture(e.pointerId);
         press(d, true, e.timeStamp);
       }}
-      onPointerUp={() => press(d, false)}
-      onPointerCancel={() => press(d, false)}
-      onLostPointerCapture={() => press(d, false)}
+      onPointerMove={(e) => slideTo(e.clientX, e.clientY)}
+      onPointerUp={() => release(d)}
+      onPointerCancel={() => release(d)}
+      onLostPointerCapture={() => release(d)}
     >
       {glyph}
     </button>
@@ -87,11 +108,11 @@ export function TouchControls({ game, rotated, shield, swap, onInventory, onPaus
         {arrow("up", "Frente", "▲")}
         {arrow("left", "Esquerda", "◀")}
         {swap ? (
-          <button type="button" className="ma-pad ma-pad-mid" aria-label="Pular" {...hold("jump")}>
+          <button type="button" ref={centerRef} className="ma-pad ma-pad-mid" aria-label="Pular" {...hold("jump")}>
             ◇
           </button>
         ) : (
-          <button type="button" className="ma-pad ma-pad-mid" aria-label="Correr" {...hold("sprint")}>
+          <button type="button" ref={centerRef} className="ma-pad ma-pad-mid" aria-label="Correr" {...hold("sprint")}>
             ◆
           </button>
         )}
