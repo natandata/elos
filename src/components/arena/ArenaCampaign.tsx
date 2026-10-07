@@ -14,6 +14,7 @@ import { ARENA_LOAD_MS, ArenaLoadingScreen } from "@/components/games/ArenaLoadi
 import { ArenaPlayfield, type PlayDriver } from "./ArenaPlayfield";
 import { CardArt } from "./CardArt";
 import { NeryCutscene } from "./NeryCutscene";
+import { StageCutscene, hasStageScene } from "./StageCutscene";
 
 /** Arena do Nery (a 3ª, índice 2) */
 const NERY_STAGE = 2;
@@ -55,7 +56,7 @@ export function ArenaCampaign({ open, admin, cleared: initialCleared, tiers: ini
     if (res.cleared) setCleared(res.cleared);
     if (res.tiers) setTiers(res.tiers);
     // depois de toda batalha contra o Nery (arena 3), qualquer que seja o resultado, tem a cena final de 10 s
-    setPhase(!res.error && stageRef.current === NERY_STAGE ? "cutscene" : "result");
+    setPhase(!res.error && (stageRef.current === NERY_STAGE || hasStageScene(stageRef.current)) ? "cutscene" : "result");
     router.refresh();
   }
 
@@ -121,7 +122,7 @@ export function ArenaCampaign({ open, admin, cleared: initialCleared, tiers: ini
     );
   }
 
-  if (phase === "cutscene") return <NeryCutscene onDone={() => setPhase("result")} />;
+  if (phase === "cutscene") return lastStage === NERY_STAGE ? <NeryCutscene onDone={() => setPhase("result")} /> : <StageCutscene stage={lastStage} onDone={() => setPhase("result")} />;
 
   if (phase === "finishing" || phase === "result") {
     const r = verdict;
