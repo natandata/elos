@@ -67,7 +67,11 @@ export function opponentColor(mine: string): string {
 export function ArenaSoccerGame({ mode: modeProp, level, color, onFinish, onExit, net, spec }: { mode: Mode; level: Level; color: string; onFinish: (r: MatchResult) => void; onExit: () => void; net?: SoccerNet; spec?: PlaySpec }) {
   const mode: Mode = spec ? (`${Math.max(1, Math.min(4, spec.match.teams[0].length))}v${Math.max(1, Math.min(4, spec.match.teams[0].length))}` as Mode) : modeProp;
   const guest = net?.role === "guest";
-  const me: 0 | 1 = guest ? 1 : 0;
+  /** lado e disco de quem está jogando (no 1 contra 1 online: o anfitrião é o 0, o convidado é o 1) */
+  const me: 0 | 1 = net?.seat ? net.seat.side : guest ? 1 : 0;
+  const myDisc = net?.seat ? net.seat.disc : guest ? 1 : 0;
+  const remoteDiscs = net?.seat ? net.seat.remote : guest ? [0] : [1];
+  const flip = me === 1;
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sfxRef = useRef<Sfx | null>(null);
@@ -166,7 +170,7 @@ export function ArenaSoccerGame({ mode: modeProp, level, color, onFinish, onExit
 
   const absColors: [string, string] = spec ? [spec.kits[0].p, spec.kits[1].p] : net ? [net.hostColor, opponentColor(net.hostColor)] : [color, opponentColor(color)];
   /** cores na ordem do placar: a minha primeiro */
-  const teamColors: [string, string] = guest ? [absColors[1], absColors[0]] : absColors;
+  const teamColors: [string, string] = flip ? [absColors[1], absColors[0]] : absColors;
 
   // laço da partida
   useEffect(() => {
@@ -203,14 +207,16 @@ export function ArenaSoccerGame({ mode: modeProp, level, color, onFinish, onExit
     let last = performance.now();
     let raf = 0;
     let lastHud = "";
-    const human = g.players[me];
-    human.human = true;
-    for (const p of g.players) if (p !== human) p.human = false;
+    const human = g.players[myDisc];
+    // quem é gente (eu e os outros jogadores de verdade) não é conduzido pelo computador
+    g.players.forEach((p, i) => (p.human = i === myDisc || (!!net && remoteDiscs.includes(i))));
     let introCheered = false;
 
     // ---- online ----
     const unsubs: (() => void)[] = [];
-    const remoteIn: InputMsg = { mx: 0, my: 0, kick: false };
+    const remoteIns = new Map<number, InputMsg>();
+    const seen = new Map<number, number>();
+    const heard = new Set<number>();
     let started = !net || guest;
     let lastRecv = performance.now();
     let sendAcc = 0;
@@ -225,9 +231,12 @@ export function ArenaSoccerGame({ mode: modeProp, level, color, onFinish, onExit
     const ballT = { x: g.ball.x, y: g.ball.y };
     if (net) {
       unsubs.push(
-        net.on("hello", () => {
+        net.on("hello", (m) => {
           lastRecv = performance.now();
-          if (!started) {
+          const d = typeof (m as { d?: number }).d === "number" ? (m as { d: number }).d : remoteDiscs[0];
+          heard.add(d);
+          seen.set(d, performance.now());
+          if (!started && remoteDiscs.every((x) => heard.has(x))) {
             started = true;
             setWaiting(false);
           }
@@ -235,9 +244,10 @@ export function ArenaSoccerGame({ mode: modeProp, level, color, onFinish, onExit
         net.on("inp", (m) => {
           lastRecv = performance.now();
           const i = m as InputMsg;
-          remoteIn.mx = Math.max(-1, Math.min(1, Number(i.mx) || 0));
-          remoteIn.my = Math.max(-1, Math.min(1, Number(i.my) || 0));
-          remoteIn.kick = !!i.kick;
+          const d = typeof i.d === "number" ? i.d : remoteDiscs[0];
+          if (!remoteDiscs.includes(d)) return;
+          seen.set(d, performance.now());
+          remoteIns.set(d, { mx: Math.max(-1, Math.min(1, Number(i.mx) || 0)), my: Math.max(-1, Math.min(1, Number(i.my) || 0)), kick: !!i.kick });
         }),
         net.on("skip", () => {
           skipRef.current = true;
@@ -288,7 +298,7 @@ export function ArenaSoccerGame({ mode: modeProp, level, color, onFinish, onExit
           const who = e.scorer !== undefined ? g.players[e.scorer] : undefined;
           const wn = who?.name ? shortName(who.name) : "";
           if (who && e.scorer !== undefined) {
-            scorers.push({ team: e.team, name: who.name, at: e.at ?? Math.round(g.played), assist: e.assist !== undefined ? g.players[e.assist]?.name : undefined, own: e.own });
+            scorers.push({ team: e.team === me ? 0 : 1, name: who.name, at: e.at ?? Math.round(g.played), assist: e.assist !== undefined ? g.players[e.assist]?.name : undefined, own: e.own });
           }
           fx.banner = {
             text: e.own ? `GOL CONTRA${wn ? ": " + wn : ""}` : e.team === me ? (wn ? `GOL! ${wn}` : "GOOOL!") : net ? "GOL DE " + net.oppName.toUpperCase() : wn ? `GOL: ${wn}` : "GOL DO ADVERSÁRIO",
@@ -313,7 +323,7 @@ export function ArenaSoccerGame({ mode: modeProp, level, color, onFinish, onExit
         secs: Math.max(10, Math.round(g.played)),
         result: winner === null ? "draw" : winner === me ? "win" : "loss",
         scorers: spec ? scorers : undefined,
-        mine: spec ? g.players.map((p, i) => ({ p, i })).filter((x) => x.p.team === 0).map((x) => ({ name: x.p.name, ...g.stats[x.i] })) : undefined,
+        mine: spec ? g.players.map((p, i) => ({ p, i })).filter((x) => x.p.team === me).map((x) => ({ name: x.p.name, ...g.stats[x.i] })) : undefined,
       };
       setEnd(result);
       onFinishRef.current(result);
@@ -329,7 +339,7 @@ export function ArenaSoccerGame({ mode: modeProp, level, color, onFinish, onExit
       let mx = rotatedRef.current ? -sy : sx;
       let my = rotatedRef.current ? sx : sy;
       // o convidado vê o campo virado de cabeça pra baixo: o que ele vê como "direita" é −x no campo
-      if (guest) {
+      if (flip) {
         mx = -mx;
         my = -my;
       }
@@ -341,8 +351,15 @@ export function ArenaSoccerGame({ mode: modeProp, level, color, onFinish, onExit
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
       if (net) {
-        // adversário sumiu (sem mensagens por muito tempo)
-        if (started && !wentAway && !doneRef.current && now - lastRecv > 9000) {
+        // sem mensagens por muito tempo: no 1 contra 1 a partida acaba; em equipe quem some vira computador e o jogo segue
+        if (net.seat && !guest) {
+          for (const d of remoteDiscs) {
+            if (g.players[d].human && started && now - (seen.get(d) ?? now) > 9000) {
+              g.players[d].human = false;
+              fx.banner = { text: `${g.players[d].name ? shortName(g.players[d].name) : "Um jogador"} saiu: o computador assume`, color: "#fde68a", t: 2.6 };
+            }
+          }
+        } else if (started && !wentAway && !doneRef.current && now - lastRecv > 9000) {
           wentAway = true;
           setGone(true);
         }
@@ -350,7 +367,7 @@ export function ArenaSoccerGame({ mode: modeProp, level, color, onFinish, onExit
           helloAcc += dt;
           if (!gotSnap && helloAcc >= 0.5) {
             helloAcc = 0;
-            net.send("hello", { n: 1 });
+            net.send("hello", { d: myDisc });
           }
           if (skipRef.current && fx.intro) {
             skipRef.current = false;
@@ -394,7 +411,7 @@ export function ArenaSoccerGame({ mode: modeProp, level, color, onFinish, onExit
             inpAcc = 0;
             lastKick = inp.kick;
             lastInp = inp;
-            net!.send("inp", inp);
+            net!.send("inp", { ...inp, d: myDisc });
           }
         }
       } else if (!pausedRef.current && fx.intro) {
@@ -420,8 +437,9 @@ export function ArenaSoccerGame({ mode: modeProp, level, color, onFinish, onExit
         }
       } else if (!pausedRef.current) {
         human.input = readInput();
-        if (net) g.players[1].input = { ...remoteIn };
-        else thinkAll(g, spec ? (Array.isArray(spec.level) ? spec.level : [spec.level, spec.level]) : [level, level], dt);
+        if (net) for (const d of remoteDiscs) if (g.players[d].human) g.players[d].input = { ...(remoteIns.get(d) ?? { mx: 0, my: 0, kick: false }) };
+        // o computador joga com os discos que não são de ninguém (partida em equipe com vagas vazias)
+        if (!net || net.seat) thinkAll(g, spec ? (Array.isArray(spec.level) ? spec.level : [spec.level, spec.level]) : [level, level], dt);
         advance(g, dt);
         stepFx(fx, dt);
         if (net) for (const e of g.events) evq.push(e);
@@ -437,7 +455,7 @@ export function ArenaSoccerGame({ mode: modeProp, level, color, onFinish, onExit
         }
         if (g.phase === "end") finish();
       }
-      draw(ctx, g, fx, { teamColors: colors, kits: spec?.kits, rotated: rotatedRef.current, flip: guest }, aw, ah, dpr, dt);
+      draw(ctx, g, fx, { teamColors: colors, kits: spec?.kits, rotated: rotatedRef.current, flip, meDisc: net?.seat ? myDisc : undefined }, aw, ah, dpr, dt);
       const t = g.overtime ? g.overtimeLeft : g.timeLeft;
       const key = `${g.score[0]}-${g.score[1]}-${Math.ceil(t)}-${g.phase}-${g.overtime}`;
       if (key !== lastHud) {
@@ -559,13 +577,13 @@ export function ArenaSoccerGame({ mode: modeProp, level, color, onFinish, onExit
         <div className="flex items-center gap-3 text-center">
           <span className="flex items-center gap-2 text-3xl font-black tabular-nums">
             <i className="inline-block h-4 w-4 rounded-full" style={{ background: teamColors[0] }} />
-            {net || spec ? <small className="max-w-[88px] truncate text-[11px] font-bold opacity-80">{net ? net.myName : spec!.names[0]}</small> : null}
+            {net || spec ? <small className="max-w-[88px] truncate text-[11px] font-bold opacity-80">{spec ? spec.names[me] : net!.myName}</small> : null}
             {hud.s0}
           </span>
           <span className="min-w-[72px] rounded-lg bg-white/10 px-2 py-1 text-lg font-black tabular-nums">{hud.overtime ? `⚡ ${hud.time}` : hud.time}</span>
           <span className="flex items-center gap-2 text-3xl font-black tabular-nums">
             {hud.s1}
-            {net || spec ? <small className="max-w-[88px] truncate text-[11px] font-bold opacity-80">{net ? net.oppName : spec!.names[1]}</small> : null}
+            {net || spec ? <small className="max-w-[88px] truncate text-[11px] font-bold opacity-80">{spec ? spec.names[1 - me] : net!.oppName}</small> : null}
             <i className="inline-block h-4 w-4 rounded-full" style={{ background: teamColors[1] }} />
           </span>
         </div>

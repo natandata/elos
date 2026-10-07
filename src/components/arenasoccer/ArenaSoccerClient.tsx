@@ -6,6 +6,7 @@ import { recordSoccerMatch } from "@/lib/actions/arenasoccer";
 import { MODES, type Level, type Mode } from "@/lib/arenasoccer/engine";
 import { ArenaSoccerGame, type MatchResult } from "./ArenaSoccerGame";
 import { ArenaSoccerOnline } from "./ArenaSoccerOnline";
+import { ArenaSoccerTeamRoom } from "./ArenaSoccerTeamRoom";
 import { CareerMode } from "./CareerMode";
 import { CupMode } from "./CupMode";
 import { WorldMode } from "./WorldMode";
@@ -28,6 +29,7 @@ export function ArenaSoccerClient({ stats, myName = "Jogador", myId = "" }: { st
   const [color, setColor] = useState(COLORS[0]);
   const [playing, setPlaying] = useState(false);
   const [online, setOnline] = useState(false);
+  const [teamOnline, setTeamOnline] = useState(false);
   const [comp, setComp] = useState<"cup" | "br" | "career" | null>(null);
   const [careerKind, setCareerKind] = useState<"solo" | "world" | null>(null);
   const [mine, setMine] = useState(stats);
@@ -97,6 +99,7 @@ export function ArenaSoccerClient({ stats, myName = "Jogador", myId = "" }: { st
       </div>
     );
   }
+  if (teamOnline) return <ArenaSoccerTeamRoom color={color} myId={myId} myName={myName} onFinish={(r) => void finished(r)} onBack={() => setTeamOnline(false)} />;
   if (online) return <ArenaSoccerOnline color={color} myName={myName} onFinish={(r) => void finished(r)} onBack={() => setOnline(false)} />;
   if (playing) return <ArenaSoccerGame mode={mode} level={level} color={color} onFinish={(r) => void finished(r)} onExit={() => setPlaying(false)} />;
 
@@ -181,6 +184,9 @@ export function ArenaSoccerClient({ stats, myName = "Jogador", myId = "" }: { st
       </button>
       <button type="button" onClick={() => { try { localStorage.setItem(KEY, JSON.stringify({ mode, level, color })); } catch { /* ok */ } setOnline(true); }} className="btn w-full !py-4 text-lg ring-2 ring-emerald-400">
         🌐 Jogar online contra outro jogador
+      </button>
+      <button type="button" onClick={() => { try { localStorage.setItem(KEY, JSON.stringify({ mode, level, color })); } catch { /* ok */ } setTeamOnline(true); }} className="btn w-full !py-4 text-lg ring-2 ring-sky-400">
+        🌐 Online em equipe (2×2, 3×3, 4×4) com times de verdade
       </button>
       {saveError ? <p className="text-center text-xs font-semibold text-rose-600">{saveError}</p> : null}
 

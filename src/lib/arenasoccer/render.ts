@@ -24,7 +24,7 @@ export const INTRO_SECS = 4;
 
 export const newFx = (intro = true): Fx => ({ trail: [], parts: [], rings: [], shake: 0, banner: null, t: 0, cam: { x: 0, y: 0, z: 1, init: false }, crowd: null, cheer: [0, 0], intro: intro ? { t: 0, dur: INTRO_SECS } : null });
 
-export type Look = { teamColors: [string, string]; /** uniformes de verdade (padrão, número e nome em campo) */ kits?: [Kit, Kit]; rotated: boolean; /** convidado online: o campo é visto de cabeça pra baixo, para ele atacar para a direita */ flip?: boolean };
+export type Look = { teamColors: [string, string]; /** uniformes de verdade (padrão, número e nome em campo) */ kits?: [Kit, Kit]; rotated: boolean; /** disco que eu controlo (anel pontilhado só nele) */ meDisc?: number; /** convidado online: o campo é visto de cabeça pra baixo, para ele atacar para a direita */ flip?: boolean };
 
 /** Escala que faz o campo (com os gols e as arquibancadas) caber na área disponível. */
 export function fitScale(g: Game, aw: number, ah: number, rotated: boolean): number {
@@ -378,8 +378,9 @@ export function draw(ctx: CanvasRenderingContext2D, g: Game, fx: Fx, look: Look,
   const perTeam = [0, 0];
   for (const p of g.players) {
     const idx = perTeam[p.team === 1 ? 1 : 0]++;
+    const mineRing = look.meDisc !== undefined ? g.players.indexOf(p) === look.meDisc : p.human;
     if (it < 0) {
-      disc(ctx, p, look.teamColors[p.team === 1 ? 1 : 0], p.human, fx, look.kits?.[p.team === 1 ? 1 : 0], (look.rotated ? Math.PI / 2 : 0) + (look.flip ? Math.PI : 0));
+      disc(ctx, p, look.teamColors[p.team === 1 ? 1 : 0], mineRing, fx, look.kits?.[p.team === 1 ? 1 : 0], (look.rotated ? Math.PI / 2 : 0) + (look.flip ? Math.PI : 0));
       continue;
     }
     // abertura: sai do túnel, faz uma curva e chega na posição de saída
@@ -395,7 +396,7 @@ export function draw(ctx: CanvasRenderingContext2D, g: Game, fx: Fx, look: Look,
     const hy = p.home.y * g.h;
     const u = 1 - e;
     const pos = { ...p, x: u * u * sx + 2 * u * e * ax + e * e * hx, y: u * u * sy + 2 * u * e * ay + e * e * hy, flash: 9 };
-    disc(ctx, pos, look.teamColors[p.team === 1 ? 1 : 0], p.human && e >= 1, fx, look.kits?.[p.team === 1 ? 1 : 0], (look.rotated ? Math.PI / 2 : 0) + (look.flip ? Math.PI : 0));
+    disc(ctx, pos, look.teamColors[p.team === 1 ? 1 : 0], mineRing && e >= 1, fx, look.kits?.[p.team === 1 ? 1 : 0], (look.rotated ? Math.PI / 2 : 0) + (look.flip ? Math.PI : 0));
   }
 
   for (const r of fx.rings) {

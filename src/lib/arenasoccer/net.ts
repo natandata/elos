@@ -2,10 +2,15 @@
 // o convidado manda só os controles e desenha o que recebe. O transporte (Realtime) é entregue pela tela.
 import type { Game, GameEvent } from "./engine";
 
+/** Partida em equipe: em que lado e em que disco cada um joga (o disco é o índice em `Game.players`). */
+export type Seat = { side: 0 | 1; disc: number; /** discos controlados por outras pessoas (o computador joga os demais) */ remote: number[] };
+
 export type SoccerNet = {
   role: "host" | "guest";
-  send: (event: "snap" | "inp" | "hello" | "skip", payload: unknown) => void;
-  on: (event: "snap" | "inp" | "hello" | "skip", fn: (payload: unknown) => void) => () => void;
+  /** só nas partidas em equipe (2x2 a 4x4); no 1 contra 1 é implícito */
+  seat?: Seat;
+  send: (event: string, payload: unknown) => void;
+  on: (event: string, fn: (payload: unknown) => void) => () => void;
   myName: string;
   oppName: string;
   /** cor do disco do anfitrião (a do convidado é sempre a mais distinta dela) */
@@ -13,7 +18,7 @@ export type SoccerNet = {
 };
 
 /** Mensagem do convidado: controles no referencial do campo. */
-export type InputMsg = { mx: number; my: number; kick: boolean };
+export type InputMsg = { mx: number; my: number; kick: boolean; /** disco de quem mandou (partida em equipe) */ d?: number };
 
 /** Estado da partida que o anfitrião manda. */
 export type Snap = {
