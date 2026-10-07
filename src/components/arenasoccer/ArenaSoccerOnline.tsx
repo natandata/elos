@@ -12,7 +12,7 @@ type Playing = { net: SoccerNet; roomId: string };
 const EVENTS = ["snap", "inp", "hello", "skip"] as const;
 
 /** Salas do ArenaSoccer online: crie uma sala ou entre numa aberta, de qualquer Elo. A partida é 1 contra 1. */
-export function ArenaSoccerOnline({ color, myName, onFinish, onBack }: { color: string; myName: string; onFinish: (r: MatchResult) => void; onBack: () => void }) {
+export function ArenaSoccerOnline({ color, myName, onFinish, onBack, autoCreate = false, onCreated, joinId }: { color: string; myName: string; onFinish: (r: MatchResult) => void; onBack: () => void; /** cria a sala assim que abre (convite de um amigo) */ autoCreate?: boolean; onCreated?: (roomId: string) => void; /** entra direto nesta sala (aceitou um convite) */ joinId?: string }) {
   const [sb] = useState(() => createClient());
   const [rooms, setRooms] = useState<OpenRoom[]>([]);
   const [mine, setMine] = useState<string | null>(null);
@@ -142,7 +142,20 @@ export function ArenaSoccerOnline({ color, myName, onFinish, onBack }: { color: 
     }
     roomRef.current = r.id;
     setMine(r.id);
+    onCreated?.(r.id);
   }
+
+  // convite: cria ou entra na sala sozinho ao abrir
+  const started = useRef(false);
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    window.setTimeout(() => {
+      if (joinId) void join(joinId);
+      else if (autoCreate) void create();
+    }, 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function cancel() {
     leave("cancelled");

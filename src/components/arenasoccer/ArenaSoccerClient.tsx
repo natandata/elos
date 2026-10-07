@@ -8,6 +8,7 @@ import { ArenaSoccerGame, type MatchResult } from "./ArenaSoccerGame";
 import { ArenaSoccerOnline } from "./ArenaSoccerOnline";
 import { CareerMode } from "./CareerMode";
 import { CupMode } from "./CupMode";
+import { WorldMode } from "./WorldMode";
 import { LeagueMode } from "./LeagueMode";
 
 export type SoccerStats = { matches: number; wins: number; losses: number; draws: number; goals: number; minutes: number };
@@ -21,13 +22,14 @@ const LEVELS: { v: Level; label: string; hint: string }[] = [
 const KEY = "arenasoccer:prefs:v1";
 
 /** Menu do ArenaSoccer: escolhe o modo, o nível do computador e a cor do seu disco; mostra suas estatísticas. */
-export function ArenaSoccerClient({ stats, myName = "Jogador" }: { stats: SoccerStats; myName?: string }) {
+export function ArenaSoccerClient({ stats, myName = "Jogador", myId = "" }: { stats: SoccerStats; myName?: string; myId?: string }) {
   const [mode, setMode] = useState<Mode>("1v1");
   const [level, setLevel] = useState<Level>("normal");
   const [color, setColor] = useState(COLORS[0]);
   const [playing, setPlaying] = useState(false);
   const [online, setOnline] = useState(false);
   const [comp, setComp] = useState<"cup" | "br" | "career" | null>(null);
+  const [careerKind, setCareerKind] = useState<"solo" | "world" | null>(null);
   const [mine, setMine] = useState(stats);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -74,7 +76,27 @@ export function ArenaSoccerClient({ stats, myName = "Jogador" }: { stats: Soccer
 
   if (comp === "cup") return <CupMode color={color} onRecord={(r) => void finished(r)} onBack={() => setComp(null)} />;
   if (comp === "br") return <LeagueMode color={color} onRecord={(r) => void finished(r)} onBack={() => setComp(null)} />;
-  if (comp === "career") return <CareerMode color={color} myName={myName} onRecord={(r) => void finished(r)} onBack={() => setComp(null)} />;
+  if (comp === "career") {
+    if (careerKind === "solo") return <CareerMode color={color} myName={myName} onRecord={(r) => void finished(r)} onBack={() => setCareerKind(null)} />;
+    if (careerKind === "world") return <WorldMode color={color} myId={myId} myName={myName} onRecord={(r) => void finished(r)} onBack={() => setCareerKind(null)} />;
+    return (
+      <div className="space-y-3">
+        <section className="card p-4">
+          <p className="text-lg font-black">⭐ Modo carreira</p>
+          <p className="mt-1 text-xs text-[var(--muted)]">Escolha como quer fazer a sua carreira.</p>
+        </section>
+        <button type="button" onClick={() => setCareerKind("world")} className="card flex w-full items-center gap-3 p-4 text-left ring-2 ring-emerald-400">
+          <span className="text-4xl" aria-hidden>🌍</span>
+          <span><b className="block text-base">Mundo aberto (online)</b><small className="text-xs text-[var(--muted)]">Todos jogam os mesmos campeonatos, em dias fixos à noite. Acompanhe a carreira dos amigos e encontre-os na Praça.</small></span>
+        </button>
+        <button type="button" onClick={() => setCareerKind("solo")} className="card flex w-full items-center gap-3 p-4 text-left">
+          <span className="text-4xl" aria-hidden>🎮</span>
+          <span><b className="block text-base">Carreira solo</b><small className="text-xs text-[var(--muted)]">Só você, no seu ritmo: jogue quando quiser, sem horário.</small></span>
+        </button>
+        <button type="button" onClick={() => setComp(null)} className="btn btn-ghost w-full">← Voltar</button>
+      </div>
+    );
+  }
   if (online) return <ArenaSoccerOnline color={color} myName={myName} onFinish={(r) => void finished(r)} onBack={() => setOnline(false)} />;
   if (playing) return <ArenaSoccerGame mode={mode} level={level} color={color} onFinish={(r) => void finished(r)} onExit={() => setPlaying(false)} />;
 
