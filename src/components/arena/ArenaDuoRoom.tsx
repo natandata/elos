@@ -473,8 +473,8 @@ export function ArenaDuoRoom({ id, me, names, arena, seed, decks, levels, initia
         {stage === "result" ? <DuoResult view={view} status={status} tournamentId={tournamentId} /> : null}
         {error ? <p className="mt-3 text-center text-sm font-semibold text-rose-600">{error}</p> : null}
       </div>
-      <Link href={tournamentId ? `/app/jogos/arena/torneios/${tournamentId}` : "/app/jogos/arena/duplas"} className="btn btn-ghost mt-3 w-full">
-        {tournamentId ? "← Voltar ao torneio" : "← Voltar às duplas"}
+      <Link href={tournamentId ? `/app/jogos/arena/torneios/${tournamentId}` : "/app/jogos/arena"} className="btn btn-ghost mt-3 w-full">
+        {tournamentId ? "← Voltar ao torneio" : "← Voltar à Batalha"}
       </Link>
     </div>
   );

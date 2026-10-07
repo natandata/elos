@@ -433,8 +433,8 @@ export function ArenaPvpRoom({ id, meSide, opponentName, arena, seed, decks, lev
 
         {error ? <p className="mt-3 text-sm font-semibold text-rose-600">{error}</p> : null}
       </div>
-      <Link href={tournamentId ? `/app/jogos/arena/torneios/${tournamentId}` : "/app/jogos/arena/pvp"} className="btn btn-ghost mt-3 w-full">
-        {tournamentId ? "← Voltar ao torneio" : "← Voltar aos desafios"}
+      <Link href={tournamentId ? `/app/jogos/arena/torneios/${tournamentId}` : "/app/jogos/arena"} className="btn btn-ghost mt-3 w-full">
+        {tournamentId ? "← Voltar ao torneio" : "← Voltar à Batalha"}
       </Link>
     </div>
   );
