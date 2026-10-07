@@ -2,17 +2,56 @@
 import { B } from "../../blocks/blocks";
 import { fbm2 } from "../../world/noise";
 import type { StoryMapDef } from "../types";
-import { type ChunkCtx } from "./builder";
+import { type ChunkCtx, type Column } from "./builder";
 import { type MapSpec, house, makeMap, palm, tent, well } from "./gen";
+import { type CityCfg, cityBuild, cityGround } from "./mega";
 
 // ============================================================ EGITO E MIDIÃ (Moisés)
 export const MOISES = { olaria: { x: 36, z: 60 }, poco: { x: 116, z: 78 }, tendas: { x: 128, z: 84 }, pasto: { x: 108, z: 60 }, horeb: { x: 140, z: 38 }, sarca: { x: 138, z: 50 } };
 
+/** A cidade do Faraó cobre o oeste (onde ficam as olarias) e todo o sul do mapa; Midiã e o monte Horebe ficam no deserto, a nordeste. */
+export const MOISES_CITY: CityCfg = {
+  seed: 9595,
+  w: 520,
+  d: 520,
+  inCity: (x, z) => x > 4 && z > 4 && x < 514 && z < 514 && (x < 84 || z >= 122),
+  keep: [{ x: 32, z: 68, r: 32 }],
+  pyramids: [
+    { x: 300, z: 330, half: 80 },
+    { x: 200, z: 450, half: 52 },
+    { x: 440, z: 250, half: 56 },
+  ],
+};
+
+function moisesSurf(x: number, z: number, k: Column): void {
+    k.top = B.sand;
+    k.sub = B.sandstone;
+    // o monte Horebe: cone suave, com um terraço onde arde a sarça
+    const d = Math.hypot(x - MOISES.horeb.x, z - MOISES.horeb.z);
+    const ds = Math.hypot(x - MOISES.sarca.x, z - MOISES.sarca.z);
+    if (ds < 6) {
+      k.h = 34;
+      k.top = B.stone;
+      k.sub = B.stone;
+      return;
+    }
+    if (d < 36) {
+      k.h = Math.max(k.h, 24 + Math.round(16 * (1 - d / 36)));
+      if (k.h > 30) {
+        k.top = B.stone;
+        k.sub = B.stone;
+      }
+    } else if (x > 92 && fbm2(9595 + 7, x / 20, z / 20, 2) > 0.66) {
+      k.top = B.stone;
+      k.sub = B.stone;
+    }
+}
+
 const moises: MapSpec = {
   id: "moises",
-  name: "Do Egito a Midiã e ao monte Horebe",
-  w: 160,
-  d: 112,
+  name: "Da cidade do Faraó a Midiã e ao monte Horebe",
+  w: 520,
+  d: 520,
   seed: 9595,
   time: 0.14,
   bgm: "exodo",
@@ -37,31 +76,13 @@ const moises: MapSpec = {
     { x: MOISES.tendas.x, z: MOISES.tendas.z, r: 7, h: 25 },
   ],
   surf: (x, z, k) => {
-    k.top = B.sand;
-    k.sub = B.sandstone;
-    // o monte Horebe: cone suave, com um terraço onde arde a sarça
-    const d = Math.hypot(x - MOISES.horeb.x, z - MOISES.horeb.z);
-    const ds = Math.hypot(x - MOISES.sarca.x, z - MOISES.sarca.z);
-    if (ds < 6) {
-      k.h = 34;
-      k.top = B.stone;
-      k.sub = B.stone;
-      return;
-    }
-    if (d < 36) {
-      k.h = Math.max(k.h, 24 + Math.round(16 * (1 - d / 36)));
-      if (k.h > 30) {
-        k.top = B.stone;
-        k.sub = B.stone;
-      }
-    } else if (x > 92 && fbm2(9595 + 7, x / 20, z / 20, 2) > 0.66) {
-      k.top = B.stone;
-      k.sub = B.stone;
-    }
+    moisesSurf(x, z, k);
+    cityGround(MOISES_CITY, x, z, k);
   },
   tree: () => null,
   cover: () => 0,
   extra: (c: ChunkCtx) => {
+    cityBuild(MOISES_CITY, c);
     // olaria do Egito: pilhas de tijolo e cabanas dos escravos
     for (const [dx, dz] of [[-6, -4], [5, 4], [-5, 6]]) c.fill(MOISES.olaria.x + dx, 25, MOISES.olaria.z + dz, MOISES.olaria.x + dx + 2, 26, MOISES.olaria.z + dz + 1, B.brick);
     for (const [x, z] of [[18, 78], [26, 84], [14, 66]]) house(c, x, 24, z, 5, 5, 3, B.sandstone, B.planks, 0);
@@ -84,11 +105,36 @@ export const MOISES_MAP: StoryMapDef = makeMap(moises);
 // ============================================================ GÓSEN (Páscoa)
 export const GOSEN = { casa: { x: 58, z: 48 }, campo: { x0: 80, x1: 94, z0: 78, z1: 92 } };
 
+/** O bairro dos hebreus em Gósen fica dentro da megacidade do Faraó: tudo em volta do vilarejo é cidade. */
+export const GOSEN_CITY: CityCfg = {
+  seed: 9696,
+  w: 520,
+  d: 520,
+  inCity: (x, z) => x > 4 && z > 4 && x < 514 && z < 514 && (x > 140 || z > 124),
+  keep: [],
+  pyramids: [
+    { x: 300, z: 260, half: 80 },
+    { x: 200, z: 420, half: 56 },
+    { x: 430, z: 150, half: 50 },
+  ],
+};
+
+function gosenSurf(x: number, z: number, k: Column): void {
+    const f = GOSEN.campo;
+    if (x >= f.x0 && x <= f.x1 && z >= f.z0 && z <= f.z1) {
+      k.h = 24;
+      k.top = B.farmland;
+      return;
+    }
+    k.top = fbm2(9696 + 3, x / 28, z / 28, 2) > 0.58 ? B.sand : B.dry_grass;
+    if (k.top === B.sand) k.sub = B.sandstone;
+}
+
 const gosen: MapSpec = {
   id: "gosen",
-  name: "A terra de Gósen",
-  w: 128,
-  d: 112,
+  name: "Gósen, na cidade do Faraó",
+  w: 520,
+  d: 520,
   seed: 9696,
   time: 0.14,
   bgm: "pascoa",
@@ -110,14 +156,8 @@ const gosen: MapSpec = {
     { x: 40, z: 84, r: 8, h: 24 },
   ],
   surf: (x, z, k) => {
-    const f = GOSEN.campo;
-    if (x >= f.x0 && x <= f.x1 && z >= f.z0 && z <= f.z1) {
-      k.h = 24;
-      k.top = B.farmland;
-      return;
-    }
-    k.top = fbm2(9696 + 3, x / 28, z / 28, 2) > 0.58 ? B.sand : B.dry_grass;
-    if (k.top === B.sand) k.sub = B.sandstone;
+    gosenSurf(x, z, k);
+    cityGround(GOSEN_CITY, x, z, k);
   },
   tree: (x, z, r, k) => (r < 0.07 && k.top === B.dry_grass && Math.hypot(x - 61, z - 52) > 22 ? { trunk: 5, radius: 3, leaf: B.dry_leaves } : null),
   cover: (x, z, r, k) => {
@@ -125,6 +165,7 @@ const gosen: MapSpec = {
     return k.top === B.dry_grass && r < 0.1 ? B.tallgrass : 0;
   },
   extra: (c: ChunkCtx) => {
+    cityBuild(GOSEN_CITY, c);
     // as casas dos hebreus; a primeira (com a porta marcada) fica no centro
     house(c, GOSEN.casa.x, 24, GOSEN.casa.z, 6, 6, 4, B.sandstone, B.planks, 0);
     const hs: [number, number][] = [[44, 48], [74, 48], [88, 48], [40, 62], [56, 66], [72, 64], [88, 62], [30, 50]];

@@ -2,8 +2,9 @@
 import { B } from "../../blocks/blocks";
 import { fbm2 } from "../../world/noise";
 import type { StoryMapDef } from "../types";
-import { type ChunkCtx } from "./builder";
+import { type ChunkCtx, type Column } from "./builder";
 import { type MapSpec, house, makeMap, palm, tent, well } from "./gen";
+import { type CityCfg, cityBuild, cityGround } from "./mega";
 import { tree } from "./builder";
 
 // ============================================================ SINAR (Babel)
@@ -203,11 +204,59 @@ export const BERSEBA_MAP: StoryMapDef = makeMap(berseba);
 // ============================================================ DOTÃ E EGITO (José)
 export const EGITO = { dota: { x: 30, z: 44 }, cova: { x: 36, z: 52 }, nilo: 92, potifar: { x: 112, z: 64 }, prisao: { x: 128, z: 92 }, palacio: { x: 132, z: 40 }, celeiros: { x: 110, z: 40 }, campo: { x0: 100, x1: 112, z0: 76, z1: 90 } };
 
+/** A megacidade do Faraó: cresce a leste do Nilo, em volta do palácio, de Potifar, da prisão e dos celeiros. */
+export const EGITO_CITY: CityCfg = {
+  seed: 8484,
+  w: 520,
+  d: 520,
+  inCity: (x, z) => x > 92 + 3 * Math.sin(z / 12) + 9 && x < 514 && z > 4 && z < 514,
+  keep: [
+    { x: 112, z: 64, r: 15 },
+    { x: 128, z: 92, r: 13 },
+    { x: 132, z: 40, r: 17 },
+    { x: 110, z: 40, r: 14 },
+    { x: 106, z: 83, r: 12 },
+    { x: 150, z: 100, r: 26 },
+  ],
+  pyramids: [
+    { x: 330, z: 300, half: 80 },
+    { x: 230, z: 430, half: 56 },
+    { x: 440, z: 140, half: 50 },
+  ],
+};
+
+function egitoSurf(x: number, z: number, k: Column): void {
+    const c = EGITO.campo;
+    const rx = EGITO.nilo + 3 * Math.sin(z / 12);
+    if (Math.abs(x - rx) < 5) {
+      k.h = 21;
+      k.water = 23;
+      k.top = B.sand;
+      k.sub = B.sand;
+      return;
+    }
+    if (Math.abs(x - rx) < 7) {
+      k.top = B.sand;
+      k.h = Math.min(k.h, 23);
+      return;
+    }
+    if (x > rx) {
+      // margem leste: Egito, de areia e arenito
+      k.top = B.sand;
+      k.sub = B.sandstone;
+      if (x >= c.x0 && x <= c.x1 && z >= c.z0 && z <= c.z1) {
+        k.h = 24;
+        k.top = B.farmland;
+        k.sub = B.dirt;
+      }
+    } else if (fbm2(8484 + 5, x / 26, z / 26, 2) > 0.66) k.top = B.dry_grass;
+}
+
 const egito: MapSpec = {
   id: "egito",
-  name: "De Dotã ao Egito",
-  w: 160,
-  d: 112,
+  name: "De Dotã à cidade do Faraó",
+  w: 520,
+  d: 520,
   seed: 8484,
   time: 0.14,
   bgm: "jose",
@@ -235,30 +284,8 @@ const egito: MapSpec = {
     { x: EGITO.celeiros.x, z: EGITO.celeiros.z, r: 9, h: 24 },
   ],
   surf: (x, z, k) => {
-    const c = EGITO.campo;
-    const rx = EGITO.nilo + 3 * Math.sin(z / 12);
-    if (Math.abs(x - rx) < 5) {
-      k.h = 21;
-      k.water = 23;
-      k.top = B.sand;
-      k.sub = B.sand;
-      return;
-    }
-    if (Math.abs(x - rx) < 7) {
-      k.top = B.sand;
-      k.h = Math.min(k.h, 23);
-      return;
-    }
-    if (x > rx) {
-      // margem leste: Egito, de areia e arenito
-      k.top = B.sand;
-      k.sub = B.sandstone;
-      if (x >= c.x0 && x <= c.x1 && z >= c.z0 && z <= c.z1) {
-        k.h = 24;
-        k.top = B.farmland;
-        k.sub = B.dirt;
-      }
-    } else if (fbm2(8484 + 5, x / 26, z / 26, 2) > 0.66) k.top = B.dry_grass;
+    egitoSurf(x, z, k);
+    cityGround(EGITO_CITY, x, z, k);
   },
   tree: (x, z, r, k) => {
     if (r > 0.12 || (k.top !== B.grass && k.top !== B.dry_grass)) return null;
@@ -270,6 +297,7 @@ const egito: MapSpec = {
     return k.top === B.grass ? (r < 0.03 ? B.flower_yellow : r < 0.14 ? B.tallgrass : 0) : 0;
   },
   extra: (c: ChunkCtx) => {
+    cityBuild(EGITO_CITY, c);
     // a cova (cisterna seca) em Dotã
     c.fill(EGITO.cova.x - 1, 19, EGITO.cova.z - 1, EGITO.cova.x + 1, 30, EGITO.cova.z + 1, B.air);
     c.fill(EGITO.cova.x - 2, 19, EGITO.cova.z - 2, EGITO.cova.x + 2, 19, EGITO.cova.z + 2, B.cobble);
