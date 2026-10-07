@@ -3,7 +3,7 @@
 import { B, BLOCKS } from "../blocks/blocks";
 import type { Entity } from "../entities/manager";
 import type { MobDef } from "../entities/definitions";
-import type { World } from "../world/world";
+import type { BlockSnap, World } from "../world/world";
 import { ACH_BY_ID } from "./data/achievements";
 import { CHAPTER_BY_ID, NEXT_CHAPTER } from "./data/chapters";
 import { CUTSCENES } from "./data/cutscenes";
@@ -82,6 +82,7 @@ export class StoryDirector {
   private dirty = true;
   private hudCache: StoryHud | null = null;
   private nearT = 0;
+  private raceT = 0;
   private timer = 0;
   private flags = new Set<string>();
   private mission: Mission | null = null;
@@ -202,6 +203,7 @@ export class StoryDirector {
     this.stepStuck(dt);
     this.stepBounds();
     this.stepStorm(dt);
+    this.stepTime(dt);
     this.stepEffects(dt);
     if (this.shakeT > 0) this.shakeT = Math.max(0, this.shakeT - dt);
     if (!this.runner && !this.dlg && !this.ui.learn && !this.ui.chapterEnd && !this.ui.finale && this.mission && !this.busyMission) this.checkObjective(dt);
@@ -274,6 +276,7 @@ export class StoryDirector {
     this.session.objIndex++;
     this.session.progress = 0;
     this.session.counters = {};
+    this.raceT = 0;
     this.hudCache = null;
     if (this.session.objIndex >= m.objectives.length) this.completeMission(m);
     else {
@@ -319,7 +322,19 @@ export class StoryDirector {
     switch (o.k) {
       case "reach": {
         const z = this.map.zones[o.zone];
-        if (z && inZone(z, p.x, p.z)) this.completeObjective();
+        if (z && inZone(z, p.x, p.z)) {
+          this.completeObjective();
+          break;
+        }
+        // corrida contra o tempo (Mar Vermelho): se acabar, o jogador volta ao começo e tenta de novo
+        if (o.limit) {
+          this.raceT += dt;
+          if (this.raceT >= o.limit) {
+            this.raceT = 0;
+            this.hudCache = null;
+            if (o.failScene) this.play(o.failScene, null);
+          }
+        }
         break;
       }
       case "collect": {
@@ -890,7 +905,7 @@ export class StoryDirector {
         this.host.sfx(s.kind);
         break;
       case "spawn":
-        for (let k = 0; k < (s.count ?? 1); k++) this.spawnNpc(this.uid(s.mob), s.mob, s.at.x + k, s.at.z, s.tag, true);
+        for (let k = 0; k < (s.count ?? 1); k++) this.spawnNpc(`${s.mob}_${s.at.x}_${s.at.z}_${k}`, s.mob, s.at.x + k, s.at.z, s.tag, true);
         break;
       case "call":
         this.call(s.fn, s.arg, !!s.wait, r);
@@ -985,6 +1000,11 @@ export class StoryDirector {
     for (const [x, y, z, id] of this.structQueue) this.host.world.setBlock(x, y, z, id, true);
     this.structQueue = [];
     this.structWait = false;
+    if (this.timeTw) {
+      this.host.setTime(((this.timeTw.to % 1) + 1) % 1, true);
+      this.timeTw = null;
+      this.timeWait = false;
+    }
     if (this.floodLevel !== this.floodTarget || this.arkLift !== this.arkLiftTarget) {
       const to = this.floodTarget;
       if (to > this.floodLevel) {
@@ -998,6 +1018,7 @@ export class StoryDirector {
       this.liftArkTo(this.arkLiftTarget);
     }
     if (this.floodLevel > 23) this.crowdDrown(99);
+    if (this.vegSnap || this.waterSnap) this.creationFinish();
     this.longBusy = 0;
   }
   private longDone(): boolean {
@@ -1120,6 +1141,45 @@ export class StoryDirector {
           const e = this.npcs.get(id);
           if (e?.story) e.story.hold = true;
         }
+        break;
+      case "creation":
+        this.creation(String(arg), skip, r);
+        break;
+      case "time": {
+        const [to, dur] = String(arg).split(":").map(Number);
+        if (skip) {
+          this.host.setTime(((to % 1) + 1) % 1, true);
+          this.timeTw = null;
+          this.lastTime = to;
+          break;
+        }
+        this.timeTw = { from: this.lastTime, to, t: 0, dur: Math.max(0.1, dur || 4) };
+        this.lastTime = to;
+        if (wait) {
+          this.timeWait = true;
+          this.longBusy++;
+          r.wait = { kind: "long", left: 0 };
+        }
+        break;
+      }
+      case "exile": {
+        // o jardim é retirado da terra: sem água, sem folhas, sem grama verde
+        const ids = new Map<number, number>();
+        for (const w of [B.water, B.water_1, B.water_2, B.water_3, B.water_4, B.water_5, B.water_6, B.water_7]) ids.set(w, B.air);
+        for (const l of [B.dry_leaves, B.leaves, B.fruit_leaves, B.life_leaves, B.tallgrass]) ids.set(l, B.air);
+        ids.set(B.dry_grass, B.sand);
+        ids.set(B.grass, B.sand);
+        this.host.world.replaceIds(ids);
+        this.session.flags.exiled = true;
+        this.host.setTime(0.52, true);
+        this.host.setWeather("rain");
+        this.host.music("fall");
+        this.host.shake(1.4, 0.25);
+        this.host.sfx("rumble");
+        break;
+      }
+      case "chase":
+        for (const e of this.npcs.values()) if (e.story?.tag === String(arg)) this.sendTo(e, [{ x: SEA.x0 + 1 + Math.random() * (SEA.x1 - SEA.x0 - 2), z: SEA.z0 }, { x: SEA.x0 + 1 + Math.random() * (SEA.x1 - SEA.x0 - 2), z: SEA.z1 - 6 }], 3.9);
         break;
       case "nile": {
         const ids = new Map<number, number>();
@@ -1260,6 +1320,88 @@ export class StoryDirector {
     for (const e of this.npcs.values()) if (inside(e.body.x, e.body.y, e.body.z)) e.body.y += dy;
   }
 
+  // ---- a criação (Gênesis 1): vegetação some e brota, a água do começo baixa, o dia passa
+  private vegSnap: BlockSnap | null = null;
+  private waterSnap: BlockSnap | null = null;
+  private growing = false;
+  private growY = 0;
+  private growT = 0;
+  private timeTw: { from: number; to: number; t: number; dur: number } | null = null;
+  private timeWait = false;
+  private lastTime = 0.14;
+
+  private creation(op: string, skip: boolean, r: Runner): void {
+    const w = this.host.world;
+    if (skip) return;
+    if (op === "begin") {
+      const veg = new Set<number>([B.leaves, B.fruit_leaves, B.life_leaves, B.dry_leaves, B.log, B.tallgrass, B.flower_red, B.flower_yellow, B.flower_blue, B.lily]);
+      const water = new Set<number>([B.water, B.water_1, B.water_2, B.water_3, B.water_4, B.water_5, B.water_6, B.water_7]);
+      this.vegSnap = w.snapshot((id) => veg.has(id), true);
+      this.waterSnap = w.snapshot((id, y) => water.has(id) && y > 23, false);
+      w.fillWater(41, () => false);
+      this.floodLevel = 41;
+      this.floodTarget = 41;
+      this.session.env.flood = 41;
+      this.host.setTime(0.75, true);
+      this.lastTime = 0.75;
+      this.host.setWeather("clear");
+    } else if (op === "drain") {
+      this.setFlood(23, false);
+      this.longBusy++;
+      r.wait = { kind: "long", left: 0 };
+    } else if (op === "waters") {
+      this.creationWaters();
+    } else if (op === "grow") {
+      if (!this.vegSnap) return;
+      this.growing = true;
+      this.growY = 22;
+      this.growT = 0;
+      this.longBusy++;
+      r.wait = { kind: "long", left: 0 };
+    }
+  }
+
+  private creationWaters(): void {
+    if (this.waterSnap) {
+      this.host.world.restoreUpTo(this.waterSnap, 99);
+      this.waterSnap = null;
+    }
+    this.floodLevel = 0;
+    this.floodTarget = 0;
+    this.session.env.flood = 0;
+  }
+
+  /** Fecha o que a criação deixou em andamento (ao pular a cena): tudo volta ao lugar. */
+  private creationFinish(): void {
+    if (this.vegSnap) {
+      this.host.world.restoreUpTo(this.vegSnap, 99);
+      this.vegSnap = null;
+    }
+    this.growing = false;
+    if (this.waterSnap || this.session.env.flood > 0) {
+      const gone = new Map<number, number>();
+      for (const i of [B.water, B.water_1, B.water_2, B.water_3, B.water_4, B.water_5, B.water_6, B.water_7]) gone.set(i, B.air);
+      this.host.world.drainAbove(23, gone);
+      this.creationWaters();
+    }
+  }
+
+  private stepTime(dt: number): void {
+    const tw = this.timeTw;
+    if (!tw) return;
+    tw.t = Math.min(tw.dur, tw.t + dt);
+    const k = tw.t / tw.dur;
+    const val = tw.from + (tw.to - tw.from) * k;
+    this.host.setTime(((val % 1) + 1) % 1, true);
+    if (tw.t >= tw.dur) {
+      this.timeTw = null;
+      if (this.timeWait) {
+        this.timeWait = false;
+        this.longBusy = Math.max(0, this.longBusy - 1);
+      }
+    }
+  }
+
   // ---- tempestade, multidão e o monte Ararate (Noé)
   private storm = false;
   private stormT = 0;
@@ -1355,6 +1497,20 @@ export class StoryDirector {
       if (this.arkBuildQueue.length === 0) {
         this.session.flags.arkBuilt = true;
         this.longBusy = Math.max(0, this.longBusy - 1);
+      }
+    }
+    // a vegetação brota de baixo para cima (criação)
+    if (this.growing && this.vegSnap) {
+      this.growT += dt;
+      if (this.growT >= 0.1) {
+        this.growT = 0;
+        this.growY++;
+        this.host.world.restoreUpTo(this.vegSnap, this.growY);
+        if (this.growY >= 70) {
+          this.vegSnap = null;
+          this.growing = false;
+          this.longBusy = Math.max(0, this.longBusy - 1);
+        }
       }
     }
     // construções de cena (torre de Babel, escada de Jacó...)
@@ -1467,6 +1623,7 @@ export class StoryDirector {
     let progress: string | null = null;
     if (o.k === "collect" || o.k === "harvest" || o.k === "place" || o.k === "near" || o.k === "lead") progress = `${Math.min(this.session.progress, o.count)} / ${o.count}`;
     if (o.k === "wait") progress = `${this.session.progress} / ${o.seconds}s`;
+    if (o.k === "reach" && o.limit) progress = `⏱ ${Math.max(0, Math.ceil(o.limit - this.raceT))} s`;
     const hud: StoryHud = { chapter: this.chapter.title, mission: m.title, objective: o.text, progress, ref: m.ref ?? null, dist, wp: null };
     return { hud, target };
   }

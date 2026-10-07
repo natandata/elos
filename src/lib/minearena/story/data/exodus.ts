@@ -15,6 +15,7 @@ const night: CutStep = { t: "env", time: 0.9, weather: "clear", lock: true };
 const day: CutStep = { t: "env", time: 0.14, weather: "clear", lock: true };
 const tp = (x: number, z: number, yaw = 0, y = -1): CutStep => ({ t: "teleport", target: "player", to: { x, y, z }, yaw });
 
+const SEA_N = 64;
 const hebreus = (n: number, x: number, z: number, tag?: string) =>
   Array.from({ length: n }, (_, i) => ({ mob: ["povo_a", "povo_b", "povo_c", "povo_d"][i % 4], at: { x: x + (i % 5) * 2.2, z: z + Math.floor(i / 5) * 2.4 }, id: `h${i + 1}`, tag }));
 
@@ -269,10 +270,7 @@ export const EXODUS_MISSIONS: Mission[] = [
     desc: "Moisés estende a mão sobre o mar.",
     ref: "Êxodo 14:15–31",
     onStart: "mv_open",
-    objectives: [
-      { k: "reach", zone: "travessia", text: "Atravesse o mar a pé enxuto, entre as águas." },
-      { k: "reach", zone: "outra_margem", text: "Chegue à outra margem." },
-    ],
+    objectives: [{ k: "reach", zone: "outra_margem", limit: 50, failScene: "mv_late", text: "CORRA! Atravesse o mar a pé enxuto antes que as águas voltem." }],
     onComplete: "mv_close",
   },
 ];
@@ -651,7 +649,25 @@ export const EXODUS_CUTSCENES: Record<string, Cutscene> = {
       say("Narrador", "O Senhor fez retirar o mar por um forte vento oriental toda aquela noite, e o mar tornou-se em terra seca; as águas foram partidas.", "Êxodo 14:21"),
       { t: "call", fn: "crossSea" },
       cam(v(96, 36, 70), v(96, 25, 140), 6, false),
+      { t: "call", fn: "chase", arg: "exercito" },
       say("Narrador", "Os filhos de Israel entraram pelo meio do mar em seco, e as águas lhes foram muro à direita e à esquerda.", "Êxodo 14:22"),
+      ...close,
+    ],
+  },
+  mv_late: {
+    id: "mv_late",
+    steps: [
+      ...open,
+      { t: "sfx", kind: "rumble" },
+      { t: "shake", dur: 1.5, power: 0.3 },
+      cap("O tempo acabou! As águas começaram a voltar.", 3.5, "Êxodo 14:27"),
+      fade(1, 1.5),
+      { t: "call", fn: "removeTag", arg: "exercito" },
+      tp(96, SEA_N - 2, 0),
+      { t: "spawn", mob: "egipcio", at: { x: 84, z: SEA_N - 24 }, count: 14, tag: "exercito" },
+      fade(0, 2),
+      say("Narrador", "O Senhor ainda mantinha o mar aberto, e o exército do Faraó se aproximava de novo. Era preciso atravessar depressa.", "Êxodo 14:21–23"),
+      { t: "call", fn: "chase", arg: "exercito" },
       ...close,
     ],
   },
@@ -660,10 +676,9 @@ export const EXODUS_CUTSCENES: Record<string, Cutscene> = {
     steps: [
       ...open,
       cam(v(96, 42, 56), v(96, 25, 110), 3),
-      { t: "call", fn: "marchSea", arg: "exercito" },
       say("Narrador", "Os egípcios os perseguiram e entraram atrás deles, todos os cavalos do Faraó, os seus carros e os seus cavaleiros, pelo meio do mar.", "Êxodo 14:23"),
       say("Narrador", "De manhã, o Senhor olhou do meio da coluna de fogo e de nuvem para o exército dos egípcios e o pôs em confusão; tirou-lhes as rodas dos carros, de modo que mal andavam.", "Êxodo 14:24–25"),
-      wait(9),
+      wait(2),
       { t: "call", fn: "arriveSea" },
       say("Deus", "Estende a mão sobre o mar, para que as águas tornem sobre os egípcios.", "Êxodo 14:26"),
       { t: "sfx", kind: "rumble" },

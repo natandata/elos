@@ -10,6 +10,8 @@ import { arenaIndexFor, chestFinds, deckAllowed, isCardUnlocked } from "@/lib/ar
 import { loadOwned } from "@/lib/arena/owned";
 import { CHEST_BY_KIND, rollChest, unlockedCards, type ChestKind, type CopyGrant } from "@/lib/arena/economy";
 import { gateMessage } from "@/lib/arena/gate";
+import { combineBotBoost } from "@/lib/arena/difficulty";
+import { loadArenaDifficulty } from "@/lib/arena/difficultyServer";
 import { loadGate } from "@/lib/arena/gateServer";
 import { abandonOpenMatches, settleArena, type ArenaFinish } from "@/lib/arena/settle";
 import { MISSION_BY_KEY } from "@/lib/arena/missions";
@@ -72,7 +74,8 @@ export async function startArena(arenaChoice?: number): Promise<{ error?: string
 
   // quanto mais alto no ranking, mais forte o computador
   const { data: rank } = admin ? await admin.rpc("arena_rank_of", { p_user: userId }) : { data: null };
-  const botBoost = rankBotBoost(typeof rank === "number" ? rank : null);
+  // e a dificuldade geral (definida pelo admin; padrão +25%) multiplica o computador
+  const botBoost = combineBotBoost(rankBotBoost(typeof rank === "number" ? rank : null), await loadArenaDifficulty(admin));
 
   const seed = randomInt(1, 2 ** 31 - 1);
   // só o servidor cria partida (semente sorteada aqui, limite diário e pausa de jogos valem pra todo mundo)

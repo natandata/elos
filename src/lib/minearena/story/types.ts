@@ -65,7 +65,7 @@ export type Dialogue = { id: string; lines: DialogueLine[] };
 
 // ---------- missões ----------
 export type Objective =
-  | { k: "reach"; zone: string; text: string }
+  | { k: "reach"; zone: string; text: string; limit?: number; failScene?: string }
   | { k: "talk"; npc: string; dialogue: string; text: string }
   | { k: "collect"; item: string; count: number; text: string; consume?: boolean; at?: string }
   | { k: "harvest"; block: string[]; count: number; text: string; at?: string }

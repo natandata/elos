@@ -170,6 +170,15 @@ export interface RayHit {
   dist: number;
 }
 
+export interface BlockSnap {
+  chunks: Chunk[];
+  ci: Uint16Array;
+  ix: Uint32Array;
+  id: Uint8Array;
+  y: Uint8Array;
+  next: number;
+}
+
 export class World {
   chunks = new Map<number, Chunk>();
   /** Blocos alterados pelo jogador: chave do chunk → (índice → id). Vai pro save. */
@@ -316,6 +325,54 @@ export class World {
 
   /** Modo História: gerador de mapa limitado (substitui o terreno procedural). */
   custom: ((cx: number, cz: number) => { data: Uint8Array; maxY: number; chests: { x: number; y: number; z: number; table: LootTable }[] }) | null = null;
+
+  /** Guarda (em ordem de altura) os blocos que atendem a `pred`; com `clear`, também os remove do mundo. Para cenas da campanha. */
+  snapshot(pred: (id: number, y: number) => boolean, clear: boolean): BlockSnap {
+    const chs: Chunk[] = [...this.chunks.values()];
+    const ci: number[] = [];
+    const ix: number[] = [];
+    const idl: number[] = [];
+    const yl: number[] = [];
+    for (let y = 1; y < WORLD_H; y++) {
+      const base = y * CHUNK * CHUNK;
+      for (let c = 0; c < chs.length; c++) {
+        const d = chs[c].data;
+        let any = false;
+        for (let j = 0; j < CHUNK * CHUNK; j++) {
+          const id = d[base + j];
+          if (id !== 0 && pred(id, y)) {
+            ci.push(c);
+            ix.push(base + j);
+            idl.push(id);
+            yl.push(y);
+            if (clear) {
+              d[base + j] = 0;
+              any = true;
+            }
+          }
+        }
+        if (any) chs[c].needsMesh = true;
+      }
+    }
+    if (clear) for (const c of chs) if (c.needsMesh) this.markNeighborsDirty(c);
+    return { chunks: chs, ci: Uint16Array.from(ci), ix: Uint32Array.from(ix), id: Uint8Array.from(idl), y: Uint8Array.from(yl), next: 0 };
+  }
+
+  /** Devolve ao mundo os blocos do instantâneo até a altura `maxY` (a vegetação "brota" de baixo para cima). */
+  restoreUpTo(snap: BlockSnap, maxY: number): void {
+    const touched = new Set<number>();
+    while (snap.next < snap.id.length && snap.y[snap.next] <= maxY) {
+      const k = snap.next++;
+      const ch = snap.chunks[snap.ci[k]];
+      if (this.chunks.get(ckey(ch.cx, ch.cz)) !== ch) continue;
+      ch.data[snap.ix[k]] = snap.id[k];
+      touched.add(snap.ci[k]);
+    }
+    for (const c of touched) {
+      snap.chunks[c].needsMesh = true;
+      this.markNeighborsDirty(snap.chunks[c]);
+    }
+  }
 
   /** Troca ids de bloco em todos os chunks carregados (cenas da campanha; não conta como edição do jogador). */
   replaceIds(map: Map<number, number>): void {

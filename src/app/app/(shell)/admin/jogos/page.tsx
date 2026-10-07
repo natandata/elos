@@ -7,6 +7,8 @@ import { GAME_CATALOG } from "@/lib/games/catalog";
 import { getVisibilities } from "@/lib/games/releaseServer";
 import { GameVisibility, type VisRow } from "@/components/games/GameVisibility";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { ArenaDifficulty } from "@/components/games/ArenaDifficulty";
+import { loadArenaDifficulty } from "@/lib/arena/difficultyServer";
 
 const RELEASE_TITLES: Record<ReleasedGame, string> = { dress: "👗 Vista o Herói (inclui a Passarela)", minearena: "⛏️ MineArena", biblerush: "🛶 Bible Rush" };
 
@@ -41,6 +43,7 @@ export default async function AdminJogosPage() {
   await requireRole("admin");
 
   const vis = await getVisibilities();
+  const arenaDifficulty = await loadArenaDifficulty(createAdminClient());
   const rows: VisRow[] = GAME_CATALOG.map((g) => {
     const rel = g.key in GAME_RELEASES ? (g.key as ReleasedGame) : null;
     const when = rel ? new Date(GAME_RELEASES[rel]).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" }) : null;
@@ -108,6 +111,11 @@ export default async function AdminJogosPage() {
           Automático segue a data de lançamento (jogos sem data ficam abertos). Visível abre para todos agora. Oculto esconde o jogo de todos, só você continua vendo.
         </p>
         <GameVisibility rows={rows} />
+      </section>
+
+      <section className="mb-6">
+        <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">Dificuldade da Arena</h2>
+        <ArenaDifficulty current={arenaDifficulty} />
       </section>
 
       {pending.length > 0 ? (

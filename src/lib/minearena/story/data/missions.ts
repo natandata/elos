@@ -17,7 +17,6 @@ export const MISSIONS: Mission[] = [
     ref: "Gênesis 1:1; 2:8–9",
     onStart: "eden_intro",
     objectives: [{ k: "reach", zone: "river", text: "Siga o rio até a campina." }],
-    spawn: [A("ovelha", 50, 66), A("ovelha", 53, 70), A("ovelha", 47, 62), A("boi", 62, 70), A("cabra", 58, 59), A("camelo", 66, 64), A("galo", 54, 74), A("galo", 60, 73), A("cavalo", 44, 72), A("leao", 38, 64)],
     next: "eden_2",
   },
   {
