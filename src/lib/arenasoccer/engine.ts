@@ -332,6 +332,20 @@ function physics(g: Game, dt: number, free: boolean): void {
   b.vy *= drag;
   clampSpeed(b, BALL_MAX);
   ballWalls(g, g.events);
+  // bola prensada contra a parede: quem a empurra é que recua (não deixa a bola "dentro" do disco)
+  for (const p of g.players) {
+    const dx = p.x - b.x;
+    const dy = p.y - b.y;
+    const min = p.r + b.r;
+    const d2 = dx * dx + dy * dy;
+    if (d2 < min * min && d2 > 0) {
+      const d = Math.sqrt(d2);
+      p.x = b.x + (dx / d) * min;
+      p.y = b.y + (dy / d) * min;
+      p.x = Math.max(p.r, Math.min(g.w - p.r, p.x));
+      p.y = Math.max(p.r, Math.min(g.h - p.r, p.y));
+    }
+  }
 }
 
 function startCountdown(g: Game, secs: number): void {

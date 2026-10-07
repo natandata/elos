@@ -66,29 +66,39 @@ export function thinkAll(g: Game, level: Level | [Level, Level], dt: number): vo
       sx /= sl;
       sy /= sl;
       const reach = PLAYER_R + BALL_R;
-      const ax = px - sx * (reach + 8);
-      const ay = py - sy * (reach + 8);
-      const toApproach = Math.hypot(ax - p.x, ay - p.y);
-      // se a bola está "atrás" de mim (entre mim e o meu gol), contorna em vez de empurrar para trás
-      const behind = (ball.x - p.x) * dir < -6;
-      if (behind && toApproach > 30) {
-        tx = ax;
-        ty = ay + (ball.y > p.y ? -1 : 1) * 0 + (p.y < g.h / 2 ? -50 : 50) * (behind ? 0.6 : 0);
-      } else if (toApproach > 26) {
-        tx = ax;
-        ty = ay;
+      // posição do jogador em relação à bola, no eixo do chute: "along" < 0 = estou atrás da bola (bom)
+      const rx = p.x - px;
+      const ry = p.y - py;
+      const along = rx * sx + ry * sy;
+      const cross = rx * -sy + ry * sx;
+      if (along < -reach * 0.9 && Math.abs(cross) < reach * 1.3) {
+        // alinhado atrás da bola: vai nela
+        tx = px - sx * 2;
+        ty = py - sy * 2;
       } else {
-        tx = px;
-        ty = py;
+        // contorna a bola pelo lado em que já está, sem empurrá-la para o próprio gol
+        const side = Math.abs(cross) < 6 ? (py < g.h / 2 ? 1 : -1) : Math.sign(cross);
+        const wx = px - sx * (reach + 8) + -sy * side * (reach + 22);
+        const wy = py - sy * (reach + 8) + sx * side * (reach + 22);
+        const ax = px - sx * (reach + 6);
+        const ay = py - sy * (reach + 6);
+        if (along > -reach * 0.5) {
+          tx = wx;
+          ty = wy;
+        } else {
+          tx = ax;
+          ty = ay;
+        }
       }
       const d = dist(p);
       if (d < reach + 11) {
         const dx = (ball.x - p.x) / (d || 1);
         const dy = (ball.y - p.y) / (d || 1);
         const align = dx * sx + dy * sy;
-        // chuta quando a bola está na direção do gol (ou para afastar o perigo perto do próprio gol)
+        // chuta quando a bola vai na direção do gol; perto do próprio gol, qualquer chute que a afaste serve
         const danger = Math.abs(ball.x - ownX) < g.w * 0.22;
-        if (align > 0.55 * L.kickBias || (danger && align > 0)) kick = Math.random() < 0.55 + 0.45 * L.kickBias;
+        const away = dx * dir > 0.2;
+        if (align > 0.6 * L.kickBias || (danger && away)) kick = Math.random() < 0.55 + 0.45 * L.kickBias;
       }
     } else {
       // cobertura: fica entre a bola e o próprio gol; o último da fila segura mais atrás
@@ -99,7 +109,7 @@ export function thinkAll(g: Game, level: Level | [Level, Level], dt: number): vo
       tx = ownX + (bx - ownX) * (depth + 0.18);
       tx = team === 0 ? Math.min(tx, g.w * 0.55) : Math.max(tx, g.w * 0.45);
       ty = g.h / 2 + (ball.y - g.h / 2) * 0.5 + (rank - (mates.length - 1) / 2) * 90;
-      if (dist(p) < PLAYER_R + BALL_R + 10 && (ball.x - p.x) * dir > -4) kick = Math.random() < 0.6;
+      if (dist(p) < PLAYER_R + BALL_R + 10 && (ball.x - p.x) * dir > 8) kick = Math.random() < 0.5;
     }
     const mx = tx - p.x;
     const my = ty - p.y;

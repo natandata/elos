@@ -12,7 +12,7 @@ export default async function AdminLojaPage() {
   const supabase = await createClient();
   const { data } = await supabase.from("store_items").select(STORE_COLUMNS).order("sort").order("created_at");
 
-  const { data: setting } = await supabase.from("coin_settings").select("xp_per_coin").eq("id", 1).maybeSingle<{ xp_per_coin: number }>();
+  const { data: setting } = await supabase.from("coin_settings").select("coins_per_xp").eq("id", 1).maybeSingle<{ coins_per_xp: number }>();
   let users: CoinUser[] = [];
   const db = createAdminClient();
   if (db) {
@@ -34,7 +34,7 @@ export default async function AdminLojaPage() {
       <PageHeader title="🛍️ Loja da Sala de Jogos" subtitle="Escolha quais jogos aparecem na vitrine, com data de lançamento ou em produção, e defina o preço em denários." />
       <StoreManager items={(data ?? []) as StoreItem[]} />
       <h2 className="mb-2 mt-6 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">Troca de XP</h2>
-      <XpRateAdmin rate={setting?.xp_per_coin ?? 10} />
+      <XpRateAdmin rate={setting?.coins_per_xp ?? 5} />
       <h2 className="mb-2 mt-6 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">Denários dos jogadores</h2>
       <CoinGrant users={users} />
     </>

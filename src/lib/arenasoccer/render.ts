@@ -1,5 +1,5 @@
 // ArenaSoccer: desenho do campo, dos discos e dos efeitos (canvas 2D).
-import { BALL_R, GOAL_DEPTH, type Disc, type Game } from "./engine";
+import { BALL_R, GOAL_DEPTH, PLAYER_R, type Disc, type Game } from "./engine";
 
 export type Fx = {
   trail: { x: number; y: number }[];
@@ -8,9 +8,11 @@ export type Fx = {
   shake: number;
   banner: { text: string; color: string; t: number } | null;
   t: number;
+  /** câmera (centro em coordenadas do campo) */
+  cam: { x: number; y: number; z: number; init: boolean };
 };
 
-export const newFx = (): Fx => ({ trail: [], parts: [], rings: [], shake: 0, banner: null, t: 0 });
+export const newFx = (): Fx => ({ trail: [], parts: [], rings: [], shake: 0, banner: null, t: 0, cam: { x: 0, y: 0, z: 1, init: false } });
 
 export type Look = { teamColors: [string, string]; rotated: boolean };
 
@@ -67,9 +69,6 @@ function disc(ctx: CanvasRenderingContext2D, d: Disc, color: string, human: bool
 function pitch(ctx: CanvasRenderingContext2D, g: Game, look: Look): void {
   const { w, h } = g;
   const R = 72;
-  // fora do campo
-  ctx.fillStyle = "#0d2417";
-  ctx.fillRect(-GOAL_DEPTH - PAD - 4, -PAD - 4, w + 2 * (GOAL_DEPTH + PAD) + 8, h + 2 * PAD + 8);
   // gramado em faixas, recortado nos cantos arredondados
   ctx.save();
   ctx.beginPath();
@@ -157,6 +156,42 @@ function pitch(ctx: CanvasRenderingContext2D, g: Game, look: Look): void {
   }
 }
 
+const MIN_DISC_PX = 30;
+
+/** Câmera: nos campos grandes em telas pequenas os discos ficariam minúsculos, então aproxima e acompanha a bola. */
+function updateCamera(fx: Fx, g: Game, s: number, aw: number, ah: number, rotated: boolean, dt: number): number {
+  const need = MIN_DISC_PX / (PLAYER_R * 2 * s);
+  const z = need <= 1.06 ? 1 : Math.min(2.3, need);
+  const cam = fx.cam;
+  const xmin = -GOAL_DEPTH - PAD;
+  const xmax = g.w + GOAL_DEPTH + PAD;
+  const ymin = -PAD;
+  const ymax = g.h + PAD;
+  let tx = (xmin + xmax) / 2;
+  let ty = (ymin + ymax) / 2;
+  if (z > 1) {
+    const me = g.players[0];
+    tx = g.ball.x * 0.65 + me.x * 0.35;
+    ty = g.ball.y * 0.65 + me.y * 0.35;
+    const halfX = (rotated ? ah : aw) / (2 * s * z);
+    const halfY = (rotated ? aw : ah) / (2 * s * z);
+    tx = xmax - xmin <= 2 * halfX ? (xmin + xmax) / 2 : Math.max(xmin + halfX, Math.min(xmax - halfX, tx));
+    ty = ymax - ymin <= 2 * halfY ? (ymin + ymax) / 2 : Math.max(ymin + halfY, Math.min(ymax - halfY, ty));
+  }
+  if (!cam.init) {
+    cam.x = tx;
+    cam.y = ty;
+    cam.z = z;
+    cam.init = true;
+  } else {
+    const k = 1 - Math.exp(-7 * dt);
+    cam.x += (tx - cam.x) * k;
+    cam.y += (ty - cam.y) * k;
+    cam.z += (z - cam.z) * k;
+  }
+  return cam.z;
+}
+
 /** Atualiza partículas, anéis e tremor. */
 export function stepFx(fx: Fx, dt: number): void {
   fx.t += dt;
@@ -195,7 +230,7 @@ export function confetti(fx: Fx, x: number, y: number): void {
 }
 
 /** Desenha um quadro. `aw`/`ah` em pixels de CSS; `dpr` é a densidade. */
-export function draw(ctx: CanvasRenderingContext2D, g: Game, fx: Fx, look: Look, aw: number, ah: number, dpr: number): void {
+export function draw(ctx: CanvasRenderingContext2D, g: Game, fx: Fx, look: Look, aw: number, ah: number, dpr: number, dt = 0.016): void {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, aw, ah);
   const s = fitScale(g, aw, ah, look.rotated);
@@ -203,8 +238,9 @@ export function draw(ctx: CanvasRenderingContext2D, g: Game, fx: Fx, look: Look,
   ctx.save();
   ctx.translate(aw / 2 + sh, ah / 2 + (fx.shake > 0 ? (Math.random() - 0.5) * fx.shake * 2 : 0));
   if (look.rotated) ctx.rotate(-Math.PI / 2);
-  ctx.scale(s, s);
-  ctx.translate(-g.w / 2, -g.h / 2);
+  const z = updateCamera(fx, g, s, aw, ah, look.rotated, dt);
+  ctx.scale(s * z, s * z);
+  ctx.translate(-fx.cam.x, -fx.cam.y);
   pitch(ctx, g, look);
 
   // rastro da bola

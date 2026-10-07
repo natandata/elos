@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { thinkAll } from "@/lib/arenasoccer/ai";
 import { advance, MODES, newGame, type Game, type Level, type Mode } from "@/lib/arenasoccer/engine";
-import { burst, confetti, draw, newFx, stepFx, type Fx } from "@/lib/arenasoccer/render";
+import { burst, confetti, draw, newFx, stepFx } from "@/lib/arenasoccer/render";
 import { Sfx } from "@/lib/arenasoccer/sound";
 
 export type MatchResult = { mode: Mode; level: Level; goalsFor: number; goalsAgainst: number; secs: number; result: "win" | "loss" | "draw" };
@@ -12,14 +12,44 @@ type Hud = { s0: number; s1: number; time: string; overtime: boolean; phase: Gam
 
 const fmt = (s: number) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, "0")}`;
 
-const THUMB = 52;
+/** Matiz (0–360) de uma cor "#rrggbb"; cinza/branco devolve -1. */
+function hueOf(hex: string): number {
+  const n = parseInt(hex.slice(1), 16);
+  const r = ((n >> 16) & 255) / 255;
+  const g = ((n >> 8) & 255) / 255;
+  const b = (n & 255) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  if (max - min < 0.12) return -1;
+  const d = max - min;
+  const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return (h * 60 + 360) % 360;
+}
+
+/** Cor do adversário: a mais distante da sua (para nunca confundir os times). */
+export function opponentColor(mine: string): string {
+  const h = hueOf(mine);
+  const options = ["#ef4444", "#3b82f6", "#f59e0b", "#22c55e"];
+  if (h < 0) return "#ef4444";
+  let best = options[0];
+  let bd = -1;
+  for (const o of options) {
+    const ho = hueOf(o);
+    const d = Math.min(Math.abs(ho - h), 360 - Math.abs(ho - h));
+    // vermelho e azul são as cores "clássicas": ficam com a preferência se forem bem distintas da sua
+    if (d >= 110) return o;
+    if (d > bd) {
+      bd = d;
+      best = o;
+    }
+  }
+  return best;
+}
 
 /** Partida de ArenaSoccer contra o computador: tela cheia, teclado ou joystick virtual + botão de chute. */
 export function ArenaSoccerGame({ mode, level, color, onFinish, onExit }: { mode: Mode; level: Level; color: string; onFinish: (r: MatchResult) => void; onExit: () => void }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const gameRef = useRef<Game>(newGame(mode));
-  const fxRef = useRef<Fx>(newFx());
   const sfxRef = useRef<Sfx | null>(null);
   const keys = useRef(new Set<string>());
   const joy = useRef({ x: 0, y: 0, id: -1 });
@@ -27,6 +57,7 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit }: { mode
   const pausedRef = useRef(false);
   const rotatedRef = useRef(false);
   const doneRef = useRef(false);
+  const phaseRef = useRef<Game["phase"]>("countdown");
   const onFinishRef = useRef(onFinish);
   const [round, setRound] = useState(0);
   const [hud, setHud] = useState<Hud>({ s0: 0, s1: 0, time: fmt(MODES[mode].secs), overtime: false, phase: "countdown" });
@@ -50,6 +81,20 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit }: { mode
     if (sfxRef.current) sfxRef.current.muted = muted;
   }, [muted]);
 
+  // trava a rolagem da página por baixo e pausa quando a aba some
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const vis = () => {
+      if (document.hidden && phaseRef.current !== "end") setPaused(true);
+    };
+    document.addEventListener("visibilitychange", vis);
+    return () => {
+      document.body.style.overflow = prev;
+      document.removeEventListener("visibilitychange", vis);
+    };
+  }, []);
+
   // toque e orientação
   useEffect(() => {
     const upd = () => {
@@ -68,13 +113,19 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit }: { mode
 
   // teclado
   useEffect(() => {
+    const MINE = ["arrowup", "arrowdown", "arrowleft", "arrowright", " ", "w", "a", "s", "d", "k"];
     const down = (e: KeyboardEvent) => {
       const k = e.key.toLowerCase();
-      if (["arrowup", "arrowdown", "arrowleft", "arrowright", " ", "w", "a", "s", "d", "k"].includes(k)) e.preventDefault();
-      if (k === "escape" || k === "p") setPaused((p) => !p);
+      if (MINE.includes(k)) e.preventDefault();
+      if ((k === "escape" || k === "p") && !e.repeat) setPaused((p) => !p);
       keys.current.add(k);
     };
-    const up = (e: KeyboardEvent) => keys.current.delete(e.key.toLowerCase());
+    const up = (e: KeyboardEvent) => {
+      const k = e.key.toLowerCase();
+      // sem isto, soltar a barra de espaço "clica" no último botão tocado (pausa, som...)
+      if (MINE.includes(k)) e.preventDefault();
+      keys.current.delete(k);
+    };
     const blur = () => keys.current.clear();
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
@@ -86,7 +137,7 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit }: { mode
     };
   }, []);
 
-  const teamColors: [string, string] = [color, color.toLowerCase() === "#ef4444" ? "#3b82f6" : "#ef4444"];
+  const teamColors: [string, string] = [color, opponentColor(color)];
 
   // laço da partida
   useEffect(() => {
@@ -96,13 +147,13 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit }: { mode
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     const g = newGame(mode);
-    gameRef.current = g;
     const fx = newFx();
-    fxRef.current = fx;
     doneRef.current = false;
+    phaseRef.current = "countdown";
     if (!sfxRef.current) sfxRef.current = new Sfx();
     sfxRef.current.muted = muted;
     const sfx = sfxRef.current;
+    const colors: [string, string] = [color, opponentColor(color)];
     let aw = 0;
     let ah = 0;
     let dpr = 1;
@@ -111,8 +162,8 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit }: { mode
       dpr = Math.min(2, window.devicePixelRatio || 1);
       aw = r.width;
       ah = r.height;
-      canvas.width = Math.round(aw * dpr);
-      canvas.height = Math.round(ah * dpr);
+      canvas.width = Math.max(1, Math.round(aw * dpr));
+      canvas.height = Math.max(1, Math.round(ah * dpr));
     };
     resize();
     const ro = new ResizeObserver(resize);
@@ -150,7 +201,7 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit }: { mode
             sfx.goal();
             const gx = e.team === 0 ? g.w + 20 : -20;
             confetti(fx, gx, g.h / 2);
-            fx.rings.push({ x: gx, y: g.h / 2, life: 0.5, color: teamColors[e.team] });
+            fx.rings.push({ x: gx, y: g.h / 2, life: 0.5, color: colors[e.team] });
             fx.shake = 9;
             fx.banner = { text: e.team === 0 ? "GOOOL!" : "GOL DO ADVERSÁRIO", color: e.team === 0 ? "#fde047" : "#fca5a5", t: 2.6 };
           } else if (e.k === "tick") sfx.tick();
@@ -158,6 +209,7 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit }: { mode
           else if (e.k === "end") sfx.end();
         }
         g.events.length = 0;
+        phaseRef.current = g.phase;
         if (g.phase === "end" && !doneRef.current) {
           doneRef.current = true;
           const result: MatchResult = {
@@ -165,14 +217,14 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit }: { mode
             level,
             goalsFor: g.score[0],
             goalsAgainst: g.score[1],
-            secs: Math.round(g.played),
+            secs: Math.max(3, Math.round(g.played)),
             result: g.winner === null ? "draw" : g.winner === 0 ? "win" : "loss",
           };
           setEnd(result);
           onFinishRef.current(result);
         }
       }
-      draw(ctx, g, fx, { teamColors, rotated: rotatedRef.current }, aw, ah, dpr);
+      draw(ctx, g, fx, { teamColors: colors, rotated: rotatedRef.current }, aw, ah, dpr, dt);
       const t = g.overtime ? g.overtimeLeft : g.timeLeft;
       const key = `${g.score[0]}-${g.score[1]}-${Math.ceil(t)}-${g.phase}-${g.overtime}`;
       if (key !== lastHud) {
@@ -185,7 +237,7 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit }: { mode
       cancelAnimationFrame(raf);
       ro.disconnect();
     };
-    // a partida só recomeça quando muda de rodada, modo ou nível
+    // a partida só recomeça quando muda de rodada, modo, nível ou cor
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [round, mode, level, color]);
 
@@ -196,7 +248,9 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit }: { mode
     setRound((r) => r + 1);
   }, [mode]);
 
-  // joystick virtual
+  // joystick virtual (menor quando o celular está deitado)
+  const jsize = rotated ? 140 : 116;
+  const reach = Math.round(jsize * 0.37);
   const joyDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId);
     joy.current.id = e.pointerId;
@@ -208,12 +262,12 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit }: { mode
     let dx = e.clientX - (r.left + r.width / 2);
     let dy = e.clientY - (r.top + r.height / 2);
     const len = Math.hypot(dx, dy);
-    if (len > THUMB) {
-      dx = (dx / len) * THUMB;
-      dy = (dy / len) * THUMB;
+    if (len > reach) {
+      dx = (dx / len) * reach;
+      dy = (dy / len) * reach;
     }
-    joy.current.x = dx / THUMB;
-    joy.current.y = dy / THUMB;
+    joy.current.x = dx / reach;
+    joy.current.y = dy / reach;
     setThumb({ x: dx, y: dy });
   };
   const joyUp = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -231,32 +285,54 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit }: { mode
     onLostPointerCapture: () => (kickHeld.current = false),
   };
 
-  const controls = touch ? (
-    <>
-      <div
-        className="pointer-events-auto relative h-[140px] w-[140px] touch-none select-none rounded-full border-2 border-white/30 bg-white/10 backdrop-blur-sm"
-        onPointerDown={joyDown}
-        onPointerMove={joyMove}
-        onPointerUp={joyUp}
-        onPointerCancel={joyUp}
-        onLostPointerCapture={joyUp}
-        aria-label="Joystick"
-      >
-        <span className="absolute left-1/2 top-1/2 h-14 w-14 rounded-full bg-white/70 shadow-lg" style={{ transform: `translate(calc(-50% + ${thumb.x}px), calc(-50% + ${thumb.y}px))` }} />
-      </div>
-      <button type="button" {...kickProps} className="pointer-events-auto h-[104px] w-[104px] touch-none select-none rounded-full border-4 border-amber-300 bg-rose-600/90 text-lg font-black text-white shadow-xl active:scale-95" aria-label="Chutar">
-        CHUTAR
-      </button>
-    </>
+  // soltar tudo se os controles sumirem (pausa, fim de jogo)
+  useEffect(() => {
+    if (paused || end) {
+      joy.current = { x: 0, y: 0, id: -1 };
+      kickHeld.current = false;
+      keys.current.clear();
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- volta o joystick ao centro
+      setThumb({ x: 0, y: 0 });
+    }
+  }, [paused, end]);
+
+  const joystick = touch ? (
+    <div
+      className="relative shrink-0 touch-none select-none rounded-full border-2 border-white/30 bg-white/10"
+      style={{ width: jsize, height: jsize }}
+      onPointerDown={joyDown}
+      onPointerMove={joyMove}
+      onPointerUp={joyUp}
+      onPointerCancel={joyUp}
+      onLostPointerCapture={joyUp}
+      aria-label="Joystick"
+    >
+      <span className="absolute left-1/2 top-1/2 rounded-full bg-white/70 shadow-lg" style={{ width: jsize * 0.4, height: jsize * 0.4, transform: `translate(calc(-50% + ${thumb.x}px), calc(-50% + ${thumb.y}px))` }} />
+    </div>
+  ) : null;
+  const kickBtn = touch ? (
+    <button
+      type="button"
+      {...kickProps}
+      className="shrink-0 touch-none select-none rounded-full border-4 border-amber-300 bg-rose-600/90 font-black text-white shadow-xl active:scale-95"
+      style={{ width: rotated ? 104 : 92, height: rotated ? 104 : 92, fontSize: rotated ? 17 : 15 }}
+      aria-label="Chutar"
+    >
+      CHUTAR
+    </button>
   ) : null;
 
   const resultText = end ? (end.result === "win" ? "VITÓRIA! 🏆" : end.result === "loss" ? "Derrota" : "Empate") : "";
+  const gutter = touch && !rotated;
 
   return (
-    <div className="fixed inset-0 z-[100] flex select-none flex-col bg-[#08140d] text-white" style={{ touchAction: "none" }}>
+    <div
+      className="fixed inset-0 z-[100] flex select-none flex-col bg-[#0d2417] text-white"
+      style={{ touchAction: "none", overscrollBehavior: "contain", paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)", paddingLeft: "env(safe-area-inset-left)", paddingRight: "env(safe-area-inset-right)" }}
+    >
       {/* placar */}
-      <div className="flex items-center justify-between gap-2 px-3 py-2">
-        <button type="button" onClick={() => setPaused(true)} className="rounded-full bg-white/10 px-3 py-1.5 text-sm font-black" aria-label="Pausar">
+      <div className="flex shrink-0 items-center justify-between gap-2 px-3 py-2">
+        <button type="button" onClick={(e) => { e.currentTarget.blur(); setPaused(true); }} className="rounded-full bg-white/10 px-3 py-1.5 text-sm font-black" aria-label="Pausar">
           ⏸
         </button>
         <div className="flex items-center gap-3 text-center">
@@ -270,21 +346,27 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit }: { mode
             <i className="inline-block h-4 w-4 rounded-full" style={{ background: teamColors[1] }} />
           </span>
         </div>
-        <button type="button" onClick={() => setMuted((m) => !m)} className="rounded-full bg-white/10 px-3 py-1.5 text-sm font-black" aria-label="Som">
+        <button type="button" onClick={(e) => { e.currentTarget.blur(); setMuted((m) => !m); }} className="rounded-full bg-white/10 px-3 py-1.5 text-sm font-black" aria-label="Som">
           {muted ? "🔇" : "🔊"}
         </button>
       </div>
-      {hud.overtime ? <p className="text-center text-[11px] font-black uppercase tracking-wide text-amber-300">Gol de ouro: o próximo gol vence</p> : null}
 
-      {/* campo */}
-      <div ref={wrapRef} className="relative min-h-0 flex-1">
-        <canvas ref={canvasRef} className="absolute inset-0 h-full w-full touch-none" />
-        {touch && !rotated ? (
-          <div className="pointer-events-none absolute inset-x-3 bottom-3 flex items-end justify-between">{controls}</div>
-        ) : null}
+      {/* campo (e, com o celular deitado, os controles ao lado) */}
+      <div className="flex min-h-0 flex-1">
+        {gutter ? <div className="flex w-[132px] shrink-0 items-end justify-center pb-3">{joystick}</div> : null}
+        <div ref={wrapRef} className="relative min-w-0 flex-1">
+          <canvas ref={canvasRef} className="absolute inset-0 h-full w-full touch-none" />
+          {hud.overtime && hud.phase !== "end" ? <p className="pointer-events-none absolute inset-x-0 top-1 text-center text-[11px] font-black uppercase tracking-wide text-amber-300 [text-shadow:0_1px_3px_#000]">Gol de ouro: o próximo gol vence</p> : null}
+        </div>
+        {gutter ? <div className="flex w-[132px] shrink-0 items-end justify-center pb-3">{kickBtn}</div> : null}
       </div>
-      {touch && rotated ? <div className="flex items-center justify-between px-5 pb-6 pt-2">{controls}</div> : null}
-      {!touch ? <p className="px-3 pb-2 text-center text-[11px] text-white/60">WASD ou setas para mover · Espaço para chutar · Esc pausa</p> : null}
+      {touch && rotated ? (
+        <div className="flex shrink-0 items-center justify-between px-5 pb-5 pt-2">
+          {joystick}
+          {kickBtn}
+        </div>
+      ) : null}
+      {!touch ? <p className="shrink-0 px-3 pb-2 text-center text-[11px] text-white/60">WASD ou setas para mover · Espaço para chutar · Esc pausa</p> : null}
 
       {paused && !end ? (
         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/70 p-6">

@@ -125,23 +125,23 @@ export async function buyStoreItem(itemId: string): Promise<{ error?: string; ba
 }
 
 /** Jogador: troca XP por denários (a função do banco confere a data de abertura, o XP disponível e o limite). */
-export async function exchangeXp(coins: number): Promise<{ error?: string; balance?: number }> {
-  if (!Number.isInteger(coins) || coins < 1) return { error: "Escolha quantos denários quer." };
+export async function exchangeXp(xp: number): Promise<{ error?: string; balance?: number; coins?: number }> {
+  if (!Number.isInteger(xp) || xp < 1) return { error: "Escolha quantos XP quer trocar." };
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("xp_exchange", { p_coins: coins });
+  const { data, error } = await supabase.rpc("xp_exchange", { p_xp: xp });
   if (error || !data) return { error: "Não foi possível trocar agora." };
-  const r = data as { error?: string; balance?: number };
+  const r = data as { error?: string; balance?: number; coins?: number };
   if (r.error) return { error: r.error };
   revalidatePath("/app/jogos", "layout");
-  return { balance: r.balance };
+  return { balance: r.balance, coins: r.coins };
 }
 
-/** Admin: define quantos XP valem 1 denário. */
-export async function setXpRate(rate: number): Promise<{ error?: string }> {
+/** Admin: define quantos denários 1 XP vale. */
+export async function setXpRate(coinsPerXp: number): Promise<{ error?: string }> {
   const db = await adminOnly();
   if (!db) return { error: "Sem permissão." };
-  if (!Number.isInteger(rate) || rate < 1 || rate > 100000) return { error: "Informe um número inteiro de XP (1 ou mais)." };
-  const { error } = await db.from("coin_settings").upsert({ id: 1, xp_per_coin: rate, updated_at: new Date().toISOString() }, { onConflict: "id" });
+  if (!Number.isInteger(coinsPerXp) || coinsPerXp < 1 || coinsPerXp > 100000) return { error: "Informe um número inteiro de denários (1 ou mais)." };
+  const { error } = await db.from("coin_settings").upsert({ id: 1, coins_per_xp: coinsPerXp, updated_at: new Date().toISOString() }, { onConflict: "id" });
   if (error) return { error: "Não foi possível salvar." };
   revalidatePath("/app/jogos", "layout");
   revalidatePath("/app/admin/loja");

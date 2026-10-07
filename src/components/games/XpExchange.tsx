@@ -10,7 +10,7 @@ function parts(ms: number) {
   return { d: Math.floor(s / 86400), h: Math.floor((s % 86400) / 3600), m: Math.floor((s % 3600) / 60), s: s % 60 };
 }
 
-/** Troca de XP por denários. Fica trancada com contagem regressiva até 01/11 (admin e contas de teste podem testar antes). */
+/** Troca de XP por denários (1 XP = `rate` denários). Fica trancada com contagem regressiva até 01/11 (admin e contas de teste testam antes). */
 export function XpExchange({ availableXp, rate, early }: { availableXp: number; rate: number; early: boolean }) {
   const router = useRouter();
   const target = new Date(XP_EXCHANGE_OPENS).getTime();
@@ -33,7 +33,7 @@ export function XpExchange({ availableXp, rate, early }: { availableXp: number; 
   }, [left, target, router]);
 
   const open = left <= 0 || early;
-  const max = Math.min(1000, Math.floor(availableXp / rate));
+  const max = Math.min(1000, Math.floor(availableXp));
   const n = Math.max(1, Math.min(qty, Math.max(1, max)));
   const p = parts(left);
 
@@ -43,7 +43,7 @@ export function XpExchange({ availableXp, rate, early }: { availableXp: number; 
       const r = await exchangeXp(n);
       if (r.error) setMsg({ ok: false, text: r.error });
       else {
-        setMsg({ ok: true, text: `Troca feita! Você ganhou ${fmtCoins(n)}.` });
+        setMsg({ ok: true, text: `Troca feita! Você ganhou ${fmtCoins(r.coins ?? n * rate)}.` });
         setQty(1);
         router.refresh();
       }
@@ -56,7 +56,7 @@ export function XpExchange({ availableXp, rate, early }: { availableXp: number; 
         ⚖️ Trocar XP por {COIN.name.toLowerCase()} {COIN.emoji}
       </p>
       <p className="mt-0.5 text-xs text-[var(--muted)]">
-        {rate} XP = {fmtCoins(1)}. O XP trocado é <b>descontado</b> do seu XP: seu nível e os pontos do seu Elo diminuem junto.
+        1 XP = {fmtCoins(rate)}. O XP trocado é <b>descontado</b> do seu XP: seu nível e os pontos do seu Elo diminuem junto.
       </p>
       {!open ? (
         <div className="mt-2 rounded-xl bg-amber-50 p-3 text-center">
@@ -72,22 +72,22 @@ export function XpExchange({ availableXp, rate, early }: { availableXp: number; 
             Seu XP: <span className="tabular-nums">{availableXp.toLocaleString("pt-BR")}</span>
           </p>
           {max < 1 ? (
-            <p className="mt-2 text-xs text-[var(--muted)]">Você precisa de pelo menos {rate} XP para trocar por 1 {COIN.one.toLowerCase()}. Jogue e cumpra missões para juntar XP.</p>
+            <p className="mt-2 text-xs text-[var(--muted)]">Você precisa de pelo menos 1 XP para trocar. Jogue e cumpra missões para juntar XP.</p>
           ) : (
             <>
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
                 {[1, 5, 10].filter((v) => v <= max).map((v) => (
                   <button key={v} type="button" onClick={() => setQty(v)} className={`rounded-full px-3 py-1 text-[11px] font-black ${n === v ? "bg-[var(--accent)] text-[var(--accent-ink)]" : "bg-[var(--line)] text-[var(--muted)]"}`}>
-                    {v}
+                    {v} XP
                   </button>
                 ))}
                 <button type="button" onClick={() => setQty(max)} className={`rounded-full px-3 py-1 text-[11px] font-black ${n === max ? "bg-[var(--accent)] text-[var(--accent-ink)]" : "bg-[var(--line)] text-[var(--muted)]"}`}>
                   Tudo ({max})
                 </button>
-                <input type="number" min={1} max={max} className="input !w-20" value={n} onChange={(e) => setQty(Math.floor(Number(e.target.value)) || 1)} aria-label="Quantidade de denários" />
+                <input type="number" min={1} max={max} className="input !w-20" value={n} onChange={(e) => setQty(Math.floor(Number(e.target.value)) || 1)} aria-label="Quantidade de XP" />
               </div>
               <button type="button" disabled={pending} onClick={go} className="btn btn-primary mt-2 w-full">
-                {pending ? "Trocando…" : `Trocar ${(n * rate).toLocaleString("pt-BR")} XP por ${fmtCoins(n)}`}
+                {pending ? "Trocando…" : `Trocar ${n.toLocaleString("pt-BR")} XP por ${fmtCoins(n * rate)}`}
               </button>
             </>
           )}

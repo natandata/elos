@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import { setXpRate } from "@/lib/actions/store";
 import { COIN, fmtCoins } from "@/lib/games/coins";
 
-/** Admin: quantos XP valem 1 denário na troca (abre em 01/11). */
+/** Admin: quantos denários 1 XP vale na troca (abre em 01/11). */
 export function XpRateAdmin({ rate }: { rate: number }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -28,7 +28,7 @@ export function XpRateAdmin({ rate }: { rate: number }) {
       <p className="text-sm font-black leading-tight">⚖️ Troca de XP por {COIN.name.toLowerCase()}</p>
       <p className="text-xs text-[var(--muted)]">Abre para os jogadores em 01/11/2026 (você e as contas de teste podem testar antes). O XP trocado é descontado do XP do jogador (nível e pontos do Elo caem junto).</p>
       <label className="block text-xs font-bold text-[var(--muted)]">
-        Quantos XP valem {fmtCoins(1)}
+        Quantos denários vale 1 XP (1 XP = {fmtCoins(Number(v) || 0)})
         <input type="number" min={1} step={1} className="input mt-1" value={v} onChange={(e) => { setV(e.target.value); setMsg(null); }} />
       </label>
       <button type="button" disabled={pending || Number(v) === rate} onClick={save} className="btn btn-primary w-full">

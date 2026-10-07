@@ -1,0 +1,2 @@
+-- Taxa da troca invertida (1 XP = N denários, padrão 5): coin_settings.coins_per_xp e xp_exchange(p_xp). ArenaSoccer: soccer_record aceita partidas de 3 s e limite de 8 s entre partidas.
+-- (aplicada via MCP; ver as funções no banco)
