@@ -87,6 +87,10 @@ export const STORY_MOBS: Record<string, MobDef> = {
   jetro: hum("jetro", "Jetro", "Sacerdote de Midiã", { skin: 0xb98050, hair: 0xc8c0b8, beard: 0xc8c0b8, shirt: 0x7a5a3a, pants: 0x7a5a3a, robe: true, belt: 0x4a3018, staff: true }),
   capataz: hum("capataz", "Feitor", "Capataz egípcio", { skin: 0xb98050, hair: 0x1a1008, shirt: 0xb04a3a, pants: 0xe8e0c8, belt: 0xe0c050, staff: true, bulk: 1.12 }),
   egipcio: hum("egipcio", "Soldado egípcio", "Exército do Faraó", { skin: 0xb98050, hair: 0x1a1008, shirt: 0xc9a24a, pants: 0xe8e0c8, belt: 0x2a4a8a, staff: true, bulk: 1.08 }),
+  // Deserto, Sinai e o bezerro de ouro
+  bezalel: hum("bezalel", "Bezalel", "Artesão do santuário", { skin: 0xbf8450, hair: 0x2a1a10, beard: 0x2a1a10, shirt: 0x2a5a8a, pants: 0xe8e0c8, robe: true, belt: 0xe0c050, bulk: 1.08 }),
+  aoliabe: hum("aoliabe", "Aoliabe", "Artesão do santuário", { skin: 0xc58a58, hair: 0x4a2a14, shirt: 0x8a2a3a, pants: 0xe8e0c8, robe: true, belt: 0xe0c050 }),
+  josue: hum("josue", "Josué", "Servo de Moisés", { skin: 0xc58a58, hair: 0x2a1a10, shirt: 0xb89a62, pants: 0x6a5a3a, belt: 0x3a2412, staff: true }),
   // animais pacíficos
   ovelha: calm("ovelha", "ovelha_story"),
   boi: calm("boi", "boi_story"),

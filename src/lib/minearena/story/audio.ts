@@ -19,6 +19,11 @@ const TRACKS: Record<string, Track> = {
   praga: { scale: [196, 220, 233.08, 293.66, 311.13], tempo: [1.3, 2.2], gain: 0.045, type: "sawtooth", drone: 73.4, dur: 2.6 },
   pascoa: { scale: [220, 246.94, 293.66, 329.63, 392], tempo: [1.2, 2.0], gain: 0.045, type: "sine", dur: 2.8 },
   mar: { scale: [293.66, 349.23, 440, 523.25, 587.33], tempo: [0.9, 1.5], gain: 0.05, type: "triangle", dur: 2.4 },
+  deserto: { scale: [233.08, 261.63, 311.13, 349.23, 392, 466.16], tempo: [1.4, 2.3], gain: 0.045, type: "triangle", drone: 116.5, dur: 3 },
+  sinai: { scale: [196, 246.94, 293.66, 392, 493.88], tempo: [1.5, 2.4], gain: 0.05, type: "sine", drone: 98, dur: 3.2 },
+  sinai_trovao: { scale: [130.81, 146.83, 174.61, 196, 233.08], tempo: [0.6, 1.1], gain: 0.055, type: "sawtooth", drone: 65.4, dur: 2.4 },
+  bezerro: { scale: [220, 261.63, 293.66, 329.63, 392], tempo: [1.5, 2.5], gain: 0.04, type: "sine", drone: 110, dur: 3 },
+  bezerro_festa: { scale: [329.63, 392, 440, 523.25, 659.25, 783.99], tempo: [0.35, 0.7], gain: 0.028, type: "square", dur: 1.1 },
   learn: { scale: [523.25, 659.25, 783.99, 1046.5], tempo: [0.8, 1.2], gain: 0.04, type: "sine", dur: 2.2 },
 };
 
