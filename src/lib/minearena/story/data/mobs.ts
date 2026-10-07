@@ -115,6 +115,14 @@ export const STORY_MOBS: Record<string, MobDef> = {
   boaz: hum("boaz", "Boaz", "Homem rico de Belém", { skin: 0xc58a58, hair: 0x4a3a2a, beard: 0x4a3a2a, shirt: 0x2a5a8a, pants: 0xe8e0c8, robe: true, belt: 0xe0c050, bulk: 1.08, scale: 1.04 }),
   parente: hum("parente", "O parente mais chegado", "Resgatador", { skin: 0xbf8450, hair: 0x2a1a10, beard: 0x2a1a10, shirt: 0x7a4a3a, pants: 0x5a4a32, belt: 0x3a2412 }),
   anciao: hum("anciao", "Ancião de Belém", "Assentado à porta", { skin: 0xc58a58, hair: 0xd8d4cc, beard: 0xd8d4cc, shirt: 0x8a7a5a, pants: 0x8a7a5a, robe: true, belt: 0x4a3018, staff: true }),
+  // Samuel, Saul e Davi
+  ana: hum("ana", "Ana", "Mãe de Samuel", { skin: 0xd9a574, hair: 0x2a1a10, hairStyle: "long", shirt: 0x8a5a8a, pants: 0x8a5a8a, robe: true, belt: 0xe0c050 }),
+  eli: hum("eli", "Eli", "Sacerdote em Siló", { skin: 0xc58a58, hair: 0xd8d4cc, beard: 0xd8d4cc, shirt: 0xf3ecd2, pants: 0xf3ecd2, robe: true, belt: 0x2a4a8a, staff: true, bulk: 1.1 }),
+  samuel_menino: hum("samuel_menino", "Samuel", "O menino do santuário", { skin: 0xd09a6a, hair: 0x3a2412, shirt: 0xf8f4e8, pants: 0xf8f4e8, belt: 0xe0c050, scale: 0.7 }),
+  samuel: hum("samuel", "Samuel", "Profeta e juiz de Israel", { skin: 0xc58a58, hair: 0xb8b0a0, beard: 0xb8b0a0, hairStyle: "long", shirt: 0xf3ecd2, pants: 0xf3ecd2, robe: true, belt: 0x2a4a8a, staff: true, scale: 1.04 }),
+  saul: hum("saul", "Saul", "O primeiro rei de Israel", { skin: 0xc58a58, hair: 0x2a1a10, beard: 0x2a1a10, shirt: 0x8a2a3a, pants: 0x6a4a2a, belt: 0xe0c050, bulk: 1.12, scale: 1.18 }),
+  jesse: hum("jesse", "Jessé", "Pai de Davi", { skin: 0xc58a58, hair: 0xb0a898, beard: 0xb0a898, shirt: 0x8a7a5a, pants: 0x8a7a5a, robe: true, belt: 0x4a3018, staff: true }),
+  davi: hum("davi", "Davi", "O pastor de Belém", { skin: 0xd09a6a, hair: 0xb04a1e, shirt: 0xc9b48a, pants: 0x7a5a38, belt: 0x4a3018, sling: true, scale: 0.94 }),
   // animais pacíficos
   ovelha: calm("ovelha", "ovelha_story"),
   boi: calm("boi", "boi_story"),

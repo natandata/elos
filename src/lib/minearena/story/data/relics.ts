@@ -235,6 +235,36 @@ export const RELICS: Record<string, RelicDef> = Object.fromEntries([
     near: { zone: "campo", label: "o campo de Boaz" },
     hints: ["Rute juntava o que os segadores deixavam para trás. Procure fora do campo, no caminho dos que respigam.", "Fica a sudoeste do campo, perto da estrada que vem de Moabe."],
   }),
+  R({
+    chapter: "samuel",
+    name: "Lâmpada de Deus",
+    emoji: "🪔",
+    desc: "A lâmpada do santuário de Siló, que ainda não se apagara quando Deus chamou o menino Samuel. (1 Samuel 3:3)",
+    x: 104,
+    z: 104,
+    near: { zone: "ebenezer", label: "a pedra de Ebenézer" },
+    hints: ["A luz ficava acesa a noite toda no santuário. Procure longe dele, onde o chão de Siló começa a se abrir.", "Fica a sudoeste da pedra de Ebenézer, onde as oliveiras diminuem."],
+  }),
+  R({
+    chapter: "saul",
+    name: "Vaso de Azeite",
+    emoji: "🫙",
+    desc: "O vaso de azeite com que Samuel ungiu Saul, o primeiro rei de Israel. (1 Samuel 10:1)",
+    x: 158,
+    z: 70,
+    near: { zone: "zufe", label: "a cidade de Zufe" },
+    hints: ["O azeite foi derramado na cabeça de Saul, em segredo. Procure fora da cidade, longe da casa do vidente.", "Fica a sudeste de Zufe, no caminho que leva a Mispá."],
+  }),
+  R({
+    chapter: "davi_pastor",
+    name: "Harpa de Davi",
+    emoji: "🎵",
+    desc: "A harpa que Davi tocava para acalmar o rei Saul, quando o espírito mau o atormentava. (1 Samuel 16:23)",
+    x: 54,
+    z: 96,
+    near: { zone: "pasto", label: "o pasto de Davi" },
+    hints: ["O pastor tocava no campo, entre as ovelhas, antes de tocar no palácio. Procure onde ele descansava.", "Fica a sudoeste do pasto, perto da estrada que leva à casa de Jessé."],
+  }),
 ]);
 
 /** Texto da terceira dica: direção e distância (em passos) de um ponto conhecido do mapa. */
