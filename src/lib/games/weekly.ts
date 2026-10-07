@@ -1,5 +1,8 @@
 import type { GameKey } from "./catalog";
 
+/** Um dos 3 primeiros do ranking de troféus (vem da função `trophy_top3`). */
+export type TrophyLeader = { name: string | null; avatar: string | null; trophies: number };
+
 /** Linha do balanço semanal de um jogo (vem da função `weekly_games_stats`). */
 export type WeeklyGame = {
   game: string;

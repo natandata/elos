@@ -4,22 +4,24 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Avatar } from "@/components/Avatar";
 import { createClient } from "@/lib/supabase/client";
-import { pickTopGame, WEEKLY_META, type WeeklyGame } from "@/lib/games/weekly";
+import { pickTopGame, WEEKLY_META, type TrophyLeader, type WeeklyGame } from "@/lib/games/weekly";
 
 const fmt = (n: number) => Number(n).toLocaleString("pt-BR");
 const REFRESH_MS = 15_000;
 
-/** Card da tela inicial: o jogo mais jogado da semana (domingo a domingo), com partidas, minutos, top 1 e atalho pra jogar. Atualiza sozinho. */
-export function WeeklyGameCard({ initial, allowed, since }: { initial: WeeklyGame[]; allowed: string[]; since: string }) {
+/** Card da tela inicial: o jogo mais jogado da semana (domingo a domingo), com partidas, minutos, top 3 de troféus e atalho pra jogar. Atualiza sozinho. */
+export function WeeklyGameCard({ initial, initialTrophies, allowed, since }: { initial: WeeklyGame[]; initialTrophies: TrophyLeader[]; allowed: string[]; since: string }) {
   const [rows, setRows] = useState<WeeklyGame[]>(initial);
+  const [trophies, setTrophies] = useState<TrophyLeader[]>(initialTrophies);
 
   useEffect(() => {
     const supabase = createClient();
     let alive = true;
     const load = async () => {
       if (document.visibilityState === "hidden") return;
-      const { data } = await supabase.rpc("weekly_games_stats");
-      if (alive && Array.isArray(data)) setRows(data as WeeklyGame[]);
+      const [stats, tro] = await Promise.all([supabase.rpc("weekly_games_stats"), supabase.rpc("trophy_top3")]);
+      if (alive && Array.isArray(stats.data)) setRows(stats.data as WeeklyGame[]);
+      if (alive && Array.isArray(tro.data)) setTrophies(tro.data as TrophyLeader[]);
     };
     const id = window.setInterval(load, REFRESH_MS);
     document.addEventListener("visibilitychange", load);
@@ -64,17 +66,19 @@ export function WeeklyGameCard({ initial, allowed, since }: { initial: WeeklyGam
             <span className="text-[11px] font-bold">minutos jogados</span>
           </span>
         </span>
-        {top.top ? (
-          <span className="mt-2 flex items-center gap-2.5 rounded-xl bg-amber-400/15 px-3 py-2 ring-1 ring-amber-300/50">
-            <span className="text-xl" aria-hidden>
-              👑
-            </span>
-            <Avatar url={top.top.avatar} name={top.top.name || "Sem nome"} size={32} />
-            <span className="min-w-0 flex-1">
-              <span className="block text-[10px] font-black uppercase tracking-wide text-amber-200">Top 1 da semana</span>
-              <span className="block truncate text-sm font-black">{top.top.name || "Sem nome"}</span>
-            </span>
-            <b className="text-lg font-black tabular-nums text-amber-300">🎮 {fmt(top.top.plays)}</b>
+        {trophies.length > 0 ? (
+          <span className="mt-2 block rounded-xl bg-amber-400/15 px-3 py-2 ring-1 ring-amber-300/50">
+            <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-amber-200">🏆 Top 3 em troféus</span>
+            {trophies.slice(0, 3).map((t, i) => (
+              <span key={i} className="flex items-center gap-2.5 py-1">
+                <span className="w-6 text-center text-xl" aria-hidden>
+                  {["🥇", "🥈", "🥉"][i]}
+                </span>
+                <Avatar url={t.avatar} name={t.name || "Sem nome"} size={28} />
+                <span className="min-w-0 flex-1 truncate text-sm font-black">{t.name || "Sem nome"}</span>
+                <b className="text-base font-black tabular-nums text-amber-300">🏆 {fmt(t.trophies)}</b>
+              </span>
+            ))}
           </span>
         ) : null}
         <span className="mt-2 flex items-center justify-between gap-2">
