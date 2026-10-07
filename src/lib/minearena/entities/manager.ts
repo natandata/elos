@@ -22,6 +22,9 @@ export interface StoryNpc {
   arrived?: boolean;
   /** fica parado onde está (animais já dentro da arca) */
   hold?: boolean;
+  /** contornando um obstáculo alto (tronco, parede): segundos restantes e lado */
+  detourT?: number;
+  detourSide?: number;
 }
 
 export interface Entity {
@@ -473,6 +476,8 @@ export class EntityManager {
 
   // ---------- spawn ----------
   private spawnTick(dt: number, env: Env): void {
+    // modo história: nada nasce sozinho (só os personagens do roteiro)
+    if (env.spawnMul === 0) return;
     this.spawnT -= dt;
     if (this.spawnT > 0) return;
     this.spawnT = (1.4 + Math.random() * 1.2) * (env.spawnMul ?? 1);
@@ -689,8 +694,21 @@ export class EntityManager {
       if (dd < 0.9) {
         e.story.goto = null;
         e.story.arrived = true;
-      } else toward(g.x, g.z, g.speed);
-    } else if (e.story && (e.story.hold || def.behavior === "hero")) {
+      } else {
+        toward(g.x, g.z, g.speed);
+        const st = e.story;
+        if (st.detourT && st.detourT > 0) {
+          st.detourT -= dt;
+          const a = (st.detourSide ?? 1) * 1.3;
+          const c = Math.cos(a);
+          const s = Math.sin(a);
+          const nx = wantX * c - wantZ * s;
+          wantZ = wantX * s + wantZ * c;
+          wantX = nx;
+        }
+      }
+    } else if (e.story && (e.story.hold || def.behavior === "hero" || def.model.kind === "humanoid")) {
+      // gente da campanha fica onde o roteiro a deixou (só os animais vagam)
       speed = 0;
     } else if (e.ally) {
       if (dPlayer > 30) {
@@ -721,8 +739,8 @@ export class EntityManager {
       }
     }
 
-    // travado contra parede: tenta outro rumo
-    if (speed > 0) {
+    // travado contra parede: tenta outro rumo (personagens da história só pulam mais alto, sem giro aleatório)
+    if (speed > 0 && !e.story) {
       e.stuckT += dt;
       if (e.stuckT > 1) {
         if (Math.hypot(b.x - e.lastX, b.z - e.lastZ) < 0.25) {
@@ -767,9 +785,14 @@ export class EntityManager {
     else b.vy = Math.max(-30, b.vy - 26 * dt);
     if (def.climb && b.hitWall && speed > 0) b.vy = Math.max(b.vy, 4.5);
     else if (e.story && b.inWater && b.hitWall && speed > 0) b.vy = Math.max(b.vy, 6.5);
-    else if (b.hitWall && b.onGround && speed > 0 && !e.ctrl) b.vy = 8.2;
+    else if (b.hitWall && b.onGround && speed > 0 && !e.ctrl) b.vy = e.story ? Math.max(8.2, this.stepUpSpeed(b, wantX, wantZ)) : 8.2;
     else if (b.hitWall && b.onGround && e.ctrl && speed > 0 && e.ctrl.jump) b.vy = 9.5;
     stepBody(this.world, b, dt);
+    // andando por roteiro e batendo em algo que não dá para pular: contorna pelo lado
+    if (e.story?.goto && b.hitWall && b.onGround && speed > 0 && !(e.story.detourT && e.story.detourT > 0) && this.stepUpSpeed(b, wantX, wantZ) === 0) {
+      e.story.detourSide = -(e.story.detourSide ?? -1);
+      e.story.detourT = 0.9;
+    }
     if (b.y < -5) {
       this.remove(e);
       return;
@@ -801,6 +824,18 @@ export class EntityManager {
     animate(e.rig, { t: e.anim, speed: Math.hypot(b.vx, b.vz), attack: e.atkAnim, windup: e.windup > 0 ? Math.min(1, e.windup / 0.6) : 0, dead: 0 });
     if (e.story?.pose && e.story.pose !== "idle") applyPose(e);
     flash(e.rig, e.hurtT > 0 ? 0.55 : 0);
+  }
+
+  /** Impulso de pulo para subir um degrau de até 3 blocos à frente (o terreno do mapa tem degraus de 2). */
+  private stepUpSpeed(b: Body, wx: number, wz: number): number {
+    const n = Math.hypot(wx, wz) || 1;
+    const px = Math.floor(b.x + (wx / n) * 0.6);
+    const pz = Math.floor(b.z + (wz / n) * 0.6);
+    const y0 = Math.floor(b.y + 0.05);
+    let h = 0;
+    while (h < 4 && this.world.isSolid(px, y0 + h, pz)) h++;
+    if (h === 0 || h >= 4) return 0;
+    return Math.sqrt(2 * 26 * (h + 0.45));
   }
 
   private updateHazards(dt: number): void {

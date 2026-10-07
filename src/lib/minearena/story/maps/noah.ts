@@ -27,7 +27,7 @@ export function arkBlocks(): [number, number, number, number][] {
       out.push([x, y0, z, z === Math.round((z0 + z1) / 2) ? B.log : B.cedar_planks]);
       if (wall) for (let y = y0 + 1; y <= y0 + 6; y++) out.push([x, y, z, y > y0 + 4 ? B.cedar_planks : B.planks]);
       if (!wall) {
-        out.push([x, y0 + 3, z, B.planks]);
+        out.push([x, y0 + 4, z, B.planks]); // convés alto o bastante para camelos e para Noé (2,1)
         out.push([x, y0 + 7, z, x % 4 === 0 ? B.log : B.cedar_planks]);
       }
     }
@@ -139,6 +139,7 @@ function decorate(c: ChunkCtx, env: MapEnv): void {
     const k = column(x, z);
     if (k.water || k.top !== B.grass) return;
     if (x >= ARK.x0 - 8 && x <= ARK.x1 + 8 && z >= ARK.z0 - 8 && z <= ARK.z1 + 8) return;
+    if (Math.hypot(x - 44, z - 56) < 8) return;
     const forest = x < 44;
     if (r > (forest ? 0.85 : 0.18)) return;
     const kind = c.rand(x, z, 21);

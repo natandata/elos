@@ -18,9 +18,11 @@ export interface Settings {
   music: boolean;
   /** Balanço da câmera ao andar (desligue se enjoar). */
   bob: boolean;
+  /** Troca botões: o pular vai para o centro das setas e o correr para o lado do pular. */
+  swapButtons: boolean;
 }
 
-export const DEFAULT_SETTINGS: Settings = { fov: 0, distance: 0, sensitivity: 100, volume: 100, clouds: true, particles: true, coords: false, invertY: false, touchSize: 0, quality: -1, difficulty: 1, music: true, bob: true };
+export const DEFAULT_SETTINGS: Settings = { fov: 0, distance: 0, sensitivity: 100, volume: 100, clouds: true, particles: true, coords: false, invertY: false, touchSize: 0, quality: -1, difficulty: 1, music: true, bob: true, swapButtons: false };
 
 const KEY = "minearena-options";
 
@@ -44,6 +46,7 @@ export function loadSettings(): Settings {
       difficulty: d.difficulty === 0 || d.difficulty === 2 ? d.difficulty : 1,
       music: d.music !== false,
       bob: d.bob !== false,
+      swapButtons: d.swapButtons === true,
     };
   } catch {
     return DEFAULT_SETTINGS;

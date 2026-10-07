@@ -1,7 +1,7 @@
 // Fábrica de mapas da campanha: descreve o terreno por dados (altura, superfície, árvores, cobertura) e entrega um StoryMapDef.
 // Os mapas continuam além da borda com o mesmo terreno natural (a borda é uma parede invisível, ver StoryDirector.limits).
 import { B } from "../../blocks/blocks";
-import { fbm2, smoothstep } from "../../world/noise";
+import { fbm2 } from "../../world/noise";
 import type { MapEnv, StoryMapDef, Zone } from "../types";
 import { type Column, type ChunkCtx, buildChunk, scatter, tree } from "./builder";
 
@@ -41,7 +41,11 @@ export function makeMap(spec: MapSpec): StoryMapDef {
     for (const s of spec.flat ?? []) {
       const d = Math.hypot(x - s.x, z - s.z);
       if (d < s.r) h = s.h;
-      else if (d < s.r * 1.6) h = s.h + (h - s.h) * smoothstep(s.r, s.r * 1.6, d);
+      else {
+        // a encosta é longa o bastante para quem anda subir (no máximo ~1 bloco de degrau por passo)
+        const reach = Math.max(s.r * 0.6, Math.abs(h - s.h) * 1.15);
+        if (d < s.r + reach) h = s.h + (h - s.h) * ((d - s.r) / reach);
+      }
     }
     const k: Column = { h: Math.round(h), top: B.grass, sub: B.dirt, water: 0 };
     spec.surf?.(x, z, k);
@@ -89,7 +93,10 @@ export const groundOf = (spec: Pick<MapSpec, "base" | "amp" | "scale" | "seed" |
   for (const s of spec.flat ?? []) {
     const d = Math.hypot(x - s.x, z - s.z);
     if (d < s.r) h = s.h;
-    else if (d < s.r * 1.6) h = s.h + (h - s.h) * smoothstep(s.r, s.r * 1.6, d);
+    else {
+      const reach = Math.max(s.r * 0.6, Math.abs(h - s.h) * 1.15);
+      if (d < s.r + reach) h = s.h + (h - s.h) * ((d - s.r) / reach);
+    }
   }
   const k: Column = { h: Math.round(h), top: B.grass, sub: B.dirt, water: 0 };
   spec.surf?.(x, z, k);

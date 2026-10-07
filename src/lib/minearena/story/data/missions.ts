@@ -113,7 +113,7 @@ export const MISSIONS: Mission[] = [
     title: "A porta do Éden",
     desc: "Acompanhe Adão e Eva para fora do jardim.",
     ref: "Gênesis 3:22–24",
-    objectives: [{ k: "reach", zone: "gate", text: "Siga Adão e Eva até o portão do Éden." }],
+    objectives: [{ k: "reach", zone: "gate", text: "Siga Adão e Eva, escoltados pelo querubim, até o portão do Éden." }],
     onComplete: "fall_expulsion",
   },
 

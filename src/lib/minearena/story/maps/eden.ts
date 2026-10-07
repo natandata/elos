@@ -32,6 +32,9 @@ function height(x: number, z: number): number {
     const d = Math.hypot(x - s.x, z - s.z);
     if (d < 9) h = 24 + smoothstep(9, 3, d) * 2.4;
   }
+  // o caminho até o portão é liso (sem degraus que travem quem anda por ali)
+  const lane = smoothstep(80, 94, x) * (1 - smoothstep(6, 12, Math.abs(z - EDEN_SITES.gate.z)));
+  if (lane > 0) h = h * (1 - lane) + 24 * lane;
   return Math.round(h);
 }
 
@@ -112,6 +115,7 @@ function decorate(c: ChunkCtx, env: MapEnv): void {
     const k = column(x, z, env);
     if (k.water || k.top !== (env.fallen ? B.dry_grass : B.grass)) return;
     if (Math.hypot(x - 56, z - 64) < 13 && r < 0.9) return;
+    if (Math.hypot(x - 66, z - 78) < 8) return;
     if (Math.hypot(x - EDEN_SITES.life.x, z - EDEN_SITES.life.z) < 11 || Math.hypot(x - EDEN_SITES.knowledge.x, z - EDEN_SITES.knowledge.z) < 11) return;
     if (x >= 92 && Math.abs(z - 62) <= 7) return;
     const forest = x < 30 || x > 84 || z < 40;

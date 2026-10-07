@@ -39,6 +39,8 @@ export const STORY_MOBS: Record<string, MobDef> = {
   serpente: { ...calm("serpente", "serpente_story"), name: "A serpente", behavior: "passive" },
   // o querubim que guarda o jardim (Gênesis 3:24)
   anjo: hum("anjo", "Querubim", "Guarda do jardim", { skin: 0xf3dfc0, hair: 0xf0d890, hairStyle: "long", shirt: 0xffffff, pants: 0xf4f4ff, robe: true, belt: 0xe0c050, staff: true, scale: 1.3 }),
+  // o querubim da espada flamejante: belo e temível, escolta o casal até o portão (Gênesis 3:24)
+  querubim: hum("querubim", "Querubim", "Guarda do jardim", { skin: 0xf6e3c4, hair: 0xffe9a0, hairStyle: "long", shirt: 0xfffbea, pants: 0xfff3d2, shoes: 0xe0b84a, robe: true, belt: 0xe0b84a, wings: 0xfff1c8, halo: 0xffd45a, flame: 0xff8a1e, flameSword: 0xff7a1a, scale: 1.7 }),
   // o povo da terra nos dias de Noé
   povo_a: hum("povo_a", "Povo", "", { skin: 0xc58a58, hair: 0x2a1a10, shirt: 0xa05a3a, pants: 0x6a4e2e }),
   povo_b: hum("povo_b", "Povo", "", { skin: 0xd9a574, hair: 0x6a3a1e, hairStyle: "long", shirt: 0x4a6a9a, pants: 0x5a4a3a, robe: true }),

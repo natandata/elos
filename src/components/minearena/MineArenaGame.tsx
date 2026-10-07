@@ -205,7 +205,7 @@ function Play({ save, rotated, settings, onSettings, onExit, onStoryNav, storyCh
       {game && hud && !hud.loading && !hud.cinematic && !paused && !options ? <Hud hud={hud} msgs={msgs} onSelect={(i) => game.inventory.select(i)} /> : null}
       {game && hud && !hud.loading && game.story ? <StoryOverlay game={game} ui={storyUi} hud={hud} /> : null}
       {game && hud && !hud.loading && mobile && !bag && !extra && !dialog && !paused && hud.alive && !hud.cinematic && !storyUi?.dialogue && !storyUi?.learn && !storyUi?.chapterEnd ? (
-        <TouchControls game={game} rotated={rotated} shield={!!hud.offhand} onInventory={() => openBag("bag")} onPause={() => {
+        <TouchControls game={game} rotated={rotated} shield={!!hud.offhand} swap={settings.swapButtons} onInventory={() => openBag("bag")} onPause={() => {
           game.setPaused(true);
           setPaused(true);
         }} />

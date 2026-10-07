@@ -65,6 +65,11 @@ export function OptionsMenu({ settings, mobile, onChange, onDone }: { settings: 
               Botões de toque: {SIZES[settings.touchSize]}
             </button>
           ) : null}
+          {mobile ? (
+            <button type="button" className="ma-opt" onClick={() => set("swapButtons", !settings.swapButtons)}>
+              Troca botões (pular no centro das setas): {yn(settings.swapButtons)}
+            </button>
+          ) : null}
           <button type="button" className="ma-opt" onClick={() => onChange(DEFAULT_SETTINGS)}>
             Restaurar padrão
           </button>

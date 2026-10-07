@@ -140,6 +140,9 @@ export class StoryDirector {
       if (this.mission) this.resumeMission(this.mission);
       return;
     }
+    // começa no chão (e não em cima de uma árvore que cresceu no ponto de partida)
+    const sp = this.standSpot(this.map.spawn.x + 0.5, this.map.spawn.z + 0.5);
+    if (sp) this.host.setPlayer(sp.x, sp.y, sp.z, this.map.spawn.yaw);
     const first = MISSIONS_OF(this.session.chapterId)[0];
     this.mission = first;
     this.enterMission(first, true);
@@ -200,6 +203,7 @@ export class StoryDirector {
     this.stepRunner(dt);
     this.stepLongEffects(dt);
     this.stepPaths();
+    this.stepEscort(dt);
     this.stepStuck(dt);
     this.stepBounds();
     this.stepStorm(dt);
@@ -440,6 +444,62 @@ export class StoryDirector {
     const w = this.host.world;
     for (let y = Math.min(62, Math.floor(ref) + 3); y >= 0; y--) if (w.isSolid(Math.floor(x), y, Math.floor(z))) return y + 1.05;
     return ref;
+  }
+
+  /** Onde pousar de verdade: o chão sob as copas, longe de troncos (nunca em cima de uma árvore). */
+  private standSpot(x: number, z: number): { x: number; y: number; z: number } | null {
+    const w = this.host.world;
+    const fx = Math.floor(x);
+    const fz = Math.floor(z);
+    if (w.surfaceY(fx, fz) < 0) return null;
+    const ground = (bx: number, bz: number): number => {
+      for (let y = 62; y >= 1; y--) {
+        if (!w.isSolid(bx, y, bz)) continue;
+        const key = BLOCKS[w.getBlock(bx, y, bz)]?.key ?? "";
+        if (key.includes("leaves") || key.includes("log")) continue;
+        if (w.isSolid(bx, y + 1, bz) || w.isSolid(bx, y + 2, bz)) return -1;
+        if (BLOCKS[w.getBlock(bx, y + 1, bz)]?.liquid) return -1;
+        return y + 1.05;
+      }
+      return -1;
+    };
+    for (let r = 0; r <= 7; r++) {
+      for (let dx = -r; dx <= r; dx++) {
+        for (let dz = -r; dz <= r; dz++) {
+          if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
+          const y = ground(fx + dx, fz + dz);
+          if (y > 0) return { x: fx + dx + 0.5, y, z: fz + dz + 0.5 };
+        }
+      }
+    }
+    return null;
+  }
+
+  private escortT = 0;
+
+  /** O querubim acompanha Adão e Eva rumo ao portão: anda logo atrás deles e, se ficar para trás, reaparece junto (num clarão). */
+  private stepEscort(dt: number): void {
+    if (!this.session.flags.escort) return;
+    this.escortT += dt;
+    if (this.escortT < 0.4) return;
+    this.escortT = 0;
+    const a = this.npcs.get("anjo");
+    const lead = this.npcs.get("adao");
+    if (!a?.story || !lead) return;
+    const yaw = lead.yaw;
+    const tx = lead.body.x - Math.sin(yaw) * 2.8 + Math.cos(yaw) * 1.6;
+    const tz = lead.body.z - Math.cos(yaw) * 2.8 - Math.sin(yaw) * 1.6;
+    const d = Math.hypot(tx - a.body.x, tz - a.body.z);
+    if (d > 10) {
+      this.host.burst(a.body.x, a.body.y + 1.5, a.body.z, 0xfff2b0, 14, 3, 0.16);
+      a.body.x = tx;
+      a.body.z = tz;
+      a.body.y = this.groundY(tx, tz, lead.body.y + 1);
+      a.body.vy = 0;
+      this.host.burst(tx, a.body.y + 1.5, tz, 0xfff2b0, 14, 3, 0.16);
+      a.story.goto = null;
+    } else if (d > 1.4) a.story.goto = { x: tx, z: tz, speed: Math.min(4.2, 2.4 + d * 0.5) };
+    else a.story.goto = null;
   }
 
   private stuck = new Map<string, { x: number; z: number; t: number }>();
@@ -885,8 +945,10 @@ export class StoryDirector {
       case "teleport": {
         if (s.target === "player") {
           // y negativo = pousar no chão (se o chão ainda não carregou, de uma altura segura)
-          const gy = s.to.y < 0 ? this.host.world.surfaceY(Math.floor(s.to.x), Math.floor(s.to.z)) : -1;
-          this.host.setPlayer(s.to.x, s.to.y < 0 ? (gy >= 0 ? gy + 1.05 : 40) : s.to.y, s.to.z, s.yaw);
+          if (s.to.y < 0) {
+            const sp = this.standSpot(s.to.x, s.to.z);
+            this.host.setPlayer(sp ? sp.x : s.to.x, sp ? sp.y : 40, sp ? sp.z : s.to.z, s.yaw);
+          } else this.host.setPlayer(s.to.x, s.to.y, s.to.z, s.yaw);
         }
         else {
           const e = this.npcs.get(s.target);
@@ -1226,6 +1288,19 @@ export class StoryDirector {
         }
         this.host.sfx("splash");
         break;
+      case "escort":
+        this.session.flags.escort = String(arg) === "on";
+        if (!this.session.flags.escort) {
+          const a = this.npcs.get("anjo");
+          if (a?.story) a.story.goto = null;
+        }
+        break;
+      case "ensureNpc": {
+        // "id:mob:x:z" — cria o personagem só se ele ainda não existir (jogos salvos no meio da cena)
+        const [id, mob, x, z] = String(arg).split(":");
+        if (!this.npcs.has(id)) this.spawnNpc(id, mob, Number(x), Number(z), undefined, true);
+        break;
+      }
       case "angelStay": {
         const e = this.npcs.get("anjo");
         if (e?.story) e.story.hold = true;

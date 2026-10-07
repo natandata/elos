@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import type { MineArena } from "@/lib/minearena/game";
 
 /** Com o jogo girado 90°, o eixo da tela vira o eixo do jogo: (x, y) → (y, -x). */
@@ -9,9 +9,19 @@ const mapDelta = (dx: number, dy: number, rotated: boolean): [number, number] =>
 type Dir = "up" | "down" | "left" | "right";
 
 /** Controles de toque no estilo do Minecraft mobile: setas à esquerda, pular e ações à direita, arrastar pra olhar. */
-export function TouchControls({ game, rotated, shield, onInventory, onPause }: { game: MineArena; rotated: boolean; shield: boolean; onInventory: () => void; onPause: () => void }) {
+export function TouchControls({ game, rotated, shield, swap, onInventory, onPause }: { game: MineArena; rotated: boolean; shield: boolean; swap: boolean; onInventory: () => void; onPause: () => void }) {
   const look = useRef({ x: 0, y: 0, id: -1 });
   const dirs = useRef<Record<Dir, boolean>>({ up: false, down: false, left: false, right: false });
+
+  // Ao sumir da tela (cartão de fala, mochila, pausa), o dedo solta sem avisar: solta tudo para o boneco não andar sozinho.
+  useEffect(() => {
+    const d = dirs.current;
+    return () => {
+      d.up = d.down = d.left = d.right = false;
+      game.setMove(0, 0);
+      for (const k of ["mine", "use", "jump", "sprint", "guard", "sneak"] as const) game.setHold(k, false);
+    };
+  }, [game]);
 
   const lastUp = useRef(0);
   const press = (d: Dir, on: boolean, at = 0) => {
@@ -39,6 +49,7 @@ export function TouchControls({ game, rotated, shield, onInventory, onPause }: {
       }}
       onPointerUp={() => press(d, false)}
       onPointerCancel={() => press(d, false)}
+      onLostPointerCapture={() => press(d, false)}
     >
       {glyph}
     </button>
@@ -50,6 +61,7 @@ export function TouchControls({ game, rotated, shield, onInventory, onPause }: {
     },
     onPointerUp: () => game.setHold(key, false),
     onPointerCancel: () => game.setHold(key, false),
+    onLostPointerCapture: () => game.setHold(key, false),
   });
 
   return (
@@ -74,9 +86,15 @@ export function TouchControls({ game, rotated, shield, onInventory, onPause }: {
       <div className="ma-dpad">
         {arrow("up", "Frente", "▲")}
         {arrow("left", "Esquerda", "◀")}
-        <button type="button" className="ma-pad ma-pad-mid" aria-label="Correr" {...hold("sprint")}>
-          ◆
-        </button>
+        {swap ? (
+          <button type="button" className="ma-pad ma-pad-mid" aria-label="Pular" {...hold("jump")}>
+            ◇
+          </button>
+        ) : (
+          <button type="button" className="ma-pad ma-pad-mid" aria-label="Correr" {...hold("sprint")}>
+            ◆
+          </button>
+        )}
         {arrow("right", "Direita", "▶")}
         {arrow("down", "Trás", "▼")}
       </div>
@@ -90,9 +108,15 @@ export function TouchControls({ game, rotated, shield, onInventory, onPause }: {
         <button type="button" className="ma-act" {...hold("sneak")} aria-label="Agachar">
           ⇩
         </button>
-        <button type="button" className="ma-act" {...hold("jump")} aria-label="Pular">
-          ◇
-        </button>
+        {swap ? (
+          <button type="button" className="ma-act" {...hold("sprint")} aria-label="Correr">
+            ◆
+          </button>
+        ) : (
+          <button type="button" className="ma-act" {...hold("jump")} aria-label="Pular">
+            ◇
+          </button>
+        )}
         <button type="button" className="ma-act" {...hold("use")} aria-label="Usar, colocar ou conversar">
           🖐
         </button>

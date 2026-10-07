@@ -35,6 +35,9 @@ export interface HumanoidSpec {
   horns?: number;
   wings?: number;
   flame?: number;
+  /** Anjos: aréola de luz sobre a cabeça e espada flamejante (cor da lâmina). */
+  halo?: number;
+  flameSword?: number;
 }
 export interface BeastSpec {
   kind: "beast";
@@ -120,6 +123,9 @@ function humanoid(s: HumanoidSpec): Rig {
   if (s.flame !== undefined) {
     for (const x of [-3, -1, 1, 3]) head.add(mk(mats, 1.4, 3 + ((x + 4) % 3), 1.4, s.flame, x, 9.5, -1));
   }
+  if (s.halo !== undefined) {
+    for (const [w, d, x, z] of [[10, 1.2, 0, 5], [10, 1.2, 0, -5], [1.2, 10, 5, 0], [1.2, 10, -5, 0]]) head.add(mk(mats, w, 0.9, d, s.halo, x, 14.5, z));
+  }
   if (s.headband !== undefined) head.add(mk(mats, 8.5, 1.4, 8.5, s.headband, 0, 6.6, 0));
   root.add(head);
 
@@ -146,6 +152,9 @@ function humanoid(s: HumanoidSpec): Rig {
   if (s.axe) armR.add(mk(mats, 1.4, 16, 1.4, 0x6a4a2a, 0, -11, 3), mk(mats, 1.6, 6, 7, 0xc9ced6, 0, -17, 5.5));
   if (s.bow) armL.add(mk(mats, 1.4, 20, 1.4, 0x8a5a2a, 0, -9, 4), mk(mats, 0.6, 18, 0.6, 0xe8dcb8, 0, -9, 2.2));
   if (s.fur !== undefined) root.add(mk(mats, 10 * bulk, 4, 6, s.fur, 0, 24, 0), mk(mats, 8.4 * bulk, 11, 1.2, s.fur, 0, 17, -2.8));
+  if (s.flameSword !== undefined) {
+    armR.add(mk(mats, 1.8, 30, 1.2, s.flameSword, 0, -22, 3), mk(mats, 0.8, 28, 1.6, 0xfff2a8, 0, -22, 3), mk(mats, 6, 1.4, 1.6, 0xe0b84a, 0, -9.5, 3), mk(mats, 1.2, 4, 1.2, s.flameSword, 0.8, -39, 3));
+  }
   if (s.sword !== undefined) armR.add(mk(mats, 1.2, 14, 0.8, s.sword, 0, -17, 2), mk(mats, 4, 1.2, 1.2, 0x6a4a2a, 0, -10.5, 2));
 
   root.scale.setScalar(s.scale);
