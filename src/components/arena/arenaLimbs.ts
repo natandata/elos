@@ -1,10 +1,8 @@
-// Braços e pernas que se mexem nos personagens da campanha (só visual).
-// Cada ilustração é uma imagem inteira, então ela é fatiada: pernas (esquerda e direita), braços (faixas
-// laterais do tronco) e o resto. Cada fatia gira em volta da sua articulação (quadril e ombro).
+// Pernas que se mexem nos personagens da campanha (só visual).
+// Cada ilustração é uma imagem inteira, então ela é fatiada: pernas (esquerda e direita) e o resto.
+// Cada perna gira em volta do quadril; a parte de cima fica parada.
 
 const LEG_TOP = 0.56;
-const ARM_TOP = 0.2;
-const ARM_W = 0.24;
 
 type Slice = { sx: number; sy: number; sw: number; sh: number };
 
@@ -26,7 +24,7 @@ function piece(ctx: CanvasRenderingContext2D, img: HTMLImageElement, dst: { x: n
 }
 
 /**
- * Desenha o personagem com membros animados.
+ * Desenha o personagem com as pernas animadas.
  * `gait` = fase da caminhada (rad), `moving` = está andando, `atk` = progresso do golpe (0–1) ou -1, `face` = lado para onde olha.
  */
 export function drawLimbs(ctx: CanvasRenderingContext2D, img: HTMLImageElement, x: number, y: number, w: number, h: number, gait: number, moving: boolean, atk: number, face: number, idle: number) {
@@ -41,16 +39,6 @@ export function drawLimbs(ctx: CanvasRenderingContext2D, img: HTMLImageElement, 
   piece(ctx, img, dst, { x0: 0, y0: LEG_TOP, x1: 0.5, y1: 1 }, { px: 0.25, py: LEG_TOP }, legL, -liftL);
   piece(ctx, img, dst, { x0: 0.5, y0: LEG_TOP, x1: 1, y1: 1 }, { px: 0.75, py: LEG_TOP }, legR, -liftR);
 
-  // tronco e cabeça (parados): o miolo até a cintura e a faixa de cima inteira
-  piece(ctx, img, dst, { x0: 0, y0: 0, x1: 1, y1: ARM_TOP }, { px: 0.5, py: 0.5 }, 0, 0);
-  piece(ctx, img, dst, { x0: ARM_W, y0: ARM_TOP, x1: 1 - ARM_W, y1: LEG_TOP }, { px: 0.5, py: 0.5 }, 0, 0);
-
-  // braços: balançam ao contrário das pernas; no golpe, o braço da frente chicoteia
-  const strike = atk >= 0 ? Math.sin(Math.min(1, atk) * Math.PI) : 0;
-  const swing = moving ? -Math.sin(gait) * 0.3 : Math.sin(idle * 1.3) * 0.05;
-  const front = face >= 0 ? 1 : -1;
-  const armL = swing - (front < 0 ? 0.7 * strike : 0.2 * strike);
-  const armR = -swing + (front > 0 ? 0.7 * strike : 0.2 * strike);
-  piece(ctx, img, dst, { x0: 0, y0: ARM_TOP, x1: ARM_W, y1: LEG_TOP }, { px: ARM_W, py: ARM_TOP }, armL, 0);
-  piece(ctx, img, dst, { x0: 1 - ARM_W, y0: ARM_TOP, x1: 1, y1: LEG_TOP }, { px: 1 - ARM_W, py: ARM_TOP }, armR, 0);
+  // parte de cima (tronco, cabeça e braços) parada: só as pernas se mexem
+  piece(ctx, img, dst, { x0: 0, y0: 0, x1: 1, y1: LEG_TOP }, { px: 0.5, py: 0.5 }, 0, 0);
 }
