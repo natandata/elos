@@ -16,7 +16,7 @@ import { lockedGames } from "@/lib/games/storeAccess";
 import { XpExchange } from "@/components/games/XpExchange";
 import { StoreGallery } from "@/components/games/StoreGallery";
 import { STORE_COLUMNS, type StoreItem } from "@/lib/games/store";
-import { gameOpenFor, getEarlyAccess, getVisibilities, isHiddenFor } from "@/lib/games/releaseServer";
+import { gameOpenFor, getVisibilities, isHiddenFor } from "@/lib/games/releaseServer";
 
 type Tile = { href: string; game: string; emoji: string; title: string; hint: string; tone: string };
 
@@ -56,9 +56,8 @@ export default async function JogosPage() {
   const storeItems = (storeRes.data ?? []) as StoreItem[];
 
   const [dressOpen, mineOpen, rushOpen, soccerOpen, vis] = await Promise.all([gameOpenFor("dress", profile.id), gameOpenFor("minearena", profile.id), gameOpenFor("biblerush", profile.id), gameOpenFor("arenasoccer", profile.id), getVisibilities()]);
-  const early = await getEarlyAccess(profile.id);
   const locked = await lockedGames(supabase, profile.id, profile.role);
-  const hide = (k: GameKey) => isHiddenFor(vis[k], profile.role, early.has(k)) || locked.has(k);
+  const hide = (k: GameKey) => isHiddenFor(vis[k], profile.role) || locked.has(k);
   const showTile = (t: Tile) => !hide(t.game === "verse" ? "verse" : (t.game as GameKey));
   const tiles = TILES.filter(showTile);
   const streak = liveGameStreak(profile.game_streak ?? 0, profile.game_streak_date ?? null);

@@ -8,6 +8,6 @@ const Game = dynamic(() => import("./MineArenaGame").then((m) => m.MineArenaGame
   loading: () => <div className="ma-root" />,
 });
 
-export function MineArenaClient({ me }: { me?: { id: string; name: string } }) {
-  return <Game me={me} />;
+export function MineArenaClient({ me, free }: { me?: { id: string; name: string }; free?: boolean }) {
+  return <Game me={me} free={free} />;
 }

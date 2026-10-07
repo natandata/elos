@@ -23,7 +23,7 @@ import { DeathScreen, HeroDialog, LoadingScreen, PauseMenu } from "./Overlays";
 import { TouchControls } from "./TouchControls";
 import { StoryMenu } from "./StoryMenu";
 import { StoryOverlay } from "./StoryOverlay";
-import { loadProgress } from "@/lib/minearena/story/progress";
+import { loadProgress, NEW_WORLD_CHAPTER } from "@/lib/minearena/story/progress";
 import { newSession } from "@/lib/minearena/story/director";
 import { CHAPTER_BY_ID } from "@/lib/minearena/story/data/chapters";
 import { STORY_MAPS } from "@/lib/minearena/story/maps";
@@ -275,7 +275,7 @@ function Play({ save, rotated, settings, onSettings, onExit, onStoryNav, storyCh
   );
 }
 
-export function MineArenaGame({ me }: { me?: Peer }) {
+export function MineArenaGame({ me, free = false }: { me?: Peer; /** admin: o Novo Mundo não é bloqueado */ free?: boolean }) {
   const mobile = useSyncExternalStore(subscribeCoarse, coarse, () => false);
   const portrait = useSyncExternalStore(subscribePortrait, portraitNow, () => false);
   // celular em pé (e sem trava de rotação): gira o jogo 90° pra ocupar a tela deitada
@@ -475,6 +475,7 @@ export function MineArenaGame({ me }: { me?: Peer }) {
         notice={notice}
         coop={me && sb ? { sb, myId: me.id, busy: joining, error: joinError, onJoin: (r) => void join(r) } : undefined}
         worlds={worlds}
+        lockedBy={free || storyProgress.completed.includes(NEW_WORLD_CHAPTER) ? null : (CHAPTER_BY_ID.get(NEW_WORLD_CHAPTER)?.title ?? "O Bezerro de Ouro")}
         onOptions={() => setMenuOptions(true)}
         onStory={() => {
           void refresh();

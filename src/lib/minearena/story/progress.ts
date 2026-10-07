@@ -3,6 +3,9 @@ import type { StoryProgress } from "./types";
 
 const KEY = "minearena:story:v1";
 
+/** O modo "Novo Mundo" (sobrevivência e criativo) só abre depois de concluir este capítulo (o 15: O Bezerro de Ouro). */
+export const NEW_WORLD_CHAPTER = "bezerro";
+
 export const freshProgress = (): StoryProgress => ({ completed: [], books: [], achievements: [], current: null, seenLearn: [], otDone: false, puzzles: [], relics: [] });
 
 export function loadProgress(): StoryProgress {

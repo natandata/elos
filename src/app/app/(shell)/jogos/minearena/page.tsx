@@ -37,5 +37,5 @@ export default async function MineArenaPage() {
     );
   }
 
-  return <MineArenaClient me={{ id: profile.id, name: (profile.full_name || "Jogador").split(" ")[0] }} />;
+  return <MineArenaClient me={{ id: profile.id, name: (profile.full_name || "Jogador").split(" ")[0] }} free={profile.role === "admin"} />;
 }

@@ -35,6 +35,7 @@ export function MainMenu({
   coop,
   notice,
   onStory,
+  lockedBy,
 }: {
   worlds: WorldSave[] | null;
   onPlay: (w: WorldSave) => void;
@@ -46,6 +47,8 @@ export function MainMenu({
   /** Co-op: entrar numa sala (precisa de quem sou e do cliente Supabase). */
   coop?: { sb: SupabaseClient; myId: string; busy: boolean; error: string | null; onJoin: (r: RoomInfo) => void };
   notice?: string | null;
+  /** Se preenchido, o modo Novo Mundo está bloqueado até concluir este capítulo do Modo História (título do capítulo). */
+  lockedBy?: string | null;
 }) {
   const [view, setView] = useState<"home" | "new" | "load" | "coop">("home");
   const [name, setName] = useState("Meu mundo");
@@ -62,7 +65,7 @@ export function MainMenu({
 
         {view === "home" ? (
           <div className="ma-menu-btns">
-            {latest ? (
+            {latest && !lockedBy ? (
               <button type="button" className="ma-btn ma-btn-gold" onClick={() => onPlay(latest)}>
                 ▶ Continuar
                 <small>
@@ -76,10 +79,17 @@ export function MainMenu({
                 <small>O Antigo Testamento, do Éden a Ester</small>
               </button>
             ) : null}
-            <button type="button" className="ma-btn" onClick={() => setView("new")}>
-              ✦ Novo mundo
-            </button>
-            {worlds && worlds.length > 0 ? (
+            {lockedBy ? (
+              <button type="button" className="ma-btn" disabled aria-disabled>
+                🔒 Novo mundo
+                <small>Sobrevivência e Criativo: conclua «{lockedBy}» no Modo História</small>
+              </button>
+            ) : (
+              <button type="button" className="ma-btn" onClick={() => setView("new")}>
+                ✦ Novo mundo
+              </button>
+            )}
+            {worlds && worlds.length > 0 && !lockedBy ? (
               <button type="button" className="ma-btn" onClick={() => setView("load")}>
                 📜 Carregar mundo ({worlds.length})
               </button>
