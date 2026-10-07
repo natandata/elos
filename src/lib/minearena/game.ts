@@ -256,7 +256,12 @@ export class MineArena {
   private showCoords = false;
   private ready = false;
   private paused = false;
+  /** Algum painel pede o cursor livre (soma de `uiPanel`, telas da história e painéis da história). Não escreva direto: use `setUiOpen`. */
   private uiOpen = false;
+  /** Painéis abertos pela interface (mochila, baú, troca, placa, mapa, chat, fala de herói). */
+  private uiPanel = false;
+  /** O jogador já jogou com o mouse preso: ao fechar um painel, tenta prender de novo. */
+  private wantLock = false;
   private running = false;
   private raf = 0;
   private last = 0;
@@ -416,14 +421,37 @@ export class MineArena {
   }
 
   setPaused(p: boolean): void {
+    const was = this.paused;
     this.paused = p;
     if (p && document.pointerLockElement) document.exitPointerLock();
+    if (was && !p) this.relock();
   }
   setUiOpen(open: boolean): void {
-    this.uiOpen = open;
+    this.uiPanel = open;
     this.input.mine = false;
     this.input.use = false;
-    if (open && document.pointerLockElement) document.exitPointerLock();
+    this.applyUi();
+  }
+  /** O cursor fica livre enquanto QUALQUER painel pedir; um painel fechando não pode liberar o mouse de outro ainda aberto. */
+  private applyUi(): void {
+    const open = this.uiPanel || this.storyModal || this.storyHold;
+    const was = this.uiOpen;
+    this.uiOpen = open;
+    if (open) {
+      this.input.mine = false;
+      this.input.use = false;
+      if (document.pointerLockElement) document.exitPointerLock();
+    } else if (was) this.relock();
+  }
+  /** Tenta prender o mouse de novo (o navegador só aceita se a ação vier de um clique/tecla recente; senão o próximo clique no jogo prende). */
+  private relock(): void {
+    if (this.mobile || !this.wantLock || !this.alive || this.paused || this.uiOpen || !this.running) return;
+    try {
+      const r = this.canvas.requestPointerLock?.() as unknown;
+      if (r && typeof (r as Promise<void>).catch === "function") (r as Promise<void>).catch(() => {});
+    } catch {
+      // sem permissão: o próximo clique no jogo prende o mouse
+    }
   }
   /** Controles de toque. */
   setMove(x: number, y: number): void {
@@ -635,7 +663,8 @@ export class MineArena {
     on("mousedown", (e) => {
       if (this.mobile || this.uiOpen || this.paused) return;
       if (document.pointerLockElement !== this.canvas) {
-        void this.canvas.requestPointerLock?.();
+        // só clique no próprio jogo prende o mouse (clicar num botão da tela não pode escondê-lo)
+        if (e.target === this.canvas) void this.canvas.requestPointerLock?.();
         return;
       }
       if (e.button === 0) this.input.mine = true;
@@ -656,6 +685,12 @@ export class MineArena {
     this.canvas.addEventListener("contextmenu", ctx);
     this.cleanup.push(() => this.canvas.removeEventListener("contextmenu", ctx));
     const lock = () => {
+      if (document.pointerLockElement === this.canvas) {
+        this.wantLock = true;
+        // o mouse foi preso com um painel aberto (pedido que chegou atrasado): solta
+        if (this.uiOpen || this.paused) document.exitPointerLock();
+        return;
+      }
       if (!document.pointerLockElement && this.alive && !this.uiOpen && !this.paused && this.running && this.ready && !this.mobile) this.cb.onPauseRequest();
     };
     document.addEventListener("pointerlockchange", lock);
@@ -1385,7 +1420,11 @@ export class MineArena {
       this.sfx.play("pickup");
       this.cb.onMessage(`+${got} ${def.name}`, rarityTone(def.rarity));
     }
-    if (left > 0) this.cb.onMessage("Mochila cheia!", "warn");
+    if (left > 0) {
+      // mochila cheia: o que não coube cai aos pés do jogador (nunca some)
+      this.cb.onMessage("Mochila cheia! O resto caiu no chão.", "warn");
+      this.drops.spawn({ item, count: left }, this.body.x, this.body.y + 1, this.body.z, undefined, undefined, undefined, 1.5);
+    }
   }
 
   private damagePlayer(amount: number, fx: number, fz: number, blockable = true): void {
@@ -1457,7 +1496,8 @@ export class MineArena {
     this.alive = true;
     this.invuln = 3;
     this.paused = false;
-    this.uiOpen = false;
+    this.uiPanel = false;
+    this.applyUi();
     this.input.mine = false;
     this.input.use = false;
     this.ready = false;
@@ -1536,7 +1576,7 @@ export class MineArena {
     if (this.story) {
       // telas do Modo História que pedem o mouse (aprendizado, fim de capítulo, desafio, relíquia): solta o cursor
       const u = this.story.ui;
-      const modal = !!(u.learn || u.chapterEnd || u.finale || u.puzzle || u.relic);
+      const modal = this.story.blocking || !!(u.learn || u.chapterEnd || u.finale || u.puzzle || u.relic);
       if (modal !== this.storyModal) {
         this.storyModal = modal;
         this.syncStoryUi();
@@ -2830,7 +2870,10 @@ export class MineArena {
     if (!this.canCraft(r)) return false;
     for (const i of r.ingredients) this.inventory.remove(i.item, i.count);
     const left = this.inventory.add(r.result.item, r.result.count);
-    if (left > 0) this.cb.onMessage("Mochila cheia!", "warn");
+    if (left > 0) {
+      this.cb.onMessage("Mochila cheia! O resto caiu no chão.", "warn");
+      this.drops.spawn({ item: r.result.item, count: left }, this.body.x, this.body.y + 1, this.body.z, undefined, undefined, undefined, 1.5);
+    }
     this.sfx.play("pickup");
     return true;
   }
@@ -3136,7 +3179,7 @@ export class MineArena {
   private storyModal = false;
   private storyHold = false;
   private syncStoryUi(): void {
-    this.setUiOpen(this.storyModal || this.storyHold);
+    this.applyUi();
   }
   /** Painéis da interface do Modo História (dicas, histórico) que também precisam do cursor livre. */
   storyHoldUi(on: boolean): void {

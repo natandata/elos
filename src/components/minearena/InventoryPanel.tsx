@@ -8,7 +8,8 @@ import { gridLayout } from "@/lib/minearena/crafting/recipes";
 import { describeStack } from "@/lib/minearena/items/enchant";
 import { ItemIcon } from "./ItemIcon";
 
-const RARITY_INK: Record<Rarity, string> = { comum: "#3a2a12", incomum: "#1c7a1c", raro: "#1b5fc0", epico: "#7a2fc0", lendario: "#b36a00", mitico: "#c01840" };
+/** Cores de nome por raridade, claras: o painel é azul-escuro. */
+const RARITY_INK: Record<Rarity, string> = { comum: "#fbf0cf", incomum: "#8ff08f", raro: "#9cceff", epico: "#dcb4ff", lendario: "#ffcb66", mitico: "#ff94a8" };
 const ARMOR_NAMES = ["Cabeça", "Peito", "Pernas", "Pés"];
 
 /** Mochila (arrastar ou tocar-e-tocar), armadura e fabricação. */
@@ -52,9 +53,78 @@ export function InventoryPanel({ game, startTab, rotated, onClose }: { game: Min
     inv.changed();
   };
 
-  const onDown = (i: number) => {
+  const range = (a: number, n: number) => Array.from({ length: n }, (_, k) => a + k);
+  const BAG_FIRST = [...range(9, 27), ...range(0, 9)];
+
+  /** Shift + clique: manda o item pro outro lado (baú/fornalha <-> mochila, barra <-> mochila). */
+  const quickMove = (i: number) => {
+    const s = inv.getSlot(i);
+    if (!s) return;
+    const box = container === "chest" ? range(200, 27) : container === "furnace" ? [200, 201] : [];
+    const targets = i >= 200 && i < 300 ? BAG_FIRST : i < 36 ? (box.length > 0 ? box : i < 9 ? range(9, 27) : range(0, 9)) : BAG_FIRST;
+    const max = itemDef(s.item)?.maxStack ?? 1;
+    const plain = !s.wear && !s.ench;
+    let left = s.count;
+    for (const t of targets) {
+      if (left <= 0) break;
+      const c = inv.getSlot(t);
+      if (c && plain && c.item === s.item && !c.wear && !c.ench && c.count < max && inv.accepts(t, s)) {
+        const n = Math.min(max - c.count, left);
+        c.count += n;
+        left -= n;
+      }
+    }
+    for (const t of targets) {
+      if (left <= 0) break;
+      if (!inv.getSlot(t) && inv.accepts(t, s)) {
+        const n = Math.min(max, left);
+        inv.setSlot(t, { ...s, count: n });
+        left -= n;
+      }
+    }
+    if (left <= 0) inv.setSlot(i, null);
+    else s.count = left;
+    inv.changed();
+  };
+
+  const takeAll = () => {
+    for (const i of range(200, 27)) quickMove(i);
+    setInfo("Tudo que coube foi pra sua mochila.");
+  };
+  const storeAll = () => {
+    for (const i of BAG_FIRST) if (i >= 9) quickMove(i);
+    setInfo("Os itens da mochila foram guardados na arca.");
+  };
+
+  const onDown = (i: number, e?: { button: number; shiftKey: boolean }) => {
     const cur = inv.getSlot(i);
     if (cur) setInfo(`${describeStack(cur)} · ${RARITY_LABEL[itemDef(cur.item)?.rarity ?? "comum"]}`);
+    if (e?.shiftKey && !held && cur && i < 300) {
+      quickMove(i);
+      down.current = null;
+      return;
+    }
+    if (e?.button === 2) {
+      // botão direito: sem item na mão, pega metade; com item na mão, larga só um
+      const max = (cur ? itemDef(cur.item)?.maxStack : 1) ?? 1;
+      if (!held && cur && cur.count > 1 && max > 1) {
+        const take = Math.ceil(cur.count / 2);
+        setHeld({ stack: { ...cur, count: take }, from: i });
+        cur.count -= take;
+        down.current = null;
+        inv.changed();
+        return;
+      }
+      if (held && inv.accepts(i, held.stack) && (!cur || (cur.item === held.stack.item && !cur.wear && !cur.ench && cur.count < max))) {
+        if (cur) cur.count += 1;
+        else inv.setSlot(i, { ...held.stack, count: 1 });
+        const rest = held.stack.count - 1;
+        setHeld(rest > 0 ? { ...held, stack: { ...held.stack, count: rest } } : null);
+        down.current = null;
+        inv.changed();
+        return;
+      }
+    }
     if (!held) {
       if (cur) {
         setHeld({ stack: cur, from: i });
@@ -75,8 +145,14 @@ export function InventoryPanel({ game, startTab, rotated, onClose }: { game: Min
   const close = () => {
     game.clearGrid();
     if (held) {
-      const left = inv.add(held.stack.item, held.stack.count);
-      if (left > 0) inv.setSlot(held.from, { item: held.stack.item, count: left });
+      const left = inv.addStack(held.stack);
+      if (left > 0) {
+        const back = { ...held.stack, count: left };
+        // volta pro lugar de onde saiu; se já estiver ocupado, cai no chão (nunca some)
+        if (!inv.getSlot(held.from) && inv.accepts(held.from, back)) inv.setSlot(held.from, back);
+        else game.dropStack(back);
+      }
+      inv.changed();
       setHeld(null);
     }
     onClose();
@@ -100,7 +176,7 @@ export function InventoryPanel({ game, startTab, rotated, onClose }: { game: Min
   const slot = (i: number, label?: string) => {
     const s = inv.getSlot(i);
     return (
-      <button key={i} type="button" className="ma-slot ma-slot-lg" data-on={i < 9 && i === inv.selected} onPointerDown={() => onDown(i)} onPointerUp={() => onUp(i)} aria-label={label ?? `Slot ${i}`}>
+      <button key={i} type="button" className="ma-slot ma-slot-lg" data-on={i < 9 && i === inv.selected} onPointerDown={(e) => onDown(i, e)} onPointerUp={(e) => (e.button === 2 ? undefined : onUp(i))} aria-label={label ?? `Slot ${i}`}>
         {s ? <ItemIcon item={s.item} count={s.count} stack={s} size={40} /> : label ? <small>{label}</small> : null}
       </button>
     );
@@ -151,11 +227,21 @@ export function InventoryPanel({ game, startTab, rotated, onClose }: { game: Min
                 <div className="ma-fcol">{slot(202, "Pronto")}</div>
               </div>
             )}
+            {container === "chest" ? (
+              <div className="ma-chest-btns">
+                <button type="button" className="ma-btn ma-btn-sm" onClick={takeAll}>
+                  ⇧ Pegar tudo
+                </button>
+                <button type="button" className="ma-btn ma-btn-sm ma-btn-dark" onClick={storeAll}>
+                  ⇩ Guardar mochila
+                </button>
+              </div>
+            ) : null}
             <p className="ma-sep">Sua mochila</p>
             <div className="ma-grid">{Array.from({ length: 27 }, (_, k) => slot(9 + k))}</div>
             <p className="ma-sep">Barra rápida</p>
             <div className="ma-grid">{Array.from({ length: 9 }, (_, k) => slot(k))}</div>
-            <p className="ma-info">{container === "furnace" ? "Coloque o item em cima e o combustível (carvão, tronco, tábuas) embaixo. Tira o resultado à direita." : (info ?? "Toque num item e depois num espaço pra mover.")}</p>
+            <p className="ma-info">{container === "furnace" ? "Coloque o item em cima e o combustível (carvão, tronco, tábuas) embaixo. Tira o resultado à direita." : (info ?? "Toque num item e depois num espaço pra mover. Shift + clique manda o item pro outro lado; botão direito pega metade ou larga um.")}</p>
           </>
         ) : tab === "bag" ? (
           <>

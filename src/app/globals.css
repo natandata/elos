@@ -814,7 +814,7 @@ input[type="datetime-local"] {
 .ma-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; width: 100%; padding: 12px 16px; border-radius: 14px; border: 3px solid #3b2a14; border-bottom-width: 6px; background: linear-gradient(180deg, #8a6a43, #5f4528); color: #fff6dd; font-size: 1.05rem; font-weight: 900; text-align: center; text-decoration: none; text-shadow: 0 2px 0 rgba(0, 0, 0, 0.45); cursor: pointer; transition: transform 0.08s, filter 0.15s; }
 .ma-btn small { font-size: 0.7rem; font-weight: 700; opacity: 0.85; }
 .ma-btn:active { transform: translateY(3px); border-bottom-width: 3px; }
-.ma-btn:disabled { filter: grayscale(0.9) brightness(0.6); cursor: not-allowed; }
+.ma-btn:disabled { filter: grayscale(0.7) brightness(0.8); cursor: not-allowed; }
 .ma-btn-gold { background: linear-gradient(180deg, #ffd66b, #e0902a); border-color: #6a3e08; color: #3a2204; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5); }
 .ma-btn-dark { background: linear-gradient(180deg, #4a4a58, #2e2e3a); border-color: #15151c; }
 .ma-btn-sm { width: auto; padding: 6px 12px; font-size: 0.8rem; border-bottom-width: 4px; }
@@ -889,15 +889,15 @@ input[type="datetime-local"] {
 .ma-grid { display: grid; grid-template-columns: repeat(9, 1fr); gap: 3px; justify-items: center; }
 .ma-grid .ma-slot { background: rgba(60, 40, 14, 0.5); border-color: #5a3a0a; }
 .ma-sep { margin: 2px 0 0; font-size: 0.68rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.7; }
-.ma-info { margin: 0; min-height: 1.2em; font-size: 0.74rem; font-weight: 800; color: #5a3a0a; }
+.ma-info { margin: 0; min-height: 2.5em; font-size: 0.74rem; font-weight: 800; color: #5a3a0a; }
 .ma-ghost { position: fixed; z-index: 50; pointer-events: none; }
 .ma-recipes { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
-.ma-recipes li { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 12px; border: 2px solid #8a6a43; background: rgba(60, 40, 14, 0.14); opacity: 0.6; }
+.ma-recipes li { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 12px; border: 2px solid #8a6a43; background: rgba(60, 40, 14, 0.14); opacity: 0.78; }
 .ma-recipes li[data-ready="true"] { opacity: 1; border-color: #3f9a3f; background: rgba(110, 200, 90, 0.2); }
 .ma-recipes .ma-icon { flex-shrink: 0; border-radius: 8px; background: rgba(60, 40, 14, 0.45); }
 .ma-r-body { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 2px; }
 .ma-r-body b { font-size: 0.86rem; }
-.ma-r-ing { display: flex; flex-wrap: wrap; gap: 2px 8px; font-size: 0.66rem; font-weight: 800; }
+.ma-r-ing { display: flex; flex-wrap: wrap; gap: 2px 8px; font-size: 0.74rem; font-weight: 800; }
 .ma-r-ing i { font-style: normal; color: #a1271b; }
 .ma-r-ing i[data-ok="true"] { color: #1c6b1c; }
 
@@ -987,6 +987,8 @@ input[type="datetime-local"] {
 .ma-btn-gold { background: linear-gradient(180deg, #ffe08a, #e0902a); border-color: #6a3e08; color: #3a2204; }
 .ma-btn-dark { background: linear-gradient(180deg, #4a4a58, #2e2e3a); }
 .ma-ghost { z-index: 50; }
+.ma-chest-btns { display: flex; gap: 8px; }
+.ma-chest-btns .ma-btn { flex: 1; }
 
 /* ---- controles de toque no estilo Minecraft mobile (menores) ---- */
 .ma-stick { display: none; }
