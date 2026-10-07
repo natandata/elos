@@ -13,9 +13,13 @@ import type { CampaignFinish } from "@/lib/arena/campaignServer";
 import { ARENA_LOAD_MS, ArenaLoadingScreen } from "@/components/games/ArenaLoadingScreen";
 import { ArenaPlayfield, type PlayDriver } from "./ArenaPlayfield";
 import { CardArt } from "./CardArt";
+import { NeryCutscene } from "./NeryCutscene";
+
+/** Arena do Nery (a 3ª, índice 2) */
+const NERY_STAGE = 2;
 
 type Tab = "arenas" | "cartas";
-type Phase = "menu" | "playing" | "finishing" | "result";
+type Phase = "menu" | "playing" | "finishing" | "cutscene" | "result";
 
 /** Modo Campanha: 8 arenas em ordem, cada uma contra um personagem do ELOS. Todos veem; só quem tem acesso batalha. */
 export function ArenaCampaign({ open, admin, cleared: initialCleared, tiers: initialTiers, opensAt = null }: { open: boolean; admin: boolean; cleared: number[]; tiers: number[]; /** data de abertura definida pelo admin (ISO), se houver */ opensAt?: string | null }) {
@@ -31,6 +35,7 @@ export function ArenaCampaign({ open, admin, cleared: initialCleared, tiers: ini
   const [launching, setLaunching] = useState(false);
   const matchRef = useRef<string | null>(null);
   const [lastStage, setLastStage] = useState(0);
+  const stageRef = useRef(0);
   const logRef = useRef<Input[]>([]);
   const startingRef = useRef(false);
   const lastSurrender = useRef(false);
@@ -49,7 +54,8 @@ export function ArenaCampaign({ open, admin, cleared: initialCleared, tiers: ini
     setVerdict(res);
     if (res.cleared) setCleared(res.cleared);
     if (res.tiers) setTiers(res.tiers);
-    setPhase("result");
+    // depois de toda batalha contra o Nery (arena 3), qualquer que seja o resultado, tem a cena final de 10 s
+    setPhase(!res.error && stageRef.current === NERY_STAGE ? "cutscene" : "result");
     router.refresh();
   }
 
@@ -71,6 +77,7 @@ export function ArenaCampaign({ open, admin, cleared: initialCleared, tiers: ini
     const st = CAMPAIGN_STAGES[stage];
     matchRef.current = res.matchId;
     setLastStage(stage);
+    stageRef.current = stage;
     logRef.current = [];
     const game = createGame(res.seed, CAMPAIGN_DECK, CAMPAIGN_DECK, { botBoost: stageBoost(stage, res.tier ?? 0) });
     let pending: Input[] = [];
@@ -113,6 +120,8 @@ export function ArenaCampaign({ open, admin, cleared: initialCleared, tiers: ini
       />
     );
   }
+
+  if (phase === "cutscene") return <NeryCutscene onDone={() => setPhase("result")} />;
 
   if (phase === "finishing" || phase === "result") {
     const r = verdict;
