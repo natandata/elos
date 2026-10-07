@@ -5,6 +5,7 @@ import { EXODUS_CUTSCENES } from "./exodus";
 import { GENESIS_CUTSCENES } from "./genesis";
 import { SINAI_CUTSCENES } from "./sinai";
 import { CONQUISTA_CUTSCENES } from "./conquista";
+import { JUIZES_CUTSCENES } from "./juizes";
 
 const say = (who: string, text: string, ref?: string): CutStep => ({ t: "say", who, text, ref });
 const cap = (text: string, dur = 3.5, sub?: string): CutStep => ({ t: "caption", text, dur, sub });
@@ -489,4 +490,4 @@ CUTSCENES.ca_offerings_all = {
   id: "ca_offerings_all",
   steps: [...CUTSCENES.ca_offerings.steps.filter((s, i, a) => !(i === a.length - 1 && s.t === "call")), ...CUTSCENES.ca_field.steps],
 };
-Object.assign(CUTSCENES, GENESIS_CUTSCENES, EXODUS_CUTSCENES, SINAI_CUTSCENES, CONQUISTA_CUTSCENES);
+Object.assign(CUTSCENES, GENESIS_CUTSCENES, EXODUS_CUTSCENES, SINAI_CUTSCENES, CONQUISTA_CUTSCENES, JUIZES_CUTSCENES);

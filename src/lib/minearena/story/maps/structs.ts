@@ -4,6 +4,7 @@ import { SHINAR, BERSEBA } from "./genesis";
 import { SEA, seaFloor } from "./exodus";
 import { JORDAO, riverFloor } from "./conquista";
 import { jericoFall } from "./jerico";
+import { gazaGateCells, templeFallCells } from "./juizes";
 import { DESERTO, SINAI, TAB } from "./sinai";
 
 type Block = [number, number, number, number];
@@ -138,7 +139,7 @@ function calfGone(): Block[] {
   return list.reverse();
 }
 
-export const STRUCTS: Record<string, () => Block[]> = { babel_tower: babelTower, jacob_ladder: jacobLadder, sea_open: () => seaRows(B.air, false), sea_close: () => seaRows(B.water, true), rock_water: rockWater, tabernacle, calf, calf_gone: calfGone, jordan_open: jordanOpen, jordan_close: () => riverRows(B.water, true), jerico_fall: jericoFall };
+export const STRUCTS: Record<string, () => Block[]> = { babel_tower: babelTower, jacob_ladder: jacobLadder, sea_open: () => seaRows(B.air, false), sea_close: () => seaRows(B.water, true), rock_water: rockWater, tabernacle, calf, calf_gone: calfGone, jordan_open: jordanOpen, jordan_close: () => riverRows(B.water, true), jerico_fall: jericoFall, gaza_gate: gazaGateCells, temple_fall: templeFallCells };
 
 /** Ponto (y) do degrau k da escada de Jacó, para pousar os anjos. */
 export const ladderStep = (k: number): { x: number; y: number; z: number } => ({ x: BERSEBA.betel.x, y: 44 + k, z: BERSEBA.betel.z - 2 - k });

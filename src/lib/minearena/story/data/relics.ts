@@ -205,6 +205,36 @@ export const RELICS: Record<string, RelicDef> = Object.fromEntries([
     near: { zone: "c2", label: "o canto nordeste da muralha" },
     hints: ["Os sacerdotes davam a volta na cidade. Procure no caminho deles, onde a muralha faz uma curva.", "Fica a sudeste do canto leste da volta, longe do portão, entre as palmeiras."],
   }),
+  R({
+    chapter: "gideao",
+    name: "Tocha de Gideão",
+    emoji: "🔥",
+    desc: "Uma das tochas escondidas nos cântaros dos trezentos homens, que brilharam de noite no vale de Midiã. (Juízes 7:16,20)",
+    x: 40,
+    z: 60,
+    near: { zone: "velo", label: "o velo de lã" },
+    hints: ["Os cântaros escondiam a luz até a hora certa. Procure longe do vale de Midiã, onde Gideão pediu o sinal do orvalho.", "Fica a oeste da eira, em campo aberto, onde a grama é mais úmida."],
+  }),
+  R({
+    chapter: "sansao",
+    name: "Favo de Mel",
+    emoji: "🍯",
+    desc: "O mel que Sansão achou no corpo do leão, e que deu origem ao enigma: do forte saiu doçura. (Juízes 14:8–14)",
+    x: 64,
+    z: 98,
+    near: { zone: "vinha", label: "as vinhas de Timna" },
+    hints: ["Do forte saiu doçura. Procure longe das vinhas, onde o caminho de Zorá encontra a terra aberta.", "Fica a sudoeste das vinhas, no caminho que vem da casa de Manoá."],
+  }),
+  R({
+    chapter: "rute",
+    name: "Espiga de Cevada",
+    emoji: "🌾",
+    desc: "Uma das espigas que Rute respigou atrás dos segadores de Boaz, e que alimentou Noemi e ela. (Rute 2:17–18)",
+    x: 78,
+    z: 94,
+    near: { zone: "campo", label: "o campo de Boaz" },
+    hints: ["Rute juntava o que os segadores deixavam para trás. Procure fora do campo, no caminho dos que respigam.", "Fica a sudoeste do campo, perto da estrada que vem de Moabe."],
+  }),
 ]);
 
 /** Texto da terceira dica: direção e distância (em passos) de um ponto conhecido do mapa. */

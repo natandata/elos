@@ -29,6 +29,10 @@ const TRACKS: Record<string, Track> = {
   jerico: { scale: [220, 261.63, 293.66, 329.63, 392, 440], tempo: [1.1, 1.8], gain: 0.045, type: "triangle", dur: 2.4 },
   jerico_marcha: { scale: [196, 196, 246.94, 293.66, 392], tempo: [0.7, 1.0], gain: 0.05, type: "sawtooth", drone: 98, dur: 1.4 },
   jordao: { scale: [293.66, 349.23, 392, 466.16, 587.33], tempo: [1.2, 2.0], gain: 0.045, type: "sine", dur: 2.6 },
+  gideao: { scale: [220, 261.63, 293.66, 392, 440], tempo: [1.2, 2.0], gain: 0.045, type: "triangle", dur: 2.6 },
+  gideao_noite: { scale: [196, 233.08, 261.63, 311.13, 392], tempo: [1.6, 2.6], gain: 0.04, type: "sine", drone: 98, dur: 3.2 },
+  sansao: { scale: [196, 220, 261.63, 329.63, 392], tempo: [1.0, 1.6], gain: 0.05, type: "sawtooth", drone: 98, dur: 2.2 },
+  rute: { scale: [329.63, 392, 440, 523.25, 659.25, 783.99], tempo: [1.3, 2.2], gain: 0.04, type: "sine", dur: 2.8 },
   learn: { scale: [523.25, 659.25, 783.99, 1046.5], tempo: [0.8, 1.2], gain: 0.04, type: "sine", dur: 2.2 },
 };
 
