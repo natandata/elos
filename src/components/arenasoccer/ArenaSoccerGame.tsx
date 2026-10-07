@@ -199,6 +199,7 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit, net }: {
     let inpAcc = 0;
     let helloAcc = 1;
     let lastKick = false;
+    let lastInp = { mx: 0, my: 0 };
     let gotSnap = false;
     let wentAway = false;
     const evq: GameEvent[] = [];
@@ -358,9 +359,12 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit, net }: {
         if (!wentAway && !doneRef.current) {
           inpAcc += dt;
           const inp = readInput();
-          if (inpAcc >= 0.05 || inp.kick !== lastKick) {
+          // controles só quando mudam (no máximo ~6 por segundo) e um sinal de vida a cada 0,6 s: poupa mensagens do Realtime
+          const changed = inp.kick !== lastKick || Math.abs(inp.mx - lastInp.mx) > 0.15 || Math.abs(inp.my - lastInp.my) > 0.15;
+          if ((changed && inpAcc >= 0.15) || inpAcc >= 0.6) {
             inpAcc = 0;
             lastKick = inp.kick;
+            lastInp = inp;
             net!.send("inp", inp);
           }
         }
@@ -380,7 +384,7 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit, net }: {
         }
         if (net) {
           sendAcc += dt;
-          if (sendAcc >= 0.05) {
+          if (sendAcc >= 0.1) {
             sendAcc = 0;
             net.send("snap", makeSnap(g, fx.intro ? fx.intro.t : -1, []));
           }
@@ -396,7 +400,8 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit, net }: {
         phaseRef.current = g.phase;
         if (net) {
           sendAcc += dt;
-          if (sendAcc >= 0.05 || g.phase === "end") {
+          // no jogo ~14 estados por segundo; parado (contagem, gol) bem menos
+          if (sendAcc >= (g.phase === "play" ? 0.07 : 0.25) || g.phase === "end") {
             sendAcc = 0;
             net.send("snap", makeSnap(g, -1, evq.splice(0)));
           }
