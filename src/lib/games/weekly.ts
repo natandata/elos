@@ -19,7 +19,7 @@ export const WEEKLY_META: Record<string, Meta> = {
   arena: { key: "arena", title: "Arena dos Heróis", emoji: "🏰", href: "/app/jogos/arena", cover: "/arena/capa.webp", bg: "#1b1208" },
   memory: { key: "memory", title: "Memória dos Heróis", emoji: "🃏", href: "/app/jogos/memoria", cover: "/memoria/capa.webp", bg: "#2a2a3a" },
   dress: { key: "dress", title: "Vista o Herói", emoji: "👗", href: "/app/jogos/vestir", cover: "/dress/capa.webp", bg: "#34104f" },
-  arenasoccer: { key: "arenasoccer", title: "ArenaSoccer", emoji: "⚽", href: "/app/jogos/arenasoccer", cover: null, bg: "linear-gradient(135deg,#0d3b22,#1f9a52)" },
+  arenasoccer: { key: "arenasoccer", title: "ArenaSoccer", emoji: "⚽", href: "/app/jogos/arenasoccer", cover: "/arenasoccer/capa.webp", bg: "linear-gradient(135deg,#0d3b22,#1f9a52)" },
   quiz: { key: "quiz", title: "Quiz do Dia", emoji: "🧠", href: "/app/jogos/quiz", cover: null, bg: "linear-gradient(135deg,#3b2a8a,#7a3fd1)" },
   verse: { key: "verse", title: "Complete o Versículo", emoji: "📖", href: "/app/jogos/versiculo", cover: null, bg: "linear-gradient(135deg,#7a4a12,#d6a23a)" },
   who: { key: "who", title: "Quem Sou Eu?", emoji: "🕵️", href: "/app/jogos/quem-sou-eu", cover: null, bg: "linear-gradient(135deg,#124a52,#2fa3a8)" },
