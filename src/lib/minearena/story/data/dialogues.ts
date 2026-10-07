@@ -6,6 +6,7 @@ import { SINAI_DIALOGUES } from "./sinai";
 import { CONQUISTA_DIALOGUES } from "./conquista";
 import { JUIZES_DIALOGUES } from "./juizes";
 import { REINO_DIALOGUES } from "./reino";
+import { DAVI_DIALOGUES } from "./davi";
 
 export const DIALOGUES: Record<string, Dialogue> = {
   ...GENESIS_DIALOGUES,
@@ -14,6 +15,7 @@ export const DIALOGUES: Record<string, Dialogue> = {
   ...CONQUISTA_DIALOGUES,
   ...JUIZES_DIALOGUES,
   ...REINO_DIALOGUES,
+  ...DAVI_DIALOGUES,
   adam_1: {
     id: "adam_1",
     lines: [

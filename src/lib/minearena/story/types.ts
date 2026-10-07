@@ -76,6 +76,7 @@ export type Objective =
   | { k: "lead"; tag: string; count: number; to: string; near: number; text: string }
   | { k: "wait"; seconds: number; text: string }
   | { k: "event"; event: string; text: string; target?: { npc?: string; zone?: string } }
+  | { k: "hit"; tag: string; count: number; text: string }
   | { k: "puzzle"; puzzle: string; text: string };
 
 // ---------- desafios e relíquias ----------

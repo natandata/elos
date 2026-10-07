@@ -123,6 +123,16 @@ export const STORY_MOBS: Record<string, MobDef> = {
   saul: hum("saul", "Saul", "O primeiro rei de Israel", { skin: 0xc58a58, hair: 0x2a1a10, beard: 0x2a1a10, shirt: 0x8a2a3a, pants: 0x6a4a2a, belt: 0xe0c050, bulk: 1.12, scale: 1.18 }),
   jesse: hum("jesse", "Jessé", "Pai de Davi", { skin: 0xc58a58, hair: 0xb0a898, beard: 0xb0a898, shirt: 0x8a7a5a, pants: 0x8a7a5a, robe: true, belt: 0x4a3018, staff: true }),
   davi: hum("davi", "Davi", "O pastor de Belém", { skin: 0xd09a6a, hair: 0xb04a1e, shirt: 0xc9b48a, pants: 0x7a5a38, belt: 0x4a3018, sling: true, scale: 0.94 }),
+  // Davi e Golias, Davi e Saul, Davi Rei
+  golias: hum("golias", "Golias", "Campeão filisteu de Gate", { skin: 0xb98050, hair: 0x1a1008, beard: 0x1a1008, shirt: 0xa6783a, pants: 0x6a4a2a, belt: 0x2a1a10, staff: true, bulk: 1.35, scale: 2.3 }),
+  eliabe: hum("eliabe", "Eliabe", "Irmão mais velho de Davi", { skin: 0xbf8450, hair: 0x3a2412, beard: 0x3a2412, shirt: 0x8a7a5a, pants: 0x6a5a3a, belt: 0x3a2412, bulk: 1.1 }),
+  soldado: hum("soldado", "Soldado de Israel", "Do exército de Saul", { skin: 0xc58a58, hair: 0x2a1a10, shirt: 0x7a5a3a, pants: 0x5a4a32, belt: 0x3a2412, staff: true, bulk: 1.08 }),
+  soldado_b: hum("soldado_b", "Soldado de Israel", "Do exército de Saul", { skin: 0xb87a48, hair: 0x4a2a14, beard: 0x4a2a14, shirt: 0x6a6a4a, pants: 0x5a4a32, belt: 0x3a2412, staff: true }),
+  abner: hum("abner", "Abner", "Comandante do exército de Saul", { skin: 0xbf8450, hair: 0x2a1a10, beard: 0x2a1a10, shirt: 0x7a2a2a, pants: 0x5a4a32, belt: 0xe0c050, bulk: 1.15, scale: 1.06 }),
+  joabe: hum("joabe", "Joabe", "Comandante de Davi", { skin: 0xbf8450, hair: 0x2a1a10, beard: 0x2a1a10, shirt: 0x5a6a8a, pants: 0x4a3a2a, belt: 0xe0c050, staff: true, bulk: 1.18 }),
+  natan: hum("natan", "Natã", "Profeta do Senhor", { skin: 0xc58a58, hair: 0xb8b0a0, beard: 0xb8b0a0, hairStyle: "long", shirt: 0x2a4a6a, pants: 0xe8e0c8, robe: true, belt: 0x8a5a2a, staff: true, scale: 1.04 }),
+  davi_rei: hum("davi_rei", "Davi", "Rei de Israel", { skin: 0xd09a6a, hair: 0xb04a1e, beard: 0x8a3a14, shirt: 0x6a2a8a, pants: 0xe8e0c8, robe: true, belt: 0xe0c050, scale: 1.02 }),
+  jebuseu: hum("jebuseu", "Jebuseu", "Defensor de Jebus", { skin: 0xb98050, hair: 0x1a1008, beard: 0x1a1008, shirt: 0x8a5a3a, pants: 0x4a3a2a, belt: 0x2a1a10, staff: true, bulk: 1.1 }),
   // animais pacíficos
   ovelha: calm("ovelha", "ovelha_story"),
   boi: calm("boi", "boi_story"),

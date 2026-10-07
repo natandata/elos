@@ -265,6 +265,36 @@ export const RELICS: Record<string, RelicDef> = Object.fromEntries([
     near: { zone: "pasto", label: "o pasto de Davi" },
     hints: ["O pastor tocava no campo, entre as ovelhas, antes de tocar no palácio. Procure onde ele descansava.", "Fica a sudoeste do pasto, perto da estrada que leva à casa de Jessé."],
   }),
+  R({
+    chapter: "golias",
+    name: "A Sexta Pedra",
+    emoji: "🪨",
+    desc: "Uma pedra lisa do ribeiro de Elá, igual às cinco que Davi escolheu para a funda. (1 Samuel 17:40)",
+    x: 124,
+    z: 40,
+    near: { zone: "ribeiro", label: "o ribeiro" },
+    hints: ["Davi pegou cinco pedras, mas havia muitas mais no leito do ribeiro. Procure do lado de onde veio o gigante, longe das tendas.", "Fica a leste do ribeiro, ao norte do caminho que leva ao acampamento filisteu."],
+  }),
+  R({
+    chapter: "davi_saul",
+    name: "Orla do Manto",
+    emoji: "🧵",
+    desc: "Um pedaço de tecido do manto que Davi cortou na caverna de En-Gedi, mas sem fazer mal ao rei. (1 Samuel 24:4)",
+    x: 70,
+    z: 100,
+    near: { zone: "caverna", label: "a caverna" },
+    hints: ["Davi mostrou o pedaço do manto a Saul, do lado de fora. Procure em campo aberto, longe das pedras da caverna.", "Fica a sudoeste da caverna, no caminho por onde Davi chegou."],
+  }),
+  R({
+    chapter: "davi_rei",
+    name: "Ramo de Cedro",
+    emoji: "🌲",
+    desc: "Um ramo do cedro que o rei Hirão enviou a Davi para construir o seu palácio em Jerusalém. (2 Samuel 5:11)",
+    x: 112,
+    z: 108,
+    near: { zone: "portao", label: "o portão" },
+    hints: ["Os cedros vieram de Tiro, de longe. Procure fora das muralhas, onde a estrada chega à cidade, e não dentro dela.", "Fica ao sul do portão da cidade, em campo aberto."],
+  }),
 ]);
 
 /** Texto da terceira dica: direção e distância (em passos) de um ponto conhecido do mapa. */

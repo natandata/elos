@@ -81,6 +81,8 @@ export interface Entity {
 export interface ManagerHooks {
   /** `pid`: jogador remoto atingido (co-op); sem ele, é o jogador local. */
   damagePlayer(amount: number, fromX: number, fromZ: number, pid?: string): void;
+  /** Um projétil do jogador acertou um personagem da história que pede um acerto (Golias). */
+  storyHit?(e: Entity): void;
   /** Co-op (convidado): avisa o anfitrião que acertou uma criatura. */
   netHit?(id: number, amount: number, kbx: number, kbz: number): void;
   /** Co-op (anfitrião): entrega o saque a quem deu o golpe final. */
@@ -455,6 +457,19 @@ export class EntityManager {
       }
       for (const e of this.list) {
         if (e.dead) continue;
+        // personagem da história que pede um acerto (Golias): a pedra da funda conta, mas ninguém se fere
+        if (p.owner === "player" && e.story?.tag === "golias") {
+          const sb = e.body;
+          const sr = sb.w / 2 + 0.25;
+          if (p.x > sb.x - sr && p.x < sb.x + sr && p.z > sb.z - sr && p.z < sb.z + sr && p.y > sb.y - 0.1 && p.y < sb.y + sb.h + 0.1) {
+            this.hooks.storyHit?.(e);
+            this.fx.burst(p.x, p.y, p.z, 0xffe9a0, 10, 3, 0.14);
+            this.sfx.play("hit");
+            p.life = 0;
+            break;
+          }
+          continue;
+        }
         if (p.owner === "ally" ? !isHostile(e) : e.def.behavior === "hero") continue;
         const b = e.body;
         const r = b.w / 2 + 0.2;

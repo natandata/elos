@@ -300,6 +300,7 @@ export class StoryDirector {
     this.session.progress = 0;
     this.session.counters = {};
     this.raceT = 0;
+    this.timer = 0;
     this.hudCache = null;
     if (this.session.objIndex >= m.objectives.length) this.completeMission(m);
     else {
@@ -372,6 +373,20 @@ export class StoryDirector {
       case "harvest":
       case "place":
         if (this.session.progress >= o.count) this.completeObjective();
+        break;
+      case "hit":
+        if (this.session.progress >= o.count) {
+          this.timer = 0;
+          this.completeObjective();
+          break;
+        }
+        // se a pontaria falhar por muito tempo, o Senhor guia a pedra
+        this.timer += dt;
+        if (this.timer >= 150) {
+          this.timer = 0;
+          this.host.message("O Senhor guiou a sua pedra.", "rare");
+          this.session.progress = o.count;
+        }
         break;
       case "near": {
         this.nearT += dt;
@@ -639,6 +654,15 @@ export class StoryDirector {
     if (!o.block.includes(key)) return;
     // a árvore do conhecimento nunca conta como colheita
     if (dist2(x, z, EDEN_SITES.knowledge.x, EDEN_SITES.knowledge.z) < 8) return;
+    this.session.progress++;
+    this.hudCache = null;
+    this.host.sfx("pickup");
+  }
+
+  /** Uma pedra da funda (ou outro projétil do jogador) acertou um personagem da história. */
+  onNpcHit(tag: string): void {
+    const o = this.obj;
+    if (o?.k !== "hit" || o.tag !== tag) return;
     this.session.progress++;
     this.hudCache = null;
     this.host.sfx("pickup");
@@ -1864,7 +1888,7 @@ export class StoryDirector {
     const target = this.targetOf(o, p);
     const dist = target ? Math.round(Math.hypot(target.x - p.x, target.z - p.z)) : null;
     let progress: string | null = null;
-    if (o.k === "collect" || o.k === "harvest" || o.k === "place" || o.k === "near" || o.k === "lead") progress = `${Math.min(this.session.progress, o.count)} / ${o.count}`;
+    if (o.k === "collect" || o.k === "harvest" || o.k === "place" || o.k === "near" || o.k === "lead" || o.k === "hit") progress = `${Math.min(this.session.progress, o.count)} / ${o.count}`;
     if (o.k === "wait") progress = `${this.session.progress} / ${o.seconds}s`;
     if (o.k === "reach" && o.limit) progress = `⏱ ${Math.max(0, Math.ceil(o.limit - this.raceT))} s`;
     const hud: StoryHud = { chapter: this.chapter.title, mission: m.title, objective: o.text, progress, ref: m.ref ?? null, dist, puzzle: o.k === "puzzle", wp: null };
@@ -1889,6 +1913,7 @@ export class StoryDirector {
       case "place":
         return zc(o.zone);
       case "near":
+      case "hit":
       case "lead": {
         let best: Entity | null = null;
         let bd = Infinity;

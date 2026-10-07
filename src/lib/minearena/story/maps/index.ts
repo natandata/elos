@@ -14,9 +14,10 @@ import { ESPIAS_MAP, JORDAO_MAP, NEBO_MAP } from "./conquista";
 import { JERICO_MAP } from "./jerico";
 import { GIDEAO_MAP, RUTE_MAP, SANSAO_MAP } from "./juizes";
 import { BELEM_MAP, BENJAMIM_MAP, SILO_MAP } from "./reino";
+import { ELA_MAP, ENGEDI_MAP, JERUSALEM_MAP } from "./davi";
 
 /** Mapas da campanha (cada capítulo usa um; a Queda reaproveita o Éden). Mapas ainda não construídos não aparecem aqui. */
-const RAW_MAPS: Record<string, StoryMapDef> = { eden: EDEN_MAP, fields: FIELDS_MAP, noah: NOAH_MAP, shinar: SHINAR_MAP, canaa: CANAA_MAP, berseba: BERSEBA_MAP, egito: EGITO_MAP, moises: MOISES_MAP, gosen: GOSEN_MAP, mar: MAR_MAP, deserto: DESERTO_MAP, sinai: SINAI_MAP, espias: ESPIAS_MAP, nebo: NEBO_MAP, jerico: JERICO_MAP, jordao: JORDAO_MAP, gideao: GIDEAO_MAP, sansao: SANSAO_MAP, rute: RUTE_MAP, silo: SILO_MAP, benjamim: BENJAMIM_MAP, belem: BELEM_MAP };
+const RAW_MAPS: Record<string, StoryMapDef> = { eden: EDEN_MAP, fields: FIELDS_MAP, noah: NOAH_MAP, shinar: SHINAR_MAP, canaa: CANAA_MAP, berseba: BERSEBA_MAP, egito: EGITO_MAP, moises: MOISES_MAP, gosen: GOSEN_MAP, mar: MAR_MAP, deserto: DESERTO_MAP, sinai: SINAI_MAP, espias: ESPIAS_MAP, nebo: NEBO_MAP, jerico: JERICO_MAP, jordao: JORDAO_MAP, gideao: GIDEAO_MAP, sansao: SANSAO_MAP, rute: RUTE_MAP, silo: SILO_MAP, benjamim: BENJAMIM_MAP, belem: BELEM_MAP, elah: ELA_MAP, engedi: ENGEDI_MAP, jerusalem: JERUSALEM_MAP };
 
 /** Abre a "cova" da relíquia do capítulo: duas células de ar sob a camada de cima (é preciso cavar para chegar nela). */
 function withRelics(def: StoryMapDef): StoryMapDef {

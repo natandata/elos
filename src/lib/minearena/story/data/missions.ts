@@ -7,6 +7,7 @@ import { SINAI_MISSIONS } from "./sinai";
 import { CONQUISTA_MISSIONS } from "./conquista";
 import { JUIZES_MISSIONS } from "./juizes";
 import { REINO_MISSIONS } from "./reino";
+import { DAVI_MISSIONS } from "./davi";
 
 const A = (mob: string, x: number, z: number, tag = "animal"): NonNullable<Mission["spawn"]>[number] => ({ mob, at: { x, z }, tag });
 
@@ -17,6 +18,7 @@ const BASE_MISSIONS: Mission[] = [
   ...CONQUISTA_MISSIONS,
   ...JUIZES_MISSIONS,
   ...REINO_MISSIONS,
+  ...DAVI_MISSIONS,
   // ---------------- CAPÍTULO 1: O ÉDEN ----------------
   {
     id: "eden_1",

@@ -722,6 +722,7 @@ export class MineArena {
       give: (item: string, count: number) => this.give(item, count),
       drop: (item: string, count: number, x: number, y: number, z: number) => this.dropItem(item, count, x, y, z),
       say: (text: string) => this.cb.onMessage(text, "warn"),
+      storyHit: (e: { story?: { tag?: string } }) => this.story?.onNpcHit(e.story?.tag ?? ""),
       onKill: (def: MobDef) => {
         this.kills++;
         this.addXp(def.behavior === "boss" ? 250 : Math.max(1, Math.round(def.hp / 5)) + (def.behavior === "hostile" ? 2 : 0));
@@ -3310,6 +3311,11 @@ export class MineArena {
         if (left > 0) this.dropItem(item, left, this.body.x, this.body.y + 1, this.body.z);
         const def = itemDef(item);
         if (def) this.cb.onMessage(`+${n} ${def.name}`, "good");
+        // a funda de Davi já vem na mão
+        if (item === "sling") {
+          const i = this.inventory.slots.findIndex((x, k) => k < 9 && x?.item === "sling");
+          if (i >= 0) this.inventory.select(i);
+        }
       },
       spawnMob: (def, x, z, y) => {
         const sy = this.world.surfaceY(Math.floor(x), Math.floor(z));
