@@ -23,7 +23,7 @@ export const INTRO_SECS = 4;
 
 export const newFx = (intro = true): Fx => ({ trail: [], parts: [], rings: [], shake: 0, banner: null, t: 0, cam: { x: 0, y: 0, z: 1, init: false }, crowd: null, cheer: [0, 0], intro: intro ? { t: 0, dur: INTRO_SECS } : null });
 
-export type Look = { teamColors: [string, string]; rotated: boolean };
+export type Look = { teamColors: [string, string]; rotated: boolean; /** convidado online: o campo é visto de cabeça pra baixo, para ele atacar para a direita */ flip?: boolean };
 
 /** Escala que faz o campo (com os gols e as arquibancadas) caber na área disponível. */
 export function fitScale(g: Game, aw: number, ah: number, rotated: boolean): number {
@@ -248,6 +248,7 @@ export function draw(ctx: CanvasRenderingContext2D, g: Game, fx: Fx, look: Look,
   ctx.save();
   ctx.translate(aw / 2 + sh, ah / 2 + (fx.shake > 0 ? (Math.random() - 0.5) * fx.shake * 2 : 0));
   if (look.rotated) ctx.rotate(-Math.PI / 2);
+  if (look.flip) ctx.rotate(Math.PI);
   const z = updateCamera(fx, g, s, aw, ah, look.rotated, dt);
   ctx.scale(s * z, s * z);
   ctx.translate(-fx.cam.x, -fx.cam.y);
@@ -256,7 +257,7 @@ export function draw(ctx: CanvasRenderingContext2D, g: Game, fx: Fx, look: Look,
   pitch(ctx, g, look);
   // a torcida: pula e balança bandeira (mais animada na abertura e depois de um gol)
   const introK = fx.intro ? Math.min(1, fx.intro.t / 0.8) * 0.7 : 0;
-  drawCrowd(ctx, g, fx.crowd, look.teamColors, fx.t, fx.cheer, introK, look.rotated);
+  drawCrowd(ctx, g, fx.crowd, look.teamColors, fx.t, fx.cheer, introK, (look.rotated ? Math.PI / 2 : 0) + (look.flip ? Math.PI : 0));
 
   // abertura: os jogadores saem do túnel (embaixo) e correm até a posição; a bola cai no centro
   const it = fx.intro?.t ?? -1;

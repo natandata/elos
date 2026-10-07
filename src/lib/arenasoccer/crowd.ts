@@ -234,9 +234,9 @@ export type CrowdFx = { fans: Fan[] | null };
 
 /**
  * Desenha todos os torcedores. `cheer[time]`: segundos de festa de cada lado (depois de um gol);
- * `energy`: animação geral (abertura da partida). Com o campo girado, cada torcedor gira de volta pra ficar em pé.
+ * `energy`: animação geral (abertura da partida). `angle`: quanto o campo está girado; cada torcedor gira junto pra ficar em pé.
  */
-export function drawCrowd(ctx: CanvasRenderingContext2D, g: Game, fans: Fan[], colors: [string, string], t: number, cheer: [number, number], energy: number, rotated: boolean): void {
+export function drawCrowd(ctx: CanvasRenderingContext2D, g: Game, fans: Fan[], colors: [string, string], t: number, cheer: [number, number], energy: number, angle: number): void {
   const bx = g.ball.x;
   const by = g.ball.y;
   for (const f of fans) {
@@ -244,7 +244,7 @@ export function drawCrowd(ctx: CanvasRenderingContext2D, g: Game, fans: Fan[], c
     const exc = Math.min(1, 0.12 + near + Math.min(1, cheer[f.team] / 1.2) * 0.9 + energy);
     ctx.save();
     ctx.translate(f.x, f.y);
-    if (rotated) ctx.rotate(Math.PI / 2);
+    if (angle) ctx.rotate(angle);
     drawFan(ctx, f, colors, t, exc);
     ctx.restore();
   }

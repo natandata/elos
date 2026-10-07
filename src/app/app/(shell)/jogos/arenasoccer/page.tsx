@@ -37,7 +37,7 @@ export default async function ArenaSoccerPage() {
   return (
     <>
       <PageHeader title="⚽ ArenaSoccer" subtitle="Um disco, uma bola e um botão de chute." />
-      <ArenaSoccerClient stats={stats} />
+      <ArenaSoccerClient stats={stats} myName={(profile.full_name || "Jogador").split(" ")[0]} />
     </>
   );
 }

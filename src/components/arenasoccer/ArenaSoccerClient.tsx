@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { recordSoccerMatch } from "@/lib/actions/arenasoccer";
 import { MODES, type Level, type Mode } from "@/lib/arenasoccer/engine";
 import { ArenaSoccerGame, type MatchResult } from "./ArenaSoccerGame";
+import { ArenaSoccerOnline } from "./ArenaSoccerOnline";
 
 export type SoccerStats = { matches: number; wins: number; losses: number; draws: number; goals: number; minutes: number };
 
@@ -17,11 +18,12 @@ const LEVELS: { v: Level; label: string; hint: string }[] = [
 const KEY = "arenasoccer:prefs:v1";
 
 /** Menu do ArenaSoccer: escolhe o modo, o nível do computador e a cor do seu disco; mostra suas estatísticas. */
-export function ArenaSoccerClient({ stats }: { stats: SoccerStats }) {
+export function ArenaSoccerClient({ stats, myName = "Jogador" }: { stats: SoccerStats; myName?: string }) {
   const [mode, setMode] = useState<Mode>("1v1");
   const [level, setLevel] = useState<Level>("normal");
   const [color, setColor] = useState(COLORS[0]);
   const [playing, setPlaying] = useState(false);
+  const [online, setOnline] = useState(false);
   const [mine, setMine] = useState(stats);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -66,6 +68,7 @@ export function ArenaSoccerClient({ stats }: { stats: SoccerStats }) {
     }));
   }
 
+  if (online) return <ArenaSoccerOnline color={color} myName={myName} onFinish={(r) => void finished(r)} onBack={() => setOnline(false)} />;
   if (playing) return <ArenaSoccerGame mode={mode} level={level} color={color} onFinish={(r) => void finished(r)} onExit={() => setPlaying(false)} />;
 
   const m = MODES[mode];
@@ -130,6 +133,9 @@ export function ArenaSoccerClient({ stats }: { stats: SoccerStats }) {
 
       <button type="button" onClick={start} className="btn btn-primary w-full !py-4 text-lg">
         ▶ Jogar {mode}
+      </button>
+      <button type="button" onClick={() => { try { localStorage.setItem(KEY, JSON.stringify({ mode, level, color })); } catch { /* ok */ } setOnline(true); }} className="btn w-full !py-4 text-lg ring-2 ring-emerald-400">
+        🌐 Jogar online contra outro jogador
       </button>
       {saveError ? <p className="text-center text-xs font-semibold text-rose-600">{saveError}</p> : null}
 

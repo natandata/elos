@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { thinkAll } from "@/lib/arenasoccer/ai";
-import { advance, MODES, newGame, type Game, type Level, type Mode } from "@/lib/arenasoccer/engine";
-import { burst, confetti, draw, newFx, stepFx } from "@/lib/arenasoccer/render";
+import { advance, MODES, newGame, type Game, type GameEvent, type Level, type Mode } from "@/lib/arenasoccer/engine";
+import { burst, confetti, draw, INTRO_SECS, newFx, stepFx } from "@/lib/arenasoccer/render";
+import { applySnap, makeSnap, type InputMsg, type Snap, type SoccerNet } from "@/lib/arenasoccer/net";
 import { Sfx } from "@/lib/arenasoccer/sound";
 
-export type MatchResult = { mode: Mode; level: Level; goalsFor: number; goalsAgainst: number; secs: number; result: "win" | "loss" | "draw" };
+export type MatchResult = { mode: Mode; level: Level | "online"; goalsFor: number; goalsAgainst: number; secs: number; result: "win" | "loss" | "draw" };
 
 type Hud = { s0: number; s1: number; time: string; overtime: boolean; phase: Game["phase"] };
 
@@ -47,7 +48,9 @@ export function opponentColor(mine: string): string {
 }
 
 /** Partida de ArenaSoccer contra o computador: tela cheia, teclado ou joystick virtual + botão de chute. */
-export function ArenaSoccerGame({ mode, level, color, onFinish, onExit }: { mode: Mode; level: Level; color: string; onFinish: (r: MatchResult) => void; onExit: () => void }) {
+export function ArenaSoccerGame({ mode, level, color, onFinish, onExit, net }: { mode: Mode; level: Level; color: string; onFinish: (r: MatchResult) => void; onExit: () => void; net?: SoccerNet }) {
+  const guest = net?.role === "guest";
+  const me: 0 | 1 = guest ? 1 : 0;
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sfxRef = useRef<Sfx | null>(null);
@@ -69,6 +72,9 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit }: { mode
   const [rotated, setRotated] = useState(false);
   const [end, setEnd] = useState<MatchResult | null>(null);
   const [intro, setIntro] = useState(true);
+  /** online: esperando o adversário aparecer / o adversário saiu */
+  const [waiting, setWaiting] = useState(!!net && !guest);
+  const [gone, setGone] = useState(false);
   const [thumb, setThumb] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
@@ -89,7 +95,7 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit }: { mode
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const vis = () => {
-      if (document.hidden && phaseRef.current !== "end") setPaused(true);
+      if (!net && document.hidden && phaseRef.current !== "end") setPaused(true);
     };
     document.addEventListener("visibilitychange", vis);
     return () => {
@@ -120,7 +126,7 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit }: { mode
     const down = (e: KeyboardEvent) => {
       const k = e.key.toLowerCase();
       if (MINE.includes(k)) e.preventDefault();
-      if ((k === "escape" || k === "p") && !e.repeat) setPaused((p) => !p);
+      if ((k === "escape" || k === "p") && !e.repeat && !net) setPaused((p) => !p);
       if ((k === " " || k === "enter") && !e.repeat) skipRef.current = true;
       keys.current.add(k);
     };
@@ -141,7 +147,9 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit }: { mode
     };
   }, []);
 
-  const teamColors: [string, string] = [color, opponentColor(color)];
+  const absColors: [string, string] = net ? [net.hostColor, opponentColor(net.hostColor)] : [color, opponentColor(color)];
+  /** cores na ordem do placar: a minha primeiro */
+  const teamColors: [string, string] = guest ? [absColors[1], absColors[0]] : absColors;
 
   // laço da partida
   useEffect(() => {
@@ -151,14 +159,14 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit }: { mode
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     const g = newGame(mode);
-    const fx = newFx();
+    const fx = newFx(!guest);
     skipRef.current = false;
     doneRef.current = false;
     phaseRef.current = "countdown";
     if (!sfxRef.current) sfxRef.current = new Sfx();
     sfxRef.current.muted = muted;
     const sfx = sfxRef.current;
-    const colors: [string, string] = [color, opponentColor(color)];
+    const colors: [string, string] = absColors;
     let aw = 0;
     let ah = 0;
     let dpr = 1;
@@ -177,13 +185,186 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit }: { mode
     let last = performance.now();
     let raf = 0;
     let lastHud = "";
-    const human = g.players[0];
+    const human = g.players[me];
+    human.human = true;
+    for (const p of g.players) if (p !== human) p.human = false;
     let introCheered = false;
+
+    // ---- online ----
+    const unsubs: (() => void)[] = [];
+    const remoteIn: InputMsg = { mx: 0, my: 0, kick: false };
+    let started = !net || guest;
+    let lastRecv = performance.now();
+    let sendAcc = 0;
+    let inpAcc = 0;
+    let helloAcc = 1;
+    let lastKick = false;
+    let gotSnap = false;
+    let wentAway = false;
+    const evq: GameEvent[] = [];
+    const targets = g.players.map((p) => ({ x: p.x, y: p.y }));
+    const ballT = { x: g.ball.x, y: g.ball.y };
+    if (net) {
+      unsubs.push(
+        net.on("hello", () => {
+          lastRecv = performance.now();
+          if (!started) {
+            started = true;
+            setWaiting(false);
+          }
+        }),
+        net.on("inp", (m) => {
+          lastRecv = performance.now();
+          const i = m as InputMsg;
+          remoteIn.mx = Math.max(-1, Math.min(1, Number(i.mx) || 0));
+          remoteIn.my = Math.max(-1, Math.min(1, Number(i.my) || 0));
+          remoteIn.kick = !!i.kick;
+        }),
+        net.on("skip", () => {
+          skipRef.current = true;
+        }),
+        net.on("snap", (m) => {
+          if (!guest) return;
+          lastRecv = performance.now();
+          const s = m as Snap;
+          if (!gotSnap) {
+            gotSnap = true;
+            // o convidado ainda não tem os discos no lugar: começa já nas posições recebidas
+            applySnap(g, s, targets, ballT);
+            g.players.forEach((p, i) => {
+              p.x = targets[i].x;
+              p.y = targets[i].y;
+            });
+            g.ball.x = ballT.x;
+            g.ball.y = ballT.y;
+          } else applySnap(g, s, targets, ballT);
+          // a abertura segue o relógio do anfitrião
+          if (s.i >= 0) {
+            if (!fx.intro) fx.intro = { t: s.i, dur: INTRO_SECS };
+            else fx.intro.t = s.i;
+          } else if (fx.intro) {
+            fx.intro = null;
+            setIntro(false);
+          }
+          for (const e of s.ev ?? []) g.events.push(e);
+        }),
+      );
+    }
+
+    /** Sons e efeitos dos eventos da partida (do motor aqui, ou vindos do anfitrião). */
+    const handleEvents = () => {
+      for (const e of g.events) {
+        if (e.k === "kick") {
+          sfx.kick(e.power);
+          burst(fx, e.x, e.y, "#ffffff", 6, 160);
+        } else if (e.k === "wall") sfx.wall(e.v);
+        else if (e.k === "goal") {
+          sfx.goal();
+          const gx = e.team === 0 ? g.w + 20 : -20;
+          confetti(fx, gx, g.h / 2);
+          fx.rings.push({ x: gx, y: g.h / 2, life: 0.5, color: colors[e.team] });
+          fx.shake = 9;
+          fx.cheer[e.team] = 3.2;
+          sfx.cheer(1.8, 0.09);
+          fx.banner = { text: e.team === me ? "GOOOL!" : net ? "GOL DE " + net.oppName.toUpperCase() : "GOL DO ADVERSÁRIO", color: e.team === me ? "#fde047" : "#fca5a5", t: 2.6 };
+        } else if (e.k === "tick") sfx.tick();
+        else if (e.k === "whistle") sfx.whistle();
+        else if (e.k === "end") sfx.end();
+      }
+      g.events.length = 0;
+    };
+    const finish = () => {
+      if (doneRef.current) return;
+      doneRef.current = true;
+      const winner = g.winner;
+      const result: MatchResult = {
+        mode,
+        level: net ? "online" : level,
+        goalsFor: g.score[me],
+        goalsAgainst: g.score[1 - me],
+        secs: Math.max(10, Math.round(g.played)),
+        result: winner === null ? "draw" : winner === me ? "win" : "loss",
+      };
+      setEnd(result);
+      onFinishRef.current(result);
+    };
+    const readInput = () => {
+      const k = keys.current;
+      let sx = (k.has("d") || k.has("arrowright") ? 1 : 0) - (k.has("a") || k.has("arrowleft") ? 1 : 0);
+      let sy = (k.has("s") || k.has("arrowdown") ? 1 : 0) - (k.has("w") || k.has("arrowup") ? 1 : 0);
+      if (joy.current.id !== -1) {
+        sx = joy.current.x;
+        sy = joy.current.y;
+      }
+      let mx = rotatedRef.current ? -sy : sx;
+      let my = rotatedRef.current ? sx : sy;
+      // o convidado vê o campo virado de cabeça pra baixo: o que ele vê como "direita" é −x no campo
+      if (guest) {
+        mx = -mx;
+        my = -my;
+      }
+      return { mx, my, kick: k.has(" ") || k.has("k") || kickHeld.current };
+    };
+
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame);
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
-      if (!pausedRef.current && fx.intro) {
+      if (net) {
+        // adversário sumiu (sem mensagens por muito tempo)
+        if (started && !wentAway && !doneRef.current && now - lastRecv > 9000) {
+          wentAway = true;
+          setGone(true);
+        }
+        if (guest) {
+          helloAcc += dt;
+          if (!gotSnap && helloAcc >= 0.5) {
+            helloAcc = 0;
+            net.send("hello", { n: 1 });
+          }
+          if (skipRef.current && fx.intro) {
+            skipRef.current = false;
+            net.send("skip", { n: 1 });
+          }
+        }
+      }
+      if (net && !started) {
+        // anfitrião esperando o convidado chegar
+      } else if (guest) {
+        stepFx(fx, dt);
+        if (fx.intro) {
+          if (!introCheered) {
+            introCheered = true;
+            sfx.cheer(2.4, 0.08);
+          }
+        }
+        // os discos alcançam as posições recebidas (e seguem a velocidade entre uma mensagem e outra)
+        const k = 1 - Math.exp(-16 * dt);
+        g.players.forEach((p, i) => {
+          const t = targets[i];
+          t.x += p.vx * dt;
+          t.y += p.vy * dt;
+          p.x += (t.x - p.x) * k;
+          p.y += (t.y - p.y) * k;
+          p.flash += dt;
+        });
+        ballT.x += g.ball.vx * dt;
+        ballT.y += g.ball.vy * dt;
+        g.ball.x += (ballT.x - g.ball.x) * k;
+        g.ball.y += (ballT.y - g.ball.y) * k;
+        handleEvents();
+        phaseRef.current = g.phase;
+        if (g.phase === "end") finish();
+        if (!wentAway && !doneRef.current) {
+          inpAcc += dt;
+          const inp = readInput();
+          if (inpAcc >= 0.05 || inp.kick !== lastKick) {
+            inpAcc = 0;
+            lastKick = inp.kick;
+            net!.send("inp", inp);
+          }
+        }
+      } else if (!pausedRef.current && fx.intro) {
         // abertura: a torcida vibra e os jogadores entram no campo (dá para pular)
         if (!introCheered) {
           introCheered = true;
@@ -197,67 +378,44 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit }: { mode
           sfx.whistle();
           setIntro(false);
         }
-      } else if (!pausedRef.current) {
-        // entrada do jogador: teclado + joystick (na tela, "para cima" é o ataque quando o campo está girado)
-        const k = keys.current;
-        let sx = (k.has("d") || k.has("arrowright") ? 1 : 0) - (k.has("a") || k.has("arrowleft") ? 1 : 0);
-        let sy = (k.has("s") || k.has("arrowdown") ? 1 : 0) - (k.has("w") || k.has("arrowup") ? 1 : 0);
-        if (joy.current.id !== -1) {
-          sx = joy.current.x;
-          sy = joy.current.y;
+        if (net) {
+          sendAcc += dt;
+          if (sendAcc >= 0.05) {
+            sendAcc = 0;
+            net.send("snap", makeSnap(g, fx.intro ? fx.intro.t : -1, []));
+          }
         }
-        const mx = rotatedRef.current ? -sy : sx;
-        const my = rotatedRef.current ? sx : sy;
-        human.input = { mx, my, kick: k.has(" ") || k.has("k") || kickHeld.current };
-        thinkAll(g, [level, level], dt);
+      } else if (!pausedRef.current) {
+        human.input = readInput();
+        if (net) g.players[1].input = { ...remoteIn };
+        else thinkAll(g, [level, level], dt);
         advance(g, dt);
         stepFx(fx, dt);
-        for (const e of g.events) {
-          if (e.k === "kick") {
-            sfx.kick(e.power);
-            burst(fx, e.x, e.y, "#ffffff", 6, 160);
-          } else if (e.k === "wall") sfx.wall(e.v);
-          else if (e.k === "goal") {
-            sfx.goal();
-            const gx = e.team === 0 ? g.w + 20 : -20;
-            confetti(fx, gx, g.h / 2);
-            fx.rings.push({ x: gx, y: g.h / 2, life: 0.5, color: colors[e.team] });
-            fx.shake = 9;
-            fx.cheer[e.team] = 3.2;
-            sfx.cheer(1.8, 0.09);
-            fx.banner = { text: e.team === 0 ? "GOOOL!" : "GOL DO ADVERSÁRIO", color: e.team === 0 ? "#fde047" : "#fca5a5", t: 2.6 };
-          } else if (e.k === "tick") sfx.tick();
-          else if (e.k === "whistle") sfx.whistle();
-          else if (e.k === "end") sfx.end();
-        }
-        g.events.length = 0;
+        if (net) for (const e of g.events) evq.push(e);
+        handleEvents();
         phaseRef.current = g.phase;
-        if (g.phase === "end" && !doneRef.current) {
-          doneRef.current = true;
-          const result: MatchResult = {
-            mode,
-            level,
-            goalsFor: g.score[0],
-            goalsAgainst: g.score[1],
-            secs: Math.max(3, Math.round(g.played)),
-            result: g.winner === null ? "draw" : g.winner === 0 ? "win" : "loss",
-          };
-          setEnd(result);
-          onFinishRef.current(result);
+        if (net) {
+          sendAcc += dt;
+          if (sendAcc >= 0.05 || g.phase === "end") {
+            sendAcc = 0;
+            net.send("snap", makeSnap(g, -1, evq.splice(0)));
+          }
         }
+        if (g.phase === "end") finish();
       }
-      draw(ctx, g, fx, { teamColors: colors, rotated: rotatedRef.current }, aw, ah, dpr, dt);
+      draw(ctx, g, fx, { teamColors: colors, rotated: rotatedRef.current, flip: guest }, aw, ah, dpr, dt);
       const t = g.overtime ? g.overtimeLeft : g.timeLeft;
       const key = `${g.score[0]}-${g.score[1]}-${Math.ceil(t)}-${g.phase}-${g.overtime}`;
       if (key !== lastHud) {
         lastHud = key;
-        setHud({ s0: g.score[0], s1: g.score[1], time: fmt(Math.ceil(t)), overtime: g.overtime, phase: g.phase });
+        setHud({ s0: g.score[me], s1: g.score[1 - me], time: fmt(Math.ceil(t)), overtime: g.overtime, phase: g.phase });
       }
     };
     raf = requestAnimationFrame(frame);
     return () => {
       cancelAnimationFrame(raf);
       ro.disconnect();
+      unsubs.forEach((f) => f());
     };
     // a partida só recomeça quando muda de rodada, modo, nível ou cor
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -355,17 +513,23 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit }: { mode
     >
       {/* placar */}
       <div className="flex shrink-0 items-center justify-between gap-2 px-3 py-2">
-        <button type="button" onClick={(e) => { e.currentTarget.blur(); setPaused(true); }} className="rounded-full bg-white/10 px-3 py-1.5 text-sm font-black" aria-label="Pausar">
-          ⏸
-        </button>
+        {net ? (
+          <span className="w-10" />
+        ) : (
+          <button type="button" onClick={(e) => { e.currentTarget.blur(); setPaused(true); }} className="rounded-full bg-white/10 px-3 py-1.5 text-sm font-black" aria-label="Pausar">
+            ⏸
+          </button>
+        )}
         <div className="flex items-center gap-3 text-center">
           <span className="flex items-center gap-2 text-3xl font-black tabular-nums">
             <i className="inline-block h-4 w-4 rounded-full" style={{ background: teamColors[0] }} />
+            {net ? <small className="max-w-[72px] truncate text-[11px] font-bold opacity-80">{net.myName}</small> : null}
             {hud.s0}
           </span>
           <span className="min-w-[72px] rounded-lg bg-white/10 px-2 py-1 text-lg font-black tabular-nums">{hud.overtime ? `⚡ ${hud.time}` : hud.time}</span>
           <span className="flex items-center gap-2 text-3xl font-black tabular-nums">
             {hud.s1}
+            {net ? <small className="max-w-[72px] truncate text-[11px] font-bold opacity-80">{net.oppName}</small> : null}
             <i className="inline-block h-4 w-4 rounded-full" style={{ background: teamColors[1] }} />
           </span>
         </div>
@@ -379,7 +543,13 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit }: { mode
         {gutter ? <div className="flex w-[132px] shrink-0 items-end justify-center pb-3">{joystick}</div> : null}
         <div ref={wrapRef} className="relative min-w-0 flex-1">
           <canvas ref={canvasRef} className="absolute inset-0 h-full w-full touch-none" onPointerDown={() => { if (intro) skipRef.current = true; }} />
-          {intro && !paused && !end ? (
+          {waiting ? (
+            <div className="absolute inset-0 z-[6] flex flex-col items-center justify-center gap-2 bg-black/60 text-center">
+              <p className="text-xl font-black">Conectando com {net?.oppName}…</p>
+              <p className="text-sm text-white/70">A partida começa assim que o adversário entrar na sala.</p>
+            </div>
+          ) : null}
+          {intro && !paused && !end && !waiting ? (
             <button type="button" onClick={(e) => { e.currentTarget.blur(); skipRef.current = true; }} className="absolute bottom-3 right-3 z-[5] rounded-full bg-black/60 px-4 py-2 text-sm font-black text-white shadow-lg backdrop-blur active:scale-95">
               Pular abertura ⏭
             </button>
@@ -395,6 +565,16 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit }: { mode
         </div>
       ) : null}
       {!touch ? <p className="shrink-0 px-3 pb-2 text-center text-[11px] text-white/60">WASD ou setas para mover · Espaço para chutar · Esc pausa</p> : null}
+
+      {gone && !end ? (
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/75 p-6 text-center">
+          <p className="text-2xl font-black">O adversário saiu da partida</p>
+          <p className="text-sm text-white/70">A conexão com {net?.oppName} caiu. Esta partida não conta.</p>
+          <button type="button" onClick={onExit} className="btn btn-primary w-60">
+            Voltar
+          </button>
+        </div>
+      ) : null}
 
       {paused && !end ? (
         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/70 p-6">
@@ -415,11 +595,13 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit }: { mode
             {end.goalsFor} <span className="text-white/50">x</span> {end.goalsAgainst}
           </p>
           <p className="mb-3 text-sm text-white/70">
-            {MODES[end.mode].label} · computador {end.level === "easy" ? "fácil" : end.level === "hard" ? "difícil" : "normal"}
+            {MODES[end.mode].label} · {end.level === "online" ? `online contra ${net?.oppName ?? "outro jogador"}` : `computador ${end.level === "easy" ? "fácil" : end.level === "hard" ? "difícil" : "normal"}`}
           </p>
-          <button type="button" onClick={again} className="btn btn-primary w-60">
-            Jogar de novo
-          </button>
+          {net ? null : (
+            <button type="button" onClick={again} className="btn btn-primary w-60">
+              Jogar de novo
+            </button>
+          )}
           <button type="button" onClick={onExit} className="btn btn-ghost w-60 !text-white">
             Voltar ao menu
           </button>
