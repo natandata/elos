@@ -45,10 +45,10 @@ export default async function JogosPage() {
     supabase.from("store_items").select(STORE_COLUMNS).eq("active", true).order("sort").order("created_at"),
     supabase.from("coin_wallets").select("balance").eq("user_id", profile.id).maybeSingle<{ balance: number }>(),
     supabase.from("game_purchases").select("item_id").eq("user_id", profile.id),
-    supabase.from("profiles").select("xp, xp_exchanged").eq("id", profile.id).maybeSingle<{ xp: number | null; xp_exchanged: number }>(),
+    supabase.from("profiles").select("xp").eq("id", profile.id).maybeSingle<{ xp: number | null }>(),
     supabase.from("coin_settings").select("xp_per_coin").eq("id", 1).maybeSingle<{ xp_per_coin: number }>(),
   ]);
-  const availableXp = Math.max(0, (xpRes.data?.xp ?? 0) - (xpRes.data?.xp_exchanged ?? 0));
+  const availableXp = Math.max(0, xpRes.data?.xp ?? 0);
   const xpRate = rateRes.data?.xp_per_coin ?? 10;
   const earlyExchange = profile.role === "admin" || (profile as { is_test_account?: boolean }).is_test_account === true;
   const coinBalance = walletRes.data?.balance ?? 0;

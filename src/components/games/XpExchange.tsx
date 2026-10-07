@@ -56,7 +56,7 @@ export function XpExchange({ availableXp, rate, early }: { availableXp: number; 
         ⚖️ Trocar XP por {COIN.name.toLowerCase()} {COIN.emoji}
       </p>
       <p className="mt-0.5 text-xs text-[var(--muted)]">
-        {rate} XP = {fmtCoins(1)}. Seu XP total, seu nível e o ranking do Elo <b>não diminuem</b> ao trocar.
+        {rate} XP = {fmtCoins(1)}. O XP trocado é <b>descontado</b> do seu XP: seu nível e os pontos do seu Elo diminuem junto.
       </p>
       {!open ? (
         <div className="mt-2 rounded-xl bg-amber-50 p-3 text-center">
@@ -69,7 +69,7 @@ export function XpExchange({ availableXp, rate, early }: { availableXp: number; 
         <div className="mt-2">
           {!left ? null : <p className="mb-1 text-[11px] font-bold text-amber-700">Teste antecipado (só admin e contas de teste).</p>}
           <p className="text-xs font-bold">
-            XP disponível para troca: <span className="tabular-nums">{availableXp.toLocaleString("pt-BR")}</span>
+            Seu XP: <span className="tabular-nums">{availableXp.toLocaleString("pt-BR")}</span>
           </p>
           {max < 1 ? (
             <p className="mt-2 text-xs text-[var(--muted)]">Você precisa de pelo menos {rate} XP para trocar por 1 {COIN.one.toLowerCase()}. Jogue e cumpra missões para juntar XP.</p>

@@ -26,7 +26,7 @@ export function XpRateAdmin({ rate }: { rate: number }) {
   return (
     <div className="card space-y-2 p-3">
       <p className="text-sm font-black leading-tight">⚖️ Troca de XP por {COIN.name.toLowerCase()}</p>
-      <p className="text-xs text-[var(--muted)]">Abre para os jogadores em 01/11/2026 (você e as contas de teste podem testar antes). O XP trocado não diminui o nível nem o ranking do Elo.</p>
+      <p className="text-xs text-[var(--muted)]">Abre para os jogadores em 01/11/2026 (você e as contas de teste podem testar antes). O XP trocado é descontado do XP do jogador (nível e pontos do Elo caem junto).</p>
       <label className="block text-xs font-bold text-[var(--muted)]">
         Quantos XP valem {fmtCoins(1)}
         <input type="number" min={1} step={1} className="input mt-1" value={v} onChange={(e) => { setV(e.target.value); setMsg(null); }} />

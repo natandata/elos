@@ -1,0 +1,2 @@
+-- A troca de XP por denários passa a descontar o XP de verdade (profiles.xp), usando o aviso elos.xp_bypass do guard de perfil.
+-- (aplicada via MCP; ver a função xp_exchange no banco)
