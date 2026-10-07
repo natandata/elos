@@ -14,7 +14,7 @@ const hum = (id: string, name: string, title: string, model: Partial<Extract<Mob
   chaseRange: 0,
   attackRange: 0,
   attackCooldown: 1,
-  model: { kind: "humanoid", scale: 1, skin: 0xd09a6a, hair: 0x4a2c14, hairStyle: "short", shirt: 0xe8e0c8, pants: 0xe8e0c8, shoes: 0x6a4a2a, ...model },
+  model: { kind: "humanoid", scale: 1, skin: 0xd09a6a, hair: 0x4a2c14, hairStyle: "short", shirt: 0xe8e0c8, pants: 0xe8e0c8, shoes: 0x6a4a2a, fancy: true, ...model },
   loot: [],
   lines: [],
 });

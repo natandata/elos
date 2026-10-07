@@ -3195,7 +3195,8 @@ export class MineArena {
       burst: (x, y, z, color, n, speed, size) => this.particles.burst(x, y, z, color, n, speed, size),
       message: (text, tone) => this.cb.onMessage(text, tone),
       ui: (u) => this.cb.onStory?.(u),
-      music: (track) => this.storyMusic?.play(track),
+      // sem trilha sonora no Modo História (só os efeitos sonoros das cenas)
+      music: () => {},
       sfx: (kind) => {
         if (kind === "pickup") this.sfx.play("pickup");
         else if (kind === "place") this.sfx.play("place");

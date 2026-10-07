@@ -38,6 +38,8 @@ export interface HumanoidSpec {
   /** Anjos: aréola de luz sobre a cabeça e espada flamejante (cor da lâmina). */
   halo?: number;
   flameSword?: number;
+  /** Visual mais detalhado (rosto, cabelo cheio, ombreiras, debruns, manto): personagens do Modo História. */
+  fancy?: boolean;
 }
 export interface BeastSpec {
   kind: "beast";
@@ -67,10 +69,40 @@ export interface Rig {
   humanoid: boolean;
 }
 
+/** Textura de "grão" bem leve (pixels), para as peças não ficarem de cor chapada. */
+let GRAIN: THREE.Texture | null | undefined;
+function grain(): THREE.Texture | null {
+  if (GRAIN !== undefined) return GRAIN;
+  if (typeof document === "undefined") return (GRAIN = null);
+  const c = document.createElement("canvas");
+  c.width = c.height = 8;
+  const g = c.getContext("2d");
+  if (!g) return (GRAIN = null);
+  for (let y = 0; y < 8; y++) {
+    for (let x = 0; x < 8; x++) {
+      const v = 233 + (((x * 7 + y * 13 + x * y * 3) % 5) * 5);
+      g.fillStyle = `rgb(${v},${v},${v})`;
+      g.fillRect(x, y, 1, 1);
+    }
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.magFilter = THREE.NearestFilter;
+  t.minFilter = THREE.NearestFilter;
+  t.colorSpace = THREE.SRGBColorSpace;
+  return (GRAIN = t);
+}
+let TEXTURED = false;
+
+/** Escurece (f<1) ou clareia (f>1) uma cor 0xRRGGBB. */
+function tone(color: number, f: number): number {
+  const ch = (v: number) => Math.max(0, Math.min(255, Math.round(v * f)));
+  return (ch((color >> 16) & 255) << 16) | (ch((color >> 8) & 255) << 8) | ch(color & 255);
+}
+
 function mk(mats: THREE.MeshLambertMaterial[], w: number, h: number, d: number, color: number, ox = 0, oy = 0, oz = 0): THREE.Mesh {
   const g = new THREE.BoxGeometry(w * U, h * U, d * U);
   g.translate(ox * U, oy * U, oz * U);
-  const m = new THREE.MeshLambertMaterial({ color });
+  const m = new THREE.MeshLambertMaterial({ color, map: TEXTURED ? grain() : null });
   mats.push(m);
   return new THREE.Mesh(g, m);
 }
@@ -87,6 +119,7 @@ function humanoid(s: HumanoidSpec): Rig {
   const bulk = s.bulk ?? 1;
   const legColor = s.robe ? s.shirt : s.pants;
 
+  TEXTURED = !!s.fancy;
   const legL = pivot(-2 * bulk, 12, 0);
   legL.add(mk(mats, 4 * bulk, 12, 4, legColor, 0, -6, 0), mk(mats, 4 * bulk + 0.2, 3, 4.2, s.shoes, 0, -10.5, 0.2));
   const legR = pivot(2 * bulk, 12, 0);
@@ -104,15 +137,37 @@ function humanoid(s: HumanoidSpec): Rig {
   armR.add(mk(mats, 4 * bulk, 11, 4, armColor, 0, -4.5, 0), mk(mats, 4 * bulk, 3, 4, s.skin, 0, -11, 0));
   root.add(armL, armR);
 
+  const f = !!s.fancy;
   const head = pivot(0, 24, 0);
   head.add(mk(mats, 8, 8, 8, s.skin, 0, 4, 0));
-  head.add(mk(mats, 1.6, 1.6, 0.5, 0x1b1b1b, -2, 4.6, 4.1), mk(mats, 1.6, 1.6, 0.5, 0x1b1b1b, 2, 4.6, 4.1));
-  if (s.hairStyle === "short") head.add(mk(mats, 8.6, 3, 8.6, s.hair, 0, 8.4, 0), mk(mats, 8.6, 6, 2, s.hair, 0, 5, -3.8));
-  if (s.hairStyle === "long") head.add(mk(mats, 8.6, 3, 8.6, s.hair, 0, 8.4, 0), mk(mats, 8.6, 15, 2, s.hair, 0, 0.5, -4), mk(mats, 1.8, 8, 7, s.hair, -4.4, 4, -0.5), mk(mats, 1.8, 8, 7, s.hair, 4.4, 4, -0.5));
+  if (!f) head.add(mk(mats, 1.6, 1.6, 0.5, 0x1b1b1b, -2, 4.6, 4.1), mk(mats, 1.6, 1.6, 0.5, 0x1b1b1b, 2, 4.6, 4.1));
+  else {
+    // rosto expressivo: olhos com brilho, sobrancelhas, nariz, boca e bochechas
+    const feminine = s.hairStyle === "long" && s.beard === undefined;
+    for (const sx of [-2.1, 2.1]) {
+      head.add(mk(mats, 2.4, 2.2, 0.5, 0xf4f0e6, sx, 4.7, 4.05), mk(mats, 1.3, 1.8, 0.5, 0x2a1a10, sx + (sx < 0 ? 0.3 : -0.3), 4.6, 4.3), mk(mats, 0.5, 0.5, 0.5, 0xffffff, sx + (sx < 0 ? 0.5 : -0.1), 5.2, 4.55));
+      head.add(mk(mats, 2.9, 0.7, 0.5, tone(s.hair, 0.75), sx, 6.7, 4.15));
+      if (feminine) head.add(mk(mats, 0.5, 0.9, 0.5, 0x1b1b1b, sx + (sx < 0 ? -1.4 : 1.4), 5.5, 4.4));
+      head.add(mk(mats, 1.5, 1, 0.4, tone(s.skin, 0.9), sx * 1.45, 2.5, 4.05));
+    }
+    head.add(mk(mats, 1.2, 1.8, 1.1, tone(s.skin, 0.88), 0, 3.4, 4.4), mk(mats, 2.6, 0.6, 0.4, feminine ? 0xc2586a : 0x9a5a4a, 0, 1.4, 4.1));
+  }
+  if (s.hairStyle === "short") {
+    head.add(mk(mats, 8.6, 3, 8.6, s.hair, 0, 8.4, 0), mk(mats, 8.6, 6, 2, s.hair, 0, 5, -3.8));
+    if (f) head.add(mk(mats, 8.8, 2.2, 1.6, s.hair, 0, 7.3, 4.0), mk(mats, 1.6, 4.5, 6, s.hair, -4.4, 5.2, -0.8), mk(mats, 1.6, 4.5, 6, s.hair, 4.4, 5.2, -0.8), mk(mats, 4, 1, 3, tone(s.hair, 1.35), 1, 10.1, 1.5), mk(mats, 3, 1.4, 3, s.hair, -2.5, 10, -1));
+  }
+  if (s.hairStyle === "long") {
+    head.add(mk(mats, 8.6, 3, 8.6, s.hair, 0, 8.4, 0), mk(mats, 8.6, 15, 2, s.hair, 0, 0.5, -4), mk(mats, 1.8, 8, 7, s.hair, -4.4, 4, -0.5), mk(mats, 1.8, 8, 7, s.hair, 4.4, 4, -0.5));
+    if (f) head.add(mk(mats, 8.8, 2.2, 1.6, s.hair, 0, 7.3, 4.0), mk(mats, 2.4, 12, 3.4, s.hair, -5, -2, 1.2), mk(mats, 2.4, 12, 3.4, s.hair, 5, -2, 1.2), mk(mats, 9.6, 3, 3.4, s.hair, 0, -7.2, -4.4), mk(mats, 4, 1, 3, tone(s.hair, 1.35), 1, 10.1, 1.5));
+  }
   if (s.hairStyle === "hood") head.add(mk(mats, 9.4, 9.4, 9.4, s.shirt, 0, 4.2, -0.4));
-  if (s.beard !== undefined) head.add(mk(mats, 6.4, 5.5, 1.6, s.beard, 0, 0.8, 4.2));
+  if (s.beard !== undefined) {
+    head.add(mk(mats, 6.4, 5.5, 1.6, s.beard, 0, 0.8, 4.2));
+    if (f) head.add(mk(mats, 7.4, 3.4, 3.2, s.beard, 0, -0.8, 3.2), mk(mats, 1.4, 5, 3.6, s.beard, -3.9, 2.2, 2.2), mk(mats, 1.4, 5, 3.6, s.beard, 3.9, 2.2, 2.2), mk(mats, 5, 1.1, 1, s.beard, 0, 2.5, 4.5), mk(mats, 3.6, 2.4, 1.6, tone(s.beard, 0.85), 0, -3.6, 4.2));
+  }
   if (s.crown !== undefined) {
     head.add(mk(mats, 8.5, 2, 8.5, s.crown, 0, 8.6, 0));
+    if (f) head.add(mk(mats, 1.6, 1.6, 0.6, 0x4aa0e0, 0, 9, 4.4));
     for (const x of [-3, 0, 3]) head.add(mk(mats, 1.4, 2.2, 1.4, s.crown, x, 10.6, 3));
   }
   if (s.helm !== undefined) head.add(mk(mats, 9.2, 5, 9.2, s.helm, 0, 7.2, 0), mk(mats, 1.5, 5, 1.2, s.helm, 0, 3, 4.6));
@@ -127,6 +182,7 @@ function humanoid(s: HumanoidSpec): Rig {
     for (const [w, d, x, z] of [[10, 1.2, 0, 5], [10, 1.2, 0, -5], [1.2, 10, 5, 0], [1.2, 10, -5, 0]]) head.add(mk(mats, w, 0.9, d, s.halo, x, 14.5, z));
   }
   if (s.headband !== undefined) head.add(mk(mats, 8.5, 1.4, 8.5, s.headband, 0, 6.6, 0));
+  if (f) head.scale.setScalar(1.18);
   root.add(head);
 
   let cape: THREE.Group | undefined;
@@ -134,6 +190,26 @@ function humanoid(s: HumanoidSpec): Rig {
     cape = pivot(0, 23, -2.6);
     cape.add(mk(mats, 8.4 * bulk, 15, 1, s.cape, 0, -7.5, -0.5));
     root.add(cape);
+  }
+  if (f) {
+    // roupas com mais volume: gola e barra com debrum dourado, fivela, ombreiras, punhos e botas
+    const trim = s.belt !== undefined ? s.belt : 0xe0c050;
+    root.add(mk(mats, 6, 1.4, 4.6, trim, 0, 23.6, 0), mk(mats, 8.4 * bulk, 0.8, 4.3, tone(s.shirt, 1.18), 0, 20.5, 0));
+    if (s.belt !== undefined) root.add(mk(mats, 2.6, 2.4, 0.6, 0xf0d060, 0, 14, 2.3));
+    if (s.robe) root.add(mk(mats, 9 * bulk, 1.1, 5.2, trim, 0, 3.4, 0));
+    else if (s.belt !== undefined && !s.bare) root.add(mk(mats, 8.8 * bulk, 4, 4.8, s.shirt, 0, 11.2, 0), mk(mats, 9 * bulk, 0.8, 5, trim, 0, 9.4, 0));
+    for (const arm of [armL, armR]) {
+      if (!s.bare) arm.add(mk(mats, 5.2 * bulk, 2.6, 5, tone(s.shirt, 0.8), 0, 0.6, 0), mk(mats, 4.3 * bulk, 1.3, 4.3, trim, 0, -8.2, 0));
+    }
+    for (const leg of [legL, legR]) leg.add(mk(mats, 4.5 * bulk, 1.4, 4.5, tone(s.shoes, 1.3), 0, -8.6, 0));
+    // manto sobre os ombros (patriarcas, profetas e líderes), balançando ao andar
+    if (s.cape === undefined && (s.staff || s.beard !== undefined || s.crown !== undefined)) {
+      const mantle = tone(s.crown !== undefined ? 0x7a2a4a : s.shirt, 0.72);
+      root.add(mk(mats, 11.4 * bulk, 3.4, 6.4, mantle, 0, 23.4, 0.2));
+      cape = pivot(0, 23, -2.9);
+      cape.add(mk(mats, 9.2 * bulk, 14, 1.2, mantle, 0, -7, -0.4), mk(mats, 9.2 * bulk, 1.1, 1.4, trim, 0, -13.4, -0.4));
+      root.add(cape);
+    }
   }
   let wings: THREE.Group[] | undefined;
   if (s.wings !== undefined) {
@@ -302,7 +378,10 @@ function beast(s: BeastSpec): Rig {
 }
 
 export function buildModel(spec: ModelSpec): Rig {
-  return spec.kind === "humanoid" ? humanoid(spec) : beast(spec);
+  TEXTURED = false;
+  const rig = spec.kind === "humanoid" ? humanoid(spec) : beast(spec);
+  TEXTURED = false;
+  return rig;
 }
 
 export interface AnimState {
