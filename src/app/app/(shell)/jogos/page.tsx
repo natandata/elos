@@ -12,6 +12,8 @@ import { arenaAsleep } from "@/lib/games/curfew";
 import { DressTeaserText } from "@/components/games/dress/DressTeaser";
 import type { GameKey } from "@/lib/games/catalog";
 import { GAME_TEASER, isReleased } from "@/lib/games/release";
+import { StoreGallery } from "@/components/games/StoreGallery";
+import { STORE_COLUMNS, type StoreItem } from "@/lib/games/store";
 import { gameOpenFor, getVisibilities, isHiddenFor } from "@/lib/games/releaseServer";
 
 type Tile = { href: string; game: string; emoji: string; title: string; hint: string; tone: string };
@@ -27,7 +29,7 @@ export default async function JogosPage() {
   const { profile } = await requireRole("cria", "leader", "admin");
   const supabase = await createClient();
 
-  const [plays, cardsRes, duelsRes, weekRes, boardRes] = await Promise.all([
+  const [plays, cardsRes, duelsRes, weekRes, boardRes, storeRes] = await Promise.all([
     todaysPlays(supabase, profile.id),
     supabase.from("user_cards").select("card_key", { count: "exact", head: true }).eq("user_id", profile.id),
     supabase
@@ -38,7 +40,9 @@ export default async function JogosPage() {
       .limit(10),
     supabase.rpc("game_week_ranking"),
     supabase.rpc("game_elo_board"),
+    supabase.from("store_items").select(STORE_COLUMNS).eq("active", true).order("sort").order("created_at"),
   ]);
+  const storeItems = (storeRes.data ?? []) as StoreItem[];
 
   const [dressOpen, mineOpen, rushOpen, vis] = await Promise.all([gameOpenFor("dress", profile.id), gameOpenFor("minearena", profile.id), gameOpenFor("biblerush", profile.id), getVisibilities()]);
   const hide = (k: GameKey) => isHiddenFor(vis[k], profile.role);
@@ -138,6 +142,8 @@ export default async function JogosPage() {
           </span>
         </Link>
       )}
+
+      <StoreGallery items={storeItems} />
 
       {hide("biblerush") || !rushOpen ? null : (
         <Link href="/app/jogos/biblerush" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-amber-400 bg-gradient-to-br from-[#1f3a5f] via-[#2e5a7a] to-[#c9a15a] p-4 shadow-lg transition active:scale-[0.99]">

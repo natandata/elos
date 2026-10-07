@@ -34,6 +34,7 @@ const GAMES: Game[] = [
 ];
 
 const TOOLS = [
+  { href: "/app/admin/loja", emoji: "🛍️", title: "Loja", hint: "Jogos com data de lançamento e em produção na vitrine" },
   { href: "/app/admin/torneios", emoji: "🏆", title: "Torneios da Arena", hint: "Criar e acompanhar torneios" },
   { href: "/app/admin/arena", emoji: "🏰", title: "Arena hoje", hint: "Partidas por jogador no dia" },
   { href: "/app/admin/passarela", emoji: "📸", title: "Passarela", hint: "Looks publicados e moderação" },
