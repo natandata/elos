@@ -48,11 +48,24 @@ export type Disc = {
   flash: number;
   /** colocação inicial (fração do campo) */
   home: { x: number; y: number };
+  /** jogador de verdade (seleções, clubes, carreira): nome, número, posição e força (50–99) */
+  name: string;
+  num: number;
+  pos: string;
+  ovr: number;
 };
+
+/** Um jogador escalado: vem das seleções, dos clubes ou do modo carreira. */
+export type Slot = { name: string; num: number; pos: string; ovr: number };
+/** Partida com times de verdade: cada lado escala de 1 a 4 jogadores; o primeiro do time 0 é o que você controla. */
+export type MatchSpec = { teams: [Slot[], Slot[]]; secs: number; goalsToWin: number };
+
+/** Velocidade e força do chute mudam pouco com a força do jogador (de 0,93 a 1,07), para ninguém ficar injogável. */
+export const ovrMul = (ovr: number): number => Math.max(0.93, Math.min(1.07, 0.93 + (ovr - 50) * 0.0035));
 
 export type Phase = "countdown" | "play" | "goal" | "end";
 
-export type GameEvent = { k: "kick"; x: number; y: number; power: number } | { k: "wall"; x: number; y: number; v: number } | { k: "goal"; team: 0 | 1 } | { k: "whistle" } | { k: "tick"; n: number } | { k: "end" };
+export type GameEvent = { k: "kick"; x: number; y: number; power: number } | { k: "wall"; x: number; y: number; v: number } | { k: "goal"; team: 0 | 1; scorer?: number; assist?: number; own?: boolean; at?: number } | { k: "whistle" } | { k: "tick"; n: number } | { k: "end" };
 
 export type Game = {
   mode: Mode;
@@ -77,6 +90,10 @@ export type Game = {
   events: GameEvent[];
   acc: number;
   countN: number;
+  /** últimos toques na bola (índice do disco e tempo jogado), do mais recente para o mais antigo */
+  touches: { i: number; t: number }[];
+  /** gols, assistências e gols contra por disco (índice em `players`) */
+  stats: { goals: number; assists: number; own: number }[];
 };
 
 const FORMATION: [number, number][] = [
@@ -87,11 +104,11 @@ const FORMATION: [number, number][] = [
 ];
 
 function mkDisc(id: number, r: number, mass: number, team: 0 | 1 | -1, human: boolean): Disc {
-  return { id, x: 0, y: 0, vx: 0, vy: 0, r, mass, team, human, input: { mx: 0, my: 0, kick: false }, kickCd: 0, flash: 9, home: { x: 0.5, y: 0.5 } };
+  return { id, x: 0, y: 0, vx: 0, vy: 0, r, mass, team, human, input: { mx: 0, my: 0, kick: false }, kickCd: 0, flash: 9, home: { x: 0.5, y: 0.5 }, name: "", num: 0, pos: "MF", ovr: 70 };
 }
 
-export function newGame(mode: Mode): Game {
-  const m = MODES[mode];
+export function newGame(mode: Mode, spec?: MatchSpec): Game {
+  const m = MODES[spec ? (`${Math.max(1, Math.min(4, spec.teams[0].length))}v${Math.max(1, Math.min(4, spec.teams[0].length))}` as Mode) : mode];
   const goalH = Math.round(m.h * 0.31);
   const players: Disc[] = [];
   let id = 0;
@@ -100,6 +117,13 @@ export function newGame(mode: Mode): Game {
       const d = mkDisc(id++, PLAYER_R, PLAYER_MASS, team, team === 0 && i === 0);
       const f = FORMATION[i];
       d.home = { x: team === 0 ? f[0] : 1 - f[0], y: f[1] };
+      const sl = spec?.teams[team][i];
+      if (sl) {
+        d.name = sl.name;
+        d.num = sl.num;
+        d.pos = sl.pos;
+        d.ovr = sl.ovr;
+      }
       players.push(d);
     }
   }
@@ -113,8 +137,8 @@ export function newGame(mode: Mode): Game {
     players,
     ball: mkDisc(99, BALL_R, BALL_MASS, -1, false),
     score: [0, 0],
-    goalsToWin: m.goals,
-    timeLeft: m.secs,
+    goalsToWin: spec?.goalsToWin ?? m.goals,
+    timeLeft: spec?.secs ?? m.secs,
     overtime: false,
     overtimeLeft: 60,
     phase: "countdown",
@@ -125,6 +149,8 @@ export function newGame(mode: Mode): Game {
     events: [],
     acc: 0,
     countN: 3,
+    touches: [],
+    stats: players.map(() => ({ goals: 0, assists: 0, own: 0 })),
   };
   resetPositions(g);
   return g;
@@ -271,8 +297,9 @@ function movePlayers(g: Game, dt: number): void {
       mx /= len;
       my /= len;
     }
-    p.vx += (mx * MAX_SPEED - p.vx) * k;
-    p.vy += (my * MAX_SPEED - p.vy) * k;
+    const top = MAX_SPEED * ovrMul(p.ovr);
+    p.vx += (mx * top - p.vx) * k;
+    p.vy += (my * top - p.vy) * k;
     p.x += p.vx * dt;
     p.y += p.vy * dt;
     p.kickCd = Math.max(0, p.kickCd - dt);
@@ -307,11 +334,26 @@ function tryKicks(g: Game): void {
     if (d > p.r + b.r + KICK_REACH) continue;
     const nx = dx / d;
     const ny = dy / d;
-    b.vx = b.vx * 0.25 + nx * KICK_POWER + p.vx * 0.45;
-    b.vy = b.vy * 0.25 + ny * KICK_POWER + p.vy * 0.45;
+    const pw = KICK_POWER * ovrMul(p.ovr);
+    b.vx = b.vx * 0.25 + nx * pw + p.vx * 0.45;
+    b.vy = b.vy * 0.25 + ny * pw + p.vy * 0.45;
     clampSpeed(b, BALL_MAX);
+    touch(g, p);
     g.events.push({ k: "kick", x: b.x, y: b.y, power: Math.hypot(b.vx, b.vy) });
   }
+}
+
+/** Registra o toque de um disco na bola (para saber quem fez o gol e quem deu o passe). */
+function touch(g: Game, p: Disc): void {
+  const i = g.players.indexOf(p);
+  if (i < 0) return;
+  const last = g.touches[0];
+  if (last && last.i === i) {
+    last.t = g.played;
+    return;
+  }
+  g.touches.unshift({ i, t: g.played });
+  if (g.touches.length > 4) g.touches.length = 4;
 }
 
 function physics(g: Game, dt: number, free: boolean): void {
@@ -324,7 +366,7 @@ function physics(g: Game, dt: number, free: boolean): void {
   for (let i = 0; i < g.players.length; i++) for (let j = i + 1; j < g.players.length; j++) collide(g.players[i], g.players[j], 0.25);
   const b = g.ball;
   if (free) tryKicks(g);
-  for (const p of g.players) collide(p, b, CONTACT_E);
+  for (const p of g.players) if (collide(p, b, CONTACT_E)) touch(g, p);
   b.x += b.vx * dt;
   b.y += b.vy * dt;
   const drag = Math.exp(-BALL_DRAG * dt);
@@ -411,7 +453,27 @@ function stepOnce(g: Game, dt: number): void {
     g.lastScorer = team;
     g.phase = "goal";
     g.phaseT = 2.6;
-    g.events.push({ k: "goal", team });
+    const ev: GameEvent = { k: "goal", team, at: Math.round(g.played) };
+    // quem fez o gol: o último toque de quem atacou (até 3,5 s antes; desvio de zagueiro não tira o gol de quem chutou)
+    const k = g.touches.findIndex((x) => g.players[x.i].team === team && g.played - x.t < 3.5);
+    if (k >= 0) {
+      const sc = g.touches[k];
+      ev.scorer = sc.i;
+      g.stats[sc.i].goals++;
+      // assistência: o toque anterior, se foi de um companheiro, até 6 s antes
+      const prev = g.touches.slice(k + 1).find((x) => x.i !== sc.i);
+      if (prev && g.players[prev.i].team === team && sc.t - prev.t < 6) {
+        ev.assist = prev.i;
+        g.stats[prev.i].assists++;
+      }
+    } else if (g.touches[0] && g.players[g.touches[0].i].team !== team && g.played - g.touches[0].t < 6) {
+      // gol contra: o último toque foi de quem defendia
+      ev.scorer = g.touches[0].i;
+      ev.own = true;
+      g.stats[g.touches[0].i].own++;
+    }
+    g.touches.length = 0;
+    g.events.push(ev);
     return;
   }
   if (!g.overtime && g.timeLeft <= 0) {

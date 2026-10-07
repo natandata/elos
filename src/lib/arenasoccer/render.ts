@@ -1,6 +1,7 @@
 // ArenaSoccer: desenho do campo, dos discos e dos efeitos (canvas 2D).
 import { type Fan, MARGIN_X, MARGIN_Y, TOP, EDGE, drawCrowd, drawStandsBase, makeCrowd } from "./crowd";
 import { BALL_R, GOAL_DEPTH, PLAYER_R, type Disc, type Game } from "./engine";
+import { shortName, type Kit } from "./teams";
 
 export type Fx = {
   trail: { x: number; y: number }[];
@@ -23,7 +24,7 @@ export const INTRO_SECS = 4;
 
 export const newFx = (intro = true): Fx => ({ trail: [], parts: [], rings: [], shake: 0, banner: null, t: 0, cam: { x: 0, y: 0, z: 1, init: false }, crowd: null, cheer: [0, 0], intro: intro ? { t: 0, dur: INTRO_SECS } : null });
 
-export type Look = { teamColors: [string, string]; rotated: boolean; /** convidado online: o campo é visto de cabeça pra baixo, para ele atacar para a direita */ flip?: boolean };
+export type Look = { teamColors: [string, string]; /** uniformes de verdade (padrão, número e nome em campo) */ kits?: [Kit, Kit]; rotated: boolean; /** convidado online: o campo é visto de cabeça pra baixo, para ele atacar para a direita */ flip?: boolean };
 
 /** Escala que faz o campo (com os gols e as arquibancadas) caber na área disponível. */
 export function fitScale(g: Game, aw: number, ah: number, rotated: boolean): number {
@@ -38,21 +39,82 @@ function shade(hex: string, k: number): string {
   return `rgb(${f((n >> 16) & 255)},${f((n >> 8) & 255)},${f(n & 255)})`;
 }
 
-function disc(ctx: CanvasRenderingContext2D, d: Disc, color: string, human: boolean, fx: Fx): void {
+function disc(ctx: CanvasRenderingContext2D, d: Disc, color: string, human: boolean, fx: Fx, kit?: Kit, angle = 0): void {
   ctx.fillStyle = "rgba(0,0,0,0.25)";
   ctx.beginPath();
   ctx.ellipse(d.x + 4, d.y + 6, d.r, d.r * 0.92, 0, 0, Math.PI * 2);
   ctx.fill();
-  const grad = ctx.createRadialGradient(d.x - d.r * 0.35, d.y - d.r * 0.4, d.r * 0.1, d.x, d.y, d.r);
-  grad.addColorStop(0, shade(color, 1.35));
-  grad.addColorStop(1, shade(color, 0.85));
-  ctx.fillStyle = grad;
-  ctx.beginPath();
-  ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.lineWidth = 3.5;
-  ctx.strokeStyle = shade(color, 0.5);
-  ctx.stroke();
+  if (kit) {
+    // camisa de verdade: cor principal + padrão da cor secundária, recortado no disco
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.fillStyle = kit.p;
+    ctx.fillRect(d.x - d.r, d.y - d.r, d.r * 2, d.r * 2);
+    ctx.fillStyle = kit.s;
+    const r = d.r;
+    if (kit.k === "stripes") {
+      for (let i = -3; i <= 3; i += 2) ctx.fillRect(d.x + (i - 0.5) * (r / 3.2), d.y - r, r / 3.2, r * 2);
+    } else if (kit.k === "hoops") {
+      for (let i = -3; i <= 3; i += 2) ctx.fillRect(d.x - r, d.y + (i - 0.5) * (r / 3.2), r * 2, r / 3.2);
+    } else if (kit.k === "sash") {
+      ctx.save();
+      ctx.translate(d.x, d.y);
+      ctx.rotate(-Math.PI / 4);
+      ctx.fillRect(-r, -r * 0.2, r * 2, r * 0.4);
+      ctx.restore();
+    } else if (kit.k === "halves") {
+      ctx.fillRect(d.x, d.y - r, r, r * 2);
+    } else if (kit.k === "checker") {
+      const c = r / 2.2;
+      for (let x = -3; x <= 3; x++) for (let y = -3; y <= 3; y++) if ((x + y) % 2 === 0) ctx.fillRect(d.x + x * c - c / 2, d.y + y * c - c / 2, c, c);
+    }
+    const shine = ctx.createRadialGradient(d.x - d.r * 0.35, d.y - d.r * 0.4, d.r * 0.1, d.x, d.y, d.r);
+    shine.addColorStop(0, "rgba(255,255,255,0.35)");
+    shine.addColorStop(1, "rgba(0,0,0,0.22)");
+    ctx.fillStyle = shine;
+    ctx.fillRect(d.x - d.r, d.y - d.r, d.r * 2, d.r * 2);
+    ctx.restore();
+    ctx.lineWidth = 3.5;
+    ctx.strokeStyle = shade(kit.p.length === 7 ? kit.p : color, 0.45);
+    ctx.beginPath();
+    ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+    ctx.stroke();
+  } else {
+    const grad = ctx.createRadialGradient(d.x - d.r * 0.35, d.y - d.r * 0.4, d.r * 0.1, d.x, d.y, d.r);
+    grad.addColorStop(0, shade(color, 1.35));
+    grad.addColorStop(1, shade(color, 0.85));
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.lineWidth = 3.5;
+    ctx.strokeStyle = shade(color, 0.5);
+    ctx.stroke();
+  }
+  if (d.num > 0) {
+    // número na camisa (gira de volta para ficar em pé quando o campo está virado) e sobrenome embaixo
+    ctx.save();
+    ctx.translate(d.x, d.y);
+    if (angle) ctx.rotate(angle);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = "900 17px system-ui, sans-serif";
+    ctx.lineWidth = 3.5;
+    ctx.strokeStyle = "rgba(0,0,0,0.65)";
+    ctx.fillStyle = "#ffffff";
+    ctx.strokeText(String(d.num), 0, 1);
+    ctx.fillText(String(d.num), 0, 1);
+    if (d.name) {
+      ctx.font = "800 12px system-ui, sans-serif";
+      ctx.lineWidth = 3;
+      const n = shortName(d.name);
+      ctx.strokeText(n, 0, d.r + 13);
+      ctx.fillText(n, 0, d.r + 13);
+    }
+    ctx.restore();
+  }
   if (human) {
     ctx.lineWidth = 2.5;
     ctx.strokeStyle = "rgba(255,255,255,0.95)";
@@ -317,7 +379,7 @@ export function draw(ctx: CanvasRenderingContext2D, g: Game, fx: Fx, look: Look,
   for (const p of g.players) {
     const idx = perTeam[p.team === 1 ? 1 : 0]++;
     if (it < 0) {
-      disc(ctx, p, look.teamColors[p.team === 1 ? 1 : 0], p.human, fx);
+      disc(ctx, p, look.teamColors[p.team === 1 ? 1 : 0], p.human, fx, look.kits?.[p.team === 1 ? 1 : 0], (look.rotated ? Math.PI / 2 : 0) + (look.flip ? Math.PI : 0));
       continue;
     }
     // abertura: sai do túnel, faz uma curva e chega na posição de saída
@@ -333,7 +395,7 @@ export function draw(ctx: CanvasRenderingContext2D, g: Game, fx: Fx, look: Look,
     const hy = p.home.y * g.h;
     const u = 1 - e;
     const pos = { ...p, x: u * u * sx + 2 * u * e * ax + e * e * hx, y: u * u * sy + 2 * u * e * ay + e * e * hy, flash: 9 };
-    disc(ctx, pos, look.teamColors[p.team === 1 ? 1 : 0], p.human && e >= 1, fx);
+    disc(ctx, pos, look.teamColors[p.team === 1 ? 1 : 0], p.human && e >= 1, fx, look.kits?.[p.team === 1 ? 1 : 0], (look.rotated ? Math.PI / 2 : 0) + (look.flip ? Math.PI : 0));
   }
 
   for (const r of fx.rings) {

@@ -6,6 +6,9 @@ import { recordSoccerMatch } from "@/lib/actions/arenasoccer";
 import { MODES, type Level, type Mode } from "@/lib/arenasoccer/engine";
 import { ArenaSoccerGame, type MatchResult } from "./ArenaSoccerGame";
 import { ArenaSoccerOnline } from "./ArenaSoccerOnline";
+import { CareerMode } from "./CareerMode";
+import { CupMode } from "./CupMode";
+import { LeagueMode } from "./LeagueMode";
 
 export type SoccerStats = { matches: number; wins: number; losses: number; draws: number; goals: number; minutes: number };
 
@@ -24,6 +27,7 @@ export function ArenaSoccerClient({ stats, myName = "Jogador" }: { stats: Soccer
   const [color, setColor] = useState(COLORS[0]);
   const [playing, setPlaying] = useState(false);
   const [online, setOnline] = useState(false);
+  const [comp, setComp] = useState<"cup" | "br" | "career" | null>(null);
   const [mine, setMine] = useState(stats);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -68,6 +72,9 @@ export function ArenaSoccerClient({ stats, myName = "Jogador" }: { stats: Soccer
     }));
   }
 
+  if (comp === "cup") return <CupMode color={color} onRecord={(r) => void finished(r)} onBack={() => setComp(null)} />;
+  if (comp === "br") return <LeagueMode color={color} onRecord={(r) => void finished(r)} onBack={() => setComp(null)} />;
+  if (comp === "career") return <CareerMode color={color} myName={myName} onRecord={(r) => void finished(r)} onBack={() => setComp(null)} />;
   if (online) return <ArenaSoccerOnline color={color} myName={myName} onFinish={(r) => void finished(r)} onBack={() => setOnline(false)} />;
   if (playing) return <ArenaSoccerGame mode={mode} level={level} color={color} onFinish={(r) => void finished(r)} onExit={() => setPlaying(false)} />;
 
@@ -129,6 +136,22 @@ export function ArenaSoccerClient({ stats, myName = "Jogador" }: { stats: Soccer
           ))}
         </div>
         <p className="mt-2 text-xs text-[var(--muted)]">A cor é só visual: ninguém corre mais ou chuta mais forte por causa dela.</p>
+      </section>
+
+      <section className="space-y-2">
+        <p className="px-1 text-sm font-black">Campeonatos (contra o computador)</p>
+        <button type="button" onClick={() => setComp("cup")} className="card flex w-full items-center gap-3 p-3 text-left">
+          <span className="text-3xl" aria-hidden>🏆</span>
+          <span><b className="block">Copa do Mundo</b><small className="text-xs text-[var(--muted)]">As últimas 7 Copas (2002–2026), com as seleções e elencos de verdade.</small></span>
+        </button>
+        <button type="button" onClick={() => setComp("br")} className="card flex w-full items-center gap-3 p-3 text-left">
+          <span className="text-3xl" aria-hidden>🇧🇷</span>
+          <span><b className="block">Campeonato Brasileiro 2026</b><small className="text-xs text-[var(--muted)]">20 times, 38 rodadas e os elencos de hoje.</small></span>
+        </button>
+        <button type="button" onClick={() => setComp("career")} className="card flex w-full items-center gap-3 p-3 text-left">
+          <span className="text-3xl" aria-hidden>⭐</span>
+          <span><b className="block">Modo carreira</b><small className="text-xs text-[var(--muted)]">Comece num time de uma liga, jogue temporadas, vire artilheiro e receba propostas.</small></span>
+        </button>
       </section>
 
       <button type="button" onClick={start} className="btn btn-primary w-full !py-4 text-lg">

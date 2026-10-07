@@ -2,12 +2,28 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { thinkAll } from "@/lib/arenasoccer/ai";
-import { advance, MODES, newGame, type Game, type GameEvent, type Level, type Mode } from "@/lib/arenasoccer/engine";
+import { advance, MODES, newGame, type Game, type GameEvent, type Level, type MatchSpec, type Mode } from "@/lib/arenasoccer/engine";
+import { shortName, type Kit } from "@/lib/arenasoccer/teams";
 import { burst, confetti, draw, INTRO_SECS, newFx, stepFx } from "@/lib/arenasoccer/render";
 import { applySnap, makeSnap, type InputMsg, type Snap, type SoccerNet } from "@/lib/arenasoccer/net";
 import { Sfx } from "@/lib/arenasoccer/sound";
 
-export type MatchResult = { mode: Mode; level: Level | "online"; goalsFor: number; goalsAgainst: number; secs: number; result: "win" | "loss" | "draw" };
+export type Scorer = { team: 0 | 1; name: string; at: number; assist?: string; own?: boolean };
+export type PlayerLine = { name: string; goals: number; assists: number; own: number };
+export type MatchResult = {
+  mode: Mode;
+  level: Level | "online";
+  goalsFor: number;
+  goalsAgainst: number;
+  secs: number;
+  result: "win" | "loss" | "draw";
+  /** só nas partidas com times de verdade: quem marcou e as estatísticas dos meus jogadores */
+  scorers?: Scorer[];
+  mine?: PlayerLine[];
+};
+
+/** Partida com times de verdade (Copa, Brasileirão, Carreira): escalações, uniformes e força do computador. */
+export type PlaySpec = { match: MatchSpec; kits: [Kit, Kit]; names: [string, string]; level: Level | [Level, Level]; /** texto sobre o placar (ex.: "Fase de grupos") */ label?: string };
 
 type Hud = { s0: number; s1: number; time: string; overtime: boolean; phase: Game["phase"] };
 
@@ -48,7 +64,8 @@ export function opponentColor(mine: string): string {
 }
 
 /** Partida de ArenaSoccer contra o computador: tela cheia, teclado ou joystick virtual + botão de chute. */
-export function ArenaSoccerGame({ mode, level, color, onFinish, onExit, net }: { mode: Mode; level: Level; color: string; onFinish: (r: MatchResult) => void; onExit: () => void; net?: SoccerNet }) {
+export function ArenaSoccerGame({ mode: modeProp, level, color, onFinish, onExit, net, spec }: { mode: Mode; level: Level; color: string; onFinish: (r: MatchResult) => void; onExit: () => void; net?: SoccerNet; spec?: PlaySpec }) {
+  const mode: Mode = spec ? (`${Math.max(1, Math.min(4, spec.match.teams[0].length))}v${Math.max(1, Math.min(4, spec.match.teams[0].length))}` as Mode) : modeProp;
   const guest = net?.role === "guest";
   const me: 0 | 1 = guest ? 1 : 0;
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -147,7 +164,7 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit, net }: {
     };
   }, []);
 
-  const absColors: [string, string] = net ? [net.hostColor, opponentColor(net.hostColor)] : [color, opponentColor(color)];
+  const absColors: [string, string] = spec ? [spec.kits[0].p, spec.kits[1].p] : net ? [net.hostColor, opponentColor(net.hostColor)] : [color, opponentColor(color)];
   /** cores na ordem do placar: a minha primeiro */
   const teamColors: [string, string] = guest ? [absColors[1], absColors[0]] : absColors;
 
@@ -158,8 +175,9 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit, net }: {
     if (!canvas || !wrap) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    const g = newGame(mode);
+    const g = newGame(mode, spec?.match);
     const fx = newFx(!guest);
+    const scorers: Scorer[] = [];
     skipRef.current = false;
     doneRef.current = false;
     phaseRef.current = "countdown";
@@ -267,7 +285,16 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit, net }: {
           fx.shake = 9;
           fx.cheer[e.team] = 3.2;
           sfx.cheer(1.8, 0.09);
-          fx.banner = { text: e.team === me ? "GOOOL!" : net ? "GOL DE " + net.oppName.toUpperCase() : "GOL DO ADVERSÁRIO", color: e.team === me ? "#fde047" : "#fca5a5", t: 2.6 };
+          const who = e.scorer !== undefined ? g.players[e.scorer] : undefined;
+          const wn = who?.name ? shortName(who.name) : "";
+          if (who && e.scorer !== undefined) {
+            scorers.push({ team: e.team, name: who.name, at: e.at ?? Math.round(g.played), assist: e.assist !== undefined ? g.players[e.assist]?.name : undefined, own: e.own });
+          }
+          fx.banner = {
+            text: e.own ? `GOL CONTRA${wn ? ": " + wn : ""}` : e.team === me ? (wn ? `GOL! ${wn}` : "GOOOL!") : net ? "GOL DE " + net.oppName.toUpperCase() : wn ? `GOL: ${wn}` : "GOL DO ADVERSÁRIO",
+            color: e.team === me ? "#fde047" : "#fca5a5",
+            t: 2.6,
+          };
         } else if (e.k === "tick") sfx.tick();
         else if (e.k === "whistle") sfx.whistle();
         else if (e.k === "end") sfx.end();
@@ -280,11 +307,13 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit, net }: {
       const winner = g.winner;
       const result: MatchResult = {
         mode,
-        level: net ? "online" : level,
+        level: net ? "online" : spec ? (typeof spec.level === "string" ? spec.level : spec.level[1]) : level,
         goalsFor: g.score[me],
         goalsAgainst: g.score[1 - me],
         secs: Math.max(10, Math.round(g.played)),
         result: winner === null ? "draw" : winner === me ? "win" : "loss",
+        scorers: spec ? scorers : undefined,
+        mine: spec ? g.players.map((p, i) => ({ p, i })).filter((x) => x.p.team === 0).map((x) => ({ name: x.p.name, ...g.stats[x.i] })) : undefined,
       };
       setEnd(result);
       onFinishRef.current(result);
@@ -392,7 +421,7 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit, net }: {
       } else if (!pausedRef.current) {
         human.input = readInput();
         if (net) g.players[1].input = { ...remoteIn };
-        else thinkAll(g, [level, level], dt);
+        else thinkAll(g, spec ? (Array.isArray(spec.level) ? spec.level : [spec.level, spec.level]) : [level, level], dt);
         advance(g, dt);
         stepFx(fx, dt);
         if (net) for (const e of g.events) evq.push(e);
@@ -408,7 +437,7 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit, net }: {
         }
         if (g.phase === "end") finish();
       }
-      draw(ctx, g, fx, { teamColors: colors, rotated: rotatedRef.current, flip: guest }, aw, ah, dpr, dt);
+      draw(ctx, g, fx, { teamColors: colors, kits: spec?.kits, rotated: rotatedRef.current, flip: guest }, aw, ah, dpr, dt);
       const t = g.overtime ? g.overtimeLeft : g.timeLeft;
       const key = `${g.score[0]}-${g.score[1]}-${Math.ceil(t)}-${g.phase}-${g.overtime}`;
       if (key !== lastHud) {
@@ -424,7 +453,7 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit, net }: {
     };
     // a partida só recomeça quando muda de rodada, modo, nível ou cor
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [round, mode, level, color]);
+  }, [round, mode, level, color, spec]);
 
   const again = useCallback(() => {
     setEnd(null);
@@ -525,18 +554,21 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit, net }: {
             ⏸
           </button>
         )}
+        <div className="flex flex-col items-center">
+        {spec?.label ? <span className="text-[10px] font-black uppercase tracking-wide text-emerald-200">{spec.label}</span> : null}
         <div className="flex items-center gap-3 text-center">
           <span className="flex items-center gap-2 text-3xl font-black tabular-nums">
             <i className="inline-block h-4 w-4 rounded-full" style={{ background: teamColors[0] }} />
-            {net ? <small className="max-w-[72px] truncate text-[11px] font-bold opacity-80">{net.myName}</small> : null}
+            {net || spec ? <small className="max-w-[88px] truncate text-[11px] font-bold opacity-80">{net ? net.myName : spec!.names[0]}</small> : null}
             {hud.s0}
           </span>
           <span className="min-w-[72px] rounded-lg bg-white/10 px-2 py-1 text-lg font-black tabular-nums">{hud.overtime ? `⚡ ${hud.time}` : hud.time}</span>
           <span className="flex items-center gap-2 text-3xl font-black tabular-nums">
             {hud.s1}
-            {net ? <small className="max-w-[72px] truncate text-[11px] font-bold opacity-80">{net.oppName}</small> : null}
+            {net || spec ? <small className="max-w-[88px] truncate text-[11px] font-bold opacity-80">{net ? net.oppName : spec!.names[1]}</small> : null}
             <i className="inline-block h-4 w-4 rounded-full" style={{ background: teamColors[1] }} />
           </span>
+        </div>
         </div>
         <button type="button" onClick={(e) => { e.currentTarget.blur(); setMuted((m) => !m); }} className="rounded-full bg-white/10 px-3 py-1.5 text-sm font-black" aria-label="Som">
           {muted ? "🔇" : "🔊"}
@@ -599,16 +631,26 @@ export function ArenaSoccerGame({ mode, level, color, onFinish, onExit, net }: {
           <p className="text-6xl font-black tabular-nums">
             {end.goalsFor} <span className="text-white/50">x</span> {end.goalsAgainst}
           </p>
+          {end.scorers && end.scorers.length > 0 ? (
+            <ul className="mb-2 max-h-40 w-full max-w-xs space-y-0.5 overflow-y-auto text-left text-sm">
+              {end.scorers.map((s, i) => (
+                <li key={i} className={`flex justify-between gap-2 ${s.team === 0 ? "text-emerald-200" : "text-rose-200"}`}>
+                  <span>⚽ {s.name}{s.own ? " (contra)" : ""}{s.assist ? <small className="text-white/60"> · assist. {s.assist}</small> : null}</span>
+                  <span className="tabular-nums text-white/60">{Math.max(1, Math.round(s.at / 60))}&apos;</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
           <p className="mb-3 text-sm text-white/70">
             {MODES[end.mode].label} · {end.level === "online" ? `online contra ${net?.oppName ?? "outro jogador"}` : `computador ${end.level === "easy" ? "fácil" : end.level === "hard" ? "difícil" : "normal"}`}
           </p>
-          {net ? null : (
+          {net || spec ? null : (
             <button type="button" onClick={again} className="btn btn-primary w-60">
               Jogar de novo
             </button>
           )}
-          <button type="button" onClick={onExit} className="btn btn-ghost w-60 !text-white">
-            Voltar ao menu
+          <button type="button" onClick={onExit} className={spec ? "btn btn-primary w-60" : "btn btn-ghost w-60 !text-white"}>
+            {spec ? "Continuar ▶" : "Voltar ao menu"}
           </button>
         </div>
       ) : null}
