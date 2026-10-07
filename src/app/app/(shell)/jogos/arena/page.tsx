@@ -59,10 +59,12 @@ export default async function ArenaPage() {
     levels[r.card] = r.level;
     copies[r.card] = r.copies;
   }
+  const { data: dayRec } = await supabase.rpc("arena_day_record");
+  const dayRecord = { w: Number((dayRec as { w?: number } | null)?.w ?? 0), l: Number((dayRec as { l?: number } | null)?.l ?? 0), d: Number((dayRec as { d?: number } | null)?.d ?? 0) };
   const { data: saved } = await supabase.from("arena_decks").select("deck").eq("user_id", profile.id).maybeSingle<{ deck: string[] }>();
   const deck = isValidDeck(saved?.deck) && deckAllowed(saved.deck, stats?.best ?? 0, ownedFromRows(ownedRows)) ? saved.deck : STARTER_DECK;
 
   return (
-    <ArenaGame winsToday={count ?? 0} maxWins={MAX_XP_WINS} initialDeck={deck} initialTrophies={stats?.trophies ?? 0} initialBest={stats?.best ?? 0} initialCopies={copies} initialLevels={levels} dailyChestReady={stats?.chest_date !== today} eloRanking={eloRanking} myEloId={profile.elo_id ?? null} trophyRanking={trophyRanking} myId={profile.id} invites={(invites ?? 0) + duoInvites} gate={gate} openTournaments={tournamentCount ?? 0} />
+    <ArenaGame dayRecord={dayRecord} winsToday={count ?? 0} maxWins={MAX_XP_WINS} initialDeck={deck} initialTrophies={stats?.trophies ?? 0} initialBest={stats?.best ?? 0} initialCopies={copies} initialLevels={levels} dailyChestReady={stats?.chest_date !== today} eloRanking={eloRanking} myEloId={profile.elo_id ?? null} trophyRanking={trophyRanking} myId={profile.id} invites={(invites ?? 0) + duoInvites} gate={gate} openTournaments={tournamentCount ?? 0} />
   );
 }

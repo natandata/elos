@@ -12,6 +12,8 @@ import type { GateInfo } from "@/lib/arena/gate";
 
 export type RankRow = { id: string; name: string; avatar: string | null; elo: string | null; trophies: number };
 export type EloRow = { id: string; name: string; points: number };
+/** Placar do dia (vitórias, derrotas e empates de hoje, em todos os modos). */
+export type DayRecord = { w: number; l: number; d: number };
 export type ArenaTab = "battle" | "cards" | "chests" | "ranking" | "info";
 
 const MIN_RANK_TROPHIES = 30;
@@ -98,6 +100,7 @@ export function ArenaHome({
   dailyChestReady,
   chests,
   winsToday,
+  dayRecord,
   maxWins,
   eloRanking,
   myEloId,
@@ -121,6 +124,7 @@ export function ArenaHome({
   dailyChestReady: boolean;
   chests: ReactNode;
   winsToday: number;
+  dayRecord: DayRecord;
   maxWins: number;
   eloRanking: EloRow[];
   myEloId: string | null;
@@ -302,6 +306,15 @@ export function ArenaHome({
               <Slot icon="🧰" iconNode={<ChestIcon variant="gold" className="h-9 w-auto" />} title="Baús" sub="Troféus" onClick={() => setTab("chests")} />
               <Slot icon="⭐" iconNode={<LampIcon className="h-9 w-auto" />} title="XP de hoje" sub={`${winsToday}/${maxWins}`} />
               <Slot icon={prog.next ? prog.next.emoji : "👑"} iconSrc={prog.next?.art} title={prog.next ? "Próx. arena" : "Máxima"} sub={prog.next ? `${prog.next.min - trophies} 🏆` : "🎉"} />
+            </div>
+            {/* placar do dia: quantas partidas já jogou hoje e como foram */}
+            <div className="cr-panel mt-2 px-3 py-2" aria-label="Seu placar de hoje">
+              <p className="cr-text text-center text-[11px] uppercase tracking-wide opacity-90">Seu dia · {dayRecord.w + dayRecord.l + dayRecord.d} {dayRecord.w + dayRecord.l + dayRecord.d === 1 ? "partida" : "partidas"}</p>
+              <div className="mt-1 grid grid-cols-3 gap-2 text-center">
+                <span className="rounded-lg bg-emerald-500/25 py-1"><b className="cr-text block text-xl leading-none tabular-nums">{dayRecord.w}</b><span className="cr-text text-[10px]">🏆 vitórias</span></span>
+                <span className="rounded-lg bg-amber-400/25 py-1"><b className="cr-text block text-xl leading-none tabular-nums">{dayRecord.d}</b><span className="cr-text text-[10px]">🤝 empates</span></span>
+                <span className="rounded-lg bg-rose-500/25 py-1"><b className="cr-text block text-xl leading-none tabular-nums">{dayRecord.l}</b><span className="cr-text text-[10px]">😅 derrotas</span></span>
+              </div>
             </div>
             <p className="cr-text mt-2 text-center text-[11px] opacity-90">
               {training ? "Treino numa arena já vencida: troféus e XP não mudam" : <>Vitória +{TROPHY_WIN} 🏆 · Derrota −{TROPHY_LOSS} 🏆{prog.next ? ` · ${prog.next.emoji} libera ${prog.next.name}` : ""}</>}

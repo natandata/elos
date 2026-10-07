@@ -5,7 +5,7 @@ import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { finishArena, saveArenaDeck, startArena, upgradeArenaCard, type ArenaFinish } from "@/lib/actions/arena";
 import { DeckBuilder } from "./DeckBuilder";
-import { ArenaHome, type ArenaTab, type RankRow } from "./ArenaHome";
+import { ArenaHome, type ArenaTab, type DayRecord, type RankRow } from "./ArenaHome";
 import type { GateInfo } from "@/lib/arena/gate";
 import { ARENA_CARD_BY_KEY } from "@/lib/arena/cards";
 import { ARENAS, TROPHY_LOSS, TROPHY_WIN, arenaIndexFor, arenaProgress, cardsUnlockedIn } from "@/lib/arena/arenas";
@@ -20,9 +20,10 @@ import { ARENA_LOAD_MS, ArenaLoadingScreen } from "@/components/games/ArenaLoadi
 
 type Phase = "intro" | "playing" | "finishing" | "result";
 
-function ArenaGameInner({ onLaunching, winsToday, maxWins, initialDeck, initialTrophies, initialBest, initialCopies, initialLevels, dailyChestReady, eloRanking, myEloId, trophyRanking, myId, invites, gate, openTournaments }: { onLaunching: (v: boolean) => void; winsToday: number; maxWins: number; initialDeck: string[]; initialTrophies: number; initialBest: number; initialCopies: Record<string, number>; initialLevels: Record<string, number>; dailyChestReady: boolean; eloRanking: { id: string; name: string; points: number }[]; myEloId: string | null; trophyRanking: RankRow[]; myId: string; invites: number; gate: GateInfo; openTournaments: number }) {
+function ArenaGameInner({ onLaunching, dayRecord, winsToday, maxWins, initialDeck, initialTrophies, initialBest, initialCopies, initialLevels, dailyChestReady, eloRanking, myEloId, trophyRanking, myId, invites, gate, openTournaments }: { onLaunching: (v: boolean) => void; dayRecord: DayRecord; winsToday: number; maxWins: number; initialDeck: string[]; initialTrophies: number; initialBest: number; initialCopies: Record<string, number>; initialLevels: Record<string, number>; dailyChestReady: boolean; eloRanking: { id: string; name: string; points: number }[]; myEloId: string | null; trophyRanking: RankRow[]; myId: string; invites: number; gate: GateInfo; openTournaments: number }) {
   const [copies, setCopies] = useState<Record<string, number>>(initialCopies);
   const [dailyReady, setDailyReady] = useState(dailyChestReady);
+  const [day, setDay] = useState<DayRecord>(dayRecord);
   const [levels, setLevels] = useState<Record<string, number>>(initialLevels);
   const [trophies, setTrophies] = useState(initialTrophies);
   const [best, setBest] = useState(Math.max(initialBest, initialTrophies));
@@ -53,6 +54,8 @@ function ArenaGameInner({ onLaunching, winsToday, maxWins, initialDeck, initialT
         return send();
       });
       setVerdict(res);
+      // placar do dia: conta mais uma partida
+      if (!res.error && res.result) setDay((d) => ({ w: d.w + (res.result === "win" ? 1 : 0), l: d.l + (res.result === "loss" ? 1 : 0), d: d.d + (res.result === "draw" ? 1 : 0) }));
       if (res.copyCard && res.copies) {
         const card = res.copyCard;
         const n = res.copies;
@@ -152,6 +155,7 @@ function ArenaGameInner({ onLaunching, winsToday, maxWins, initialDeck, initialT
           />
         }
         winsToday={winsToday}
+        dayRecord={day}
         maxWins={maxWins}
         eloRanking={eloRanking}
         myEloId={myEloId}
