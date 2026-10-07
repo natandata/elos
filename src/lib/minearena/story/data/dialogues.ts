@@ -18,7 +18,7 @@ export const DIALOGUES: Record<string, Dialogue> = {
   eve_1: {
     id: "eve_1",
     lines: [
-      { who: "Eva", text: "Olá! Este lugar é lindo demais. Adão já me contou tudo sobre o jardim." },
+      { who: "Eva", text: "Olá! Este lugar é lindo demais. Adão já me contou tudo sobre o jardim.", ref: "Gênesis 2:23" },
       { who: "Eva", text: "Vamos ver a Árvore da Vida, a de folhas douradas? E depois a árvore que Deus pediu para não tocarmos.", ref: "Gênesis 2:9" },
     ],
   },
@@ -41,7 +41,7 @@ export const DIALOGUES: Record<string, Dialogue> = {
     id: "ca_abel",
     lines: [
       { who: "Abel", text: "Paz! Eu sou Abel, pastor de ovelhas. Cuidar do rebanho é o meu trabalho.", ref: "Gênesis 4:2" },
-      { who: "Abel", text: "Meu irmão Caim cultiva a terra. Cada um de nós serve a Deus com o que tem." },
+      { who: "Abel", text: "Meu irmão Caim cultiva a terra. Cada um de nós serve a Deus com o que tem.", ref: "Gênesis 4:2–3" },
       { who: "Abel", text: "Ajude-me: chegue perto de três ovelhas para que eu as reúna no pasto." },
     ],
   },
@@ -49,7 +49,7 @@ export const DIALOGUES: Record<string, Dialogue> = {
     id: "ca_caim",
     lines: [
       { who: "Caim", text: "Eu sou Caim, lavrador. Esta lavoura é fruto do meu trabalho.", ref: "Gênesis 4:2" },
-      { who: "Caim", text: "O trigo está maduro. Preciso de ajuda para colher alguns feixes." },
+      { who: "Caim", text: "O trigo está maduro. Preciso de ajuda para colher alguns feixes.", ref: "Gênesis 4:3" },
     ],
   },
   noah_brief: {

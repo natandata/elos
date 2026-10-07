@@ -38,7 +38,7 @@ export const LEARN: Record<string, LearnCard> = {
     what: "Noé era um homem justo que andava com Deus. Diante da violência na terra, Deus mandou que construísse uma arca e levasse nela sua família e um casal de cada espécie de animal, com alimento. Noé fez tudo como Deus ordenou, e foi o Senhor quem fechou a porta. Depois do dilúvio, Deus fez uma aliança e deu o arco nas nuvens como sinal de que não destruiria a terra outra vez com águas.",
     book: "Gênesis",
     ref: "Gênesis 6–9",
-    characters: ["Noé", "Sem, Cam e Jafé", "Deus"],
+    characters: ["Noé", "Sem, Cão e Jafé", "Deus"],
     concepts: ["Obediência", "Fé em ação", "Aliança", "O arco-íris"],
     gameNote: "A multidão do lado de fora, as falas do povo e a tempestade com raios são dramatização do que a Bíblia resume em Gênesis 7:21–23 (não informa quantas pessoas eram). Coletar madeira, construir parte do casco e guiar os animais é a forma do jogo de viver a história. A Bíblia não detalha esses passos.",
   },
