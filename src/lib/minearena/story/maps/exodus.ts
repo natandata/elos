@@ -146,9 +146,8 @@ const S1 = 190;
 /** Altura do fundo do mar em cada linha z (a praia desce até o fundo e sobe do outro lado). */
 export function seaFloor(z: number): number {
   if (z < S0 || z > S1) return 24;
-  if (z < S0 + 4) return Math.round(24 - (z - S0) * 1.75);
-  if (z > S1 - 4) return Math.round(24 - (S1 - z) * 1.75);
-  return 17;
+  // as margens descem 1 bloco por passo (o jogador só sobe 1 bloco com um pulo)
+  return Math.max(17, 24 - Math.min(z - S0, S1 - z));
 }
 
 const mar: MapSpec = {

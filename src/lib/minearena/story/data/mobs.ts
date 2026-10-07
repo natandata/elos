@@ -91,6 +91,15 @@ export const STORY_MOBS: Record<string, MobDef> = {
   bezalel: hum("bezalel", "Bezalel", "Artesão do santuário", { skin: 0xbf8450, hair: 0x2a1a10, beard: 0x2a1a10, shirt: 0x2a5a8a, pants: 0xe8e0c8, robe: true, belt: 0xe0c050, bulk: 1.08 }),
   aoliabe: hum("aoliabe", "Aoliabe", "Artesão do santuário", { skin: 0xc58a58, hair: 0x4a2a14, shirt: 0x8a2a3a, pants: 0xe8e0c8, robe: true, belt: 0xe0c050 }),
   josue: hum("josue", "Josué", "Servo de Moisés", { skin: 0xc58a58, hair: 0x2a1a10, shirt: 0xb89a62, pants: 0x6a5a3a, belt: 0x3a2412, staff: true }),
+  // Conquista de Canaã
+  calebe: hum("calebe", "Calebe", "Espia da tribo de Judá", { skin: 0xbf8450, hair: 0x3a2a1a, beard: 0x3a2a1a, shirt: 0xc9a56a, pants: 0x6a5a3a, belt: 0x3a2412, bulk: 1.08 }),
+  espia_a: hum("espia_a", "Espia", "Enviado por Josué", { skin: 0xc58a58, hair: 0x2a1a10, shirt: 0x8a7a5a, pants: 0x5a4a32, belt: 0x3a2412, staff: true }),
+  espia_b: hum("espia_b", "Espia", "Enviado por Josué", { skin: 0xb87a48, hair: 0x4a2a14, shirt: 0x9a8a62, pants: 0x5a4a32, belt: 0x3a2412, staff: true }),
+  gigante: hum("gigante", "Anaquim", "Filho de Anaque", { skin: 0xb98050, hair: 0x1a1008, beard: 0x1a1008, shirt: 0x6a4a3a, pants: 0x4a3a2a, belt: 0x2a1a10, bulk: 1.25, scale: 1.7 }),
+  raabe: hum("raabe", "Raabe", "Moradora de Jericó", { skin: 0xd0a070, hair: 0x2a1a10, hairStyle: "long", shirt: 0xb83a4a, pants: 0xb83a4a, robe: true, belt: 0xe0c050 }),
+  guarda_jerico: hum("guarda_jerico", "Guarda de Jericó", "Soldado do rei", { skin: 0xb98050, hair: 0x1a1008, shirt: 0x7a4a2a, pants: 0x5a4a32, belt: 0x2a1a10, staff: true, bulk: 1.08 }),
+  sacerdote: hum("sacerdote", "Sacerdote", "Leva a arca da aliança", { skin: 0xc58a58, hair: 0x2a1a10, beard: 0x2a1a10, shirt: 0xf8f4e8, pants: 0xf8f4e8, robe: true, belt: 0x2a4a8a }),
+  comandante: hum("comandante", "Comandante do exército do Senhor", "Mensageiro de Deus", { skin: 0xf6e3c4, hair: 0xffe9a0, hairStyle: "long", shirt: 0xfffbea, pants: 0xfff3d2, shoes: 0xe0b84a, robe: true, belt: 0xe0b84a, halo: 0xffd45a, flameSword: 0xff7a1a, scale: 1.5 }),
   // animais pacíficos
   ovelha: calm("ovelha", "ovelha_story"),
   boi: calm("boi", "boi_story"),

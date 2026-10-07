@@ -3,11 +3,13 @@ import type { Dialogue } from "../types";
 import { EXODUS_DIALOGUES } from "./exodus";
 import { GENESIS_DIALOGUES } from "./genesis";
 import { SINAI_DIALOGUES } from "./sinai";
+import { CONQUISTA_DIALOGUES } from "./conquista";
 
 export const DIALOGUES: Record<string, Dialogue> = {
   ...GENESIS_DIALOGUES,
   ...EXODUS_DIALOGUES,
   ...SINAI_DIALOGUES,
+  ...CONQUISTA_DIALOGUES,
   adam_1: {
     id: "adam_1",
     lines: [

@@ -24,6 +24,11 @@ const TRACKS: Record<string, Track> = {
   sinai_trovao: { scale: [130.81, 146.83, 174.61, 196, 233.08], tempo: [0.6, 1.1], gain: 0.055, type: "sawtooth", drone: 65.4, dur: 2.4 },
   bezerro: { scale: [220, 261.63, 293.66, 329.63, 392], tempo: [1.5, 2.5], gain: 0.04, type: "sine", drone: 110, dur: 3 },
   bezerro_festa: { scale: [329.63, 392, 440, 523.25, 659.25, 783.99], tempo: [0.35, 0.7], gain: 0.028, type: "square", dur: 1.1 },
+  espias: { scale: [293.66, 329.63, 392, 440, 523.25, 587.33], tempo: [1.0, 1.7], gain: 0.045, type: "triangle", dur: 2.2 },
+  nebo: { scale: [261.63, 329.63, 392, 493.88, 523.25], tempo: [1.6, 2.6], gain: 0.04, type: "sine", drone: 130.8, dur: 3.2 },
+  jerico: { scale: [220, 261.63, 293.66, 329.63, 392, 440], tempo: [1.1, 1.8], gain: 0.045, type: "triangle", dur: 2.4 },
+  jerico_marcha: { scale: [196, 196, 246.94, 293.66, 392], tempo: [0.7, 1.0], gain: 0.05, type: "sawtooth", drone: 98, dur: 1.4 },
+  jordao: { scale: [293.66, 349.23, 392, 466.16, 587.33], tempo: [1.2, 2.0], gain: 0.045, type: "sine", dur: 2.6 },
   learn: { scale: [523.25, 659.25, 783.99, 1046.5], tempo: [0.8, 1.2], gain: 0.04, type: "sine", dur: 2.2 },
 };
 

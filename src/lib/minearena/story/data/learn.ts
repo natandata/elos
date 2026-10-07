@@ -3,11 +3,13 @@ import type { LearnCard } from "../types";
 import { EXODUS_LEARN } from "./exodus";
 import { GENESIS_LEARN } from "./genesis";
 import { SINAI_LEARN } from "./sinai";
+import { CONQUISTA_LEARN } from "./conquista";
 
 export const LEARN: Record<string, LearnCard> = {
   ...GENESIS_LEARN,
   ...EXODUS_LEARN,
   ...SINAI_LEARN,
+  ...CONQUISTA_LEARN,
   eden: {
     title: "A CRIAÇÃO",
     what: "No princípio, Deus criou os céus e a terra e viu que tudo era muito bom. Colocou o homem num jardim no Éden para cultivá-lo e guardá-lo, e deu-lhe uma ajudadora. Podiam comer de todas as árvores, menos da árvore do conhecimento do bem e do mal.",

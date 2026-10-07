@@ -2,6 +2,7 @@
 import { B } from "../../blocks/blocks";
 import { SHINAR, BERSEBA } from "./genesis";
 import { SEA, seaFloor } from "./exodus";
+import { JORDAO, jericoFall, riverFloor } from "./conquista";
 import { DESERTO, SINAI, TAB } from "./sinai";
 
 type Block = [number, number, number, number];
@@ -102,6 +103,23 @@ function tabernacle(): Block[] {
   return out;
 }
 
+/** O leito do Jordão: a água some (ou volta) de uma ponta à outra, a partir de cima do rio. */
+function riverRows(id: number, fromFar: boolean): Block[] {
+  const out: Block[] = [];
+  const zs: number[] = [];
+  for (let z = JORDAO.z0; z <= JORDAO.z1; z++) zs.push(z);
+  if (fromFar) zs.reverse();
+  for (const z of zs) for (let x = 0; x < 128; x++) for (let y = riverFloor(z) + 1; y <= JORDAO.level; y++) out.push([x, y, z, id]);
+  return out;
+}
+/** O rio seca: aparecem no leito as doze pedras do memorial e a arca da aliança, no meio. */
+function jordanOpen(): Block[] {
+  const out = riverRows(B.air, false);
+  for (let k = 0; k < 12; k++) out.push([52 + (k % 4) * 7, 21, 78 + Math.floor(k / 4) * 7, B.cobble]);
+  out.push([64, 21, 85, B.gold_block], [65, 21, 85, B.gold_block]);
+  return out;
+}
+
 const CALF = SINAI.calf;
 /** O bezerro de ouro sobre um pedestal, com fogueiras de festa dos dois lados. */
 function calf(): Block[] {
@@ -119,7 +137,7 @@ function calfGone(): Block[] {
   return list.reverse();
 }
 
-export const STRUCTS: Record<string, () => Block[]> = { babel_tower: babelTower, jacob_ladder: jacobLadder, sea_open: () => seaRows(B.air, false), sea_close: () => seaRows(B.water, true), rock_water: rockWater, tabernacle, calf, calf_gone: calfGone };
+export const STRUCTS: Record<string, () => Block[]> = { babel_tower: babelTower, jacob_ladder: jacobLadder, sea_open: () => seaRows(B.air, false), sea_close: () => seaRows(B.water, true), rock_water: rockWater, tabernacle, calf, calf_gone: calfGone, jordan_open: jordanOpen, jordan_close: () => riverRows(B.water, true), jerico_fall: jericoFall };
 
 /** Ponto (y) do degrau k da escada de Jacó, para pousar os anjos. */
 export const ladderStep = (k: number): { x: number; y: number; z: number } => ({ x: BERSEBA.betel.x, y: 44 + k, z: BERSEBA.betel.z - 2 - k });

@@ -321,6 +321,15 @@ export const EXODUS_DIALOGUES: Record<string, Dialogue> = {
       L("Moisés", "Mas entre os filhos de Israel nem um cão moverá a língua. Assim sabereis que o Senhor faz diferença entre o Egito e Israel.", "Êxodo 11:7"),
     ],
   },
+  mv_fear: {
+    id: "mv_fear",
+    lines: [
+      L("Narrador", "O Senhor falou a Moisés: dize aos filhos de Israel que voltem e acampem diante de Pi-Hairote, entre Migdol e o mar. O Faraó dirá deles: estão perdidos na terra; o deserto os encerrou.", "Êxodo 14:1–3"),
+      L("Povo", "Que é isto que fizemos, deixando ir Israel, para que não nos sirva? E agora, que faremos?", "Êxodo 14:5"),
+      L("Moisés", "O Senhor é quem vai adiante de nós. Fiquemos acampados diante do mar, como ele mandou.", "Êxodo 14:2"),
+      L("Narrador", "O coração do Faraó se endureceria, e ele perseguiria o povo; assim o Senhor seria glorificado no Faraó e em todo o seu exército.", "Êxodo 14:4"),
+    ],
+  },
   pa_orders: {
     id: "pa_orders",
     lines: [

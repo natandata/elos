@@ -3,6 +3,7 @@ import type { Mission } from "../types";
 import { EXODUS_MISSIONS } from "./exodus";
 import { GENESIS_MISSIONS } from "./genesis";
 import { SINAI_MISSIONS } from "./sinai";
+import { CONQUISTA_MISSIONS } from "./conquista";
 
 const A = (mob: string, x: number, z: number, tag = "animal"): NonNullable<Mission["spawn"]>[number] => ({ mob, at: { x, z }, tag });
 
@@ -10,6 +11,7 @@ export const MISSIONS: Mission[] = [
   ...GENESIS_MISSIONS,
   ...EXODUS_MISSIONS,
   ...SINAI_MISSIONS,
+  ...CONQUISTA_MISSIONS,
   // ---------------- CAPÍTULO 1: O ÉDEN ----------------
   {
     id: "eden_1",

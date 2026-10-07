@@ -1280,6 +1280,39 @@ export class StoryDirector {
           e.story.hold = true;
         }
         break;
+      case "priestsIn":
+        // os sacerdotes entram no Jordão com a arca e ficam no meio do leito seco
+        for (const e of this.npcs.values()) {
+          if (e.story?.tag !== "sacerdote") continue;
+          const x = 59 + Math.random() * 10;
+          this.sendTo(e, [{ x, z: 66 }, { x, z: 86 }], 3);
+        }
+        break;
+      case "crossJordan":
+        for (const e of this.npcs.values()) {
+          const t = e.story?.tag;
+          if (t !== "hebreu" && t !== "sacerdote" && e.story?.id !== "josue") continue;
+          const x = 50 + Math.random() * 28;
+          this.sendTo(e, [{ x, z: 66 }, { x, z: 112 }], 3.4);
+        }
+        break;
+      case "arriveJordan":
+        // quem ainda está no leito chega à outra margem antes de a água voltar
+        for (const e of this.npcs.values()) {
+          const t = e.story?.tag;
+          if (t !== "hebreu" && t !== "sacerdote" && e.story?.id !== "josue") continue;
+          const x = 50 + Math.random() * 28;
+          const z = 106 + Math.random() * 8;
+          this.paths.delete(e.story!.id);
+          e.body.x = x;
+          e.body.z = z;
+          e.body.y = this.groundY(x, z, 30);
+          e.body.vy = 0;
+          e.story!.goto = null;
+          e.story!.arrived = true;
+          e.story!.hold = true;
+        }
+        break;
       case "removeTag":
         for (const [id, e] of [...this.npcs.entries()]) {
           if (e.story?.tag !== String(arg)) continue;
