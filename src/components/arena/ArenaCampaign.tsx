@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { finishCampaign, startCampaign } from "@/lib/actions/arenaCampaign";
-import { CAMPAIGN_DECK, CAMPAIGN_STAGES, CAMPAIGN_TIERS, CAMPAIGN_XP, TIER_LABEL, stageBoost, stageUnlocked } from "@/lib/arena/campaign";
+import { CAMPAIGN_DECK, CAMPAIGN_STAGES, CAMPAIGN_TIERS, CAMPAIGN_XP, CAMPAIGN_XP_FEMALE_BONUS, TIER_LABEL, stageBoost, stageUnlocked } from "@/lib/arena/campaign";
 import { CAMPAIGN_CARDS, CAMPAIGN_COMBOS } from "@/lib/arena/campaignCards";
 import { ARENA_CARD_BY_KEY } from "@/lib/arena/cards";
 import { inDeployZone, inField, type Input } from "@/lib/arena/core";
@@ -176,7 +176,7 @@ export function ArenaCampaign({ open, admin, cleared: initialCleared, tiers: ini
       <section className="card p-3">
         <p className="text-lg font-black">🛡️ Campanha</p>
         <p className="mt-1 text-xs text-[var(--muted)]">
-          Enfrente os 8 personagens do ELOS, um por arena, do mais fraco ao mais forte. Você e o computador jogam com o mesmo baralho dos 8. Cada arena precisa ser vencida 3 vezes: a 1ª batalha no nível normal, a 2ª 15% mais difícil e a 3ª 25% mais difícil. Vencendo as 3, a próxima arena é liberada e você ganha +{CAMPAIGN_XP} XP.
+          Enfrente os 8 personagens do ELOS, um por arena, do mais fraco ao mais forte. Você e o computador jogam com o mesmo baralho dos 8. Cada arena precisa ser vencida 3 vezes: a 1ª batalha no nível normal, a 2ª 15% mais difícil e a 3ª 25% mais difícil. Vencendo as 3, a próxima arena é liberada e você ganha +{CAMPAIGN_XP} XP (Elos femininos ganham +{CAMPAIGN_XP_FEMALE_BONUS} XP a mais). As batalhas da campanha não contam nas partidas do dia e podem ser jogadas sem limite.
         </p>
         <p className="mt-2 text-xs font-bold">{cleared.length}/{CAMPAIGN_STAGES.length} arenas vencidas ({tiers.reduce((a, b) => a + b, 0)}/{CAMPAIGN_STAGES.length * CAMPAIGN_TIERS} batalhas){allDone ? " 🎉" : ""}</p>
         {!open ? <p className="mt-2 rounded-xl bg-amber-100 px-3 py-2 text-xs font-black text-amber-900">🔒 A campanha ainda não foi liberada. Você pode ver as cartas e as arenas, mas só consegue batalhar quando ela abrir{opensAt ? `: ${new Date(opensAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}` : ""}.</p> : null}

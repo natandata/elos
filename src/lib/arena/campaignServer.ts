@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { gameOpenFor } from "@/lib/games/releaseServer";
-import { CAMPAIGN_DECK, CAMPAIGN_MIN_SECONDS, CAMPAIGN_STAGES, CAMPAIGN_TIERS, CAMPAIGN_XP, stageBoost, stageUnlocked } from "./campaign";
+import { CAMPAIGN_DECK, CAMPAIGN_MIN_SECONDS, CAMPAIGN_STAGES, CAMPAIGN_TIERS, CAMPAIGN_XP, CAMPAIGN_XP_FEMALE_BONUS, stageBoost, stageUnlocked } from "./campaign";
 import { MATCH_TICKS, type Input } from "./core";
 import { MAX_INPUTS, simulate } from "./sim";
 
@@ -93,9 +93,12 @@ export async function settleCampaign(admin: SupabaseClient, userId: string, inpu
         const { data: upd } = await admin.from("arena_campaign_progress").update({ tiers: cur + 1, wins: row.wins + 1 }).eq("user_id", userId).eq("stage", match.stage).eq("tiers", cur).select("stage");
         advanced = !!upd && upd.length > 0;
         if (advanced && cur + 1 >= CAMPAIGN_TIERS && paid === 0) {
-          await admin.from("arena_campaign_progress").update({ xp_awarded: CAMPAIGN_XP }).eq("user_id", userId).eq("stage", match.stage);
+          // elos femininos ganham XP extra a cada arena conquistada
+          const { data: me } = await admin.from("profiles").select("elo_id").eq("id", userId).maybeSingle<{ elo_id: string | null }>();
+          const { data: elo } = me?.elo_id ? await admin.from("elos").select("gender").eq("id", me.elo_id).maybeSingle<{ gender: string }>() : { data: null };
+          xp = CAMPAIGN_XP + (elo?.gender === "female" ? CAMPAIGN_XP_FEMALE_BONUS : 0);
+          await admin.from("arena_campaign_progress").update({ xp_awarded: xp }).eq("user_id", userId).eq("stage", match.stage);
           firstClear = true;
-          xp = CAMPAIGN_XP;
           await admin.rpc("game_grant_xp", { p_user: userId, p_amount: xp, p_type: "game_arena" });
         }
       } else {

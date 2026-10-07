@@ -70,7 +70,13 @@ function whistle() {
 export function NeryCutscene({ onDone }: { onDone: () => void }) {
   const [ms, setMs] = useState(0);
   const stage = CAMPAIGN_STAGES[2];
-  const [scale] = useState(() => (typeof window !== "undefined" && window.innerWidth > 480 ? 0.26 : 0.2));
+  // escala pela tela (alta ou baixa): as 4 fileiras da tropa precisam caber inteiras
+  const [scale] = useState(() => {
+    if (typeof window === "undefined") return 0.2;
+    const rowH = (window.innerHeight * 0.69) / 4;
+    const colW = (Math.min(460, window.innerWidth) - 24) / 2;
+    return Math.max(0.1, Math.min(0.26, (rowH - 28) / 430, colW / 600));
+  });
 
   useEffect(() => {
     // carrega todas as poses antes, para a troca de imagem não piscar
@@ -119,19 +125,19 @@ export function NeryCutscene({ onDone }: { onDone: () => void }) {
         </div>
 
         {/* a tropa: entra andando, se abaixa e faz flexão */}
-        <div className="absolute inset-x-0 top-[20%] mx-auto grid w-full max-w-[460px] grid-cols-2 gap-x-2 gap-y-6 px-3">
+        <div className="absolute inset-x-0 bottom-[14%] top-[17%] mx-auto grid w-full max-w-[460px] grid-cols-2 grid-rows-4 gap-x-2 px-3">
           {SQUAD.map((k, i) => {
             const fromLeft = i % 2 === 0;
             const enterDelay = 0.2 + i * 0.22;
             const pose = poseOf(i);
             const [w, h] = DIM[k][pose];
             return (
-              <div key={k} className="relative flex h-[140px] items-end justify-center" style={{ animation: `${fromLeft ? "nyEnterL" : "nyEnterR"} 1.6s cubic-bezier(.2,.8,.3,1) ${enterDelay}s both` }}>
+              <div key={k} className={`relative flex items-end justify-center pb-6 ${i === SQUAD.length - 1 ? "col-span-2" : ""}`} style={{ animation: `${fromLeft ? "nyEnterL" : "nyEnterR"} 1.6s cubic-bezier(.2,.8,.3,1) ${enterDelay}s both` }}>
                 <div style={ms < 2100 ? { animation: `nyWalk .4s ease-in-out ${enterDelay}s infinite` } : undefined}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={src(k, pose)} alt={NAMES[k]} width={Math.round(w * scale)} height={Math.round(h * scale)} style={{ width: w * scale, height: h * scale, maxWidth: "none" }} className="drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)]" draggable={false} />
                 </div>
-                <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-black text-white/90">{NAMES[k]}</span>
+                <span className="absolute bottom-0 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-black text-white/90">{NAMES[k]}</span>
               </div>
             );
           })}

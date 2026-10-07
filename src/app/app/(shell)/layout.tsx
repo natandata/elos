@@ -3,6 +3,7 @@ import { AppShell, type NavItem } from "@/components/shell/AppShell";
 import { ThemeSetter } from "@/components/shell/ThemeSetter";
 import { ViewAsBanner } from "@/components/shell/ViewAsBanner";
 import { AnnouncementModal, type ActiveAnnouncement } from "@/components/announcements/AnnouncementModal";
+import { GenerosityPoll } from "@/components/announcements/GenerosityPoll";
 import { needsGuardianAck, needsStatusCheck, requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { ROLE_LABEL } from "@/lib/types";
@@ -145,7 +146,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const [eloRes, unreadRes, chatUnreadRes] = await Promise.all([
     profile.elo_id
-      ? supabase.from("elos").select("name").eq("id", profile.elo_id).maybeSingle()
+      ? supabase.from("elos").select("name, gender, age_range").eq("id", profile.elo_id).maybeSingle()
       : Promise.resolve({ data: null }),
     supabase
       .from("notifications")
@@ -189,6 +190,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       ) ?? null;
   }
 
+  // Pesquisa única do Elo Masculino 16–17 ("Você gostaria de ser mais generoso?"): só crias desse Elo, uma vez por pessoa
+  let generosity: { others: number } | null = null;
+  const eloInfo = eloRes.data as { name: string; gender?: string; age_range?: string } | null;
+  if (!viewingAs && !pending && profile.role === "cria" && eloInfo?.gender === "male" && eloInfo?.age_range === "16-17") {
+    const [{ data: answered }, { count: eloCount }] = await Promise.all([
+      supabase.from("elo_surveys").select("user_id").eq("user_id", profile.id).eq("survey", "generosidade").maybeSingle(),
+      supabase.from("elos").select("id", { count: "exact", head: true }),
+    ]);
+    if (!answered) generosity = { others: Math.max(0, (eloCount ?? 1) - 1) };
+  }
+
   const chatUnread = chatUnreadRes.count ?? 0;
   // selo de mensagens não lidas no Chat, esteja ele no topo ou dentro de um grupo
   const withChatBadge = (item: NavItem): NavItem => ({
@@ -224,6 +236,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       {announcement ? (
         <AnnouncementModal key={`${announcement.id}-${announcement.version}`} announcement={announcement} />
       ) : null}
+      {generosity && !announcement ? <GenerosityPoll others={generosity.others} /> : null}
     </>
   );
 }
