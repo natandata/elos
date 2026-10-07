@@ -29,9 +29,9 @@ export default async function AdminLojaPage() {
 
   return (
     <>
-      <PageHeader title="🛍️ Loja da Sala de Jogos" subtitle="Escolha quais jogos aparecem na vitrine, com data de lançamento ou em produção, e defina o preço em moedas." />
+      <PageHeader title="🛍️ Loja da Sala de Jogos" subtitle="Escolha quais jogos aparecem na vitrine, com data de lançamento ou em produção, e defina o preço em denários." />
       <StoreManager items={(data ?? []) as StoreItem[]} />
-      <h2 className="mb-2 mt-6 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">Moedas dos jogadores</h2>
+      <h2 className="mb-2 mt-6 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">Denários dos jogadores</h2>
       <CoinGrant users={users} />
     </>
   );

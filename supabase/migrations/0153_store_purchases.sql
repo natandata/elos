@@ -1,0 +1,2 @@
+-- Compra de jogos na Loja: store_items.game_key, game_purchases e a função store_buy (atômica; debita denários).
+-- (aplicada via MCP; ver as definições no banco)

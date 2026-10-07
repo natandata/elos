@@ -6,7 +6,7 @@ import { COIN, fmtCoins } from "@/lib/games/coins";
 
 export type CoinUser = { id: string; name: string; elo: string | null; balance: number };
 
-/** Admin: dá ou tira moedas de um jogador (a moeda ainda não é ganha jogando). */
+/** Admin: dá ou tira denários de um jogador (o denário ainda não é ganho jogando). */
 export function CoinGrant({ users }: { users: CoinUser[] }) {
   const [pending, start] = useTransition();
   const [userId, setUserId] = useState("");

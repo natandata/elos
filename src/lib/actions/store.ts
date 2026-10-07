@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { isGameKey } from "@/lib/games/catalog";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -11,10 +12,12 @@ export type StoreInput = {
   blurb: string;
   cover: string;
   href: string;
+  /** jogo do catálogo liberado pela compra ("" = nenhum) */
+  gameKey: string;
   status: "scheduled" | "dev";
   /** "AAAA-MM-DDTHH:mm" no horário de Brasília */
   releaseLocal: string;
-  /** preço em moedas ("" = sem preço) */
+  /** preço em denários ("" = sem preço) */
   price: string;
   active: boolean;
   sort: number;
@@ -60,7 +63,7 @@ export async function saveStoreItem(input: StoreInput): Promise<{ error?: string
   let price_coins: number | null = null;
   if (priceTxt) {
     const n = Number(priceTxt);
-    if (!Number.isInteger(n) || n < 0 || n > 1_000_000) return { error: "O preço precisa ser um número inteiro de moedas." };
+    if (!Number.isInteger(n) || n < 0 || n > 1_000_000) return { error: "O preço precisa ser um número inteiro de denários." };
     price_coins = n;
   }
   const row = {
@@ -69,6 +72,7 @@ export async function saveStoreItem(input: StoreInput): Promise<{ error?: string
     blurb: input.blurb.trim().slice(0, 200),
     cover,
     href: href && href.startsWith("/") ? href : null,
+    game_key: isGameKey(input.gameKey) ? input.gameKey : null,
     status: input.status,
     release_at,
     price_coins,
@@ -94,17 +98,28 @@ export async function deleteStoreItem(id: string): Promise<{ error?: string }> {
   return {};
 }
 
-/** Admin: dá (ou tira, com valor negativo) moedas de um jogador. */
+/** Admin: dá (ou tira, com valor negativo) denários de um jogador. */
 export async function grantCoins(userId: string, amount: number, reason: string): Promise<{ error?: string; balance?: number }> {
   const db = await adminOnly();
   if (!db) return { error: "Sem permissão." };
-  if (!Number.isInteger(amount) || amount === 0 || Math.abs(amount) > 1_000_000) return { error: "Informe uma quantidade inteira de moedas." };
+  if (!Number.isInteger(amount) || amount === 0 || Math.abs(amount) > 1_000_000) return { error: "Informe uma quantidade inteira de denários." };
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   const { data, error } = await db.rpc("coin_adjust", { p_user: userId, p_delta: amount, p_reason: reason.trim().slice(0, 120) || "Ajuste do admin", p_by: user?.id ?? null });
-  if (error) return { error: amount < 0 ? "O jogador não tem moedas suficientes." : "Não foi possível dar as moedas." };
+  if (error) return { error: amount < 0 ? "O jogador não tem denários suficientes." : "Não foi possível dar os denários." };
   revalidatePath("/app/jogos");
   return { balance: Number(data) };
+}
+
+/** Jogador: compra um jogo da Loja com denários (a função do banco confere saldo e já ter comprado). */
+export async function buyStoreItem(itemId: string): Promise<{ error?: string; balance?: number }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("store_buy", { p_item: itemId });
+  if (error || !data) return { error: "Não foi possível comprar agora." };
+  const r = data as { error?: string; balance?: number };
+  if (r.error) return { error: r.error };
+  revalidatePath("/app/jogos", "layout");
+  return { balance: r.balance };
 }

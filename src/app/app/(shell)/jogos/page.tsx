@@ -12,6 +12,7 @@ import { arenaAsleep } from "@/lib/games/curfew";
 import { DressTeaserText } from "@/components/games/dress/DressTeaser";
 import type { GameKey } from "@/lib/games/catalog";
 import { GAME_TEASER, isReleased } from "@/lib/games/release";
+import { lockedGames } from "@/lib/games/storeAccess";
 import { StoreGallery } from "@/components/games/StoreGallery";
 import { STORE_COLUMNS, type StoreItem } from "@/lib/games/store";
 import { gameOpenFor, getVisibilities, isHiddenFor } from "@/lib/games/releaseServer";
@@ -29,7 +30,7 @@ export default async function JogosPage() {
   const { profile } = await requireRole("cria", "leader", "admin");
   const supabase = await createClient();
 
-  const [plays, cardsRes, duelsRes, weekRes, boardRes, storeRes, walletRes] = await Promise.all([
+  const [plays, cardsRes, duelsRes, weekRes, boardRes, storeRes, walletRes, ownedRes] = await Promise.all([
     todaysPlays(supabase, profile.id),
     supabase.from("user_cards").select("card_key", { count: "exact", head: true }).eq("user_id", profile.id),
     supabase
@@ -42,12 +43,15 @@ export default async function JogosPage() {
     supabase.rpc("game_elo_board"),
     supabase.from("store_items").select(STORE_COLUMNS).eq("active", true).order("sort").order("created_at"),
     supabase.from("coin_wallets").select("balance").eq("user_id", profile.id).maybeSingle<{ balance: number }>(),
+    supabase.from("game_purchases").select("item_id").eq("user_id", profile.id),
   ]);
   const coinBalance = walletRes.data?.balance ?? 0;
+  const ownedIds = ((ownedRes.data ?? []) as { item_id: string }[]).map((o) => o.item_id);
   const storeItems = (storeRes.data ?? []) as StoreItem[];
 
   const [dressOpen, mineOpen, rushOpen, vis] = await Promise.all([gameOpenFor("dress", profile.id), gameOpenFor("minearena", profile.id), gameOpenFor("biblerush", profile.id), getVisibilities()]);
-  const hide = (k: GameKey) => isHiddenFor(vis[k], profile.role);
+  const locked = await lockedGames(supabase, profile.id, profile.role);
+  const hide = (k: GameKey) => isHiddenFor(vis[k], profile.role) || locked.has(k);
   const showTile = (t: Tile) => !hide(t.game === "verse" ? "verse" : (t.game as GameKey));
   const tiles = TILES.filter(showTile);
   const streak = liveGameStreak(profile.game_streak ?? 0, profile.game_streak_date ?? null);
@@ -145,7 +149,7 @@ export default async function JogosPage() {
         </Link>
       )}
 
-      <StoreGallery items={storeItems} balance={coinBalance} />
+      <StoreGallery items={storeItems} balance={coinBalance} ownedIds={ownedIds} />
 
       {hide("biblerush") || !rushOpen ? null : (
         <Link href="/app/jogos/biblerush" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-amber-400 bg-gradient-to-br from-[#1f3a5f] via-[#2e5a7a] to-[#c9a15a] p-4 shadow-lg transition active:scale-[0.99]">
