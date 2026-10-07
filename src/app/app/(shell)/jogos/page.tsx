@@ -13,6 +13,7 @@ import { DressTeaserText } from "@/components/games/dress/DressTeaser";
 import type { GameKey } from "@/lib/games/catalog";
 import { GAME_TEASER, isReleased } from "@/lib/games/release";
 import { lockedGames } from "@/lib/games/storeAccess";
+import { XpExchange } from "@/components/games/XpExchange";
 import { StoreGallery } from "@/components/games/StoreGallery";
 import { STORE_COLUMNS, type StoreItem } from "@/lib/games/store";
 import { gameOpenFor, getVisibilities, isHiddenFor } from "@/lib/games/releaseServer";
@@ -30,7 +31,7 @@ export default async function JogosPage() {
   const { profile } = await requireRole("cria", "leader", "admin");
   const supabase = await createClient();
 
-  const [plays, cardsRes, duelsRes, weekRes, boardRes, storeRes, walletRes, ownedRes] = await Promise.all([
+  const [plays, cardsRes, duelsRes, weekRes, boardRes, storeRes, walletRes, ownedRes, xpRes, rateRes] = await Promise.all([
     todaysPlays(supabase, profile.id),
     supabase.from("user_cards").select("card_key", { count: "exact", head: true }).eq("user_id", profile.id),
     supabase
@@ -44,7 +45,12 @@ export default async function JogosPage() {
     supabase.from("store_items").select(STORE_COLUMNS).eq("active", true).order("sort").order("created_at"),
     supabase.from("coin_wallets").select("balance").eq("user_id", profile.id).maybeSingle<{ balance: number }>(),
     supabase.from("game_purchases").select("item_id").eq("user_id", profile.id),
+    supabase.from("profiles").select("xp, xp_exchanged").eq("id", profile.id).maybeSingle<{ xp: number | null; xp_exchanged: number }>(),
+    supabase.from("coin_settings").select("xp_per_coin").eq("id", 1).maybeSingle<{ xp_per_coin: number }>(),
   ]);
+  const availableXp = Math.max(0, (xpRes.data?.xp ?? 0) - (xpRes.data?.xp_exchanged ?? 0));
+  const xpRate = rateRes.data?.xp_per_coin ?? 10;
+  const earlyExchange = profile.role === "admin" || (profile as { is_test_account?: boolean }).is_test_account === true;
   const coinBalance = walletRes.data?.balance ?? 0;
   const ownedIds = ((ownedRes.data ?? []) as { item_id: string }[]).map((o) => o.item_id);
   const storeItems = (storeRes.data ?? []) as StoreItem[];
@@ -150,6 +156,7 @@ export default async function JogosPage() {
       )}
 
       <StoreGallery items={storeItems} balance={coinBalance} ownedIds={ownedIds} />
+      <XpExchange availableXp={availableXp} rate={xpRate} early={earlyExchange} />
 
       {hide("biblerush") || !rushOpen ? null : (
         <Link href="/app/jogos/biblerush" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-amber-400 bg-gradient-to-br from-[#1f3a5f] via-[#2e5a7a] to-[#c9a15a] p-4 shadow-lg transition active:scale-[0.99]">

@@ -1,0 +1,2 @@
+-- Troca de XP por denários (abre em 01/11/2026): profiles.xp_exchanged, coin_settings e a função xp_exchange.
+-- (aplicada via MCP; ver as definições no banco)
