@@ -42,6 +42,8 @@ function Card({ item, owned, balance }: { item: StoreItem; owned: boolean; balan
   const p = left ? parts(left) : null;
   const forSale = item.price_coins !== null && (scheduled || !!item.game_key);
   const needsBuy = forSale && !owned;
+  // jogo com data de lançamento só pode ser comprado a partir dela
+  const buyOpen = !scheduled || released;
   const open = released && !!item.href && !needsBuy;
   const price = item.price_coins ?? 0;
 
@@ -85,13 +87,13 @@ function Card({ item, owned, balance }: { item: StoreItem; owned: boolean; balan
           <span className="mt-2 mr-2 inline-block rounded-full bg-amber-100 px-3 py-0.5 text-[11px] font-black text-amber-900">{item.price_coins === 0 ? "Grátis" : fmtCoins(item.price_coins)}</span>
         ) : null}
         {owned && forSale ? <span className="mt-2 mr-2 inline-block rounded-full bg-emerald-100 px-3 py-0.5 text-[11px] font-black text-emerald-800">✅ Comprado</span> : null}
-        {needsBuy ? (
+        {needsBuy && !buyOpen ? <span className="mt-2 inline-block rounded-full bg-[var(--line)] px-3 py-0.5 text-[11px] font-black text-[var(--muted)]">Compra abre na data de lançamento</span> : null}
+        {needsBuy && buyOpen ? (
           <button type="button" disabled={pending || balance < price} onClick={buy} className="mt-2 inline-block rounded-full bg-emerald-600 px-3 py-0.5 text-[11px] font-black text-white disabled:opacity-50">
             {pending ? "Comprando…" : price === 0 ? "Pegar grátis" : balance < price ? `Faltam ${(price - balance).toLocaleString("pt-BR")} ${COIN.emoji}` : "🛒 Comprar"}
           </button>
         ) : null}
         {open ? <span className="mt-2 inline-block rounded-full bg-rose-600 px-3 py-0.5 text-[11px] font-black text-white">▶ JOGAR</span> : null}
-        {owned && forSale && scheduled && !released ? <span className="mt-1 block text-[11px] font-bold text-emerald-700">Já é seu: libera na data de lançamento.</span> : null}
         {err ? <span className="mt-1 block text-[11px] font-bold text-rose-600">{err}</span> : null}
         {!scheduled && !forSale ? <span className="mt-2 inline-block rounded-full bg-[var(--line)] px-3 py-0.5 text-[11px] font-black text-[var(--muted)]">Estamos construindo</span> : null}
       </span>

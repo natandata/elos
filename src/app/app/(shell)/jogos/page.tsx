@@ -55,7 +55,7 @@ export default async function JogosPage() {
   const ownedIds = ((ownedRes.data ?? []) as { item_id: string }[]).map((o) => o.item_id);
   const storeItems = (storeRes.data ?? []) as StoreItem[];
 
-  const [dressOpen, mineOpen, rushOpen, vis] = await Promise.all([gameOpenFor("dress", profile.id), gameOpenFor("minearena", profile.id), gameOpenFor("biblerush", profile.id), getVisibilities()]);
+  const [dressOpen, mineOpen, rushOpen, soccerOpen, vis] = await Promise.all([gameOpenFor("dress", profile.id), gameOpenFor("minearena", profile.id), gameOpenFor("biblerush", profile.id), gameOpenFor("arenasoccer", profile.id), getVisibilities()]);
   const locked = await lockedGames(supabase, profile.id, profile.role);
   const hide = (k: GameKey) => isHiddenFor(vis[k], profile.role) || locked.has(k);
   const showTile = (t: Tile) => !hide(t.game === "verse" ? "verse" : (t.game as GameKey));
@@ -152,6 +152,17 @@ export default async function JogosPage() {
               Abre em <DressTeaserText game="minearena" />
             </span>
           </span>
+        </Link>
+      )}
+
+      {hide("arenasoccer") || !soccerOpen ? null : (
+        <Link href="/app/jogos/arenasoccer" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-emerald-400 bg-gradient-to-br from-[#0d3b22] via-[#146c3a] to-[#0b2a1a] p-4 shadow-lg transition active:scale-[0.99]">
+          <span className="absolute -right-2 -top-3 text-7xl opacity-30" aria-hidden>
+            ⚽
+          </span>
+          <p className="text-2xl font-black tracking-wide text-white [text-shadow:0_2px_0_#04180d]">ARENASOCCER</p>
+          <p className="mt-0.5 text-sm font-bold text-emerald-100">Futebol arcade de física: um botão de chute.</p>
+          <span className="mt-3 inline-block rounded-full bg-rose-600 px-3 py-0.5 text-[11px] font-black text-white">▶ JOGAR</span>
         </Link>
       )}
 

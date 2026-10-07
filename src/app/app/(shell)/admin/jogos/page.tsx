@@ -10,7 +10,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { ArenaDifficulty } from "@/components/games/ArenaDifficulty";
 import { loadArenaDifficulty } from "@/lib/arena/difficultyServer";
 
-const RELEASE_TITLES: Record<ReleasedGame, string> = { dress: "👗 Vista o Herói (inclui a Passarela)", minearena: "⛏️ MineArena", biblerush: "🛶 Bible Rush" };
+const RELEASE_TITLES: Record<ReleasedGame, string> = { dress: "👗 Vista o Herói (inclui a Passarela)", minearena: "⛏️ MineArena", biblerush: "🛶 Bible Rush", arenasoccer: "⚽ ArenaSoccer" };
 
 type Game = { href: string; emoji: string; title: string; hint: string; release?: keyof typeof GAME_RELEASES; needsElo?: boolean };
 
@@ -30,6 +30,7 @@ const GAMES: Game[] = [
   { href: "/app/jogos/vestir/passarela", emoji: "📸", title: "Passarela (Vista o Herói)", hint: "Look livre, votação e prêmios", release: "dress" },
   { href: "/app/jogos/minearena", emoji: "⛏️", title: "MineArena", hint: "Sandbox voxel 3D: construir, explorar e enfrentar", release: "minearena" },
   { href: "/app/jogos/biblerush", emoji: "🛶", title: "Bible Rush", hint: "Gerenciamento de tempo bíblico: Noé, Reunindo os Animais", release: "biblerush" },
+  { href: "/app/jogos/arenasoccer", emoji: "⚽", title: "ArenaSoccer", hint: "Futebol arcade 2D de física, 1x1 a 4x4 contra o computador (vendido na Loja)", release: "arenasoccer" },
   { href: "/app/jogos/colecao", emoji: "🃏", title: "Coleção de cartas", hint: "Cartas ganhas nos jogos" },
 ];
 
