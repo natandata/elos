@@ -3,7 +3,7 @@ import type { StoryProgress } from "./types";
 
 const KEY = "minearena:story:v1";
 
-export const freshProgress = (): StoryProgress => ({ completed: [], books: [], achievements: [], current: null, seenLearn: [], otDone: false });
+export const freshProgress = (): StoryProgress => ({ completed: [], books: [], achievements: [], current: null, seenLearn: [], otDone: false, puzzles: [], relics: [] });
 
 export function loadProgress(): StoryProgress {
   try {
@@ -11,7 +11,7 @@ export function loadProgress(): StoryProgress {
     if (!raw) return freshProgress();
     const d = JSON.parse(raw) as Partial<StoryProgress>;
     const strs = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
-    return { completed: strs(d.completed), books: strs(d.books), achievements: strs(d.achievements), current: typeof d.current === "string" ? d.current : null, seenLearn: strs(d.seenLearn), otDone: d.otDone === true };
+    return { completed: strs(d.completed), books: strs(d.books), achievements: strs(d.achievements), current: typeof d.current === "string" ? d.current : null, seenLearn: strs(d.seenLearn), otDone: d.otDone === true, puzzles: strs(d.puzzles), relics: strs(d.relics) };
   } catch {
     return freshProgress();
   }

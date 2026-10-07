@@ -1,4 +1,4 @@
-// Mapas da Fase 5 (início): Os Espias (Canaã), Moisés e a Terra Prometida (monte Nebo), Raabe e Jericó (a cidade murada) e Josué e o Jordão (a travessia).
+// Mapas da Fase 5 (início): Os Espias (Canaã), Moisés e a Terra Prometida (monte Nebo), Raabe e Jericó (em ./jerico) e Josué e o Jordão (a travessia).
 import { B } from "../../blocks/blocks";
 import { fbm2 } from "../../world/noise";
 import type { StoryMapDef } from "../types";
@@ -131,103 +131,6 @@ const nebo: MapSpec = {
   },
 };
 export const NEBO_MAP: StoryMapDef = makeMap(nebo);
-
-// ============================================================ JERICÓ (Raabe e a queda das muralhas)
-export const JERICO = { x0: 52, z0: 56, x1: 92, z1: 96, t: 2, h: 8, gate: { x0: 70, x1: 74 }, raabe: { x: 56, z: 77 }, window: { x: 49, z: 77 } };
-type Block = [number, number, number, number];
-
-/** Os blocos da muralha de Jericó (com o portão aberto e a janela de Raabe). `fallen` devolve só o que cai quando as muralhas desabam. */
-export function jericoWall(): Block[] {
-  const { x0, z0, x1, z1, t, h, gate } = JERICO;
-  const out: Block[] = [];
-  for (let x = x0; x <= x1; x++) {
-    for (let z = z0; z <= z1; z++) {
-      const edge = Math.min(x - x0, x1 - x, z - z0, z1 - z);
-      if (edge >= t) continue;
-      const inGate = z - z0 < t && x >= gate.x0 && x <= gate.x1;
-      const inWindow = x - x0 < t && z >= JERICO.window.z - 1 && z <= JERICO.window.z && !inGate;
-      for (let y = 25; y <= 24 + h; y++) {
-        if (inGate && y <= 24 + h - 2) continue;
-        if (inWindow && (y === 27 || y === 28)) continue;
-        out.push([x, y, z, (x + y + z) % 5 === 0 ? B.sandstone : B.brick]);
-      }
-    }
-  }
-  // torres nos cantos
-  for (const [tx, tz] of [[x0 - 1, z0 - 1], [x1 - 3, z0 - 1], [x0 - 1, z1 - 3], [x1 - 3, z1 - 3]]) {
-    for (let y = 25; y <= 36; y++) for (let dx = 0; dx < 5; dx++) for (let dz = 0; dz < 5; dz++) if (y <= 33 || dx % 2 === 0 || dz % 2 === 0) out.push([tx + dx, y, tz + dz, B.sandstone]);
-  }
-  return out;
-}
-/** A parte da muralha que fica de pé: a casa de Raabe (Josué 6:22–25). */
-const raabeSpared = (x: number, z: number): boolean => x <= JERICO.x0 + 1 && z >= 70 && z <= 84;
-
-const jerico: MapSpec = {
-  id: "jerico",
-  name: "Jericó, a cidade das palmeiras",
-  w: 144,
-  d: 144,
-  seed: 14141,
-  time: 0.14,
-  bgm: "jerico",
-  spawn: { x: 72, z: 14, yaw: Math.PI },
-  zones: {
-    start: { x: 72, z: 14, r: 5 },
-    acampamento: { x: 72, z: 18, r: 12 },
-    cidade: { x: 72, z: 62, r: 6 },
-    casa: { x: 57, z: 77, r: 4 },
-    janela: { x: JERICO.window.x, z: JERICO.window.z, r: 3 },
-    montes: { x: 22, z: 100, r: 6 },
-    c1: { x: 44, z: 46, r: 5 },
-    c2: { x: 100, z: 46, r: 5 },
-    c3: { x: 100, z: 106, r: 5 },
-    c4: { x: 44, z: 106, r: 5 },
-    cerco: { x: 72, z: 42, r: 6 },
-  },
-  base: 24,
-  amp: 1,
-  scale: 40,
-  flat: [
-    { x: 72, z: 76, r: 36, h: 24 },
-    { x: 72, z: 18, r: 14, h: 24 },
-    { x: 72, z: 14, r: 6, h: 24 },
-    { x: 72, z: 76, r: 62, h: 24 },
-  ],
-  surf: (x, z, k) => {
-    k.top = fbm2(14141 + 3, x / 26, z / 26, 2) > 0.58 ? B.sand : B.dry_grass;
-    if (k.top === B.sand) k.sub = B.sandstone;
-    // as colinas a oeste, onde os espias se escondem
-    const d = Math.hypot(x - 14, z - 100);
-    if (d < 24) {
-      k.h = Math.max(k.h, 24 + Math.round(12 * (1 - d / 24)));
-      k.top = B.stone;
-      k.sub = B.stone;
-    }
-  },
-  tree: () => null,
-  cover: (x, z, r, k) => (k.top === B.dry_grass && r < 0.08 && Math.hypot(x - 72, z - 76) > 30 ? B.tallgrass : 0),
-  extra: (c: ChunkCtx) => {
-    for (const [dx, dz] of [[-10, -3], [10, -3], [-5, 5], [6, 5], [0, -9], [-14, 4], [14, 4]]) tent(c, 72 + dx - 2, 24, 18 + dz - 2);
-    for (const [x, y, z, id] of jericoWall()) c.set(x, y, z, id);
-    // a casa de Raabe, encostada na muralha, e as casas da cidade
-    house(c, 54, 24, 74, 6, 7, 4, B.sandstone, B.planks, 2);
-    c.fill(54, 27, 76, 54, 28, 77, B.air);
-    for (const [hx, hz] of [[62, 62], [78, 62], [60, 86], [76, 86], [86, 70], [64, 70], [80, 78]]) house(c, hx, 24, hz, 5, 5, 4, B.sandstone, B.planks, 1);
-    for (const [px, pz] of [[38, 60], [106, 62], [34, 90], [110, 92], [60, 116], [90, 118], [20, 56], [120, 54]]) palm(c, px, groundOf(jerico, px, pz), pz, 6);
-  },
-};
-export const JERICO_MAP: StoryMapDef = makeMap(jerico);
-
-/** Os blocos que desabam com o grito (menos a casa de Raabe); o chão vira entulho. */
-export function jericoFall(): Block[] {
-  const out: Block[] = [];
-  for (const [x, y, z] of jericoWall()) {
-    if (raabeSpared(x, z)) continue;
-    if (y === 25 && (x + z) % 3 === 0) out.push([x, y, z, B.cobble]);
-    else out.push([x, y, z, B.air]);
-  }
-  return out.sort((a, b) => b[1] - a[1]);
-}
 
 // ============================================================ O JORDÃO
 export const JORDAO = { z0: 70, z1: 100, level: 23, cx: 64 };

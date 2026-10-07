@@ -1,5 +1,6 @@
 // Missões da campanha. Cada missão: objetivos em ordem, cena ao começar/concluir, quem aparece e a recompensa.
 import type { Mission } from "../types";
+import { PUZZLES } from "./puzzles";
 import { EXODUS_MISSIONS } from "./exodus";
 import { GENESIS_MISSIONS } from "./genesis";
 import { SINAI_MISSIONS } from "./sinai";
@@ -7,7 +8,7 @@ import { CONQUISTA_MISSIONS } from "./conquista";
 
 const A = (mob: string, x: number, z: number, tag = "animal"): NonNullable<Mission["spawn"]>[number] => ({ mob, at: { x, z }, tag });
 
-export const MISSIONS: Mission[] = [
+const BASE_MISSIONS: Mission[] = [
   ...GENESIS_MISSIONS,
   ...EXODUS_MISSIONS,
   ...SINAI_MISSIONS,
@@ -249,6 +250,23 @@ export const MISSIONS: Mission[] = [
     onComplete: "noah_flood",
   },
 ];
+
+/** Cada capítulo ganha uma missão de desafio (puzzle), logo antes da missão final. */
+function withPuzzles(list: Mission[]): Mission[] {
+  const out = [...list];
+  for (const [chapter, pz] of Object.entries(PUZZLES)) {
+    const ms = list.filter((m) => m.chapter === chapter);
+    if (ms.length < 2) continue;
+    const last = ms.find((m) => !m.next) ?? ms[ms.length - 1];
+    const prev = ms.find((m) => m.next === last.id);
+    if (!prev) continue;
+    const mission: Mission = { id: `${chapter}_pz`, chapter, title: "O desafio", desc: pz.title, ref: pz.refs[0], objectives: [{ k: "puzzle", puzzle: chapter, text: `Resolva o desafio: ${pz.title}.` }], next: last.id };
+    prev.next = mission.id;
+    out.splice(out.indexOf(last), 0, mission);
+  }
+  return out;
+}
+export const MISSIONS: Mission[] = withPuzzles(BASE_MISSIONS);
 
 export const MISSION_BY_ID = new Map(MISSIONS.map((m) => [m.id, m]));
 export const MISSIONS_OF = (chapter: string): Mission[] => MISSIONS.filter((m) => m.chapter === chapter);

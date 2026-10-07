@@ -2,7 +2,8 @@
 import { B } from "../../blocks/blocks";
 import { SHINAR, BERSEBA } from "./genesis";
 import { SEA, seaFloor } from "./exodus";
-import { JORDAO, jericoFall, riverFloor } from "./conquista";
+import { JORDAO, riverFloor } from "./conquista";
+import { jericoFall } from "./jerico";
 import { DESERTO, SINAI, TAB } from "./sinai";
 
 type Block = [number, number, number, number];

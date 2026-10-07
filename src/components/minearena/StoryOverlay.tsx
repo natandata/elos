@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { HudState, MineArena } from "@/lib/minearena/game";
 import { ACH_BY_ID } from "@/lib/minearena/story/data/achievements";
 import { BOOK_BY_ID } from "@/lib/minearena/story/data/books";
+import { StoryPuzzle } from "./StoryPuzzle";
 import type { StoryUi } from "@/lib/minearena/story/types";
 
 const CPS = 55;
@@ -62,7 +63,26 @@ const voiceClass = (who: string) => (who === "Deus" ? "ms-who-god" : who === "Na
 /** Camada do Modo História sobre o jogo: objetivo, marcador, cutscenes, diálogos e telas de aprendizado. */
 export function StoryOverlay({ game, ui, hud }: { game: MineArena; ui: StoryUi | null; hud: HudState }) {
   const [history, setHistory] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [help, setHelp] = useState<ReturnType<MineArena["storyHelp"]>>(null);
   const dlg = ui?.dialogue ?? null;
+
+  // painéis abertos precisam do cursor livre (o jogo prende o mouse)
+  useEffect(() => {
+    game.storyHoldUi(helpOpen || history);
+    return () => game.storyHoldUi(false);
+  }, [helpOpen, history, game]);
+
+  // dicas: atualiza a cada segundo enquanto o painel está aberto
+  useEffect(() => {
+    if (!helpOpen) return;
+    const first = window.setTimeout(() => setHelp(game.storyHelp()), 0);
+    const id = window.setInterval(() => setHelp(game.storyHelp()), 1000);
+    return () => {
+      window.clearTimeout(first);
+      window.clearInterval(id);
+    };
+  }, [helpOpen, game]);
 
   // Enter / Espaço avançam a fala
   useEffect(() => {
@@ -95,6 +115,16 @@ export function StoryOverlay({ game, ui, hud }: { game: MineArena; ui: StoryUi |
           <p className="ms-obj-meta">
             {st.dist !== null ? <span>📍 {st.dist} m</span> : null}
             {st.ref ? <span>📖 {st.ref}</span> : null}
+          </p>
+          <p className="ms-obj-tools">
+            {st.puzzle ? (
+              <button type="button" className="ms-mini" onClick={() => game.storyOpenPuzzle()}>
+                🧩 Abrir desafio
+              </button>
+            ) : null}
+            <button type="button" className="ms-mini" onClick={() => setHelpOpen(true)}>
+              🔍 Relíquia e dicas
+            </button>
           </p>
         </div>
       ) : null}
@@ -141,6 +171,67 @@ export function StoryOverlay({ game, ui, hud }: { game: MineArena; ui: StoryUi |
         <button type="button" className="ms-skip" onClick={() => game.storySkip()}>
           Pular cena ⏭
         </button>
+      ) : null}
+
+      {/* desafio do capítulo */}
+      {ui.puzzle && !dlg ? <StoryPuzzle key={ui.puzzle.id} def={ui.puzzle} onSolve={() => game.storyPuzzleSolved()} onSkip={() => game.storyPuzzleSkip()} onClose={() => game.storyPuzzleClose()} /> : null}
+
+      {/* relíquia achada */}
+      {ui.relic ? (
+        <div className="ms-modal ms-learn" role="dialog" aria-label="Relíquia encontrada">
+          <div className="ms-panel">
+            <p className="ms-learn-k">RELÍQUIA ENCONTRADA</p>
+            <p className="ms-relic-emoji" aria-hidden>
+              {ui.relic.emoji}
+            </p>
+            <h2>{ui.relic.name}</h2>
+            <p>{ui.relic.desc}</p>
+            <p className="ms-note">Ela foi guardada na sua coleção de relíquias, no menu da campanha.</p>
+            <button type="button" className="ms-btn ms-btn-gold" onClick={() => game.storyDismissRelic()}>
+              {ui.relic.hunt ? "VOLTAR AO MENU" : "CONTINUAR"}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {/* dicas da relíquia e do desafio */}
+      {helpOpen && !ui.puzzle && !ui.relic ? (
+        <div className="ms-modal" role="dialog" aria-label="Relíquia e dicas" onClick={() => setHelpOpen(false)}>
+          <div className="ms-panel" onClick={(e) => e.stopPropagation()}>
+            <h3>🔍 Relíquia e dicas</h3>
+            {help && help.has ? (
+              <>
+                <h4>Relíquia escondida</h4>
+                {help.found ? (
+                  <p>✅ Você já achou a relíquia deste capítulo.</p>
+                ) : (
+                  <>
+                    <p>Há uma relíquia enterrada neste capítulo. Quando você chegar perto, o chão brilha de leve: cave ali com as mãos (ou uma pá).</p>
+                    <ul className="ms-pz-hints">
+                      {help.hints.map((h, i) => (
+                        <li key={i}>💡 {h}</li>
+                      ))}
+                    </ul>
+                    {help.nextIn !== null ? (
+                      <p className="ms-note">
+                        Próxima dica em {Math.floor(help.nextIn / 60)}:{String(help.nextIn % 60).padStart(2, "0")} de jogo.
+                      </p>
+                    ) : null}
+                  </>
+                )}
+              </>
+            ) : null}
+            {help && help.puzzle !== "none" && !help.hunt ? (
+              <>
+                <h4>Desafio do capítulo</h4>
+                <p>{help.puzzle === "solved" ? "✅ Resolvido." : help.puzzle === "skipped" ? "Você seguiu sem resolver." : "🧩 Ainda não resolvido: ele aparece mais adiante na história."}</p>
+              </>
+            ) : null}
+            <button type="button" className="ms-btn" onClick={() => setHelpOpen(false)}>
+              Fechar
+            </button>
+          </div>
+        </div>
       ) : null}
 
       {/* histórico de falas */}
@@ -223,6 +314,11 @@ export function StoryOverlay({ game, ui, hud }: { game: MineArena; ui: StoryUi |
                   🏅 {ACH_BY_ID.get(ui.chapterEnd.achievement)?.name ?? ui.chapterEnd.achievement}
                 </p>
               </>
+            ) : null}
+            <h4>Desafio e relíquia</h4>
+            <p>{ui.chapterEnd.puzzle ? "🧩 Desafio resolvido." : "🧩 Desafio não resolvido (você pode tentar de novo ao jogar o capítulo outra vez)."}</p>
+            {ui.chapterEnd.relic !== "none" ? (
+              <p>{ui.chapterEnd.relic === "found" ? "🏺 Relíquia encontrada." : "🏺 Relíquia ainda escondida: procure por ela no menu da campanha, em Capítulos."}</p>
             ) : null}
             <button type="button" className="ms-btn ms-btn-gold" onClick={() => game.storyContinue()}>
               CONTINUAR

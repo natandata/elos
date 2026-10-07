@@ -15,6 +15,8 @@ import { EDEN_SITES } from "./maps/eden";
 import { STRUCTS } from "./maps/structs";
 import { SEA } from "./maps/exodus";
 import { loadProgress, saveProgress } from "./progress";
+import { PUZZLES } from "./data/puzzles";
+import { RELICS, relicBearing } from "./data/relics";
 import type { ChapterDef, CutStep, Cutscene, MapEnv, Mission, Objective, StoryHud, StoryMapDef, StoryProgress, StorySession, StoryUi, Vec3, Zone } from "./types";
 
 export interface StoryHost {
@@ -65,7 +67,7 @@ const FALL_MAP = new Map<number, number>([
 export class StoryDirector {
   session: StorySession;
   progress: StoryProgress;
-  ui: StoryUi = { dialogue: null, caption: null, cinematic: false, bars: false, fade: 0, fadeText: "", learn: null, chapterEnd: null, finale: false, history: [] };
+  ui: StoryUi = { dialogue: null, caption: null, cinematic: false, bars: false, fade: 0, fadeText: "", learn: null, chapterEnd: null, finale: false, puzzle: null, relic: null, history: [] };
   readonly chapter: ChapterDef;
   /** câmera da cutscene (null = câmera normal do jogador) */
   cine: { pos: Vec3; look: Vec3 } | null = null;
@@ -123,6 +125,20 @@ export class StoryDirector {
     this.host.setTime(this.map.time, true);
     this.host.music(this.session.env.fallen ? "fall" : this.map.bgm);
     if (this.session.env.fallen) this.host.setWeather("clear");
+    if (this.session.flags.hunt) {
+      // caça à relíquia: sem missões, só explorar o mapa e cavar
+      if (this.chapter.id === "queda" && !this.session.env.fallen) {
+        this.session.env.fallen = true;
+        this.host.world.replaceIds(FALL_MAP);
+      }
+      if (fresh) {
+        const sp0 = this.standSpot(this.map.spawn.x + 0.5, this.map.spawn.z + 0.5);
+        if (sp0) this.host.setPlayer(sp0.x, sp0.y, sp0.z, this.map.spawn.yaw);
+        this.host.message("Procure a relíquia escondida deste capítulo. As dicas ficam no botão 🔍.", "info");
+      }
+      this.mission = null;
+      return;
+    }
     if (!fresh) {
       for (const n of this.session.npcs) this.spawnNpc(n.id, n.mob, n.x, n.z, n.tag, false, n.y);
       if (this.session.flags.arkBuilt) {
@@ -210,7 +226,8 @@ export class StoryDirector {
     this.stepTime(dt);
     this.stepEffects(dt);
     if (this.shakeT > 0) this.shakeT = Math.max(0, this.shakeT - dt);
-    if (!this.runner && !this.dlg && !this.ui.learn && !this.ui.chapterEnd && !this.ui.finale && this.mission && !this.busyMission) this.checkObjective(dt);
+    if (!this.runner && !this.dlg && !this.ui.learn && !this.ui.chapterEnd && !this.ui.finale && !this.ui.puzzle && !this.ui.relic && this.mission && !this.busyMission) this.checkObjective(dt);
+    this.stepRelic(dt);
     this.emitT += dt;
     if (this.dirty && this.emitT > 0.04) {
       this.emitT = 0;
@@ -221,7 +238,7 @@ export class StoryDirector {
 
   /** Cutscene ou diálogo ocupando a tela: o jogador não anda nem interage. */
   get blocking(): boolean {
-    return !!this.runner || !!this.dlg || !!this.ui.learn || !!this.ui.chapterEnd || this.ui.finale;
+    return !!this.runner || !!this.dlg || !!this.ui.learn || !!this.ui.chapterEnd || this.ui.finale || !!this.ui.puzzle || !!this.ui.relic;
   }
 
   get shake(): number {
@@ -395,6 +412,12 @@ export class StoryDirector {
         if (this.flags.has(`ev:${o.event}`)) {
           this.flags.delete(`ev:${o.event}`);
           this.completeObjective();
+        }
+        break;
+      case "puzzle":
+        if (!this.flags.has(`pz:${o.puzzle}`)) {
+          this.flags.add(`pz:${o.puzzle}`);
+          this.openPuzzle();
         }
         break;
       case "talk":
@@ -1280,6 +1303,9 @@ export class StoryDirector {
           e.story.hold = true;
         }
         break;
+      case "fell":
+        this.session.env.fell = true;
+        break;
       case "priestsIn":
         // os sacerdotes entram no Jordão com a arca e ficam no meio do leito seco
         for (const e of this.npcs.values()) {
@@ -1692,7 +1718,7 @@ export class StoryDirector {
     this.ui.chapterEnd = null;
     this.ui.learn = ch.learn ?? null;
     this.session.flags.chapterDone = true;
-    this.pendingEnd = { chapter: ch.id, title: ch.title, unlockedBooks: newBooks, achievement: ach };
+    this.pendingEnd = { chapter: ch.id, title: ch.title, unlockedBooks: newBooks, achievement: ach, puzzle: pr.puzzles.includes(ch.id), relic: RELICS[ch.id] ? (pr.relics.includes(ch.id) ? "found" : "missing") : "none" };
     if (!ch.learn) this.dismissLearn();
     this.emit();
   }
@@ -1721,9 +1747,113 @@ export class StoryDirector {
 
   // ------------------------------------------------------------------ HUD / marcador
   /** Texto e marcador do objetivo atual (a posição na tela é calculada pelo jogo). */
+  // ------------------------------------------------------------------ desafios e relíquias
+  openPuzzle(): void {
+    const o = this.obj;
+    if (o?.k !== "puzzle") return;
+    const def = PUZZLES[o.puzzle];
+    if (!def) return;
+    this.ui.puzzle = def;
+    this.emit();
+  }
+
+  /** O jogador acertou o desafio. */
+  puzzleSolved(): void {
+    const o = this.obj;
+    this.ui.puzzle = null;
+    if (o?.k !== "puzzle") return this.emit();
+    if (!this.progress.puzzles.includes(this.chapter.id)) this.progress.puzzles.push(this.chapter.id);
+    saveProgress(this.progress);
+    this.session.flags.pzDone = true;
+    this.host.sfx("quest");
+    this.host.message("Desafio resolvido!", "rare");
+    this.completeObjective();
+  }
+
+  /** O jogador desistiu do desafio (depois de muitas tentativas): segue a história sem a marca de desafio resolvido. */
+  puzzleSkip(): void {
+    this.ui.puzzle = null;
+    if (this.obj?.k === "puzzle") {
+      this.session.flags.pzSkip = true;
+      this.completeObjective();
+    } else this.emit();
+  }
+
+  puzzleClose(): void {
+    this.ui.puzzle = null;
+    this.emit();
+  }
+
+  /** Dicas liberadas pelo tempo jogado no capítulo. */
+  help(): { has: boolean; found: boolean; hunt: boolean; hints: string[]; nextIn: number | null; puzzle: "none" | "pending" | "solved" | "skipped" } {
+    const r = RELICS[this.chapter.id];
+    const hunt = !!this.session.flags.hunt;
+    const t = this.session.playT ?? 0;
+    const unlock = hunt ? [0, 45, 90] : [0, 180, 360];
+    const zone = r ? this.map.zones[r.near.zone] : undefined;
+    const all = r ? [r.hints[0], r.hints[1], zone ? relicBearing(r, zone) : "Procure no mapa, com atenção ao brilho no chão."] : [];
+    const hints = all.filter((_, i) => t >= unlock[i]);
+    const next = unlock.find((u) => t < u);
+    const hasPz = !!PUZZLES[this.chapter.id];
+    const puzzle = !hasPz ? "none" : this.progress.puzzles.includes(this.chapter.id) || this.session.flags.pzDone ? "solved" : this.session.flags.pzSkip ? "skipped" : "pending";
+    return { has: !!r, found: !!this.session.relic || this.progress.relics.includes(this.chapter.id), hunt, hints, nextIn: next === undefined ? null : Math.ceil(next - t), puzzle };
+  }
+
+  dismissRelic(): void {
+    const hunt = this.ui.relic?.hunt;
+    this.ui.relic = null;
+    this.emit();
+    if (hunt) this.host.exitToMenu();
+  }
+
+  private relicT = 0;
+  private relicCell(): { x: number; y: number; z: number } | null {
+    if (this.session.relicCell) return this.session.relicCell;
+    const r = RELICS[this.chapter.id];
+    if (!r) return null;
+    if (!this.host.world.hasChunkAt(r.x, r.z)) return null;
+    const sy = this.host.world.surfaceY(r.x, r.z);
+    if (sy < 0) return null;
+    this.session.relicCell = { x: r.x, y: sy - 1, z: r.z };
+    return this.session.relicCell;
+  }
+
+  /** Tempo de jogo (libera dicas), brilho no chão e coleta da relíquia (só depois de cavar a tampa). */
+  private stepRelic(dt: number): void {
+    const r = RELICS[this.chapter.id];
+    if (!r || this.session.relic) return;
+    if (!this.blocking && !this.busyMission) this.session.playT = (this.session.playT ?? 0) + dt;
+    this.relicT -= dt;
+    if (this.relicT > 0 || this.ui.cinematic) return;
+    this.relicT = 0.5;
+    const p = this.host.playerPos();
+    const d = Math.hypot(p.x - (r.x + 0.5), p.z - (r.z + 0.5));
+    if (d > 60) return;
+    const cell = this.relicCell();
+    if (!cell) return;
+    const open = !this.host.world.isSolid(cell.x, cell.y + 1, cell.z);
+    if (d < 20 && !open) this.host.burst(cell.x + 0.5, cell.y + 2.4, cell.z + 0.5, 0xfff2b0, 3, 0.7, 0.1);
+    if (open && Math.hypot(p.x - (cell.x + 0.5), p.z - (cell.z + 0.5)) < 1.7 && Math.abs(p.y - (cell.y + 0.5)) < 2.6) this.collectRelic();
+  }
+
+  private collectRelic(): void {
+    const r = RELICS[this.chapter.id];
+    if (!r || this.session.relic) return;
+    this.session.relic = true;
+    if (!this.progress.relics.includes(this.chapter.id)) this.progress.relics.push(this.chapter.id);
+    saveProgress(this.progress);
+    this.host.sfx("quest");
+    this.ui.relic = { name: r.name, emoji: r.emoji, desc: r.desc, hunt: !!this.session.flags.hunt };
+    this.emit();
+    this.host.saveNow();
+  }
+
   hud(): { hud: StoryHud | null; target: Vec3 | null } {
     const o = this.obj;
     const m = this.mission;
+    if (this.session.flags.hunt && !this.ui.cinematic) {
+      return { hud: { chapter: this.chapter.title, mission: "Relíquia escondida", objective: "Procure a relíquia deste capítulo. Abra as dicas (🔍) e cave onde o chão brilhar de leve.", progress: null, ref: null, dist: null, puzzle: false, wp: null }, target: null };
+    }
     if (!o || !m || this.ui.cinematic) return { hud: null, target: null };
     const p = this.host.playerPos();
     const target = this.targetOf(o, p);
@@ -1732,7 +1862,7 @@ export class StoryDirector {
     if (o.k === "collect" || o.k === "harvest" || o.k === "place" || o.k === "near" || o.k === "lead") progress = `${Math.min(this.session.progress, o.count)} / ${o.count}`;
     if (o.k === "wait") progress = `${this.session.progress} / ${o.seconds}s`;
     if (o.k === "reach" && o.limit) progress = `⏱ ${Math.max(0, Math.ceil(o.limit - this.raceT))} s`;
-    const hud: StoryHud = { chapter: this.chapter.title, mission: m.title, objective: o.text, progress, ref: m.ref ?? null, dist, wp: null };
+    const hud: StoryHud = { chapter: this.chapter.title, mission: m.title, objective: o.text, progress, ref: m.ref ?? null, dist, puzzle: o.k === "puzzle", wp: null };
     return { hud, target };
   }
 
@@ -1793,14 +1923,14 @@ export class StoryDirector {
   }
 }
 
-export function newSession(chapterId: string): StorySession {
+export function newSession(chapterId: string, hunt = false): StorySession {
   const first = MISSIONS_OF(chapterId)[0];
   return {
     chapterId,
-    missionId: first?.id ?? "",
+    missionId: hunt ? "" : (first?.id ?? ""),
     objIndex: 0,
     progress: 0,
-    flags: {},
+    flags: hunt ? { hunt: true } : {},
     done: [],
     env: { fallen: false, flood: 0 },
     checkpoint: null,

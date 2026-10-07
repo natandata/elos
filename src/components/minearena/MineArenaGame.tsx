@@ -24,6 +24,7 @@ import { TouchControls } from "./TouchControls";
 import { StoryMenu } from "./StoryMenu";
 import { StoryOverlay } from "./StoryOverlay";
 import { loadProgress } from "@/lib/minearena/story/progress";
+import { newSession } from "@/lib/minearena/story/director";
 import { CHAPTER_BY_ID } from "@/lib/minearena/story/data/chapters";
 import { STORY_MAPS } from "@/lib/minearena/story/maps";
 import type { StoryProgress, StoryUi } from "@/lib/minearena/story/types";
@@ -312,7 +313,7 @@ export function MineArenaGame({ me }: { me?: Peer }) {
   const refresh = useCallback(async () => {
     const all = await listWorlds();
     setWorlds(all.filter((w) => !w.id.startsWith("story:")));
-    setStorySaves(new Set(all.filter((w) => w.id.startsWith("story:") && w.story && !w.story.finished).map((w) => w.id.slice(6))));
+    setStorySaves(new Set(all.filter((w) => w.id.startsWith("story:") && w.story && !w.story.finished && !w.story.flags.hunt).map((w) => w.id.slice(6))));
     setStoryProgress(loadProgress());
   }, []);
   useEffect(() => {
@@ -320,7 +321,7 @@ export function MineArenaGame({ me }: { me?: Peer }) {
     void listWorlds().then((all) => {
       if (!on) return;
       setWorlds(all.filter((w) => !w.id.startsWith("story:")));
-      setStorySaves(new Set(all.filter((w) => w.id.startsWith("story:") && w.story && !w.story.finished).map((w) => w.id.slice(6))));
+      setStorySaves(new Set(all.filter((w) => w.id.startsWith("story:") && w.story && !w.story.finished && !w.story.flags.hunt).map((w) => w.id.slice(6))));
     });
     return () => {
       on = false;
@@ -328,13 +329,13 @@ export function MineArenaGame({ me }: { me?: Peer }) {
   }, []);
 
   /** Modo História: abre (ou recomeça) o mapa limitado de um capítulo. */
-  const startStory = async (chapterId: string, fresh: boolean) => {
+  const startStory = async (chapterId: string, fresh: boolean, hunt = false) => {
     const ch = CHAPTER_BY_ID.get(chapterId);
     const map = ch?.map ? STORY_MAPS[ch.map] : undefined;
     if (!ch || !map) return;
     enterImmersive();
     const id = `story:${chapterId}`;
-    let save = fresh ? null : await getWorld(id);
+    let save = fresh || hunt ? null : await getWorld(id);
     if (!save) {
       const now = Date.now();
       save = {
@@ -353,6 +354,7 @@ export function MineArenaGame({ me }: { me?: Peer }) {
         discoveries: [],
         heroesMet: [],
         kills: 0,
+        story: hunt ? newSession(chapterId, true) : undefined,
       };
       await putWorld(save);
     }
@@ -461,7 +463,7 @@ export function MineArenaGame({ me }: { me?: Peer }) {
         <StoryMenu
           progress={storyProgress}
           hasSave={(id) => storySaves.has(id)}
-          onPlay={(id, fresh) => void startStory(id, fresh)}
+          onPlay={(id, fresh, hunt) => void startStory(id, fresh, hunt)}
           onBack={() => setStoryOpen(false)}
         />
       </div>

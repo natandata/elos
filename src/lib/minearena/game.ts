@@ -139,7 +139,7 @@ export interface GameOptions {
   sb?: SupabaseClient;
   net?: RoomNet;
   /** Modo História: capítulo a jogar. */
-  story?: { chapterId: string };
+  story?: { chapterId: string; hunt?: boolean };
 }
 
 const ORE_XP: Record<string, number> = { coal_ore: 2, iron_ore: 3, gold_ore: 4, sapphire_ore: 8, sulfur_ore: 2, ember_block: 1 };
@@ -329,7 +329,7 @@ export class MineArena {
       const ch = CHAPTER_BY_ID.get(opts.story.chapterId);
       const map = ch?.map ? STORY_MAPS[ch.map] : undefined;
       if (ch && map) {
-        const session: StorySession = save.story ?? newSession(ch.id);
+        const session: StorySession = save.story ?? newSession(ch.id, !!opts.story.hunt);
         this.world.custom = (cx, cz) => map.generate(cx, cz, session.env);
         this.story = new StoryDirector(this.storyHost(), map, session);
         this.storyFresh = !save.story;
@@ -1533,6 +1533,15 @@ export class MineArena {
       this.input.use = false;
     }
     this.story?.update(dt);
+    if (this.story) {
+      // telas do Modo História que pedem o mouse (aprendizado, fim de capítulo, desafio, relíquia): solta o cursor
+      const u = this.story.ui;
+      const modal = !!(u.learn || u.chapterEnd || u.finale || u.puzzle || u.relic);
+      if (modal !== this.storyModal) {
+        this.storyModal = modal;
+        this.syncStoryUi();
+      }
+    }
     if (!cut) this.look();
     if (this.alive && !cut) {
       this.movePlayer(dt);
@@ -3124,6 +3133,17 @@ export class MineArena {
 
   // ---------- Modo História ----------
   private storyFresh = true;
+  private storyModal = false;
+  private storyHold = false;
+  private syncStoryUi(): void {
+    this.setUiOpen(this.storyModal || this.storyHold);
+  }
+  /** Painéis da interface do Modo História (dicas, histórico) que também precisam do cursor livre. */
+  storyHoldUi(on: boolean): void {
+    if (this.storyHold === on) return;
+    this.storyHold = on;
+    this.syncStoryUi();
+  }
   private storyStarted = false;
 
   /** Interface que o diretor da campanha usa para mexer no jogo. */
@@ -3288,6 +3308,24 @@ export class MineArena {
   }
   storyContinue(): void {
     this.story?.continueAfterChapter();
+  }
+  storyOpenPuzzle(): void {
+    this.story?.openPuzzle();
+  }
+  storyPuzzleSolved(): void {
+    this.story?.puzzleSolved();
+  }
+  storyPuzzleSkip(): void {
+    this.story?.puzzleSkip();
+  }
+  storyPuzzleClose(): void {
+    this.story?.puzzleClose();
+  }
+  storyDismissRelic(): void {
+    this.story?.dismissRelic();
+  }
+  storyHelp() {
+    return this.story?.help() ?? null;
   }
 
   // ---------- HUD ----------

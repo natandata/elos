@@ -5,9 +5,11 @@ import { BOOKS, KIND_LABEL } from "@/lib/minearena/story/data/books";
 import { CHAPTERS } from "@/lib/minearena/story/data/chapters";
 import { STORY_ACHIEVEMENTS } from "@/lib/minearena/story/data/achievements";
 import { CAMPAIGNS, campaignOpen } from "@/lib/minearena/story/campaigns";
+import { RELICS } from "@/lib/minearena/story/data/relics";
+import { PUZZLES } from "@/lib/minearena/story/data/puzzles";
 import type { ChapterDef, StoryProgress } from "@/lib/minearena/story/types";
 
-type View = "home" | "chapters" | "library" | "progress" | "achievements";
+type View = "home" | "chapters" | "library" | "progress" | "achievements" | "relics";
 
 const statusOf = (c: ChapterDef, p: StoryProgress): "done" | "open" | "locked" | "soon" => {
   if (p.completed.includes(c.id)) return "done";
@@ -19,7 +21,7 @@ const statusOf = (c: ChapterDef, p: StoryProgress): "done" | "open" | "locked" |
 const dateLabel = (iso: string) => new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", timeZone: "America/Sao_Paulo" });
 
 /** Menu do Modo História: capítulos, progresso, biblioteca e conquistas. */
-export function StoryMenu({ progress, hasSave, onPlay, onBack }: { progress: StoryProgress; hasSave: (chapterId: string) => boolean; onPlay: (chapterId: string, fresh: boolean) => void; onBack: () => void }) {
+export function StoryMenu({ progress, hasSave, onPlay, onBack }: { progress: StoryProgress; hasSave: (chapterId: string) => boolean; onPlay: (chapterId: string, fresh: boolean, hunt?: boolean) => void; onBack: () => void }) {
   const [view, setView] = useState<View>("home");
   const [pick, setPick] = useState<ChapterDef | null>(null);
 
@@ -79,6 +81,9 @@ export function StoryMenu({ progress, hasSave, onPlay, onBack }: { progress: Sto
             <button type="button" className="ms-btn" onClick={() => setView("library")}>
               📚 Biblioteca ({progress.books.length}/{BOOKS.length})
             </button>
+            <button type="button" className="ms-btn" onClick={() => setView("relics")}>
+              🏺 Relíquias ({progress.relics.length}/{Object.keys(RELICS).length}) · Desafios ({progress.puzzles.length}/{Object.keys(PUZZLES).length})
+            </button>
             <button type="button" className="ms-btn" onClick={() => setView("achievements")}>
               🏅 Conquistas ({progress.achievements.length}/{STORY_ACHIEVEMENTS.length})
             </button>
@@ -105,6 +110,8 @@ export function StoryMenu({ progress, hasSave, onPlay, onBack }: { progress: Sto
                     <span className="ms-chap-s">{c.subtitle}</span>
                     <span className="ms-chap-st">
                       {st === "done" ? "✓ CONCLUÍDO" : st === "open" ? "▶ DISPONÍVEL" : st === "soon" ? "EM BREVE" : "🔒 BLOQUEADO"}
+                      {PUZZLES[c.id] ? (progress.puzzles.includes(c.id) ? " · 🧩" : "") : ""}
+                      {RELICS[c.id] ? (progress.relics.includes(c.id) ? ` · ${RELICS[c.id].emoji}` : st === "done" ? " · 🏺?" : "") : ""}
                     </span>
                   </button>
                 </li>
@@ -114,6 +121,7 @@ export function StoryMenu({ progress, hasSave, onPlay, onBack }: { progress: Sto
         </>
       ) : null}
 
+      {view === "relics" ? <RelicsView progress={progress} /> : null}
       {view === "progress" ? <ProgressView progress={progress} /> : null}
       {view === "library" ? <LibraryView progress={progress} /> : null}
 
@@ -151,6 +159,11 @@ export function StoryMenu({ progress, hasSave, onPlay, onBack }: { progress: Sto
             <button type="button" className="ms-btn" onClick={() => onPlay(pick.id, true)}>
               ↻ {progress.completed.includes(pick.id) ? "Jogar de novo" : "Começar do início"}
             </button>
+            {progress.completed.includes(pick.id) && RELICS[pick.id] && !progress.relics.includes(pick.id) ? (
+              <button type="button" className="ms-btn" onClick={() => onPlay(pick.id, true, true)}>
+                🔍 Procurar a relíquia escondida
+              </button>
+            ) : null}
             <button type="button" className="ms-btn ms-btn-ghost" onClick={() => setPick(null)}>
               Cancelar
             </button>
@@ -233,6 +246,30 @@ function LibraryView({ progress }: { progress: StoryProgress }) {
           </div>
         </div>
       ) : null}
+    </>
+  );
+}
+
+function RelicsView({ progress }: { progress: StoryProgress }) {
+  return (
+    <>
+      <h2 className="ms-h2">Relíquias</h2>
+      <p className="ms-sub">Cada capítulo esconde uma relíquia enterrada no mapa. Cave onde o chão brilhar de leve.</p>
+      <ul className="ms-list">
+        {CHAPTERS.filter((c) => RELICS[c.id]).map((c) => {
+          const r = RELICS[c.id];
+          const got = progress.relics.includes(c.id);
+          return (
+            <li key={c.id} className={`ms-ach ${got ? "got" : ""}`}>
+              <span aria-hidden>{got ? r.emoji : "❔"}</span>
+              <span>
+                <b>{got ? r.name : `Relíquia de «${c.title}»`}</b>
+                <small>{got ? r.desc : c.built ? "Ainda escondida." : "Em breve."}</small>
+              </span>
+            </li>
+          );
+        })}
+      </ul>
     </>
   );
 }

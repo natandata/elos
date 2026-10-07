@@ -1433,3 +1433,37 @@ input[type="datetime-local"] {
 .ma-root[data-mobile="1"] .ma-hotbar { max-width: 100%; }
 .ma-root[data-mobile="1"] .ma-hotbar .ma-slot { width: clamp(24px, calc((100cqw - 36px) / 9), 38px); height: clamp(24px, calc((100cqw - 36px) / 9), 38px); flex: 0 0 auto; }
 .ma-root[data-mobile="1"] .ma-stats { gap: 2px 8px; }
+
+/* desafios e relíquias do Modo História */
+.ms-obj-tools { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px !important; }
+.ms-mini { padding: 4px 10px; border: 2px solid #e8c25a; border-radius: 999px; background: rgba(60, 44, 18, 0.9); color: #ffe9a8; font-size: 0.72rem; font-weight: 900; cursor: pointer; pointer-events: auto; }
+.ms-relic-emoji { text-align: center; font-size: 3.4rem !important; line-height: 1.1 !important; }
+.ms-pz { gap: 8px; }
+.ms-pz-body { margin: 4px 0; }
+.ms-pz-label { margin: 4px 0 !important; font-size: 0.78rem !important; font-weight: 900 !important; color: #e8c25a; }
+.ms-pz-q { margin: 6px 0 !important; font-size: 1.05rem !important; font-weight: 800 !important; }
+.ms-pz-grid { display: flex; flex-direction: column; gap: 6px; }
+.ms-pz-item { display: block; width: 100%; padding: 9px 12px; border: 2px solid #8a6a2a; border-radius: 12px; background: #3a2c16; color: #fff6dc; font-size: 0.92rem; font-weight: 800; text-align: left; cursor: pointer; }
+.ms-pz-item:disabled { cursor: default; opacity: 0.55; }
+.ms-pz-item:not(:disabled):active { transform: translateY(2px); }
+.ms-pz-on { border-color: #ffe08a; background: #5a4418; }
+.ms-pz-ok { border-color: #8fd05a; background: #25401a; opacity: 1 !important; }
+.ms-pz-chosen { display: flex; flex-direction: column; gap: 4px; min-height: 28px; margin: 4px 0 8px; padding-left: 22px; }
+.ms-pz-match { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ms-pz-match > div { display: flex; flex-direction: column; gap: 6px; }
+.ms-pz-input { width: 100%; padding: 10px 12px; border: 2px solid #8a6a2a; border-radius: 12px; background: #1a1208; color: #fff6dc; font-size: 1rem; font-weight: 800; }
+.ms-pz-input + .ms-btn { margin-top: 8px; }
+.ms-pz-clues { margin: 4px 0 8px; padding-left: 20px; font-size: 0.88rem; font-weight: 700; line-height: 1.5; }
+.ms-pz-dials { display: flex; justify-content: center; gap: 10px; margin: 8px 0 12px; }
+.ms-pz-dial { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.ms-pz-dial button { width: 44px; height: 34px; border: 2px solid #8a6a2a; border-radius: 10px; background: #3a2c16; color: #ffe9a8; font-size: 1rem; font-weight: 900; cursor: pointer; }
+.ms-pz-dial b { width: 44px; padding: 6px 0; border: 2px solid #e8c25a; border-radius: 10px; background: #120a04; font-size: 1.6rem; text-align: center; }
+.ms-pz-simon { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 8px 0; }
+.ms-pz-sym { padding: 18px 0; border: 3px solid #8a6a2a; border-radius: 16px; background: #3a2c16; font-size: 2.2rem; cursor: pointer; transition: background 0.1s, transform 0.1s; }
+.ms-pz-sym:disabled { cursor: default; }
+.ms-pz-lit { border-color: #ffe08a; background: #8a6a1a; transform: scale(1.05); }
+.ms-pz-msg { padding: 6px 10px; border-radius: 10px; background: rgba(255, 255, 255, 0.08); font-size: 0.85rem !important; font-weight: 800 !important; }
+.ms-pz-hints { margin: 4px 0; padding: 0; list-style: none; font-size: 0.82rem; font-weight: 700; line-height: 1.4; }
+.ms-pz-hints li { padding: 4px 0; }
+.ms-pz-actions { display: flex; gap: 8px; margin-top: 6px; }
+.ms-pz-actions .ms-btn { flex: 1; padding: 9px 10px; font-size: 0.86rem; }

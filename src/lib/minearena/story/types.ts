@@ -13,6 +13,8 @@ export type MapEnv = {
   fallen: boolean;
   /** nível da água do dilúvio (0 = sem dilúvio) */
   flood: number;
+  /** as muralhas de Jericó já caíram */
+  fell?: boolean;
 };
 
 export type GenResult = { data: Uint8Array; maxY: number; chests: { x: number; y: number; z: number; table: LootTable }[] };
@@ -73,7 +75,33 @@ export type Objective =
   | { k: "near"; tag: string; count: number; dist: number; text: string }
   | { k: "lead"; tag: string; count: number; to: string; near: number; text: string }
   | { k: "wait"; seconds: number; text: string }
-  | { k: "event"; event: string; text: string; target?: { npc?: string; zone?: string } };
+  | { k: "event"; event: string; text: string; target?: { npc?: string; zone?: string } }
+  | { k: "puzzle"; puzzle: string; text: string };
+
+// ---------- desafios e relíquias ----------
+export type PuzzleBase = { id: string; chapter: string; title: string; intro: string; /** onde procurar na Bíblia */ refs: string[]; /** dicas que aparecem depois de erros */ hints: string[] };
+export type PuzzleDef = PuzzleBase &
+  (
+    | { kind: "order"; /** na ordem certa */ items: string[] }
+    | { kind: "match"; pairs: [string, string][] }
+    | { kind: "answer"; question: string; accept: string[] }
+    | { kind: "quiz"; questions: { q: string; options: string[]; correct: number }[]; need: number }
+    | { kind: "simon"; symbols: string[]; length: number; seq: number[] }
+    | { kind: "lock"; clues: string[]; answer: string }
+  );
+/** Relíquia escondida de um capítulo: enterrada num ponto do mapa (cavar para achar). */
+export type RelicDef = {
+  chapter: string;
+  name: string;
+  emoji: string;
+  desc: string;
+  x: number;
+  z: number;
+  /** ponto de referência para a última dica: zona do mapa e nome */
+  near: { zone: string; label: string };
+  /** duas dicas escritas; a terceira (direção e distância) é calculada */
+  hints: [string, string];
+};
 
 export type MissionState = "locked" | "available" | "active" | "completed";
 
@@ -157,6 +185,12 @@ export type StorySession = {
   counters: Record<string, number>;
   history: { who: string; text: string }[];
   finished: boolean;
+  /** a relíquia deste capítulo já foi achada nesta sessão */
+  relic?: boolean;
+  /** célula da relíquia (fixada na primeira vez que o chão foi lido) */
+  relicCell?: { x: number; y: number; z: number };
+  /** segundos jogados no capítulo (libera dicas) */
+  playT?: number;
 };
 
 export type StoryProgress = {
@@ -171,6 +205,10 @@ export type StoryProgress = {
   seenLearn: string[];
   /** a campanha do Antigo Testamento foi concluída */
   otDone: boolean;
+  /** capítulos com o desafio resolvido */
+  puzzles: string[];
+  /** capítulos com a relíquia achada */
+  relics: string[];
 };
 
 // ---------- interface com a interface de usuário ----------
@@ -187,9 +225,13 @@ export type StoryUi = {
   /** tela "VOCÊ APRENDEU" */
   learn: LearnCard | null;
   /** fim de capítulo (depois do "aprendeu") */
-  chapterEnd: { chapter: string; title: string; unlockedBooks: string[]; achievement?: string } | null;
+  chapterEnd: { chapter: string; title: string; unlockedBooks: string[]; achievement?: string; puzzle: boolean; relic: "found" | "missing" | "none" } | null;
   /** fim do Antigo Testamento */
   finale: boolean;
+  /** desafio aberto na tela */
+  puzzle: PuzzleDef | null;
+  /** relíquia recém-achada */
+  relic: { name: string; emoji: string; desc: string; hunt: boolean } | null;
   history: { who: string; text: string }[];
 };
 
@@ -200,6 +242,8 @@ export type StoryHud = {
   progress: string | null;
   ref: string | null;
   dist: number | null;
+  /** o objetivo atual é um desafio (mostrar o botão para abrir) */
+  puzzle: boolean;
   /** posição do marcador na tela (−1..1) ou direção quando fora da tela */
   wp: { sx: number; sy: number; on: boolean; angle: number } | null;
 };
