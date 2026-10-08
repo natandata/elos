@@ -186,8 +186,17 @@ console.log(`${runs} partidas · média ${(totalPts / runs).toFixed(0)} pontos p
   h.handle(dr, { t: "op", k: "s", c: "<script>", w: 9999, x: 7, y: -3 });
   const o = h.opLog[0] as Extract<DrawOp, { k: "s" }>;
   ok(!!o && o.w <= 40 && o.x <= 1 && o.y >= 0 && /^#[0-9a-f]{6}$/i.test(o.c), "operação suja passou");
+  h.handle(dr, { t: "op", k: "h", sh: "star", c: "#ff0000", c2: "nope", f: "b", w: 500, x0: -1, y0: 0.2, x1: 9, y1: 0.8 });
+  const sh = h.opLog[h.opLog.length - 1] as Extract<DrawOp, { k: "h" }>;
+  ok(sh?.k === "h" && sh.sh === "star" && sh.w === 40 && sh.x0 === 0 && sh.x1 === 1 && sh.c2 === "#ffffff", "forma não foi limpa");
+  h.handle(dr, { t: "op", k: "h", sh: "bomba" as never, c: "#000000", c2: "#000000", f: "o", w: 3, x0: 0, y0: 0, x1: 1, y1: 1 });
+  ok(h.opLog.length === 2, "forma desconhecida entrou");
+  h.handle(dr, { t: "op", k: "b", c: "#00ff00", x: 0.5, y: 0.5 });
+  ok(h.opLog.length === 3 && h.opLog[2].k === "b", "balde não entrou");
+  h.handle(dr, { t: "op", k: "s", c: "#000000", w: 5, x: 0.1, y: 0.1, b: "x" as never });
+  ok((h.opLog[3] as Extract<DrawOp, { k: "s" }>).b === "l", "pincel desconhecido não virou lápis");
   h.handle(dr, { t: "op", k: "z" as never });
-  ok(h.opLog.length === 1, "operação desconhecida entrou");
+  ok(h.opLog.length === 4, "operação desconhecida entrou");
   h.handle(other, { t: "guess", text: w.text });
   ok(h.snapshot().players.find((p) => p.id === other)!.guessed, "acerto não contou");
   const before = h.snapshot().players.find((p) => p.id === other)!.score;

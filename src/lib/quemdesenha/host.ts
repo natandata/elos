@@ -63,7 +63,20 @@ export type ToHost =
   | ({ t: "op" } & DrawOp);
 
 /** Operações de desenho (coordenadas de 0 a 1 numa tela 4:3). */
-export type DrawOp = { k: "s"; c: string; w: number; x: number; y: number } | { k: "p"; p: number[] } | { k: "e" } | { k: "u" } | { k: "c" };
+export type Brush = "l" | "p" | "m" | "s" | "c";
+export type ShapeKind = "line" | "rect" | "ellipse" | "triangle" | "diamond" | "star" | "arrow";
+export type DrawOp =
+  /** começa um traço (b = lápis, pincel, marcador, spray ou caligrafia) */
+  | { k: "s"; c: string; w: number; x: number; y: number; b?: Brush }
+  | { k: "p"; p: number[] }
+  | { k: "e" }
+  /** desfaz o último traço, forma ou balde */
+  | { k: "u" }
+  | { k: "c" }
+  /** forma pronta: contorno (o), cheia (f) ou cheia com contorno (b, enchendo com a 2ª cor) */
+  | { k: "h"; sh: ShapeKind; c: string; c2: string; f: "o" | "f" | "b"; w: number; x0: number; y0: number; x1: number; y1: number }
+  /** balde de tinta */
+  | { k: "b"; c: string; x: number; y: number };
 
 /** O que o anfitrião devolve. `to` é decidido por quem envia (todos, uma pessoa ou várias). */
 export type ToClient =
@@ -370,7 +383,7 @@ export class QdHost {
     if (this.ops.length >= MAX_OPS) return;
     const clean = cleanOp(op);
     if (!clean) return;
-    if (clean.k === "s") this.strokeCount++;
+    if (clean.k === "s" || clean.k === "h" || clean.k === "b") this.strokeCount++;
     if (clean.k === "c") {
       this.ops = [];
       this.strokeCount = 0;
@@ -503,9 +516,17 @@ export class QdHost {
 /** Limpa uma operação de desenho vinda da rede: números no intervalo, cor válida, tamanho do lote limitado. */
 export function cleanOp(op: DrawOp): DrawOp | null {
   const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? Math.max(0, Math.min(1, Math.round(v * 1000) / 1000)) : 0);
+  const col = (v: unknown, def: string) => (typeof v === "string" && /^#[0-9a-fA-F]{6}$/.test(v) ? v : def);
+  const wid = (v: unknown) => Math.max(1, Math.min(40, Math.round(Number(v) || 4)));
   switch (op?.k) {
     case "s":
-      return { k: "s", c: typeof op.c === "string" && /^#[0-9a-fA-F]{6}$/.test(op.c) ? op.c : "#111111", w: Math.max(1, Math.min(40, Math.round(Number(op.w) || 4))), x: n(op.x), y: n(op.y) };
+      return { k: "s", c: col(op.c, "#111111"), w: wid(op.w), x: n(op.x), y: n(op.y), b: (["l", "p", "m", "s", "c"] as const).find((b) => b === op.b) ?? "l" };
+    case "h": {
+      const t = (["line", "rect", "ellipse", "triangle", "diamond", "star", "arrow"] as const).find((v) => v === op.sh);
+      return t ? { k: "h", sh: t, c: col(op.c, "#111111"), c2: col(op.c2, "#ffffff"), f: op.f === "f" || op.f === "b" ? op.f : "o", w: wid(op.w), x0: n(op.x0), y0: n(op.y0), x1: n(op.x1), y1: n(op.y1) } : null;
+    }
+    case "b":
+      return { k: "b", c: col(op.c, "#111111"), x: n(op.x), y: n(op.y) };
     case "p":
       return Array.isArray(op.p) ? { k: "p", p: op.p.slice(0, 80).map(n) } : null;
     case "e":
