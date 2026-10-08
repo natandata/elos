@@ -1,13 +1,18 @@
 // Conteúdo dos jogos bíblicos. Só roda no servidor: as respostas certas nunca
 // vão para o navegador antes de o jogador responder (ver engine.ts).
 // Textos de versículos seguem a Almeida Revista e Atualizada (ARA).
+// As listas "extra" (quizExtra, versesExtra, whoExtra, orderExtra) entram sempre no FIM, para não mudar partidas antigas.
+import { QUIZ_EXTRA } from "./quizExtra";
+import { VERSES_EXTRA } from "./versesExtra";
+import { WHO_EXTRA } from "./whoExtra";
+import { ORDER_EXTRA } from "./orderExtra";
 
 /** d: 1 = fácil, 2 = médio, 3 = difícil */
 export type Level = 1 | 2 | 3;
 
 export type QuizItem = { q: string; a: string; w: [string, string, string]; ref: string; d: Level };
 
-export const QUIZ: QuizItem[] = [
+const QUIZ_BASE: QuizItem[] = [
   { q: "Quem construiu a arca para sobreviver ao dilúvio?", a: "Noé", w: ["Abraão", "Moisés", "Davi"], ref: "Gênesis 6–7", d: 1 },
   { q: "Quantos dias Jesus ficou no deserto sendo tentado?", a: "40", w: ["7", "12", "3"], ref: "Mateus 4:2", d: 1 },
   { q: "Quem foi lançado na cova dos leões?", a: "Daniel", w: ["José", "Jonas", "Elias"], ref: "Daniel 6", d: 1 },
@@ -75,9 +80,11 @@ export const QUIZ: QuizItem[] = [
   { q: "Qual profeta viu uma visão de um vale cheio de ossos secos?", a: "Ezequiel", w: ["Isaías", "Jeremias", "Daniel"], ref: "Ezequiel 37", d: 3 },
 ];
 
+export const QUIZ: QuizItem[] = [...QUIZ_BASE, ...QUIZ_EXTRA];
+
 export type VerseItem = { ref: string; before: string; after: string; a: string; w: [string, string, string]; d: Level };
 
-export const VERSES: VerseItem[] = [
+const VERSES_BASE: VerseItem[] = [
   { ref: "João 3:16", before: "Porque Deus", after: "ao mundo de tal maneira que deu o seu Filho unigênito, para que todo o que nele crê não pereça, mas tenha a vida eterna.", a: "amou", w: ["temeu", "chamou", "criou"], d: 1 },
   { ref: "Salmos 23:1", before: "O Senhor é o meu", after: "; nada me faltará.", a: "pastor", w: ["rei", "refúgio", "escudo"], d: 1 },
   { ref: "Filipenses 4:13", before: "Posso todas as coisas naquele que me", after: ".", a: "fortalece", w: ["ensina", "guia", "ama"], d: 1 },
@@ -101,9 +108,11 @@ export const VERSES: VerseItem[] = [
   { ref: "Hebreus 11:1", before: "Ora, a fé é a", after: "de coisas que se esperam, a convicção de fatos que se não veem.", a: "certeza", w: ["dúvida", "história", "lembrança"], d: 3 },
 ];
 
+export const VERSES: VerseItem[] = [...VERSES_BASE, ...VERSES_EXTRA];
+
 export type WhoItem = { key: string; name: string; hints: [string, string, string, string]; ref: string; d: Level };
 
-export const WHO: WhoItem[] = [
+const WHO_BASE: WhoItem[] = [
   { key: "noe", name: "Noé", ref: "Gênesis 6–9", hints: ["Deus me avisou de algo que nunca tinha acontecido e mandou construir algo enorme.", "Levei minha família e muitos animais para dentro do que construí.", "Choveu quarenta dias e quarenta noites.", "Uma pomba voltou com um ramo de oliveira."], d: 1 },
   { key: "moises", name: "Moisés", ref: "Êxodo 2–20", hints: ["Fui salvo de um rio ainda bebê, dentro de um cesto.", "Cresci na casa do faraó, mas fugi para Midiã.", "Deus falou comigo numa sarça que queimava sem se consumir.", "Abri o Mar Vermelho e recebi os Dez Mandamentos."], d: 1 },
   { key: "davi", name: "Davi", ref: "1 Samuel 16–17", hints: ["Eu era o mais novo dos irmãos e cuidava de ovelhas.", "Tocava harpa e escrevi muitos Salmos.", "Fui ungido rei por Samuel ainda jovem.", "Derrubei um gigante com uma pedra e uma funda."], d: 1 },
@@ -122,10 +131,12 @@ export const WHO: WhoItem[] = [
   { key: "debora", name: "Débora", ref: "Juízes 4–5", hints: ["Fui juíza e profetisa de Israel.", "Julgava o povo sentada debaixo de uma palmeira.", "Chamei Baraque para liderar o exército.", "Cantei uma canção de vitória depois de derrotarmos Sísera."], d: 3 },
 ];
 
+export const WHO: WhoItem[] = [...WHO_BASE, ...WHO_EXTRA];
+
 export type OrderSet = { title: string; events: [string, string, string, string]; ref: string; d: Level };
 
 // "events" já está na ordem cronológica correta.
-export const ORDER: OrderSet[] = [
+const ORDER_BASE: OrderSet[] = [
   { title: "Do começo de tudo", events: ["Criação do mundo", "Adão e Eva comem do fruto proibido", "O dilúvio", "A torre de Babel"], ref: "Gênesis 1–11", d: 1 },
   { title: "Os patriarcas", events: ["Deus chama Abraão", "Nasce Isaque", "José é vendido ao Egito", "O povo sai do Egito"], ref: "Gênesis 12 – Êxodo 12", d: 2 },
   { title: "Liberdade e deserto", events: ["O povo sai do Egito", "Os Dez Mandamentos", "Os muros de Jericó caem", "Davi vira rei"], ref: "Êxodo – 2 Samuel", d: 2 },
@@ -141,3 +152,5 @@ export const ORDER: OrderSet[] = [
   { title: "Dias da paixão", events: ["A Última Ceia", "A oração no Getsêmani", "A negação de Pedro", "A crucificação"], ref: "Mateus 26–27", d: 2 },
   { title: "Reconstrução de Israel", events: ["O exílio na Babilônia", "Daniel na cova dos leões", "Neemias reconstrói os muros", "O povo lê a Lei com Esdras"], ref: "Daniel – Neemias", d: 3 },
 ];
+
+export const ORDER: OrderSet[] = [...ORDER_BASE, ...ORDER_EXTRA];
