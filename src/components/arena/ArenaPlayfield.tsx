@@ -23,6 +23,8 @@ import {
   type GameState,
   type Side,
 } from "@/lib/arena/core";
+import { AT } from "./ArenaText";
+import { glyph } from "./arenaGlyph";
 
 /** Quem comanda a partida: contra o computador ou 1x1 (lockstep). */
 export type PlayDriver = {
@@ -110,9 +112,9 @@ function CrownCount({ n, color }: { n: number; color: "red" | "blue" }) {
         className="-mt-1 text-4xl drop-shadow-[0_2px_2px_rgba(0,0,0,0.6)]"
         style={{ filter: color === "red" ? "hue-rotate(-35deg) saturate(2.4)" : "hue-rotate(170deg) saturate(1.8)" }}
         aria-hidden
-      >
+      ><AT>
         👑
-      </span>
+      </AT></span>
     </div>
   );
 }
@@ -409,7 +411,7 @@ export function ArenaPlayfield({
           ctx.textBaseline = "middle";
           ctx.font = `${Math.max(14, e.radius * 2.4 * s)}px system-ui, "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
           ctx.fillStyle = "#000";
-          ctx.fillText(ARENA_CARD_BY_KEY.get(e.card)?.emoji ?? "❔", 0, -r * 0.9);
+          glyph(ctx, ARENA_CARD_BY_KEY.get(e.card)?.emoji ?? "❔", 0, -r * 0.9, Math.max(14, e.radius * 2.4 * s));
           topLocal = -r * 1.9;
         }
         ctx.restore();
@@ -612,20 +614,20 @@ export function ArenaPlayfield({
           <canvas ref={canvasRef} onPointerDown={onCanvasPointer} className="absolute left-0 top-0 touch-none" />
           {comboMsg ? (
             <div key={comboMsg.n} className="arena-combo pointer-events-none absolute inset-x-0 top-16 z-30 flex justify-center">
-              <span className={`rounded-full px-4 py-1.5 text-sm font-black shadow-lg ring-2 ${comboMsg.mine ? "bg-amber-300 text-amber-950 ring-white" : "bg-rose-600 text-white ring-rose-200"}`}>
-                ✨ {comboMsg.mine ? "Combo" : "Combo do adversário"}: {comboMsg.combo.label} · {comboMsg.combo.effect}
+              <span className={`rounded-full px-4 py-1.5 text-sm font-black shadow-lg ring-2 ${comboMsg.mine ? "bg-amber-300 text-amber-950 ring-white" : "bg-rose-600 text-white ring-rose-200"}`}><AT>
+                ✨ </AT>{comboMsg.mine ? "Combo" : "Combo do adversário"}: {comboMsg.combo.label} · {comboMsg.combo.effect}
               </span>
               <style>{`.arena-combo{animation:arenaCombo 2.6s ease-out forwards}@keyframes arenaCombo{0%{opacity:0;transform:translateY(-8px)}12%{opacity:1;transform:none}80%{opacity:1}100%{opacity:0}}`}</style>
             </div>
           ) : null}
           {blindKey > 0 ? (
             <div key={blindKey} className="arena-blind pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-white">
-              <span className="text-6xl" aria-hidden>✨</span>
+              <span className="text-6xl" aria-hidden><AT>✨</AT></span>
               <style>{`.arena-blind{animation:arenaBlind 1.5s ease-out forwards}@keyframes arenaBlind{0%{opacity:0}8%{opacity:1}70%{opacity:1}100%{opacity:0}}`}</style>
             </div>
           ) : null}
           <div className="pointer-events-none absolute left-2 top-2 flex items-center gap-2">
-            <div className="flex h-11 w-11 items-center justify-center rounded-lg border-2 border-amber-300 bg-gradient-to-b from-rose-700 to-rose-950 text-2xl shadow-lg">🛡️</div>
+            <div className="flex h-11 w-11 items-center justify-center rounded-lg border-2 border-amber-300 bg-gradient-to-b from-rose-700 to-rose-950 text-2xl shadow-lg"><AT>🛡️</AT></div>
             <div className="rounded-lg bg-black/65 px-2.5 py-1 leading-tight ring-1 ring-white/25">
               <p className="max-w-[170px] truncate text-base font-black text-white">{d.opponentLabel}</p>
               <p className="text-xs font-bold text-amber-200">{d.campaign?.name ?? ARENAS[d.arena]?.name ?? "Arena dos Heróis"}</p>
@@ -653,11 +655,11 @@ export function ArenaPlayfield({
             }}
             className="absolute left-2 top-16 flex h-9 w-9 items-center justify-center rounded-full border-2 border-black/60 bg-black/55 text-lg"
           >
-            {muted ? "🔇" : "🔊"}
+            {muted ? <AT>{"🔇"}</AT> : <AT>{"🔊"}</AT>}
           </button>
           {waiting ? (
             <div className="pointer-events-none absolute inset-x-0 top-20 flex justify-center">
-              <p className="rounded-full bg-black/70 px-4 py-1.5 text-sm font-black text-white">⏳ Sincronizando com {d.opponentLabel}…</p>
+              <p className="rounded-full bg-black/70 px-4 py-1.5 text-sm font-black text-white"><AT>⏳ Sincronizando com </AT>{d.opponentLabel}…</p>
             </div>
           ) : null}
           {extra}
@@ -671,12 +673,12 @@ export function ArenaPlayfield({
                 onClick={onLeave}
                 aria-label="Desistir"
                 className="flex h-10 w-10 items-center justify-center rounded-lg border-2 border-[#5a1010] bg-gradient-to-b from-red-500 to-red-700 text-xl font-black text-white shadow active:scale-95"
-              >
+              ><AT>
                 ✕
-              </button>
+              </AT></button>
               <p className="text-[11px] font-black text-white">Próxima:</p>
               <div className="flex h-12 w-11 items-center justify-center rounded-lg border-2 border-[#0f2f6b] bg-gradient-to-b from-[#4a90e2] to-[#2d62b8]">
-                {nextCard ? nextCard.art ? <CardArt card={nextCard} className="h-10" /> : <span className="text-xl" aria-hidden>{nextCard.emoji}</span> : null}
+                {nextCard ? nextCard.art ? <CardArt card={nextCard} className="h-10" /> : <span className="text-xl" aria-hidden><AT>{nextCard.emoji}</AT></span> : null}
               </div>
             </div>
             <div className="grid flex-1 grid-cols-4 gap-1.5 pb-3">
@@ -703,7 +705,7 @@ export function ArenaPlayfield({
                     } ${can ? "" : "brightness-50"}`}
                   >
                     <span className="flex h-full items-center justify-center pb-2">
-                      {c.art ? <CardArt card={c} className="h-full max-h-[72px]" /> : <span className="text-3xl" aria-hidden>{c.emoji}</span>}
+                      {c.art ? <CardArt card={c} className="h-full max-h-[72px]" /> : <span className="text-3xl" aria-hidden><AT>{c.emoji}</AT></span>}
                     </span>
                     <span className="absolute -bottom-3 left-1/2 -translate-x-1/2">
                       <ManaBread n={c.cost} size={26} />

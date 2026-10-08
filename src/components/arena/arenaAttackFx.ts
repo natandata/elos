@@ -1,6 +1,7 @@
 // Efeitos de ataque de cada herói (só visual). Cada personagem luta do seu jeito:
 // Sansão esmaga com a clava, Noé e João usam água, Daniel ataca com garras etc.
 // Coordenadas já em pixels; `s` = tamanho de um tile; `p` = progresso 0..1.
+import { glyph } from "./arenaGlyph";
 
 const TAU = Math.PI * 2;
 
@@ -206,7 +207,7 @@ export function drawMelee(ctx: CanvasRenderingContext2D, s: number, card: string
       ctx.font = `${0.8 * s}px system-ui, "Segoe UI Emoji", sans-serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText("🔥", 0, -s * 0.2 - p * s * 0.3);
+      glyph(ctx, "🔥", 0, -s * 0.2 - p * s * 0.3, 0.8 * s);
       ctx.globalAlpha = 1;
       break;
     }

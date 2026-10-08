@@ -1,6 +1,7 @@
 import { BRIDGES, H, RIVER_BOT, RIVER_TOP, W, type Entity } from "@/lib/arena/core";
 import { ARENAS, type ArenaTheme } from "@/lib/arena/arenas";
 import { drawScenery } from "./arenaScenery";
+import { glyph } from "./arenaGlyph";
 
 // Desenho do campo da Arena (arte própria, em canvas). O campo lógico tem
 // W x H tiles; em volta há uma margem de árvores e pedras.
@@ -439,7 +440,7 @@ export function drawTower(g: CanvasRenderingContext2D, s: number, e: Entity, t =
   g.textBaseline = "middle";
   g.font = `${bh * 0.62}px system-ui, "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
   g.fillStyle = "#000";
-  g.fillText(king ? "⛪" : "🏹", cx, y0 + bh * 0.66);
+  glyph(g, king ? "⛪" : "🏹", cx, y0 + bh * 0.66, bh * 0.62);
 
   // coroa dourada na base
   const by = y0 + bh + s * 0.3;

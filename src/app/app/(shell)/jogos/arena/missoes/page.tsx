@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import { loadArenaMissions } from "@/lib/arena/missionsServer";
 import { createClient } from "@/lib/supabase/server";
+import { AT } from "@/components/arena/ArenaText";
 
 export default async function MissoesArenaPage() {
   const { profile } = await requireRole("cria", "leader", "admin");
@@ -15,7 +16,7 @@ export default async function MissoesArenaPage() {
 
   return (
     <>
-      <PageHeader title="🎯 Missões da Arena" subtitle="Missões do jogo, que renovam todo dia e pagam troféus. Cada uma vale até 5 🏆." />
+      <PageHeader title={<AT>🎯 Missões da Arena</AT>} subtitle={<AT>Missões do jogo, que renovam todo dia e pagam troféus. Cada uma vale até 5 🏆.</AT>} />
       <p className="mb-4 rounded-2xl bg-sky-500/10 px-4 py-3 text-xs font-semibold text-sky-700">
         Estas são as missões do <b>jogo</b>. As missões do <b>aplicativo</b>, que os líderes passam pra seu crescimento pessoal e espiritual, ficam em{" "}
         <Link href={appMissions} className="font-black underline">
@@ -24,14 +25,14 @@ export default async function MissoesArenaPage() {
         .
       </p>
       <div className="mb-3 flex items-center justify-between text-sm font-black">
-        <span>{ready > 0 ? `🎉 ${ready} pra resgatar` : "Complete e resgate os troféus"}</span>
-        <span className="text-amber-600">Hoje: +{gained} 🏆</span>
+        <span>{ready > 0 ? <AT>{`🎉 ${ready} pra resgatar`}</AT> : "Complete e resgate os troféus"}</span>
+        <span className="text-amber-600">Hoje: +{gained}<AT> 🏆</AT></span>
       </div>
       <ul className="space-y-2">
         {missions.map(({ def, progress, done, claimed }) => (
           <li key={def.key} className={`card flex items-center gap-3 p-3 ${claimed ? "opacity-60" : ""}`}>
             <span className="text-3xl" aria-hidden>
-              {def.icon}
+              <AT>{def.icon}</AT>
             </span>
             <span className="min-w-0 flex-1 leading-tight">
               <span className="block text-sm font-black">{def.title}</span>
@@ -46,18 +47,18 @@ export default async function MissoesArenaPage() {
               </span>
             </span>
             {claimed ? (
-              <span className="shrink-0 text-sm font-black text-emerald-600">✔ +{def.reward} 🏆</span>
+              <span className="shrink-0 text-sm font-black text-emerald-600"><AT>✔ +</AT>{def.reward}<AT> 🏆</AT></span>
             ) : done ? (
               <MissionClaim missionKey={def.key} reward={def.reward} />
             ) : (
-              <span className="shrink-0 rounded-full bg-amber-400/20 px-2.5 py-1 text-sm font-black text-amber-600">+{def.reward} 🏆</span>
+              <span className="shrink-0 rounded-full bg-amber-400/20 px-2.5 py-1 text-sm font-black text-amber-600">+{def.reward}<AT> 🏆</AT></span>
             )}
           </li>
         ))}
       </ul>
-      <Link href="/app/jogos/arena" className="btn btn-ghost mt-5 w-full">
+      <Link href="/app/jogos/arena" className="btn btn-ghost mt-5 w-full"><AT>
         ← Voltar à Arena
-      </Link>
+      </AT></Link>
     </>
   );
 }

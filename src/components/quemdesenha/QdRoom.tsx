@@ -6,6 +6,7 @@ import type { Choice, Session } from "@/lib/quemdesenha/net";
 import { MAX_PLAYERS, MIN_PLAYERS, matchStars, type MatchReport, type Settings } from "@/lib/quemdesenha/rules";
 import { CATEGORY_LABEL, CULTURES, LEVEL_LABEL, type Category } from "@/lib/quemdesenha/words";
 import { DrawBoard, type BoardApi } from "./DrawBoard";
+import { QT } from "./QdIcons";
 
 type Saved = { stars?: number; error?: string };
 
@@ -116,7 +117,7 @@ export function QdRoom({ session, training, onLeave, onFinished }: { session: Se
   if (closed) {
     return (
       <div className="card p-6 text-center">
-        <p className="text-5xl" aria-hidden>🚪</p>
+        <p className="text-5xl" aria-hidden><QT>🚪</QT></p>
         <p className="mt-2 text-lg font-black">{closed}</p>
         <button type="button" onClick={onLeave} className="btn btn-primary mt-4 !py-3">Voltar</button>
       </div>
@@ -170,11 +171,11 @@ export function QdRoom({ session, training, onLeave, onFinished }: { session: Se
         </section>
 
         <section className="card p-4">
-          <p className="text-sm font-black">🎨 Jogadores ({s.players.length}/{st.maxPlayers})</p>
+          <p className="text-sm font-black"><QT>🎨 Jogadores (</QT>{s.players.length}/{st.maxPlayers})</p>
           <ul className="mt-2 grid grid-cols-2 gap-2">
             {s.players.map((p) => (
               <li key={p.id} className="flex items-center gap-2 rounded-xl bg-[var(--line)]/60 px-3 py-2 text-sm font-bold">
-                <span aria-hidden>{p.id === s.hostId ? "👑" : p.bot ? "🤖" : "🙂"}</span>
+                <span aria-hidden>{p.id === s.hostId ? <QT>{"👑"}</QT> : p.bot ? <QT>{"🤖"}</QT> : <QT>{"🙂"}</QT>}</span>
                 <span className="truncate">{p.name}</span>
                 {p.id === session.me.id ? <span className="ml-auto text-[10px] text-[var(--muted)]">você</span> : null}
               </li>
@@ -184,13 +185,13 @@ export function QdRoom({ session, training, onLeave, onFinished }: { session: Se
         </section>
 
         <section className="card space-y-3 p-4">
-          <p className="text-sm font-black">⚙️ Ajustes {isHost ? "" : "(só o anfitrião muda)"}</p>
+          <p className="text-sm font-black"><QT>⚙️ Ajustes </QT>{isHost ? "" : "(só o anfitrião muda)"}</p>
           <div>
             <p className="mb-1 text-[11px] font-black uppercase text-[var(--muted)]">Tema</p>
             <div className="flex flex-wrap gap-1.5">
               {CULTURES.map((c) => (
                 <Chip key={c.key} on={st.culture === c.key} disabled={!isHost} onClick={() => change({ culture: c.key })}>
-                  {c.emoji} {c.name}
+                  <QT>{c.emoji}</QT> {c.name}
                 </Chip>
               ))}
             </div>
@@ -202,7 +203,7 @@ export function QdRoom({ session, training, onLeave, onFinished }: { session: Se
               <Chip on={st.category === "todas"} disabled={!isHost} onClick={() => change({ category: "todas" })}>Todas</Chip>
               {(Object.keys(CATEGORY_LABEL) as Category[]).map((c) => (
                 <Chip key={c} on={st.category === c} disabled={!isHost} onClick={() => change({ category: c })}>
-                  {CATEGORY_LABEL[c].emoji} {CATEGORY_LABEL[c].name}
+                  <QT>{CATEGORY_LABEL[c].emoji}</QT> {CATEGORY_LABEL[c].name}
                 </Chip>
               ))}
             </div>
@@ -210,10 +211,10 @@ export function QdRoom({ session, training, onLeave, onFinished }: { session: Se
           <div>
             <p className="mb-1 text-[11px] font-black uppercase text-[var(--muted)]">Dificuldade</p>
             <div className="flex flex-wrap gap-1.5">
-              <Chip on={st.level === "mista"} disabled={!isHost} onClick={() => change({ level: "mista" })}>🎲 Mista</Chip>
+              <Chip on={st.level === "mista"} disabled={!isHost} onClick={() => change({ level: "mista" })}><QT>🎲 Mista</QT></Chip>
               {(["facil", "medio", "dificil"] as const).map((l) => (
                 <Chip key={l} on={st.level === l} disabled={!isHost} onClick={() => change({ level: l })}>
-                  {LEVEL_LABEL[l].emoji} {LEVEL_LABEL[l].name}
+                  <QT>{LEVEL_LABEL[l].emoji}</QT> {LEVEL_LABEL[l].name}
                 </Chip>
               ))}
             </div>
@@ -261,9 +262,9 @@ export function QdRoom({ session, training, onLeave, onFinished }: { session: Se
         </section>
 
         {isHost ? (
-          <button type="button" disabled={!can} onClick={() => session.send({ t: "start" })} className="btn btn-primary w-full !py-3 !text-base disabled:opacity-50">
+          <button type="button" disabled={!can} onClick={() => session.send({ t: "start" })} className="btn btn-primary w-full !py-3 !text-base disabled:opacity-50"><QT>
             ▶ Iniciar partida
-          </button>
+          </QT></button>
         ) : (
           <p className="rounded-2xl bg-[var(--line)] p-3 text-center text-sm font-bold">Esperando o anfitrião iniciar…</p>
         )}
@@ -281,14 +282,14 @@ export function QdRoom({ session, training, onLeave, onFinished }: { session: Se
     return (
       <div className="space-y-3">
         <section className="card p-5 text-center">
-          <p className="text-6xl" aria-hidden>🏆</p>
+          <p className="text-6xl" aria-hidden><QT>🏆</QT></p>
           <p className="mt-1 text-2xl font-black">{win?.id === session.me.id ? "Você venceu!" : `${win?.name} venceu!`}</p>
           <ol className="mt-4 space-y-2 text-left">
             {ranked.map((p, i) => (
               <li key={p.id} className={`flex items-center gap-3 rounded-2xl px-4 py-2.5 ${i === 0 ? "bg-amber-100 text-amber-950" : "bg-[var(--line)]/60"}`}>
-                <span className="w-7 text-center text-xl font-black">{["🥇", "🥈", "🥉"][places[i] - 1] ?? places[i]}</span>
+                <span className="w-7 text-center text-xl font-black"><QT>{["🥇", "🥈", "🥉"][places[i] - 1] ?? places[i]}</QT></span>
                 <span className="min-w-0 flex-1 truncate font-black">{p.name}{p.id === session.me.id ? " (você)" : ""}</span>
-                <span className="text-xs font-bold opacity-70">🎯 {p.guesses} · 🎨 {p.drawings}</span>
+                <span className="text-xs font-bold opacity-70"><QT>🎯 </QT>{p.guesses}<QT> · 🎨 </QT>{p.drawings}</span>
                 <span className="text-lg font-black tabular-nums">{p.score}</span>
               </li>
             ))}
@@ -298,13 +299,13 @@ export function QdRoom({ session, training, onLeave, onFinished }: { session: Se
           ) : saved?.error ? (
             <p className="mt-3 text-xs font-bold text-rose-700">{saved.error}</p>
           ) : saved?.stars !== undefined ? (
-            <p className="mt-3 inline-block rounded-full bg-[var(--accent-soft)] px-4 py-1.5 text-sm font-black text-[var(--accent-strong)]">+{saved.stars} ⭐ estrelas</p>
+            <p className="mt-3 inline-block rounded-full bg-[var(--accent-soft)] px-4 py-1.5 text-sm font-black text-[var(--accent-strong)]">+{saved.stars}<QT> ⭐ estrelas</QT></p>
           ) : (
-            <p className="mt-3 text-xs text-[var(--muted)]">Salvando… (≈ +{stars} ⭐)</p>
+            <p className="mt-3 text-xs text-[var(--muted)]">Salvando… (≈ +{stars}<QT> ⭐)</QT></p>
           )}
         </section>
         {isHost ? (
-          <button type="button" onClick={() => session.send({ t: "again" })} className="btn btn-primary w-full !py-3 !text-base">🔁 Jogar de novo</button>
+          <button type="button" onClick={() => session.send({ t: "again" })} className="btn btn-primary w-full !py-3 !text-base"><QT>🔁 Jogar de novo</QT></button>
         ) : (
           <p className="rounded-2xl bg-[var(--line)] p-3 text-center text-sm font-bold">O anfitrião pode abrir outra partida.</p>
         )}
@@ -321,10 +322,10 @@ export function QdRoom({ session, training, onLeave, onFinished }: { session: Se
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2 text-xs font-black">
-        <button type="button" onClick={leave} className="rounded-full bg-[var(--line)] px-3 py-1.5" aria-label="Sair">✕</button>
+        <button type="button" onClick={leave} className="rounded-full bg-[var(--line)] px-3 py-1.5" aria-label="Sair"><QT>✕</QT></button>
         <span className="rounded-full bg-[var(--accent-soft)] px-3 py-1.5 text-[var(--accent-strong)]">Rodada {s.round}/{s.settings.rounds}</span>
         <span className="text-[var(--muted)]">vez {s.turn + 1}/{s.totalTurns}</span>
-        <span className={`ml-auto rounded-full px-3 py-1.5 text-base tabular-nums ${secs(left) <= 10 && s.phase !== "reveal" ? "bg-rose-600 text-white" : "bg-[var(--line)]"}`}>⏱ {secs(left)}s</span>
+        <span className={`ml-auto rounded-full px-3 py-1.5 text-base tabular-nums ${secs(left) <= 10 && s.phase !== "reveal" ? "bg-rose-600 text-white" : "bg-[var(--line)]"}`}><QT>⏱ </QT>{secs(left)}s</span>
       </div>
       <div className="h-1.5 overflow-hidden rounded-full bg-[var(--line)]">
         <div className="h-full rounded-full bg-[var(--accent)] transition-[width] duration-200" style={{ width: `${pct}%` }} />
@@ -338,10 +339,10 @@ export function QdRoom({ session, training, onLeave, onFinished }: { session: Se
             <div className="mt-3 grid gap-2">
               {(choices ?? []).map((c) => (
                 <button key={c.i} type="button" onClick={() => session.send({ t: "pick", i: c.i })} className="flex items-center gap-3 rounded-2xl border-2 border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-left active:scale-[0.98]">
-                  <span className="text-2xl" aria-hidden>{LEVEL_LABEL[c.level].emoji}</span>
+                  <span className="text-2xl" aria-hidden><QT>{LEVEL_LABEL[c.level].emoji}</QT></span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-lg font-black">{c.text}</span>
-                    <span className="block text-[11px] font-bold text-[var(--muted)]">{CATEGORY_LABEL[c.category].emoji} {CATEGORY_LABEL[c.category].name} · {LEVEL_LABEL[c.level].name}</span>
+                    <span className="block text-[11px] font-bold text-[var(--muted)]"><QT>{CATEGORY_LABEL[c.category].emoji}</QT> {CATEGORY_LABEL[c.category].name} · {LEVEL_LABEL[c.level].name}</span>
                   </span>
                 </button>
               ))}
@@ -349,7 +350,7 @@ export function QdRoom({ session, training, onLeave, onFinished }: { session: Se
           </section>
         ) : (
           <section className="card p-6 text-center">
-            <p className="text-5xl" aria-hidden>🎨</p>
+            <p className="text-5xl" aria-hidden><QT>🎨</QT></p>
             <p className="mt-2 text-lg font-black">{drawer?.name} está escolhendo a palavra…</p>
           </section>
         )
@@ -370,7 +371,7 @@ export function QdRoom({ session, training, onLeave, onFinished }: { session: Se
             )}
             {/* as duas linhas ficam reservadas: a pista aparecer não empurra o desenho para baixo */}
             {[0, 1].map((i) => (
-              <p key={i} className={`mt-1 text-xs font-bold text-amber-700 ${s.hints[i] && s.phase === "drawing" ? "" : "invisible"}`}>💡 {s.hints[i] ?? "pista"}</p>
+              <p key={i} className={`mt-1 text-xs font-bold text-amber-700 ${s.hints[i] && s.phase === "drawing" ? "" : "invisible"}`}><QT>💡 </QT>{s.hints[i] ?? "pista"}</p>
             ))}
           </section>
 
@@ -387,7 +388,7 @@ export function QdRoom({ session, training, onLeave, onFinished }: { session: Se
                       .sort((a, b) => b.gain - a.gain)
                       .map((p) => (
                         <li key={p.id} className="flex justify-between">
-                          <span className="truncate">{p.id === s.drawerId ? "🎨 " : "✅ "}{p.name}</span>
+                          <span className="truncate">{p.id === s.drawerId ? <QT>{"🎨 "}</QT> : <QT>{"✅ "}</QT>}{p.name}</span>
                           <span className="tabular-nums text-emerald-400">+{p.gain}</span>
                         </li>
                       ))}
@@ -433,7 +434,7 @@ function Scoreboard({ players, drawerId, meId }: { players: PlayerPub[]; drawerI
       {sorted.map((p) => (
         <li key={p.id} className={`shrink-0 rounded-2xl border-2 px-3 py-1.5 text-center ${p.id === drawerId ? "border-amber-400 bg-amber-50 text-amber-950" : p.guessed ? "border-emerald-400 bg-emerald-50 text-emerald-950" : "border-[var(--line)] bg-[var(--surface)]"} ${p.connected ? "" : "opacity-40"}`}>
           <p className="max-w-[5.5rem] truncate text-[11px] font-black">
-            {p.id === drawerId ? "🎨 " : p.guessed ? "✅ " : ""}
+            {p.id === drawerId ? <QT>{"🎨 "}</QT> : p.guessed ? <QT>{"✅ "}</QT> : ""}
             {p.name}
             {p.id === meId ? " •" : ""}
           </p>

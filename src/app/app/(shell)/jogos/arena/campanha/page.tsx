@@ -5,6 +5,7 @@ import { campaignState } from "@/lib/arena/campaignServer";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hasDate } from "@/lib/games/release";
 import { getReleaseDates } from "@/lib/games/releaseServer";
+import { AT } from "@/components/arena/ArenaText";
 
 export const metadata = { title: "Campanha · Arena dos Heróis" };
 
@@ -15,7 +16,7 @@ export default async function CampanhaPage() {
   const opensAt = (await getReleaseDates()).arenacampanha;
   return (
     <>
-      <PageHeader title="🛡️ Campanha" subtitle="8 arenas, 8 personagens, uma só vitória por vez." />
+      <PageHeader title={<AT>🛡️ Campanha</AT>} subtitle="8 arenas, 8 personagens, uma só vitória por vez." />
       <ArenaCampaign open={st.open} admin={st.admin} cleared={st.cleared} tiers={st.tiers} opensAt={hasDate(opensAt) ? opensAt : null} />
     </>
   );

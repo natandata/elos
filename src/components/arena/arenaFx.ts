@@ -2,6 +2,7 @@ import { ARENA_CARD_BY_KEY } from "@/lib/arena/cards";
 import type { GameEvent } from "@/lib/arena/core";
 import { TEAM } from "./arenaRender";
 import { CUSTOM_PROJ, IMPACT_CARDS, IMPACT_DUR, MELEE_DUR, drawImpact, drawMelee, drawProjectile } from "./arenaAttackFx";
+import { glyph } from "./arenaGlyph";
 
 // Animações da Arena. Tudo aqui é só visual: nada disso altera o jogo.
 // Tempos em "ticks" (1/20 s); `tickF` = tick atual + fração entre ticks.
@@ -173,7 +174,7 @@ function drawGhost(ctx: CanvasRenderingContext2D, s: number, f: Extract<Fx, { k:
     ctx.textBaseline = "middle";
     ctx.font = `${Math.max(14, f.radius * 2.4 * s)}px system-ui, "Segoe UI Emoji", sans-serif`;
     ctx.fillStyle = "#000";
-    ctx.fillText(ARENA_CARD_BY_KEY.get(f.card)?.emoji ?? "❔", 0, -f.radius * s * 0.9);
+    glyph(ctx, ARENA_CARD_BY_KEY.get(f.card)?.emoji ?? "❔", 0, -f.radius * s * 0.9, Math.max(14, f.radius * 2.4 * s));
   }
   ctx.restore();
 }
@@ -199,7 +200,7 @@ export function drawFx(ctx: CanvasRenderingContext2D, s: number, list: Fx[], tic
           ctx.translate(x, y);
           ctx.rotate(p * 9);
           ctx.font = `${0.9 * s}px system-ui, "Segoe UI Emoji", sans-serif`;
-          ctx.fillText(f.emoji, 0, 0);
+          glyph(ctx, f.emoji, 0, 0, 0.9 * s);
           ctx.restore();
           // rastro
           ctx.fillStyle = "rgba(255,255,255,0.35)";
@@ -242,7 +243,7 @@ export function drawFx(ctx: CanvasRenderingContext2D, s: number, list: Fx[], tic
         ctx.setLineDash([]);
         ctx.globalAlpha = 0.7;
         ctx.font = `${0.95 * s}px system-ui, "Segoe UI Emoji", sans-serif`;
-        ctx.fillText(f.emoji, 0, 0);
+        glyph(ctx, f.emoji, 0, 0, 0.95 * s);
         ctx.restore();
         break;
       }
@@ -334,7 +335,7 @@ export function drawFx(ctx: CanvasRenderingContext2D, s: number, list: Fx[], tic
           const fall = Math.min(1, p / 0.35);
           if (fall < 1) {
             ctx.font = `${1.6 * s}px system-ui, "Segoe UI Emoji", sans-serif`;
-            ctx.fillText("☄️", x + (1 - fall) * 3 * s, y - (1 - fall) * 8 * s);
+            glyph(ctx, "☄️", x + (1 - fall) * 3 * s, y - (1 - fall) * 8 * s, 1.6 * s);
           } else {
             const q = (p - 0.35) / 0.65;
             const g = ctx.createRadialGradient(x, y, 0, x, y, R * (0.5 + q));
@@ -347,7 +348,7 @@ export function drawFx(ctx: CanvasRenderingContext2D, s: number, list: Fx[], tic
             ctx.fill();
             ctx.globalAlpha = 1 - q;
             ctx.font = `${R * 1.2}px system-ui, "Segoe UI Emoji", sans-serif`;
-            ctx.fillText("🔥", x, y);
+            glyph(ctx, "🔥", x, y, R * 1.2);
             ctx.globalAlpha = 1;
           }
         } else if (f.key === "mar") {
@@ -367,7 +368,7 @@ export function drawFx(ctx: CanvasRenderingContext2D, s: number, list: Fx[], tic
           ctx.fill();
           ctx.globalAlpha = 1 - p;
           ctx.font = `${R * 0.9}px system-ui, "Segoe UI Emoji", sans-serif`;
-          ctx.fillText("🌊", x, y);
+          glyph(ctx, "🌊", x, y, R * 0.9);
           ctx.globalAlpha = 1;
         } else {
           // trombetas: ondas sonoras douradas
@@ -382,7 +383,7 @@ export function drawFx(ctx: CanvasRenderingContext2D, s: number, list: Fx[], tic
           }
           ctx.globalAlpha = 1 - p;
           ctx.font = `${R * 0.9}px system-ui, "Segoe UI Emoji", sans-serif`;
-          ctx.fillText("📯", x, y);
+          glyph(ctx, "📯", x, y, R * 0.9);
           ctx.globalAlpha = 1;
         }
         break;

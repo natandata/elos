@@ -14,6 +14,7 @@ import { teamOf, type Side } from "@/lib/arena/core";
 import type { DuoView } from "@/lib/arena/settleDuo";
 import { ARENAS } from "@/lib/arena/arenas";
 import { ArenaPlayfield, type PlayDriver } from "./ArenaPlayfield";
+import { AT } from "./ArenaText";
 
 type Stage = "invite" | "ready" | "connecting" | "playing" | "finishing" | "result";
 type Status = "invited" | "accepted" | "finished" | "declined" | "disputed";
@@ -345,13 +346,13 @@ export function ArenaDuoRoom({ id, me, names, arena, seed, decks, levels, initia
         extra={
           <>
             {leftNames.length > 0 ? (
-              <div className="pointer-events-none absolute inset-x-3 top-20 rounded-xl bg-black/70 px-3 py-1.5 text-center text-xs font-bold text-white">
-                🚪 {leftNames.map((p) => names[p].split(" ")[0]).join(", ")} saiu da partida
+              <div className="pointer-events-none absolute inset-x-3 top-20 rounded-xl bg-black/70 px-3 py-1.5 text-center text-xs font-bold text-white"><AT>
+                🚪 </AT>{leftNames.map((p) => names[p].split(" ")[0]).join(", ")} saiu da partida
               </div>
             ) : null}
             {silent.length > 0 ? (
               <div className="absolute inset-x-3 top-28 rounded-2xl border-2 border-amber-300 bg-black/80 p-3 text-center text-white">
-                <p className="text-sm font-black">📡 {silent.map((p) => names[p].split(" ")[0]).join(", ")} sem conexão</p>
+                <p className="text-sm font-black"><AT>📡 </AT>{silent.map((p) => names[p].split(" ")[0]).join(", ")} sem conexão</p>
                 <p className="mt-1 text-xs font-semibold text-white/80">A partida precisa de todos conectados. Se não voltar, você pode sair.</p>
                 <button
                   type="button"
@@ -374,7 +375,7 @@ export function ArenaDuoRoom({ id, me, names, arena, seed, decks, levels, initia
   const chip = (i: number) => (
     <li key={i} className={`flex items-center gap-2 rounded-xl border-2 px-3 py-2 ${i === me ? "border-amber-400 bg-amber-400/10" : "border-[var(--line)] bg-[var(--card)]"}`}>
       <span className="text-lg" aria-hidden>
-        {accepted[i] ? "✅" : "⏳"}
+        {accepted[i] ? <AT>{"✅"}</AT> : <AT>{"⏳"}</AT>}
       </span>
       <span className="min-w-0 flex-1 truncate text-sm font-bold">
         {names[i]}
@@ -392,12 +393,12 @@ export function ArenaDuoRoom({ id, me, names, arena, seed, decks, levels, initia
             // eslint-disable-next-line @next/next/no-img-element
             <img src={arenaInfo.art} alt="" className="h-20 w-auto drop-shadow" draggable={false} />
           ) : (
-            <span className="text-5xl" aria-hidden>
+            <span className="text-5xl" aria-hidden><AT>
               👥
-            </span>
+            </AT></span>
           )}
         </div>
-        <h2 className="mt-1 text-center text-xl font-black">👥 Duplas</h2>
+        <h2 className="mt-1 text-center text-xl font-black"><AT>👥 Duplas</AT></h2>
         <p className="text-center text-sm text-[var(--muted)]">{arenaInfo?.name} · {levels ? "cartas nos níveis reais (vizinhos no ranking)" : "todos com cartas no nível 1"}</p>
 
         <div className="mt-4 grid gap-3">
@@ -414,16 +415,16 @@ export function ArenaDuoRoom({ id, me, names, arena, seed, decks, levels, initia
         {stage === "invite" ? (
           me === 0 || accepted[me] ? (
             <>
-              <p className="mt-4 text-center text-sm font-bold">⏳ Esperando todo mundo aceitar… Esta tela avisa sozinha.</p>
+              <p className="mt-4 text-center text-sm font-bold"><AT>⏳ Esperando todo mundo aceitar… Esta tela avisa sozinha.</AT></p>
               <button type="button" disabled={busy} onClick={leaveRoom} className="btn btn-ghost mt-3 w-full">
                 {me === 0 ? "Cancelar desafio" : "Sair da sala"}
               </button>
             </>
           ) : (
             <div className="mt-4 grid gap-2">
-              <button type="button" disabled={busy} onClick={() => respond(true)} className="btn btn-primary !py-3">
+              <button type="button" disabled={busy} onClick={() => respond(true)} className="btn btn-primary !py-3"><AT>
                 ✅ Aceitar o desafio
-              </button>
+              </AT></button>
               <button type="button" disabled={busy} onClick={() => respond(false)} className="btn btn-ghost">
                 Recusar
               </button>
@@ -435,9 +436,9 @@ export function ArenaDuoRoom({ id, me, names, arena, seed, decks, levels, initia
           <>
             <p className="mt-4 text-center font-bold">Tudo pronto! Os quatro precisam entrar ao mesmo tempo.</p>
             <p className="mt-1 text-center text-xs text-[var(--muted)]">Se você sair no meio, conta como derrota.</p>
-            <button type="button" onClick={() => setIntro(true)} className="btn btn-primary mt-4 w-full !py-3 !text-lg">
+            <button type="button" onClick={() => setIntro(true)} className="btn btn-primary mt-4 w-full !py-3 !text-lg"><AT>
               ⚔️ Entrar na partida
-            </button>
+            </AT></button>
             {intro ? <ArenaLoadingScreen label="Entrando na partida…" onComplete={enter} /> : null}
             <button type="button" disabled={busy} onClick={leaveRoom} className="btn btn-ghost mt-2 w-full">
               Sair da sala
@@ -447,7 +448,7 @@ export function ArenaDuoRoom({ id, me, names, arena, seed, decks, levels, initia
 
         {stage === "connecting" ? (
           <>
-            <p className="mt-4 text-center font-bold">⏳ Esperando os outros entrarem…</p>
+            <p className="mt-4 text-center font-bold"><AT>⏳ Esperando os outros entrarem…</AT></p>
             <button
               type="button"
               onClick={() => {
@@ -474,7 +475,7 @@ export function ArenaDuoRoom({ id, me, names, arena, seed, decks, levels, initia
         {error ? <p className="mt-3 text-center text-sm font-semibold text-rose-600">{error}</p> : null}
       </div>
       <Link href={tournamentId ? `/app/jogos/arena/torneios/${tournamentId}` : "/app/jogos/arena"} className="btn btn-ghost mt-3 w-full">
-        {tournamentId ? "← Voltar ao torneio" : "← Voltar à Batalha"}
+        {tournamentId ? <AT>{"← Voltar ao torneio"}</AT> : <AT>{"← Voltar à Batalha"}</AT>}
       </Link>
     </div>
   );
@@ -485,7 +486,7 @@ function DuoResult({ view, status, tournamentId }: { view: DuoView; status: stri
   if (view.state === "disputed" || status === "disputed") {
     return (
       <div className="mt-4 text-center">
-        <p className="text-4xl" aria-hidden>⚠️</p>
+        <p className="text-4xl" aria-hidden><AT>⚠️</AT></p>
         <p className="mt-1 font-bold">Não deu pra confirmar essa partida.</p>
         <p className="mt-1 text-xs text-[var(--muted)]">Os aparelhos não concordaram com as jogadas. Ninguém ganha nem perde troféu.</p>
       </div>
@@ -496,19 +497,19 @@ function DuoResult({ view, status, tournamentId }: { view: DuoView; status: stri
   return (
     <div className="mt-4 text-center">
       <p className="text-6xl" aria-hidden>
-        {r === "win" ? "🏆" : r === "draw" ? "🤝" : "😅"}
+        {r === "win" ? <AT>{"🏆"}</AT> : r === "draw" ? <AT>{"🤝"}</AT> : <AT>{"😅"}</AT>}
       </p>
       <h3 className="mt-1 text-2xl font-black">{r === "win" ? "Vitória!" : r === "draw" ? "Empate" : "Derrota"}</h3>
-      <p className="text-lg font-bold tabular-nums">
-        👑 {view.crownsMe ?? 0} x {view.crownsThem ?? 0} 👑
-      </p>
+      <p className="text-lg font-bold tabular-nums"><AT>
+        👑 </AT>{view.crownsMe ?? 0} x {view.crownsThem ?? 0}<AT> 👑
+      </AT></p>
       {view.rewarded ? (
         <>
           {r !== "draw" ? (
             <p className={`mt-2 text-xl font-black tabular-nums ${(view.trophyDelta ?? 0) >= 0 ? "text-amber-500" : "text-rose-500"}`}>
               {(view.trophyDelta ?? 0) >= 0 ? "+" : ""}
-              {view.trophyDelta ?? 0} 🏆
-              {typeof view.trophies === "number" ? <span className="text-sm font-bold text-[var(--muted)]"> (total {view.trophies})</span> : null}
+              {view.trophyDelta ?? 0}<AT> 🏆
+              </AT>{typeof view.trophies === "number" ? <span className="text-sm font-bold text-[var(--muted)]"> (total {view.trophies})</span> : null}
             </p>
           ) : null}
           <CopyReward card={view.copyCard} n={view.copies} />

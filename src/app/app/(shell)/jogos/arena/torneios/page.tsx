@@ -5,6 +5,7 @@ import { ARENAS } from "@/lib/arena/arenas";
 import { normalizePrizes, prizeText } from "@/lib/arena/tournament";
 import { createClient } from "@/lib/supabase/server";
 import { formatDateTime } from "@/lib/types";
+import { AT } from "@/components/arena/ArenaText";
 
 type Row = { id: string; name: string; format: "solo" | "duo"; arena: number; status: string; max_entries: number | null; prizes: unknown; starts_at: string | null };
 
@@ -44,9 +45,9 @@ export default async function TorneiosPage() {
           <span className="min-w-0 flex-1 leading-tight">
             <span className="block truncate text-base font-black">{r.name}</span>
             <span className="block text-xs font-bold text-[var(--muted)]">
-              {r.format === "duo" ? "👥 Duplas" : "⚔️ 1x1"} · {arena.name}
+              {r.format === "duo" ? <AT>{"👥 Duplas"}</AT> : <AT>{"⚔️ 1x1"}</AT>} · {arena.name}
             </span>
-            <span className="block text-xs font-bold text-amber-600">🥇 {prizeText(prizes.p1)}</span>
+            <span className="block text-xs font-bold text-amber-600"><AT>🥇 </AT><AT>{prizeText(prizes.p1)}</AT></span>
             {r.starts_at ? <span className="block text-[11px] text-[var(--muted)]">Início: {formatDateTime(r.starts_at)}</span> : null}
           </span>
           <span className="flex shrink-0 flex-col items-end gap-1">
@@ -63,7 +64,7 @@ export default async function TorneiosPage() {
 
   return (
     <>
-      <PageHeader title="🏆 Torneios" subtitle="Campeonatos da Arena dos Heróis, com prêmios. Inscreva-se e jogue contra outros Elos." />
+      <PageHeader title={<AT>🏆 Torneios</AT>} subtitle="Campeonatos da Arena dos Heróis, com prêmios. Inscreva-se e jogue contra outros Elos." />
       {active.length === 0 ? <p className="card p-4 text-center text-sm font-bold text-[var(--muted)]">Nenhum torneio aberto agora. Fique de olho nos avisos!</p> : <ul className="space-y-2">{active.map(card)}</ul>}
       {past.length > 0 ? (
         <>
@@ -71,9 +72,9 @@ export default async function TorneiosPage() {
           <ul className="space-y-2">{past.map(card)}</ul>
         </>
       ) : null}
-      <Link href="/app/jogos/arena" className="btn btn-ghost mt-5 w-full">
+      <Link href="/app/jogos/arena" className="btn btn-ghost mt-5 w-full"><AT>
         ← Voltar à Arena
-      </Link>
+      </AT></Link>
     </>
   );
 }

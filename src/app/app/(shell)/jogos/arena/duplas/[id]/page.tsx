@@ -5,6 +5,7 @@ import { requireRole } from "@/lib/auth";
 import { viewOfDuo, type DuoRow } from "@/lib/arena/settleDuo";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { AT } from "@/components/arena/ArenaText";
 
 export default async function ArenaDuoRoomPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -41,7 +42,7 @@ export default async function ArenaDuoRoomPage({ params }: { params: Promise<{ i
 
   return (
     <>
-      <PageHeader title={tournamentId ? "🏆 Torneio · duplas" : "👥 Arena em duplas"} subtitle={tournamentId ? "Partida do torneio, em tempo real." : "Partida 2x2 em tempo real com colegas do seu Elo."} />
+      <PageHeader title={tournamentId ? <AT>{"🏆 Torneio · duplas"}</AT> : <AT>{"👥 Arena em duplas"}</AT>} subtitle={tournamentId ? "Partida do torneio, em tempo real." : "Partida 2x2 em tempo real com colegas do seu Elo."} />
       <ArenaDuoRoom
         id={row.id}
         me={me}

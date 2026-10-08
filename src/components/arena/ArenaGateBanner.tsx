@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { GATE_GAMES, GATE_GAME_INFO, GATE_GAME_KEYS, gateMessage, type GateInfo } from "@/lib/arena/gate";
+import { AT } from "./ArenaText";
 
 /** Aviso da trava da Arena: progresso das batalhas e, quando travou, os jogos pra destravar. */
 export function ArenaGateBanner({ gate, compact = false }: { gate: GateInfo; compact?: boolean }) {
@@ -7,13 +8,13 @@ export function ArenaGateBanner({ gate, compact = false }: { gate: GateInfo; com
     const left = gate.limit - gate.battles;
     return (
       <p className={`cr-text text-center text-[11px] opacity-90 ${compact ? "" : "mt-2"}`}>
-        {gate.limit <= 5 ? Array.from({ length: gate.limit }).map((_, i) => (i < gate.battles ? "🟡" : "⚪")).join(" ") : `${gate.battles}/${gate.limit}`} · {left === 1 ? "mais 1 batalha" : `mais ${left} batalhas`} contra o computador até a pausa pra vencer outros jogos
+        <AT>{gate.limit <= 5 ? Array.from({ length: gate.limit }).map((_, i) => (i < gate.battles ? "🟡" : "⚪")).join(" ") : `${gate.battles}/${gate.limit}`}</AT> · {left === 1 ? "mais 1 batalha" : `mais ${left} batalhas`} contra o computador até a pausa pra vencer outros jogos
       </p>
     );
   }
   return (
     <div className="mt-3 rounded-2xl border-[3px] border-amber-300 bg-[#3a1d0a]/90 p-3 text-white shadow-lg">
-      <p className="text-base font-black">🔒 Arena em pausa</p>
+      <p className="text-base font-black"><AT>🔒 Arena em pausa</AT></p>
       <p className="mt-1 text-sm font-semibold text-white/90">{gateMessage(gate)}</p>
       <p className="mt-2 text-xs font-black uppercase tracking-wide text-amber-300">
         Jogos vencidos depois da pausa: {gate.games}/{GATE_GAMES}
@@ -30,7 +31,7 @@ export function ArenaGateBanner({ gate, compact = false }: { gate: GateInfo; com
           const inner = (
             <>
               <span className="text-xl" aria-hidden>
-                {info.icon}
+                <AT>{info.icon}</AT>
               </span>
               <span className="min-w-0 flex-1 text-left text-[11px] font-black leading-tight">{info.name}</span>
               <span className="text-[10px] font-black">{done ? "sem XP" : "Jogar"}</span>

@@ -6,6 +6,7 @@ import { ARENA_CARD_BY_KEY } from "@/lib/arena/cards";
 import { CHESTS, type ChestDef, type CopyGrant } from "@/lib/arena/economy";
 import { CardArt } from "./CardArt";
 import { ChestIcon } from "./ArenaIcons";
+import { AT } from "./ArenaText";
 
 const VARIANT = { daily: "wood", cedro: "wood", templo: "gold", arca: "ark" } as const;
 
@@ -95,15 +96,15 @@ export function ArenaChests({
                 onClick={() => open(c)}
                 className="btn btn-primary shrink-0 !px-3 !py-2 !text-sm disabled:opacity-50"
               >
-                {busy === c.kind ? "Abrindo…" : free ? (dailyReady ? "Abrir grátis" : "Volte amanhã") : `${c.cost} 🏆`}
+                {busy === c.kind ? "Abrindo…" : free ? (dailyReady ? "Abrir grátis" : "Volte amanhã") : <AT>{`${c.cost} 🏆`}</AT>}
               </button>
             </li>
           );
         })}
       </ul>
       <p className="mt-3 text-center text-xs font-bold text-[var(--muted)]">
-        Você tem {trophies} 🏆. Os troféus gastos saem do seu total (o recorde e as cartas liberadas não mudam).
-      </p>
+        Você tem {trophies}<AT> 🏆. Os troféus gastos saem do seu total (o recorde e as cartas liberadas não mudam).
+      </AT></p>
       {error ? <p className="mt-2 text-center text-sm font-semibold text-rose-600">{error}</p> : null}
     </div>
   );

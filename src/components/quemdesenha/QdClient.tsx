@@ -7,6 +7,7 @@ import { createIsolatedClient } from "@/lib/supabase/client";
 import { GuestSession, HostSession, LocalSession, cleanCode, watchRooms, type RoomAd, type Session } from "@/lib/quemdesenha/net";
 import { DEFAULT_SETTINGS, TITLES, titleFor, type MatchReport, type QdStats } from "@/lib/quemdesenha/rules";
 import { QdRoom } from "./QdRoom";
+import { QT } from "./QdIcons";
 
 type Active = { session: Session; training: boolean };
 
@@ -72,12 +73,12 @@ export function QdClient({ me, initial }: { me: { id: string; name: string }; in
 
       <section className="card p-4">
         <div className="flex items-center gap-3">
-          <span className="grid h-14 w-14 place-items-center rounded-2xl bg-[var(--accent-soft)] text-3xl" aria-hidden>{title.emoji}</span>
+          <span className="grid h-14 w-14 place-items-center rounded-2xl bg-[var(--accent-soft)] text-3xl" aria-hidden><QT>{title.emoji}</QT></span>
           <div className="min-w-0 flex-1">
             <p className="truncate text-lg font-black">{me.name}</p>
             <p className="text-sm font-bold text-[var(--accent-strong)]">{title.name}</p>
           </div>
-          <p className="text-right text-2xl font-black tabular-nums">⭐ {stats.stars.toLocaleString("pt-BR")}</p>
+          <p className="text-right text-2xl font-black tabular-nums"><QT>⭐ </QT>{stats.stars.toLocaleString("pt-BR")}</p>
         </div>
         <div className="mt-2 h-2 overflow-hidden rounded-full bg-[var(--line)]">
           <div className="h-full rounded-full bg-[var(--accent)]" style={{ width: `${into}%` }} />
@@ -91,7 +92,7 @@ export function QdClient({ me, initial }: { me: { id: string; name: string }; in
             ["🔥", stats.win_streak, "em sequência"],
           ].map(([e, n, l]) => (
             <div key={String(l)} className="rounded-xl bg-[var(--line)]/60 py-2">
-              <p className="text-lg font-black tabular-nums">{e} {n}</p>
+              <p className="text-lg font-black tabular-nums"><QT>{e}</QT> {n}</p>
               <p className="text-[10px] font-bold text-[var(--muted)]">{l}</p>
             </div>
           ))}
@@ -101,7 +102,7 @@ export function QdClient({ me, initial }: { me: { id: string; name: string }; in
           <ul className="mt-2 grid grid-cols-2 gap-1.5 text-xs font-bold">
             {TITLES.map((t) => (
               <li key={t.name} className={`rounded-lg px-2 py-1.5 ${stats.stars >= t.stars ? "bg-emerald-100 text-emerald-900" : "bg-[var(--line)]/60 text-[var(--muted)]"}`}>
-                {t.emoji} {t.name} <span className="opacity-70">({t.stars})</span>
+                <QT>{t.emoji}</QT> {t.name} <span className="opacity-70">({t.stars})</span>
               </li>
             ))}
           </ul>
@@ -110,11 +111,11 @@ export function QdClient({ me, initial }: { me: { id: string; name: string }; in
 
       <section className="card space-y-2 p-4">
         <button type="button" disabled={!!busy} onClick={() => void quick()} className="btn btn-primary w-full !py-3 !text-base disabled:opacity-60">
-          {busy?.startsWith("join") ? "Entrando…" : "⚡ Partida rápida"}
+          {busy?.startsWith("join") ? "Entrando…" : <QT>{"⚡ Partida rápida"}</QT>}
         </button>
         <div className="grid grid-cols-2 gap-2">
-          <button type="button" disabled={!!busy} onClick={() => void create(true)} className="btn btn-ghost !py-3 disabled:opacity-60">➕ Criar sala</button>
-          <button type="button" disabled={!!busy} onClick={() => void create(false)} className="btn btn-ghost !py-3 disabled:opacity-60">🔒 Sala privada</button>
+          <button type="button" disabled={!!busy} onClick={() => void create(true)} className="btn btn-ghost !py-3 disabled:opacity-60"><QT>➕ Criar sala</QT></button>
+          <button type="button" disabled={!!busy} onClick={() => void create(false)} className="btn btn-ghost !py-3 disabled:opacity-60"><QT>🔒 Sala privada</QT></button>
         </div>
         <form
           onSubmit={(e) => {
@@ -126,12 +127,12 @@ export function QdClient({ me, initial }: { me: { id: string; name: string }; in
           <input value={code} onChange={(e) => setCode(cleanCode(e.target.value))} placeholder="CÓDIGO" maxLength={4} autoCapitalize="characters" autoComplete="off" className="min-w-0 flex-1 rounded-xl border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-center text-xl font-black tracking-[0.35em]" />
           <button type="submit" disabled={code.length !== 4 || !!busy} className="btn btn-primary !px-6 disabled:opacity-50">Entrar</button>
         </form>
-        <button type="button" disabled={!!busy} onClick={() => void train()} className="btn btn-ghost w-full disabled:opacity-60">🤖 Treinar contra o computador</button>
+        <button type="button" disabled={!!busy} onClick={() => void train()} className="btn btn-ghost w-full disabled:opacity-60"><QT>🤖 Treinar contra o computador</QT></button>
         {error ? <p className="rounded-xl bg-rose-100 px-3 py-2 text-xs font-bold text-rose-800">{error}</p> : null}
       </section>
 
       <section className="card p-4">
-        <p className="text-sm font-black">🌐 Salas abertas</p>
+        <p className="text-sm font-black"><QT>🌐 Salas abertas</QT></p>
         {rooms.length === 0 ? (
           <p className="mt-1 text-xs text-[var(--muted)]">Nenhuma sala aberta agora. Crie uma e chame os amigos!</p>
         ) : (
@@ -150,8 +151,8 @@ export function QdClient({ me, initial }: { me: { id: string; name: string }; in
       </section>
 
       <section className="card p-4">
-        <button type="button" onClick={() => setHelp((h) => !h)} className="w-full text-left text-sm font-black">
-          📖 Como jogar {help ? "▲" : "▼"}
+        <button type="button" onClick={() => setHelp((h) => !h)} className="w-full text-left text-sm font-black"><QT>
+          📖 Como jogar </QT>{help ? "▲" : "▼"}
         </button>
         {help ? (
           <ol className="mt-2 list-decimal space-y-1 pl-5 text-xs text-[var(--muted)]">

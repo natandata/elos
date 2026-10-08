@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Avatar } from "@/components/Avatar";
 import { challengeArenaDuo, leaveArenaDuo, respondArenaDuo } from "@/lib/actions/arenaDuo";
+import { AT } from "./ArenaText";
 
 export type Mate = { id: string; name: string; avatarUrl: string | null };
 export type DuoItem = {
@@ -75,8 +76,8 @@ export function ArenaDuoLobby({ mates, items }: { mates: Mate[]; items: DuoItem[
           <ul className="space-y-2">
             {invites.map((i) => (
               <li key={i.id} className="card flex items-center gap-3 p-3">
-                <span className="min-w-0 flex-1 text-sm font-bold">
-                  👥 Dupla com {i.partner} contra {i.enemies}
+                <span className="min-w-0 flex-1 text-sm font-bold"><AT>
+                  👥 Dupla com </AT>{i.partner} contra {i.enemies}
                 </span>
                 <button type="button" onClick={() => router.push(`/app/jogos/arena/duplas/${i.id}`)} className="btn btn-primary !px-4 !py-2 !text-sm">
                   Ver
@@ -97,7 +98,7 @@ export function ArenaDuoLobby({ mates, items }: { mates: Mate[]; items: DuoItem[
             {active.map((i) => (
               <li key={i.id} className="card flex items-center gap-3 p-3">
                 <span className="min-w-0 flex-1 text-sm font-bold">
-                  {i.status === "accepted" ? "🎮" : "⏳"} {i.partner} + você x {i.enemies}
+                  {i.status === "accepted" ? <AT>{"🎮"}</AT> : <AT>{"⏳"}</AT>} {i.partner} + você x {i.enemies}
                 </span>
                 <button type="button" onClick={() => router.push(`/app/jogos/arena/duplas/${i.id}`)} className="btn btn-primary !px-4 !py-2 !text-sm">
                   {i.status === "accepted" ? "Entrar" : "Abrir"}
@@ -118,7 +119,7 @@ export function ArenaDuoLobby({ mates, items }: { mates: Mate[]; items: DuoItem[
         ) : (
           <>
             <p className="mb-2 text-xs text-[var(--muted)]">
-              Toque em <b>💙 Parceiro</b> para escolher quem joga com você e em <b>🆚 Adversário</b> para escolher os dois do outro time.
+              Toque em <b><AT>💙 Parceiro</AT></b> para escolher quem joga com você e em <b><AT>🆚 Adversário</AT></b> para escolher os dois do outro time.
             </p>
             <ul className="space-y-2">
               {mates.map((m) => {
@@ -132,17 +133,17 @@ export function ArenaDuoLobby({ mates, items }: { mates: Mate[]; items: DuoItem[
                       type="button"
                       onClick={() => togglePartner(m.id)}
                       className={`rounded-lg px-2.5 py-1.5 text-xs font-black ${isPartner ? "bg-sky-500 text-white" : "bg-[var(--card)] text-[var(--muted)] ring-1 ring-[var(--line)]"}`}
-                    >
+                    ><AT>
                       💙 Parceiro
-                    </button>
+                    </AT></button>
                     <button
                       type="button"
                       disabled={isPartner}
                       onClick={() => toggleOpp(m.id)}
                       className={`rounded-lg px-2.5 py-1.5 text-xs font-black disabled:opacity-40 ${isOpp ? "bg-rose-500 text-white" : "bg-[var(--card)] text-[var(--muted)] ring-1 ring-[var(--line)]"}`}
-                    >
+                    ><AT>
                       🆚 Adversário
-                    </button>
+                    </AT></button>
                   </li>
                 );
               })}
@@ -154,7 +155,7 @@ export function ArenaDuoLobby({ mates, items }: { mates: Mate[]; items: DuoItem[
               </span>
             </div>
             <button type="button" disabled={!ready || busy !== null} onClick={challenge} className="btn btn-primary mt-3 w-full !py-3 disabled:opacity-50">
-              {busy === "new" ? "Enviando…" : ready ? "⚔️ Desafiar" : "Escolha 1 parceiro e 2 adversários"}
+              {busy === "new" ? "Enviando…" : ready ? <AT>{"⚔️ Desafiar"}</AT> : "Escolha 1 parceiro e 2 adversários"}
             </button>
           </>
         )}
@@ -168,13 +169,13 @@ export function ArenaDuoLobby({ mates, items }: { mates: Mate[]; items: DuoItem[
             {done.map((i) => (
               <li key={i.id} className="card flex items-center gap-3 p-3 text-sm">
                 <span className="min-w-0 flex-1 truncate font-bold">
-                  {i.status === "disputed" ? "⚠️ Não confirmada" : i.result === "win" ? "🏆 Vitória" : i.result === "draw" ? "🤝 Empate" : "😅 Derrota"} · com {i.partner}
+                  {i.status === "disputed" ? <AT>{"⚠️ Não confirmada"}</AT> : i.result === "win" ? <AT>{"🏆 Vitória"}</AT> : i.result === "draw" ? <AT>{"🤝 Empate"}</AT> : <AT>{"😅 Derrota"}</AT>} · com {i.partner}
                 </span>
                 {i.trophyDelta !== null && i.trophyDelta !== 0 ? (
                   <span className={`font-black tabular-nums ${i.trophyDelta > 0 ? "text-amber-500" : "text-rose-500"}`}>
                     {i.trophyDelta > 0 ? "+" : ""}
-                    {i.trophyDelta} 🏆
-                  </span>
+                    {i.trophyDelta}<AT> 🏆
+                  </AT></span>
                 ) : null}
               </li>
             ))}

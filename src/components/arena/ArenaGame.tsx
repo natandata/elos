@@ -17,6 +17,7 @@ import { ArenaPlayfield, type PlayDriver } from "./ArenaPlayfield";
 import { inDeployZone, inField, type Input } from "@/lib/arena/core";
 import { createGame, step } from "@/lib/arena/engine";
 import { ARENA_LOAD_MS, ArenaLoadingScreen } from "@/components/games/ArenaLoadingScreen";
+import { AT } from "./ArenaText";
 
 type Phase = "intro" | "playing" | "finishing" | "result";
 
@@ -198,7 +199,7 @@ function ArenaGameInner({ onLaunching, dayRecord, winsToday, maxWins, initialDec
     );
   }
 
-  const header = <PageHeader title="🏰 Arena dos Heróis" subtitle="Enfrente o computador com heróis e poderes bíblicos." />;
+  const header = <PageHeader title={<AT>🏰 Arena dos Heróis</AT>} subtitle="Enfrente o computador com heróis e poderes bíblicos." />;
 
   if (phase === "result" || phase === "finishing") {
     const r = verdict;
@@ -211,9 +212,9 @@ function ArenaGameInner({ onLaunching, dayRecord, winsToday, maxWins, initialDec
             <p className="text-lg font-black">Conferindo o resultado…</p>
           ) : r.error ? (
             <>
-              <p className="text-5xl" aria-hidden>
+              <p className="text-5xl" aria-hidden><AT>
                 ⚠️
-              </p>
+              </AT></p>
               <p className="mt-2 font-bold text-rose-700">{r.error}</p>
               {matchRef.current ? (
                 <button type="button" onClick={() => void finish(lastSurrenderRef.current)} className="btn btn-ghost mt-3">
@@ -224,28 +225,28 @@ function ArenaGameInner({ onLaunching, dayRecord, winsToday, maxWins, initialDec
           ) : (
             <>
               <p className="text-6xl" aria-hidden>
-                {result === "win" ? "🏆" : result === "draw" ? "🤝" : "😅"}
+                {result === "win" ? <AT>{"🏆"}</AT> : result === "draw" ? <AT>{"🤝"}</AT> : <AT>{"😅"}</AT>}
               </p>
               <h2 className="mt-2 text-2xl font-black">{result === "win" ? "Vitória!" : result === "draw" ? "Empate" : "Derrota"}</h2>
-              <p className="mt-1 text-lg font-bold tabular-nums">
-                👑 {r.crownsMe ?? 0} x {r.crownsBot ?? 0} 👑
-              </p>
+              <p className="mt-1 text-lg font-bold tabular-nums"><AT>
+                👑 </AT>{r.crownsMe ?? 0} x {r.crownsBot ?? 0}<AT> 👑
+              </AT></p>
               {r.training ? (
-                <p className="mt-2 rounded-2xl bg-sky-100 px-4 py-2 text-sm font-black text-sky-900">🏋️ Treino numa arena já vencida: troféus e XP não mudaram.</p>
+                <p className="mt-2 rounded-2xl bg-sky-100 px-4 py-2 text-sm font-black text-sky-900"><AT>🏋️ Treino numa arena já vencida: troféus e XP não mudaram.</AT></p>
               ) : result !== "draw" ? (
                 <p className={`mt-2 text-xl font-black tabular-nums ${(r.trophyDelta ?? 0) >= 0 ? "text-amber-500" : "text-rose-500"}`}>
                   {(r.trophyDelta ?? 0) >= 0 ? "+" : ""}
-                  {r.trophyDelta ?? 0} 🏆 <span className="text-sm font-bold text-[var(--muted)]">(total {r.trophies ?? trophies})</span>
+                  {r.trophyDelta ?? 0}<AT> 🏆 </AT><span className="text-sm font-bold text-[var(--muted)]">(total {r.trophies ?? trophies})</span>
                 </p>
               ) : null}
               <CopyReward card={r.copyCard} n={r.copies} />
               {r.arenaUp ? (
-                <p className="mt-3 rounded-2xl bg-amber-100 px-4 py-2 text-sm font-black text-amber-900">
-                  🎉 Nova arena: {r.arenaUp}!
+                <p className="mt-3 rounded-2xl bg-amber-100 px-4 py-2 text-sm font-black text-amber-900"><AT>
+                  🎉 Nova arena: </AT>{r.arenaUp}!
                   {(() => {
                     const idx = ARENAS.findIndex((a) => a.name === r.arenaUp);
                     const names = cardsUnlockedIn(idx).map((k) => ARENA_CARD_BY_KEY.get(k)?.name);
-                    return names.length ? <span className="block text-xs">🔓 Carta nova: {names.join(" e ")}</span> : null;
+                    return names.length ? <span className="block text-xs"><AT>🔓 Carta nova: </AT>{names.join(" e ")}</span> : null;
                   })()}
                 </p>
               ) : null}

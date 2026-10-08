@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { answerTeamInvite, joinTournament, leaveTournament } from "@/lib/actions/tournaments";
+import { AT } from "./ArenaText";
 
 export type Mate = { id: string; name: string };
 
@@ -50,7 +51,7 @@ export function TournamentPanel({
     <div className="space-y-3">
       {invites.map((i) => (
         <div key={i.entryId} className="card flex items-center gap-2 p-3">
-          <span className="min-w-0 flex-1 text-sm font-bold">👥 {i.fromName} te chamou pra formar dupla.</span>
+          <span className="min-w-0 flex-1 text-sm font-bold"><AT>👥 </AT>{i.fromName} te chamou pra formar dupla.</span>
           <button type="button" disabled={busy || !open} onClick={() => run(() => answerTeamInvite(i.entryId, true))} className="btn btn-primary !px-3 !py-2 !text-sm">
             Aceitar
           </button>
@@ -63,9 +64,9 @@ export function TournamentPanel({
       {myEntry ? (
         <div className="card p-3">
           {myEntry.confirmed ? (
-            <p className="font-black text-emerald-600">✅ Você está inscrito{format === "duo" && myEntry.partnerName ? ` com ${myEntry.partnerName}` : ""}.</p>
+            <p className="font-black text-emerald-600"><AT>✅ Você está inscrito</AT>{format === "duo" && myEntry.partnerName ? ` com ${myEntry.partnerName}` : ""}.</p>
           ) : (
-            <p className="font-bold text-amber-600">⏳ Esperando {myEntry.partnerName ?? "o parceiro"} confirmar a dupla.</p>
+            <p className="font-bold text-amber-600"><AT>⏳ Esperando </AT>{myEntry.partnerName ?? "o parceiro"} confirmar a dupla.</p>
           )}
           {open ? (
             <button type="button" disabled={busy} onClick={() => run(() => leaveTournament(tournamentId))} className="btn btn-ghost mt-2 !py-2 !text-sm">
@@ -78,7 +79,7 @@ export function TournamentPanel({
           <p className="card p-3 text-sm font-bold text-[var(--muted)]">As vagas acabaram.</p>
         ) : format === "solo" ? (
           <button type="button" disabled={busy} onClick={() => run(() => joinTournament(tournamentId))} className="btn btn-primary w-full !py-3">
-            {busy ? "Inscrevendo…" : "🏆 Inscrever-me"}
+            {busy ? "Inscrevendo…" : <AT>{"🏆 Inscrever-me"}</AT>}
           </button>
         ) : mates.length === 0 ? (
           <p className="card p-3 text-sm font-bold text-[var(--muted)]">Você precisa de um colega do seu Elo, livre neste torneio, pra formar dupla.</p>
@@ -94,7 +95,7 @@ export function TournamentPanel({
               ))}
             </select>
             <button type="button" disabled={busy || !partner} onClick={() => run(() => joinTournament(tournamentId, partner))} className="btn btn-primary w-full !py-3 disabled:opacity-50">
-              {busy ? "Enviando…" : "👥 Formar dupla e inscrever"}
+              {busy ? "Enviando…" : <AT>{"👥 Formar dupla e inscrever"}</AT>}
             </button>
             <p className="text-xs text-[var(--muted)]">O parceiro recebe um aviso e precisa confirmar pra a inscrição valer.</p>
           </div>

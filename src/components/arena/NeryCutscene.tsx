@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { CAMPAIGN_STAGES } from "@/lib/arena/campaign";
 import { readMuted } from "./arenaSound";
+import { AT } from "./ArenaText";
 
 /** Duração total da cena. */
 export const NERY_CUTSCENE_MS = 10_000;
@@ -120,7 +121,7 @@ export function NeryCutscene({ onDone }: { onDone: () => void }) {
         <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/70 to-transparent" />
 
         <div className="absolute inset-x-0 top-4 text-center">
-          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-amber-300">🪖 Treino do sargento Nery</p>
+          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-amber-300"><AT>🪖 Treino do sargento Nery</AT></p>
           <p className="mt-1 text-3xl font-black tabular-nums [text-shadow:0_3px_10px_#000]">{ms < 2700 ? "Em formação!" : `Flexão ${reps}!`}</p>
         </div>
 
@@ -148,9 +149,9 @@ export function NeryCutscene({ onDone }: { onDone: () => void }) {
           <div className="relative" style={{ animation: "nyWalk .45s ease-in-out 3s 12" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={NERY_SRC} alt="Nery" width={Math.round(NERY_DIM[0] * scale * 0.95)} height={Math.round(NERY_DIM[1] * scale * 0.95)} style={{ width: NERY_DIM[0] * scale * 0.95, height: NERY_DIM[1] * scale * 0.95, maxWidth: "none" }} className="drop-shadow-[0_6px_6px_rgba(0,0,0,0.6)]" draggable={false} />
-            <span className="absolute -top-7 left-6 rounded-xl bg-white px-2.5 py-1 text-sm font-black text-black shadow-lg" style={{ animation: "nyBlink 1.4s ease-in-out 3.1s 4 both" }}>
+            <span className="absolute -top-7 left-6 rounded-xl bg-white px-2.5 py-1 text-sm font-black text-black shadow-lg" style={{ animation: "nyBlink 1.4s ease-in-out 3.1s 4 both" }}><AT>
               PIIIIII! 📣
-            </span>
+            </AT></span>
           </div>
         </div>
       </div>

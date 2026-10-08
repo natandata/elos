@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Avatar } from "@/components/Avatar";
 import { challengeArenaPvp, leaveArenaPvp, respondArenaPvp } from "@/lib/actions/arenaPvp";
+import { AT } from "./ArenaText";
 
 export type Mate = { id: string; name: string; avatarUrl: string | null };
 export type PvpItem = {
@@ -58,7 +59,7 @@ export function ArenaPvpLobby({ mates, items, medals = {} }: { mates: Mate[]; it
           <ul className="space-y-2">
             {invites.map((i) => (
               <li key={i.id} className="card flex items-center gap-3 p-3">
-                <span className="min-w-0 flex-1 truncate font-bold">⚡ {i.other} te desafiou</span>
+                <span className="min-w-0 flex-1 truncate font-bold"><AT>⚡ </AT>{i.other} te desafiou</span>
                 <button type="button" onClick={() => router.push(`/app/jogos/arena/pvp/${i.id}`)} className="btn btn-primary !px-4 !py-2 !text-sm">
                   Ver
                 </button>
@@ -78,7 +79,7 @@ export function ArenaPvpLobby({ mates, items, medals = {} }: { mates: Mate[]; it
             {active.map((i) => (
               <li key={i.id} className="card flex items-center gap-3 p-3">
                 <span className="min-w-0 flex-1 truncate font-bold">
-                  {i.status === "accepted" ? `🎮 Partida com ${i.other}` : `⏳ Esperando ${i.other} aceitar`}
+                  {i.status === "accepted" ? <AT>{`🎮 Partida com ${i.other}`}</AT> : <AT>{`⏳ Esperando ${i.other} aceitar`}</AT>}
                 </span>
                 <button type="button" onClick={() => router.push(`/app/jogos/arena/pvp/${i.id}`)} className="btn btn-primary !px-4 !py-2 !text-sm">
                   {i.status === "accepted" ? "Entrar" : "Abrir"}
@@ -104,13 +105,13 @@ export function ArenaPvpLobby({ mates, items, medals = {} }: { mates: Mate[]; it
                 <span className="min-w-0 flex-1 leading-tight">
                   <span className="block truncate text-base font-bold">{m.name}</span>
                   {medals[m.id] ? (
-                    <span className="block text-xs font-bold text-amber-600">
-                      🏅 você {medals[m.id].mine} x {medals[m.id].theirs} {m.name.split(" ")[0]}
+                    <span className="block text-xs font-bold text-amber-600"><AT>
+                      🏅 você </AT>{medals[m.id].mine} x {medals[m.id].theirs} {m.name.split(" ")[0]}
                     </span>
                   ) : null}
                 </span>
                 <button type="button" disabled={busy !== null} onClick={() => challenge(m.id)} className="btn btn-primary !px-4 !py-2 !text-sm disabled:opacity-50">
-                  {busy === m.id ? "..." : "⚔️ Desafiar"}
+                  {busy === m.id ? "..." : <AT>{"⚔️ Desafiar"}</AT>}
                 </button>
               </li>
             ))}
@@ -126,13 +127,13 @@ export function ArenaPvpLobby({ mates, items, medals = {} }: { mates: Mate[]; it
             {done.map((i) => (
               <li key={i.id} className="card flex items-center gap-3 p-3 text-sm">
                 <span className="min-w-0 flex-1 truncate font-bold">
-                  {i.status === "disputed" ? "⚠️ Não confirmada" : i.result === "win" ? "🏆 Vitória" : i.result === "draw" ? "🤝 Empate" : "😅 Derrota"} · {i.other}
+                  {i.status === "disputed" ? <AT>{"⚠️ Não confirmada"}</AT> : i.result === "win" ? <AT>{"🏆 Vitória"}</AT> : i.result === "draw" ? <AT>{"🤝 Empate"}</AT> : <AT>{"😅 Derrota"}</AT>} · {i.other}
                 </span>
                 {i.trophyDelta !== null && i.trophyDelta !== 0 ? (
                   <span className={`font-black tabular-nums ${i.trophyDelta > 0 ? "text-amber-500" : "text-rose-500"}`}>
                     {i.trophyDelta > 0 ? "+" : ""}
-                    {i.trophyDelta} 🏆
-                  </span>
+                    {i.trophyDelta}<AT> 🏆
+                  </AT></span>
                 ) : null}
               </li>
             ))}

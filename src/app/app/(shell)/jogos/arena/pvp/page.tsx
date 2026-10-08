@@ -6,6 +6,7 @@ import { viewOf, type PvpRow } from "@/lib/arena/settlePvp";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { RankDuelCard } from "@/components/arena/RankDuelCard";
+import { AT } from "@/components/arena/ArenaText";
 
 export default async function ArenaPvpLobbyPage() {
   const { profile } = await requireRole("cria", "leader", "admin");
@@ -85,12 +86,12 @@ export default async function ArenaPvpLobbyPage() {
 
   return (
     <>
-      <PageHeader title="⚔️ Arena 1x1" subtitle="Desafie um colega do seu Elo: partida de 3 minutos em tempo real, todo mundo com cartas no nível 1. Quem vence rouba 30 🏆 do adversário e ganha uma 🏅 medalha contra ele." />
+      <PageHeader title={<AT>⚔️ Arena 1x1</AT>} subtitle={<AT>Desafie um colega do seu Elo: partida de 3 minutos em tempo real, todo mundo com cartas no nível 1. Quem vence rouba 30 🏆 do adversário e ganha uma 🏅 medalha contra ele.</AT>} />
       {rankCard ? <RankDuelCard myPos={rankCard.myPos} target={rankCard.target} /> : null}
       <ArenaPvpLobby mates={mates} items={items} medals={medals} />
-      <Link href="/app/jogos/arena" className="btn btn-ghost mt-4 w-full">
+      <Link href="/app/jogos/arena" className="btn btn-ghost mt-4 w-full"><AT>
         ← Voltar à Arena
-      </Link>
+      </AT></Link>
     </>
   );
 }

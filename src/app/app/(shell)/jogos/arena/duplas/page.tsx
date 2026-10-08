@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import { viewOfDuo, type DuoRow } from "@/lib/arena/settleDuo";
 import { createClient } from "@/lib/supabase/server";
+import { AT } from "@/components/arena/ArenaText";
 
 export default async function ArenaDuoLobbyPage() {
   const { profile } = await requireRole("cria", "leader", "admin");
@@ -49,11 +50,11 @@ export default async function ArenaDuoLobbyPage() {
 
   return (
     <>
-      <PageHeader title="👥 Arena em duplas" subtitle="Monte uma dupla com um colega do seu Elo e enfrente outra dupla em tempo real (2x2). Todo mundo joga com cartas no nível 1." />
+      <PageHeader title={<AT>👥 Arena em duplas</AT>} subtitle="Monte uma dupla com um colega do seu Elo e enfrente outra dupla em tempo real (2x2). Todo mundo joga com cartas no nível 1." />
       <ArenaDuoLobby mates={mates} items={items} />
-      <Link href="/app/jogos/arena" className="btn btn-ghost mt-4 w-full">
+      <Link href="/app/jogos/arena" className="btn btn-ghost mt-4 w-full"><AT>
         ← Voltar à Arena
-      </Link>
+      </AT></Link>
     </>
   );
 }
