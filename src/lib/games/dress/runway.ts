@@ -1,33 +1,35 @@
-// Passarela do "Vista o Herói" (SÓ SERVIDOR: usa as respostas certas pra nota de fidelidade).
+// Passarela do "Vista o Herói" (SÓ SERVIDOR: usa as respostas certas pra nota do júri).
 import "server-only";
 import { pickDaily } from "../engine";
 import { FEMALE_CHARACTERS, type DressCharacter } from "./characters";
-import { ITEM_BY_ID, SLOTS, type Look, type Slot } from "./items";
-import { famOf } from "./engine";
-import { SOLUTIONS } from "./solutions";
+import { ITEM_BY_ID, SLOTS, noneId, type Look, type Slot } from "./items";
+import { scoreLook } from "./engine";
 
-export const MAX_VOTES_PER_DAY = 5;
-export const RUNWAY_PRIZES = [30, 20, 10] as const;
-
-/** Tema (personagem) da Passarela de um dia: sorteio próprio, independente do desafio solo. */
+/** Tema (personagem) do desfile de um dia. */
 export function runwayTheme(date: string): DressCharacter {
   // o jogo só tem personagens femininas
   return pickDaily(FEMALE_CHARACTERS, 1, date, "runway-f")[0];
 }
 
-/** Dias em que dá pra votar: o de hoje e o de ontem. */
+/** Dias em que dá pra avaliar: o de hoje e o de ontem. */
 export function votingDates(today: string): [string, string] {
   const d = new Date(`${today}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() - 1);
   return [today, d.toISOString().slice(0, 10)];
 }
 
-/** Valida um look livre (uma peça do catálogo certa pra cada espaço). */
+/** Valida o look: cada peça tem que ser do espaço certo; sem peça vale "nada", menos a roupa (obrigatória). */
 export function cleanLook(raw: unknown): Look | null {
   if (!raw || typeof raw !== "object") return null;
   const out: Look = {};
   for (const s of SLOTS) {
     const id = (raw as Record<string, unknown>)[s.key];
+    if (id === undefined || id === null || id === "") {
+      const none = noneId(s.key);
+      if (!none) return null;
+      out[s.key as Slot] = none;
+      continue;
+    }
     const item = typeof id === "string" ? ITEM_BY_ID.get(id) : undefined;
     if (!item || item.slot !== s.key) return null;
     out[s.key as Slot] = item.id;
@@ -35,15 +37,7 @@ export function cleanLook(raw: unknown): Look | null {
   return out;
 }
 
-/** Nota de fidelidade bíblica (0–10): só desempata a votação e aparece nos resultados. */
+/** Nota de fidelidade bíblica (0–10): desempata o desfile e vira as estrelas do júri. */
 export function fidelityOf(characterId: string, look: Look): number {
-  const sol = SOLUTIONS[characterId];
-  if (!sol) return 0;
-  let pts = 0;
-  for (const s of SLOTS) {
-    const x = sol[s.key];
-    const id = look[s.key];
-    pts += famOf(id) === famOf(x.ideal) ? 2 : id && x.ok.some((o) => famOf(o) === famOf(id)) ? 1 : 0;
-  }
-  return pts;
+  return scoreLook(characterId, look).score;
 }

@@ -7,6 +7,9 @@ export type DollBase = {
   hairColor: string;
   beard: "none" | "short" | "long";
   female?: boolean;
+  /** cor do batom e da sombra (personalização da jogadora) */
+  lip?: string;
+  shadow?: string;
 };
 
 export type DressCharacter = {

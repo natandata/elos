@@ -154,13 +154,14 @@ export function PaperDoll({
   const show = (slot: Slot) => !only || only === slot;
   const skin = base.skin;
   const shade = dark(skin, 0.42);
-  const uid = `${skin.slice(1)}${base.hairColor.slice(1)}${only ?? "f"}`;
+  const uid = `${skin.slice(1)}${base.hairColor.slice(1)}${(base.lip ?? "").slice(1)}${only ?? "f"}`;
   const gid = `bg-${uid}-${bg ? bg[0].slice(1) + bg[1].slice(1) : "x"}`;
   const noTunic = !look.tunic;
   // miniaturas de roupa/calçado/mão não precisam do rosto (deixa a lista de 75 peças leve)
   const faceOn = !only || only === "head";
   const dressed = !!look.tunic && show("tunic") && look.tunic !== "tunic_leaves" && look.tunic !== "tunic_armor";
   const hairDark = dark(base.hairColor, 0.25);
+  const lipTop = base.lip ?? "#d9606d";
 
   return (
     <svg viewBox={only ? SLOT_VIEWBOX[only] : FULL} className={className} role="img" aria-label={title ?? "Personagem"} xmlns="http://www.w3.org/2000/svg">
@@ -178,8 +179,8 @@ export function PaperDoll({
           <stop offset="1" stopColor="#2a160a" />
         </radialGradient>
         <linearGradient id={`lip-${uid}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#d9606d" />
-          <stop offset="1" stopColor="#b53a4c" />
+          <stop offset="0" stopColor={lipTop} />
+          <stop offset="1" stopColor={dark(lipTop, 0.25)} />
         </linearGradient>
       </defs>
       {bg && !only ? (
@@ -264,6 +265,7 @@ export function PaperDoll({
               <circle cx={x - 1.8} cy="63.6" r="0.8" fill="#fff" opacity="0.7" />
               <path d={`M${x - 10} 57 Q${x} 51 ${x + 10} 57 L${x + 10} 52 L${x - 10} 52 Z`} fill="#000" opacity="0.18" />
             </g>
+            {base.shadow ? <path d={`M${x - 10} 61.5 Q${x} 49.5 ${x + 10} 61.5 Q${x} 54.5 ${x - 10} 61.5 Z`} fill={base.shadow} opacity="0.62" /> : null}
             <path d={`M${x - 9.4} 62.5 Q${x} 52.6 ${x + 9.4} 62.5`} fill="none" stroke="#150c07" strokeWidth="2" strokeLinecap="round" />
             <path d={`M${x + s * 8.8} 61.4 q${s * 2.6} -0.6 ${s * 3.4} -3 M${x + s * 6.6} 58.8 q${s * 2.2} -1 ${s * 2.8} -3.2`} fill="none" stroke="#150c07" strokeWidth="1.1" strokeLinecap="round" />
             <path d={`M${x - 7} 55.2 Q${x} 51.4 ${x + 7} 55.2`} fill="none" stroke={shade} strokeWidth="0.7" opacity="0.35" />
@@ -279,7 +281,7 @@ export function PaperDoll({
       <circle cx="99.8" cy="67" r="1.4" fill="#fff" opacity="0.3" />
       {/* boca */}
       <path d="M92 79.6 Q96 76.6 100 78 Q104 76.6 108 79.6 Q100 81.6 92 79.6 Z" fill={`url(#lip-${uid})`} stroke="#8a2f3a" strokeWidth="0.7" strokeLinejoin="round" />
-      <path d="M92.4 80 Q100 88.2 107.6 80 Q100 82.4 92.4 80 Z" fill="#d8606e" stroke="#8a2f3a" strokeWidth="0.7" strokeLinejoin="round" />
+      <path d="M92.4 80 Q100 88.2 107.6 80 Q100 82.4 92.4 80 Z" fill={lipTop} stroke="#8a2f3a" strokeWidth="0.7" strokeLinejoin="round" />
       <ellipse cx="100" cy="83.6" rx="2.6" ry="0.9" fill="#fff" opacity="0.55" />
 
         </>

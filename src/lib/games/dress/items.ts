@@ -20,6 +20,8 @@ export type DressItem = {
   name: string;
   /** desenho base (várias peças dividem a mesma família, mudando só a cor) */
   family: string;
+  /** nome da família, sem a cor ("Coroa", "Sandálias") */
+  base?: string;
   p: Params;
 };
 
@@ -67,13 +69,13 @@ function byColor(slot: Slot, family: string, base: string, gender: "m" | "f", ke
   for (const k of keys) {
     const c = COLORS[k];
     const extra = opts.p2?.(k) ?? {};
-    items.push({ id: opts.ids?.[k] ?? `${family}__${k}`, slot, name: `${base} ${gender === "f" ? c.f : c.m}`, family, p: { c: c.hex, ...extra } });
+    items.push({ id: opts.ids?.[k] ?? `${family}__${k}`, slot, name: `${base} ${gender === "f" ? c.f : c.m}`, base, family, p: { c: c.hex, ...extra } });
   }
 }
 
 /** Uma família com variantes escritas à mão (nome e cores). */
 function custom(slot: Slot, family: string, base: string, variants: Variant[]) {
-  variants.forEach((v, i) => items.push({ id: v.id ?? `${family}__${i}`, slot, name: v.label ? `${base} ${v.label}` : base, family, p: v.p }));
+  variants.forEach((v, i) => items.push({ id: v.id ?? `${family}__${i}`, slot, name: v.label ? `${base} ${v.label}` : base, base, family, p: v.p }));
 }
 
 const P = (c: ColorKey | string, c2?: ColorKey | string, c3?: ColorKey | string): Params => {
@@ -330,8 +332,31 @@ byColor("hand", "basket", "Cesta", "f", ["marrom", "areia", "ocre", "terracota"]
 byColor("hand", "bread", "Pães", "m", ["areia", "ocre"]);
 byColor("hand", "apple", "Maçã", "f", ["vermelho", "verde"]);
 
+for (const i of items) i.base ??= i.name;
+
 export const ITEMS: DressItem[] = items;
 export const ITEM_BY_ID = new Map(ITEMS.map((i) => [i.id, i]));
 export const ITEMS_BY_SLOT = (slot: Slot): DressItem[] => ITEMS.filter((i) => i.slot === slot);
 
 export type Look = Partial<Record<Slot, string>>;
+
+export type FamilyGroup = { family: string; base: string; items: DressItem[] };
+
+const GROUPS = new Map<Slot, FamilyGroup[]>();
+/** Peças do espaço agrupadas por família (o desenho), cada uma com as suas variações de cor. Sem a opção "nada". */
+export function familiesBySlot(slot: Slot): FamilyGroup[] {
+  const cached = GROUPS.get(slot);
+  if (cached) return cached;
+  const out: FamilyGroup[] = [];
+  for (const i of ITEMS_BY_SLOT(slot)) {
+    if (i.family === "none") continue;
+    let g = out.find((x) => x.family === i.family);
+    if (!g) out.push((g = { family: i.family, base: i.base ?? i.name, items: [] }));
+    g.items.push(i);
+  }
+  GROUPS.set(slot, out);
+  return out;
+}
+
+/** Id da opção "nada" de um espaço (a roupa não tem: é obrigatória). */
+export const noneId = (slot: Slot): string | undefined => (ITEM_BY_ID.has(`${slot}_none`) ? `${slot}_none` : undefined);
