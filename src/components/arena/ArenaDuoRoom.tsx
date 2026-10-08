@@ -15,6 +15,8 @@ import type { DuoView } from "@/lib/arena/settleDuo";
 import { ARENAS } from "@/lib/arena/arenas";
 import { ArenaPlayfield, type PlayDriver } from "./ArenaPlayfield";
 import { AT } from "./ArenaText";
+import { MatchResultHero } from "./MatchResultHero";
+import { PostMatchChat } from "./PostMatchChat";
 
 type Stage = "invite" | "ready" | "connecting" | "playing" | "finishing" | "result";
 type Status = "invited" | "accepted" | "finished" | "declined" | "disputed";
@@ -471,7 +473,7 @@ export function ArenaDuoRoom({ id, me, names, arena, seed, decks, levels, initia
           </>
         ) : null}
 
-        {stage === "result" ? <DuoResult view={view} status={status} tournamentId={tournamentId} /> : null}
+        {stage === "result" ? <DuoResult view={view} status={status} tournamentId={tournamentId} names={names} me={me} myTeam={myTeam} partner={partner} enemyLabel={enemyLabel} roomId={id} myId={myId} /> : null}
         {error ? <p className="mt-3 text-center text-sm font-semibold text-rose-600">{error}</p> : null}
       </div>
       <Link href={tournamentId ? `/app/jogos/arena/torneios/${tournamentId}` : "/app/jogos/arena"} className="btn btn-ghost mt-3 w-full">
@@ -481,7 +483,7 @@ export function ArenaDuoRoom({ id, me, names, arena, seed, decks, levels, initia
   );
 }
 
-function DuoResult({ view, status, tournamentId }: { view: DuoView; status: string; tournamentId?: string | null }) {
+function DuoResult({ view, status, tournamentId, names, me, myTeam, partner, enemyLabel, roomId, myId }: { view: DuoView; status: string; tournamentId?: string | null; names: string[]; me: number; myTeam: number[]; partner: number; enemyLabel: string; roomId: string; myId: string }) {
   if (view.state === "declined" || status === "declined") return <p className="mt-4 text-center font-bold">Alguém recusou o desafio.</p>;
   if (view.state === "disputed" || status === "disputed") {
     return (
@@ -496,13 +498,16 @@ function DuoResult({ view, status, tournamentId }: { view: DuoView; status: stri
   const r = view.result;
   return (
     <div className="mt-4 text-center">
-      <p className="text-6xl" aria-hidden>
-        {r === "win" ? <AT>{"🏆"}</AT> : r === "draw" ? <AT>{"🤝"}</AT> : <AT>{"😅"}</AT>}
-      </p>
-      <h3 className="mt-1 text-2xl font-black">{r === "win" ? "Vitória!" : r === "draw" ? "Empate" : "Derrota"}</h3>
-      <p className="text-lg font-bold tabular-nums"><AT>
-        👑 </AT>{view.crownsMe ?? 0} x {view.crownsThem ?? 0}<AT> 👑
-      </AT></p>
+      <MatchResultHero
+        result={r === "win" || r === "draw" ? r : "loss"}
+        crownsMe={view.crownsMe ?? 0}
+        crownsThem={view.crownsThem ?? 0}
+        meName={names[me].split(" ").slice(0, 2).join(" ")}
+        themName={enemyLabel}
+        meLabel={myTeam.length > 1 ? `com ${names[partner].split(" ")[0]}` : undefined}
+      >
+        <PostMatchChat room={`duo:${roomId}`} myId={myId} myName={names[me].split(" ")[0]} fallbackName="Jogador" lead="Chat da partida" />
+      </MatchResultHero>
       {view.rewarded ? (
         <>
           {r !== "draw" ? (

@@ -5,6 +5,13 @@
 export const TICKS_PER_SEC = 20;
 export const DT = 1 / TICKS_PER_SEC;
 export const MATCH_TICKS = 3 * 60 * TICKS_PER_SEC;
+/**
+ * Jericó: se o tempo acaba empatado, a arena entra em "morte súbita" — quem derrubar a próxima torre vence na hora.
+ * Se ninguém derrubar nenhuma em JERICHO_TICKS, é empate.
+ */
+export const JERICHO_TICKS = 90 * TICKS_PER_SEC;
+/** Duração máxima de uma partida (tempo normal + Jericó). */
+export const MAX_MATCH_TICKS = MATCH_TICKS + JERICHO_TICKS;
 /** No último minuto o Maná enche em dobro. */
 export const DOUBLE_MANA_TICK = 2 * 60 * TICKS_PER_SEC;
 export const MANA_MAX = 10;
@@ -90,6 +97,10 @@ export type GameState = {
   winner: Side | null;
   /** campanha: até que tick cada lado está cego (não consegue jogar cartas) */
   blind?: number[];
+  /** Jericó em andamento (tempo esgotado e empatado): a próxima torre derrubada decide */
+  jericho?: boolean;
+  /** multiplicador do Maná durante toda a partida (desafio Maná Duplo = 2; o dobro do último minuto vem por cima) */
+  manaMult?: number;
 };
 
 /** `side` é o lado (equipe); `player` só existe nas duplas (0–3) e, se faltar, vale o próprio lado. */
@@ -109,7 +120,8 @@ export type GameEvent =
   | { t: "death"; id: number; x: number; y: number; tower: boolean; card: string; side: Side; flying: boolean; radius: number }
   | { t: "spawn"; x: number; y: number; card: string }
   | { t: "blind"; side: Side; ticks: number }
-  | { t: "dodge"; id: number; x: number; y: number };
+  | { t: "dodge"; id: number; x: number; y: number }
+  | { t: "jericho" };
 
 // ------------------------------------------------------------ sorteio
 

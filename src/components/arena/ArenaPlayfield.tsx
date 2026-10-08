@@ -6,7 +6,8 @@ import { ARENAS, type ArenaTheme } from "@/lib/arena/arenas";
 import { CAMPAIGN_CARDS, CAMPAIGN_COMBOS, activeCombos, inCombo, type Combo } from "@/lib/arena/campaignCards";
 import { drawLimbs } from "./arenaLimbs";
 import { CardArt } from "./CardArt";
-import { TEAM, buildBackground, drawTower, layoutFor, type Layout } from "./arenaRender";
+import { TEAM, buildAmbient, buildBackground, drawAmbient, drawRubble, drawTower, layoutFor, type Ambient, type Layout } from "./arenaRender";
+import { loadCampo } from "./arenaAssets";
 import { applyEvent, drawFx, newAnim, type Anim, type Fx } from "./arenaFx";
 import { ArenaSound, readMuted } from "./arenaSound";
 import { suspendMusic } from "./arenaMusicEngine";
@@ -16,6 +17,7 @@ import {
   H,
   MANA_MAX,
   MATCH_TICKS,
+  MAX_MATCH_TICKS,
   TICKS_PER_SEC,
   W,
   type Entity,
@@ -54,7 +56,8 @@ type Hud = { mana: number; tick: number; mine: number; theirs: number; slots: st
 const STEP_MS = 1000 / TICKS_PER_SEC;
 
 function fmtTime(ticks: number): string {
-  const s = Math.max(0, Math.ceil((MATCH_TICKS - ticks) / TICKS_PER_SEC));
+  // no Jericó o relógio mostra o que resta da morte súbita
+  const s = Math.max(0, Math.ceil(((ticks >= MATCH_TICKS ? MAX_MATCH_TICKS : MATCH_TICKS) - ticks) / TICKS_PER_SEC));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
@@ -140,6 +143,9 @@ export function ArenaPlayfield({
   const [hud, setHud] = useState<Hud | null>(null);
   /** clarão do Pastor Zepa: cada vez que cega o meu lado, sobe um número e a tela fica branca por 1,5 s */
   const [blindKey, setBlindKey] = useState(0);
+  /** Jericó: sobe um número quando a morte súbita começa (mostra o aviso por 3 s) */
+  const [jerichoKey, setJerichoKey] = useState(0);
+  const jerichoSeen = useRef(false);
   const [comboMsg, setComboMsg] = useState<{ mine: boolean; n: number; combo: Combo } | null>(null);
   const comboPrev = useRef<Set<string>>(new Set());
   const [selected, setSelected] = useState<number | null>(null);
@@ -153,6 +159,7 @@ export function ArenaPlayfield({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const areaRef = useRef<HTMLDivElement | null>(null);
   const bgRef = useRef<HTMLCanvasElement | null>(null);
+  const ambRef = useRef<Ambient | null>(null);
   const layoutRef = useRef<Layout | null>(null);
   const dprRef = useRef(1);
   const fxRef = useRef<Fx[]>([]);
@@ -208,7 +215,20 @@ export function ArenaPlayfield({
     canvas.height = Math.round(l.ch * dpr);
     layoutRef.current = l;
     dprRef.current = dpr;
-    bgRef.current = buildBackground(l, dpr, driverRef.current.campaign?.theme ?? ARENAS[driverRef.current.arena]?.theme, driverRef.current.campaign?.scenery ?? ARENAS[driverRef.current.arena]?.key);
+    const build = () => {
+      const theme = driverRef.current.campaign?.theme ?? ARENAS[driverRef.current.arena]?.theme ?? ARENAS[0].theme;
+      try {
+        bgRef.current = buildBackground(l, dpr, theme, driverRef.current.campaign?.scenery ?? ARENAS[driverRef.current.arena]?.key);
+        ambRef.current = buildAmbient(l, theme);
+      } catch (err) {
+        console.error("arena background", err);
+      }
+    };
+    build();
+    // os sprites do campo (torres, árvores, ponte...) chegam depois: refaz o fundo quando prontos, sem piscar
+    void loadCampo().then(() => {
+      if (layoutRef.current === l) build();
+    });
   }, []);
 
   // ------------------------------------------------------------ desenho
@@ -228,6 +248,8 @@ export function ArenaPlayfield({
       ctx.setTransform(dprRef.current, 0, 0, dprRef.current, 0, 0);
       ctx.clearRect(0, 0, l.cw, l.ch);
       ctx.drawImage(bg, 0, 0, l.cw, l.ch);
+      if (ambRef.current) drawAmbient(ctx, ambRef.current, tickF);
+      if (game.jericho) drawJericho(ctx, l.cw, l.ch, s, tickF);
       ctx.save();
       const sh = shakeRef.current;
       const left = sh.until - tickF;
@@ -262,6 +284,9 @@ export function ArenaPlayfield({
           }
         }
       }
+
+      // escombros das torres que já caíram
+      drawRubble(ctx, s, game.entities, tickF);
 
       // entidades já no ponto de vista de quem joga
       const view = (e: Entity): Entity =>
@@ -513,6 +538,11 @@ export function ArenaPlayfield({
           }
         }
         acc -= STEP_MS;
+        if (game.jericho && !jerichoSeen.current) {
+          jerichoSeen.current = true;
+          setJerichoKey((k) => k + 1);
+          soundRef.current?.doubleMana();
+        }
         // sons de marco: maná em dobro, contagem final e coroas
         const snd = soundRef.current;
         if (snd) {
@@ -606,12 +636,21 @@ export function ArenaPlayfield({
   const slots = hud?.slots ?? [];
   const mana = hud?.mana ?? 0;
   const doubled = (hud?.tick ?? 0) >= DOUBLE_MANA_TICK;
+  const manaMult = driver.game.manaMult ?? 1;
+  const inJericho = (hud?.tick ?? 0) >= MATCH_TICKS && !!driver.game.jericho;
   const nextCard = ARENA_CARD_BY_KEY.get(hud?.next ?? "");
   return (
     <div className="fixed inset-0 z-[70] select-none bg-[#10201a]">
       <div className="mx-auto flex h-full w-full max-w-[480px] flex-col bg-[#4d8f3a]">
         <div ref={areaRef} className="relative min-h-0 flex-1 overflow-hidden">
           <canvas ref={canvasRef} onPointerDown={onCanvasPointer} className="absolute left-0 top-0 touch-none" />
+          {jerichoKey > 0 ? (
+            <div key={jerichoKey} className="arena-jericho pointer-events-none absolute inset-x-0 top-1/3 z-40 flex flex-col items-center gap-1">
+              <span className="rounded-2xl bg-gradient-to-b from-yellow-200 to-amber-500 px-6 py-2 text-4xl font-black uppercase tracking-wide text-amber-950 shadow-2xl ring-4 ring-white [text-shadow:0_2px_0_rgba(255,255,255,0.6)]">Jericó!</span>
+              <span className="rounded-full bg-black/75 px-4 py-1 text-sm font-black text-yellow-200">A próxima torre derrubada vence!</span>
+              <style>{`.arena-jericho{animation:arenaJericho 3.2s ease-out forwards}@keyframes arenaJericho{0%{opacity:0;transform:scale(.4)}12%{opacity:1;transform:scale(1.15)}22%{transform:scale(1)}80%{opacity:1}100%{opacity:0;transform:scale(1.05)}}`}</style>
+            </div>
+          ) : null}
           {comboMsg ? (
             <div key={comboMsg.n} className="arena-combo pointer-events-none absolute inset-x-0 top-16 z-30 flex justify-center">
               <span className={`rounded-full px-4 py-1.5 text-sm font-black shadow-lg ring-2 ${comboMsg.mine ? "bg-amber-300 text-amber-950 ring-white" : "bg-rose-600 text-white ring-rose-200"}`}><AT>
@@ -634,7 +673,7 @@ export function ArenaPlayfield({
             </div>
           </div>
           <div className="pointer-events-none absolute right-2 top-2 rounded-lg border-2 border-white/40 bg-black/75 px-3 py-1 text-right shadow-lg">
-            <p className={`text-xs font-black ${doubled ? "text-amber-300" : "text-white"}`}>{doubled ? "Maná em dobro!" : "Tempo:"}</p>
+            <p className={`text-xs font-black ${inJericho ? "text-yellow-300" : doubled || manaMult > 1 ? "text-amber-300" : "text-white"}`}>{inJericho ? "JERICÓ!" : manaMult > 1 ? (doubled ? "Maná x4!" : "Maná Duplo!") : doubled ? "Maná em dobro!" : "Tempo:"}</p>
             <p className="text-2xl font-black leading-none tabular-nums text-white">{fmtTime(hud?.tick ?? 0)}</p>
           </div>
           <div className="pointer-events-none absolute right-1 top-1/2 flex -translate-y-1/2 flex-col gap-4">
@@ -737,6 +776,59 @@ export function ArenaPlayfield({
   );
 }
 
+/** Jericó: a arena brilha (dourado pulsando, raios de luz e estrelinhas). */
+function drawJericho(ctx: CanvasRenderingContext2D, cw: number, ch: number, s: number, t: number) {
+  ctx.save();
+  const pulse = 0.5 + 0.5 * Math.sin(t * 0.12);
+  // névoa dourada
+  ctx.globalCompositeOperation = "lighter";
+  const g = ctx.createRadialGradient(cw / 2, ch / 2, ch * 0.05, cw / 2, ch / 2, ch * 0.75);
+  g.addColorStop(0, `rgba(255,214,90,${0.1 + pulse * 0.1})`);
+  g.addColorStop(1, `rgba(255,170,30,${0.2 + pulse * 0.12})`);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, cw, ch);
+  // raios que giram devagar
+  ctx.translate(cw / 2, ch / 2);
+  ctx.rotate(t * 0.004);
+  for (let i = 0; i < 12; i++) {
+    ctx.rotate((Math.PI * 2) / 12);
+    const rg = ctx.createLinearGradient(0, 0, ch * 0.8, 0);
+    rg.addColorStop(0, "rgba(255,230,140,0.16)");
+    rg.addColorStop(1, "rgba(255,230,140,0)");
+    ctx.fillStyle = rg;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(ch * 0.8, -s * 0.9);
+    ctx.lineTo(ch * 0.8, s * 0.9);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+  // estrelinhas que piscam
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  for (let i = 0; i < 46; i++) {
+    const x = ((i * 97) % 101) / 101 * cw;
+    const y = ((i * 53 + 17) % 103) / 103 * ch;
+    const tw = Math.max(0, Math.sin(t * 0.09 + i * 1.7));
+    if (tw < 0.2) continue;
+    const r = s * (0.08 + tw * 0.16);
+    ctx.fillStyle = `rgba(255,244,190,${tw * 0.9})`;
+    ctx.beginPath();
+    ctx.moveTo(x, y - r * 2);
+    ctx.lineTo(x + r * 0.5, y - r * 0.5);
+    ctx.lineTo(x + r * 2, y);
+    ctx.lineTo(x + r * 0.5, y + r * 0.5);
+    ctx.lineTo(x, y + r * 2);
+    ctx.lineTo(x - r * 0.5, y + r * 0.5);
+    ctx.lineTo(x - r * 2, y);
+    ctx.lineTo(x - r * 0.5, y - r * 0.5);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
 /** Evento do motor visto de cabeça pra baixo (2º jogador). */
 function mapEvent(e: GameEvent, vs: (s: Side) => Side): GameEvent {
   const fx = (x: number) => W - x;
@@ -758,5 +850,7 @@ function mapEvent(e: GameEvent, vs: (s: Side) => Side): GameEvent {
       return { ...e, side: vs(e.side) };
     case "dodge":
       return { ...e, x: fx(e.x), y: fy(e.y) };
+    case "jericho":
+      return e;
   }
 }

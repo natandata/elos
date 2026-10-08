@@ -16,6 +16,7 @@ import { CardArt } from "./CardArt";
 import { NeryCutscene } from "./NeryCutscene";
 import { StageCutscene, hasStageScene } from "./StageCutscene";
 import { AT } from "./ArenaText";
+import { MatchResultHero } from "./MatchResultHero";
 
 /** Arena do Nery (a 3ª, índice 2) */
 const NERY_STAGE = 2;
@@ -141,9 +142,7 @@ export function ArenaCampaign({ open, admin, cleared: initialCleared, tiers: ini
           </>
         ) : (
           <>
-            <p className="text-6xl" aria-hidden>{r.result === "win" ? <AT>{"🏆"}</AT> : r.result === "draw" ? <AT>{"🤝"}</AT> : <AT>{"😅"}</AT>}</p>
-            <h2 className="mt-2 text-2xl font-black">{r.result === "win" ? "Vitória!" : r.result === "draw" ? "Empate" : "Derrota"}</h2>
-            <p className="mt-1 text-lg font-bold tabular-nums"><AT>👑 </AT>{r.crownsMe ?? 0} x {r.crownsBot ?? 0}<AT> 👑</AT></p>
+            <MatchResultHero result={r.result ?? "loss"} crownsMe={r.crownsMe ?? 0} crownsThem={r.crownsBot ?? 0} meName="Você" themName={st.name} />
             {r.result === "win" ? (
               <>
                 <p className="mt-2 text-sm font-bold">

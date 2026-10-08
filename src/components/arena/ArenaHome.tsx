@@ -6,7 +6,7 @@ import { Avatar } from "@/components/Avatar";
 import { ARENAS, TROPHY_LOSS, TROPHY_WIN, arenaProgress } from "@/lib/arena/arenas";
 import { ArenaHero } from "./ArenaHero";
 import { ArenaGateBanner } from "./ArenaGateBanner";
-import { ChestIcon, LampIcon } from "./ArenaIcons";
+
 import { useNow, useOnlineMap, type Presence } from "./arenaPresence";
 import type { GateInfo } from "@/lib/arena/gate";
 import { AT } from "./ArenaText";
@@ -61,7 +61,7 @@ function MiniBtn({ children, label, badge, onClick, href }: { children: ReactNod
   );
 }
 
-function Slot({ icon, iconSrc, iconNode, title, sub, open, href, onClick }: { icon: string; iconSrc?: string; iconNode?: ReactNode; title: string; sub: string; open?: boolean; href?: string; onClick?: () => void }) {
+function Slot({ icon, iconSrc, iconNode, title, sub, open, href, onClick }: { icon: string; iconSrc?: string; iconNode?: ReactNode; title: string; sub: ReactNode; open?: boolean; href?: string; onClick?: () => void }) {
   const body = (
     <div className={`cr-slot ${open ? "cr-slot-open" : ""} flex h-full flex-col items-center justify-between px-1 py-1.5 text-center`}>
       <p className="cr-text text-[10px] leading-none">{title}</p>
@@ -109,6 +109,7 @@ export function ArenaHome({
   myId,
   invites,
   onBattle,
+  onChallenge,
   error,
   cards,
   gate,
@@ -133,6 +134,8 @@ export function ArenaHome({
   myId: string;
   invites: number;
   onBattle: () => void;
+  /** desafios especiais contra o computador (sem troféus nem XP) */
+  onChallenge: (kind: "mana2") => void;
   error: string | null;
   cards: ReactNode;
   gate: GateInfo;
@@ -301,12 +304,28 @@ export function ArenaHome({
               </Link>
             </div>
 
+            {/* desafios */}
+            <button
+              type="button"
+              onClick={gate.locked ? undefined : () => onChallenge("mana2")}
+              disabled={gate.locked}
+              className={`cr-panel mt-3 flex w-full items-center gap-3 px-3 py-2.5 text-left active:translate-y-[2px] ${gate.locked ? "grayscale opacity-60" : ""}`}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/arena/icones/raio.webp" alt="" className="h-11 w-11 shrink-0 drop-shadow" draggable={false} />
+              <span className="min-w-0 flex-1">
+                <span className="cr-text block text-base leading-tight">Desafio: Maná Duplo</span>
+                <span className="cr-text block text-[11px] leading-tight opacity-90">O Maná enche em dobro desde o início e em quádruplo no último minuto. Não vale troféus.</span>
+              </span>
+              <span className="cr-btn cr-btn-yellow cr-text shrink-0 px-3 py-1.5 text-sm leading-none">Jogar</span>
+            </button>
+
             {/* espaços de recompensa */}
             <div className="mt-3 grid grid-cols-4 gap-2">
-              <Slot open={dailyChestReady} icon="🎁" iconNode={<ChestIcon variant="wood" open={dailyChestReady} className="h-9 w-auto" />} title="Baú da Arena" sub={dailyChestReady ? "Abrir" : "Amanhã"} onClick={() => setTab("chests")} />
-              <Slot icon="🧰" iconNode={<ChestIcon variant="gold" className="h-9 w-auto" />} title="Baús" sub="Troféus" onClick={() => setTab("chests")} />
-              <Slot icon="⭐" iconNode={<LampIcon className="h-9 w-auto" />} title="XP de hoje" sub={`${winsToday}/${maxWins}`} />
-              <Slot icon={prog.next ? prog.next.emoji : "👑"} iconSrc={prog.next?.art} title={prog.next ? "Próx. arena" : "Máxima"} sub={prog.next ? `${prog.next.min - trophies} 🏆` : "🎉"} />
+              <Slot open={dailyChestReady} icon="🎁" iconSrc={dailyChestReady ? "/arena/icones/bau-madeira-aberto.webp" : "/arena/icones/bau-madeira.webp"} title="Baú da Arena" sub={dailyChestReady ? "Abrir" : "Amanhã"} onClick={() => setTab("chests")} />
+              <Slot icon="🧰" iconSrc="/arena/icones/bau-ouro.webp" title="Baús" sub="Troféus" onClick={() => setTab("chests")} />
+              <Slot icon="⭐" iconSrc="/arena/icones/lampada.webp" title="XP de hoje" sub={`${winsToday}/${maxWins}`} />
+              <Slot icon={prog.next ? prog.next.emoji : "👑"} iconSrc={prog.next?.art ?? "/arena/icones/coroa-rubi.webp"} title={prog.next ? "Próx. arena" : "Máxima"} sub={prog.next ? <AT>{`${prog.next.min - trophies} 🏆`}</AT> : /* eslint-disable-next-line @next/next/no-img-element */ <img src="/arena/icones/confete.webp" alt="" className="mx-auto h-4 w-auto" draggable={false} />} />
             </div>
             {/* placar do dia: quantas partidas já jogou hoje e como foram */}
             <div className="cr-panel mt-2 px-3 py-2" aria-label="Seu placar de hoje">

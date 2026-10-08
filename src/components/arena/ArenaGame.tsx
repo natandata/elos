@@ -18,6 +18,7 @@ import { inDeployZone, inField, type Input } from "@/lib/arena/core";
 import { createGame, step } from "@/lib/arena/engine";
 import { ARENA_LOAD_MS, ArenaLoadingScreen } from "@/components/games/ArenaLoadingScreen";
 import { AT } from "./ArenaText";
+import { MatchResultHero } from "./MatchResultHero";
 
 type Phase = "intro" | "playing" | "finishing" | "result";
 
@@ -44,8 +45,18 @@ function ArenaGameInner({ onLaunching, dayRecord, winsToday, maxWins, initialDec
   useArenaPresence(myId, "cpu", driver, phase === "playing");
 
   const lastSurrenderRef = useRef(false);
+  /** desafio especial em andamento: jogado só no aparelho, sem servidor (não vale troféu, XP nem cópia) */
+  const challengeRef = useRef<{ kind: "mana2"; game: ReturnType<typeof createGame> } | null>(null);
   const finish = useCallback(async (surrender: boolean) => {
     lastSurrenderRef.current = surrender;
+    const ch = challengeRef.current;
+    if (ch) {
+      const g = ch.game;
+      const result = surrender ? "loss" : g.winner === 0 ? "win" : g.winner === 1 ? "loss" : "draw";
+      setVerdict({ result, crownsMe: surrender ? 0 : g.crowns[0], crownsBot: surrender ? 0 : g.crowns[1], challenge: ch.kind });
+      setPhase("result");
+      return;
+    }
     setPhase("finishing");
     try {
       // internet instável: tenta de novo uma vez antes de desistir de confirmar
@@ -76,7 +87,43 @@ function ArenaGameInner({ onLaunching, dayRecord, winsToday, maxWins, initialDec
     router.refresh();
   }, [router]);
 
+  /** Desafio Maná Duplo: partida contra o computador só no aparelho, com o Maná em dobro. */
+  function beginChallenge(kind: "mana2") {
+    if (startingRef.current) return;
+    startingRef.current = true;
+    setError(null);
+    setVerdict(null);
+    matchRef.current = null;
+    logRef.current = [];
+    const game = createGame(Math.floor(Math.random() * 2_000_000_000), deck, undefined, { levels, arena: viewArena, manaMult: 2 });
+    challengeRef.current = { kind, game };
+    let pending: Input[] = [];
+    setDriver({
+      game,
+      mySide: 0,
+      arena: viewArena,
+      opponentLabel: "Computador",
+      inputDelay: 0,
+      advance: () => {
+        const inputs = pending;
+        pending = [];
+        return step(game, inputs, [1]);
+      },
+      place: (slot, x, y) => {
+        const card = ARENA_CARD_BY_KEY.get(game.slots[0][slot]);
+        if (!card || game.mana[0] + 1e-9 < card.cost) return false;
+        if (card.kind === "unit" ? !inDeployZone(0, x, y, game) : !inField(x, y)) return false;
+        pending.push({ tick: game.tick, side: 0, slot, x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
+        return true;
+      },
+      isPending: () => false,
+    });
+    setPhase("playing");
+    startingRef.current = false;
+  }
+
   async function begin() {
+    challengeRef.current = null;
     // um toque duplo não pode abrir duas partidas (a esquecida viraria derrota)
     if (startingRef.current) return;
     startingRef.current = true;
@@ -166,6 +213,7 @@ function ArenaGameInner({ onLaunching, dayRecord, winsToday, maxWins, initialDec
         gate={gate}
         openTournaments={openTournaments}
         onBattle={begin}
+        onChallenge={beginChallenge}
         error={error}
         cards={
           <DeckBuilder
@@ -224,14 +272,10 @@ function ArenaGameInner({ onLaunching, dayRecord, winsToday, maxWins, initialDec
             </>
           ) : (
             <>
-              <p className="text-6xl" aria-hidden>
-                {result === "win" ? <AT>{"🏆"}</AT> : result === "draw" ? <AT>{"🤝"}</AT> : <AT>{"😅"}</AT>}
-              </p>
-              <h2 className="mt-2 text-2xl font-black">{result === "win" ? "Vitória!" : result === "draw" ? "Empate" : "Derrota"}</h2>
-              <p className="mt-1 text-lg font-bold tabular-nums"><AT>
-                👑 </AT>{r.crownsMe ?? 0} x {r.crownsBot ?? 0}<AT> 👑
-              </AT></p>
-              {r.training ? (
+              <MatchResultHero result={result ?? "loss"} crownsMe={r.crownsMe ?? 0} crownsThem={r.crownsBot ?? 0} meName="Você" themName="Computador" />
+              {r.challenge ? (
+                <p className="mt-3 rounded-2xl bg-amber-100 px-4 py-2 text-sm font-black text-amber-900"><AT>⚡ Desafio Maná Duplo: não valeu troféus nem XP.</AT></p>
+              ) : r.training ? (
                 <p className="mt-2 rounded-2xl bg-sky-100 px-4 py-2 text-sm font-black text-sky-900"><AT>🏋️ Treino numa arena já vencida: troféus e XP não mudaram.</AT></p>
               ) : result !== "draw" ? (
                 <p className={`mt-2 text-xl font-black tabular-nums ${(r.trophyDelta ?? 0) >= 0 ? "text-amber-500" : "text-rose-500"}`}>
@@ -254,7 +298,7 @@ function ArenaGameInner({ onLaunching, dayRecord, winsToday, maxWins, initialDec
                 <p className="mt-3 inline-block rounded-full bg-[var(--accent-soft)] px-4 py-1.5 text-lg font-black text-[var(--accent-strong)]">
                   +{r.xp} XP
                 </p>
-              ) : result === "win" ? (
+              ) : result === "win" && !r.challenge ? (
                 <p className="mt-3 text-sm text-[var(--muted)]">Você já ganhou o XP da Arena de hoje (ou venceu rápido demais).</p>
               ) : null}
             </>

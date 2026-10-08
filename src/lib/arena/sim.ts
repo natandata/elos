@@ -1,5 +1,5 @@
 import { createGame, step, stateHash, type GameOpts } from "./engine";
-import { MATCH_TICKS, type GameState, type Input, type Side } from "./core";
+import { MAX_MATCH_TICKS, type GameState, type Input, type Side } from "./core";
 
 export const MAX_INPUTS = 600;
 
@@ -23,7 +23,7 @@ export function simulate(seed: number, deck: string[], inputs: Input[], opts: Ga
     .sort((a, b) => a.tick - b.tick)
     .slice(0, MAX_INPUTS);
   let cursor = 0;
-  while (!state.over && state.tick < MATCH_TICKS + 1) {
+  while (!state.over && state.tick < MAX_MATCH_TICKS + 1) {
     const batch: Input[] = [];
     while (cursor < mine.length && mine[cursor].tick <= state.tick) {
       if (mine[cursor].tick === state.tick) batch.push(mine[cursor]);
