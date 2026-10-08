@@ -57,7 +57,7 @@ export default async function JogosPage() {
   const storeItems = (storeRes.data ?? []) as StoreItem[];
 
   const dates = await getReleaseDates();
-  const [dressOpen, mineOpen, rushOpen, soccerOpen, triboOpen, vis] = await Promise.all([gameOpenFor("dress", profile.id), gameOpenFor("minearena", profile.id), gameOpenFor("biblerush", profile.id), gameOpenFor("arenasoccer", profile.id), gameOpenFor("ultimatribo", profile.id), getVisibilities()]);
+  const [dressOpen, mineOpen, rushOpen, soccerOpen, triboOpen, qdOpen, vis] = await Promise.all([gameOpenFor("dress", profile.id), gameOpenFor("minearena", profile.id), gameOpenFor("biblerush", profile.id), gameOpenFor("arenasoccer", profile.id), gameOpenFor("ultimatribo", profile.id), gameOpenFor("quemdesenha", profile.id), getVisibilities()]);
   const locked = await lockedGames(supabase, profile.id, profile.role);
   const early = await getEarlyAccess(profile.id);
   // quem tem acesso antecipado recebe o jogo da Loja de graça: aparece como já adquirido
@@ -195,6 +195,14 @@ export default async function JogosPage() {
             <p className="text-xs font-bold text-white/85">O arrebatamento aconteceu. Você ficou. Agora, sobreviva.</p>
             <span className="mt-1 inline-block rounded-full bg-rose-700 px-3 py-0.5 text-[10px] font-black text-white">SÓ ADMIN · EM CONSTRUÇÃO</span>
           </div>
+        </Link>
+      )}
+
+      {hide("quemdesenha") || !qdOpen ? null : (
+        <Link href="/app/jogos/quemdesenha" className="relative mb-5 block overflow-hidden rounded-2xl bg-gradient-to-br from-sky-500 via-indigo-500 to-fuchsia-500 p-4 text-white shadow-lg transition active:scale-[0.99]">
+          <p className="text-xl font-black">🎨 QUEM DESENHA?</p>
+          <p className="text-xs font-bold text-white/90">Desenhe a Bíblia e deixe os amigos adivinharem.</p>
+          <span className="mt-1 inline-block rounded-full bg-rose-700 px-3 py-0.5 text-[10px] font-black text-white">SÓ ADMIN · EM CONSTRUÇÃO</span>
         </Link>
       )}
 

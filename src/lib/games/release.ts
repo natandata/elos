@@ -13,10 +13,12 @@ export const GAME_RELEASES = {
   arenacampanha: "2099-01-01T00:00:00-03:00",
   /** A Última Tribo (sobrevivência 3D pós-arrebatamento): em construção, sem data. Só admin e acesso antecipado. */
   ultimatribo: "2099-01-01T00:00:00-03:00",
+  /** Quem Desenha? (desenho e adivinhação bíblicos, multiplayer): em construção, sem data. Só admin e acesso antecipado. */
+  quemdesenha: "2099-01-01T00:00:00-03:00",
 } as const;
 
 /** Antes da data, aparece um cartão "em breve" para os jogadores? O Bible Rush fica invisível até abrir. */
-export const GAME_TEASER: Record<keyof typeof GAME_RELEASES, boolean> = { dress: true, minearena: true, biblerush: false, arenasoccer: false, arenacampanha: false, ultimatribo: false };
+export const GAME_TEASER: Record<keyof typeof GAME_RELEASES, boolean> = { dress: true, minearena: true, biblerush: false, arenasoccer: false, arenacampanha: false, ultimatribo: false, quemdesenha: false };
 
 export type ReleasedGame = keyof typeof GAME_RELEASES;
 
