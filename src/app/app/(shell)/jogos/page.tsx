@@ -57,7 +57,7 @@ export default async function JogosPage() {
   const storeItems = (storeRes.data ?? []) as StoreItem[];
 
   const dates = await getReleaseDates();
-  const [dressOpen, mineOpen, rushOpen, soccerOpen, vis] = await Promise.all([gameOpenFor("dress", profile.id), gameOpenFor("minearena", profile.id), gameOpenFor("biblerush", profile.id), gameOpenFor("arenasoccer", profile.id), getVisibilities()]);
+  const [dressOpen, mineOpen, rushOpen, soccerOpen, triboOpen, vis] = await Promise.all([gameOpenFor("dress", profile.id), gameOpenFor("minearena", profile.id), gameOpenFor("biblerush", profile.id), gameOpenFor("arenasoccer", profile.id), gameOpenFor("ultimatribo", profile.id), getVisibilities()]);
   const locked = await lockedGames(supabase, profile.id, profile.role);
   const early = await getEarlyAccess(profile.id);
   // quem tem acesso antecipado recebe o jogo da Loja de graça: aparece como já adquirido
@@ -182,6 +182,19 @@ export default async function JogosPage() {
           <p className="text-2xl font-black tracking-wide text-amber-100 [text-shadow:0_2px_0_#3a2208]">BIBLE RUSH</p>
           <p className="mt-0.5 text-sm font-bold text-white/90">Histórias da Bíblia, uma missão de cada vez.</p>
           <span className="mt-3 inline-block rounded-full bg-rose-600 px-3 py-0.5 text-[11px] font-black text-white">{releasedNow("biblerush", dates) ? "NOVO" : "SÓ ADMIN"}</span>
+        </Link>
+      )}
+
+      {hide("ultimatribo") || !triboOpen ? null : (
+        <Link href="/app/jogos/ultimatribo" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-stone-500 bg-[#14110d] shadow-lg transition active:scale-[0.99]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/ultimatribo/capa.webp" alt="" className="block h-36 w-full object-cover object-[50%_28%] opacity-80" draggable={false} />
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 p-3">
+            <p className="text-xl font-black tracking-wide text-stone-100 [text-shadow:0_2px_0_#000]">A ÚLTIMA TRIBO</p>
+            <p className="text-xs font-bold text-white/85">O arrebatamento aconteceu. Você ficou. Agora, sobreviva.</p>
+            <span className="mt-1 inline-block rounded-full bg-rose-700 px-3 py-0.5 text-[10px] font-black text-white">SÓ ADMIN · EM CONSTRUÇÃO</span>
+          </div>
         </Link>
       )}
 
