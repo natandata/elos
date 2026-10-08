@@ -36,7 +36,7 @@ export const CUTSCENES: Record<string, Cutscene> = {
         ],
         speaker: "Noé",
         text: "Dois de cada espécie, macho e fêmea. É o que o Senhor mandou. Vamos cuidar de cada par.",
-        ref: "Gênesis 6:19–20",
+        ref: "Gênesis 6:19–21",
         seconds: 6,
       },
       {
@@ -46,7 +46,7 @@ export const CUTSCENES: Record<string, Cutscene> = {
           { emoji: "🧔", pos: "center", anim: "bob", size: "lg" },
           { emoji: "🪺", pos: "right", anim: "bob" },
         ],
-        text: "Alimente cada par e leve-o ao lugar certo da arca. Cuide para que ninguém espere demais!",
+        text: "Deus mandou juntar todo alimento. Prepare os pratos na cozinha da arca e sirva cada par. Cuide para que ninguém espere demais, e não deixe nada queimar!",
         seconds: 5,
       },
     ],

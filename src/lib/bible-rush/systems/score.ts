@@ -21,6 +21,6 @@ export function starsFor(i: StarInput): number {
   if (!i.won) return 0;
   let s = 1;
   if (i.score >= i.target * 1.25 && i.satisfaction >= 60) s = 2;
-  if (s === 2 && i.score >= i.target * 1.5 && i.satisfaction >= 80 && i.waste <= 2 && i.abandoned <= 1) s = 3;
+  if (s === 2 && i.score >= i.target * 1.5 && i.satisfaction >= 80 && i.waste <= 3 && i.abandoned <= 1) s = 3;
   return s;
 }

@@ -1,29 +1,29 @@
-import type { FeedDef, FeedId, PenDef, PenId, SpeciesDef, SpeciesId } from "../core/types";
+import type { FeedDef, FeedId, SpeciesDef, SpeciesId } from "../core/types";
 
+/**
+ * Cardápio da Cozinha da Arca. Noé recebeu a ordem de juntar todo alimento para os animais (Gênesis 6:21).
+ * Cada prato tem a sua estação: o celeiro entrega na hora; o forno e a grelha dão o ponto e queimam se esquecer;
+ * a prensa faz o suco e espera.
+ */
 export const FEEDS: Record<FeedId, FeedDef> = {
-  hay: { id: "hay", name: "Palha", emoji: "🌾" },
-  grain: { id: "grain", name: "Grãos", emoji: "🌰" },
-  fruit: { id: "fruit", name: "Frutas", emoji: "🍎" },
-  fish: { id: "fish", name: "Peixe seco", emoji: "🐟" },
-};
-
-export const PENS: Record<PenId, PenDef> = {
-  pasture: { id: "pasture", name: "Pasto", emoji: "🌿", blurb: "Para os animais pequenos de pasto." },
-  stable: { id: "stable", name: "Estábulo", emoji: "🛖", blurb: "Para os animais grandes de carga." },
-  cages: { id: "cages", name: "Jaulas", emoji: "⛓️", blurb: "Para os animais fortes e de garras." },
-  aviary: { id: "aviary", name: "Aviário", emoji: "🪺", blurb: "Para as aves." },
+  hay: { id: "hay", name: "Feno", emoji: "🌾", price: 6, station: { name: "Celeiro", emoji: "🛖", kind: "direct", slots: 0, cookTime: 0, burnAfter: 0 } },
+  grain: { id: "grain", name: "Pão de grãos", emoji: "🥖", price: 10, station: { name: "Forno de pedra", emoji: "🔥", kind: "cook", slots: 3, cookTime: 5, burnAfter: 4 } },
+  fruit: { id: "fruit", name: "Suco de frutas", emoji: "🧃", price: 8, station: { name: "Prensa", emoji: "🍇", kind: "press", slots: 2, cookTime: 3, burnAfter: 0 } },
+  fish: { id: "fish", name: "Peixe assado", emoji: "🐟", price: 12, station: { name: "Grelha", emoji: "♨️", kind: "cook", slots: 3, cookTime: 6, burnAfter: 4 } },
 };
 
 export const SPECIES: Record<SpeciesId, SpeciesDef> = {
-  sheep: { id: "sheep", name: "ovelha", plural: "ovelhas", emoji: "🐑", feeds: ["hay"], pen: "pasture", patience: 20, reward: 9 },
-  rabbit: { id: "rabbit", name: "coelho", plural: "coelhos", emoji: "🐇", feeds: ["fruit"], pen: "pasture", patience: 19, reward: 9 },
-  dove: { id: "dove", name: "pomba", plural: "pombas", emoji: "🕊️", feeds: ["grain"], pen: "aviary", patience: 20, reward: 9 },
-  parrot: { id: "parrot", name: "papagaio", plural: "papagaios", emoji: "🦜", feeds: ["fruit"], pen: "aviary", patience: 18, reward: 10 },
-  horse: { id: "horse", name: "cavalo", plural: "cavalos", emoji: "🐴", feeds: ["hay", "grain"], pen: "stable", patience: 23, reward: 14 },
-  camel: { id: "camel", name: "camelo", plural: "camelos", emoji: "🐪", feeds: ["hay"], pen: "stable", patience: 21, reward: 10 },
-  lion: { id: "lion", name: "leão", plural: "leões", emoji: "🦁", feeds: ["fish"], pen: "cages", patience: 19, reward: 11 },
-  bear: { id: "bear", name: "urso", plural: "ursos", emoji: "🐻", feeds: ["fruit", "fish"], pen: "cages", patience: 23, reward: 14 },
+  sheep: { id: "sheep", name: "ovelha", plural: "ovelhas", emoji: "🐑", feeds: ["hay"], patience: 15 },
+  rabbit: { id: "rabbit", name: "coelho", plural: "coelhos", emoji: "🐇", feeds: ["fruit"], patience: 14 },
+  dove: { id: "dove", name: "pomba", plural: "pombas", emoji: "🕊️", feeds: ["grain"], patience: 15 },
+  parrot: { id: "parrot", name: "papagaio", plural: "papagaios", emoji: "🦜", feeds: ["fruit"], patience: 14 },
+  horse: { id: "horse", name: "cavalo", plural: "cavalos", emoji: "🐴", feeds: ["hay", "grain"], patience: 18 },
+  camel: { id: "camel", name: "camelo", plural: "camelos", emoji: "🐪", feeds: ["hay"], patience: 16 },
+  lion: { id: "lion", name: "leão", plural: "leões", emoji: "🦁", feeds: ["fish"], patience: 15 },
+  bear: { id: "bear", name: "urso", plural: "ursos", emoji: "🐻", feeds: ["fruit", "fish"], patience: 19 },
 };
 
 export const FEED_LIST = Object.values(FEEDS);
-export const PEN_LIST = Object.values(PENS);
+
+/** Quanto vale o pedido completo de uma espécie. */
+export const orderValue = (s: SpeciesId): number => SPECIES[s].feeds.reduce((a, f) => a + FEEDS[f].price, 0);

@@ -71,8 +71,17 @@ export class RushAudio {
         this.tone(880, 0.12, "triangle", 0.2, 0, 0.09);
         this.tone(1320, 0.18, "sine", 0.16, 0, 0.18);
         break;
-      case "refill":
-        this.tone(300, 0.18, "sine", 0.14, 200);
+      case "cook":
+        this.tone(220, 0.22, "sawtooth", 0.05, 120);
+        this.tone(330, 0.12, "triangle", 0.08, 0, 0.05);
+        break;
+      case "ready":
+        this.tone(988, 0.1, "sine", 0.16);
+        this.tone(1319, 0.16, "sine", 0.14, 0, 0.1);
+        break;
+      case "burn":
+        this.tone(180, 0.35, "sawtooth", 0.14, -90);
+        this.tone(120, 0.3, "square", 0.08, -40, 0.1);
         break;
       case "tick":
         this.tone(1500, 0.03, "square", 0.05);

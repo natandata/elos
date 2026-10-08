@@ -312,7 +312,7 @@ export function ResultScreen({
       {campaign ? <Stars n={result.stars} big /> : null}
       <dl className="br-stats">
         <div>
-          <dt>{campaign ? "Recursos" : "Pares atendidos"}</dt>
+          <dt>{campaign ? "Ganhos" : "Pares atendidos"}</dt>
           <dd>{result.score}</dd>
         </div>
         {campaign ? (
@@ -334,13 +334,13 @@ export function ResultScreen({
           <dd>{result.abandoned}</dd>
         </div>
         <div>
-          <dt>Desperdício</dt>
+          <dt>Pratos perdidos</dt>
           <dd>{result.waste}</dd>
         </div>
       </dl>
       {campaign && !result.won ? (
         <p className="br-tip">
-          Dica: atenda primeiro o par mais impaciente, reabasteça o alimento antes de acabar e arraste o cartão direto para a caixa ou o cercado para ganhar tempo.
+          Dica: ponha vários pães e peixes para assar ao mesmo tempo, tire do fogo assim que aparecer o ✓ verde e sirva primeiro quem está com o balão mais vermelho.
         </p>
       ) : null}
       {newAch.length > 0 ? (

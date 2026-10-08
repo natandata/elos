@@ -1,16 +1,17 @@
-import { SPECIES, FEEDS, PENS } from "../data/items";
+import { FEEDS, SPECIES } from "../data/items";
 import { CustomerManager } from "../systems/customers";
 import { EventManager } from "../systems/events";
 import { drainPerSecond, patienceState } from "../systems/patience";
-import { feedsLeft, makeRequest, mostUrgent, needsFeed, readyToPlace, wantsPen } from "../systems/requests";
-import { ResourceManager } from "../systems/resources";
+import { makeRequest } from "../systems/requests";
 import { BONUS, RATING_LABEL, SATISFACTION, rate, starsFor } from "../systems/score";
 import { makeRng } from "./rng";
-import type { ChallengeMode, FeedId, Floater, LevelDef, PenId, Rating, Request, SpeciesId, Status } from "./types";
+import type { ChallengeMode, FeedId, Floater, LevelDef, Rating, Request, SpeciesId, Status } from "./types";
 
-export type StationRef = { type: "feed"; id: FeedId } | { type: "pen"; id: PenId };
 export type ActionResult = { ok: boolean; text: string; tone: "good" | "bad" | "info" };
-export type SoundKind = "arrive" | "ok" | "err" | "reward" | "refill" | "tick" | "win" | "lose" | "event" | "select";
+export type SoundKind = "arrive" | "ok" | "err" | "reward" | "tick" | "win" | "lose" | "event" | "select" | "cook" | "ready" | "burn";
+
+/** Uma vaga numa estação (forno, grelha, prensa): vazia, cozinhando, no ponto ou queimada. */
+export type Cell = { state: "empty" | "cooking" | "ready" | "burnt"; age: number };
 
 export type Result = {
   won: boolean;
@@ -20,7 +21,6 @@ export type Result = {
   served: number;
   abandoned: number;
   waste: number;
-  stockLeft: number;
   timeLeft: number;
   mode: "campaign" | ChallengeMode;
   perfects: number;
@@ -28,7 +28,10 @@ export type Result = {
 
 export type TutorialHint = { text: string; target: string } | null;
 
-/** Uma partida de uma fase. Lógica pura (sem DOM): a interface só lê o estado e envia ações. */
+/**
+ * Uma partida de uma fase, no estilo "barraca de comida": os pares chegam com pedidos, o jogador prepara os pratos
+ * nas estações (que têm ponto e podem queimar), põe na bandeja e serve. Lógica pura (sem DOM): a interface só lê o estado e envia ações.
+ */
 export class RushLevel {
   readonly def: LevelDef;
   readonly mode: "campaign" | ChallengeMode;
@@ -41,12 +44,17 @@ export class RushLevel {
   score = 0;
   served = 0;
   abandoned = 0;
+  /** pratos queimados ou jogados fora */
   waste = 0;
   perfects = 0;
   /** posições fixas da fila (null = vaga livre) */
   slots: (Request | null)[];
-  selected: number | null = null;
-  placed: Record<PenId, SpeciesId[]> = { pasture: [], stable: [], cages: [], aviary: [] };
+  /** vagas de cada estação que cozinha (o celeiro não tem) */
+  cells: Partial<Record<FeedId, Cell[]>> = {};
+  /** pratos prontos esperando para servir */
+  plate: FeedId[] = [];
+  /** pares que já embarcaram na arca (só para mostrar) */
+  placed: SpeciesId[] = [];
   servedSpecies = new Set<SpeciesId>();
   floaters: Floater[] = [];
   rev = 0;
@@ -56,7 +64,7 @@ export class RushLevel {
   /** pedidos atendidos em sequência sem perder nenhum, nesta partida */
   streak = 0;
   bestStreak = 0;
-  tut: { step: number; refillShown: boolean } | null;
+  tut: { step: number } | null;
   private onSound?: (k: SoundKind, species?: SpeciesId) => void;
 
   /** Liga (ou desliga, com undefined) o som da partida. */
@@ -64,7 +72,6 @@ export class RushLevel {
     this.onSound = fn;
   }
 
-  readonly resources: ResourceManager;
   private customers: CustomerManager;
   private eventsMgr: EventManager;
   private ratings: Rating[] = [];
@@ -80,10 +87,13 @@ export class RushLevel {
     this.timeLimit = def.timeLimit;
     this.maxAbandon = def.maxAbandon;
     this.slots = Array.from({ length: def.queueCap }, () => null);
-    this.resources = new ResourceManager(def.feeds, def.stock);
+    for (const f of def.feeds) {
+      const st = FEEDS[f].station;
+      if (st.kind !== "direct") this.cells[f] = Array.from({ length: st.slots }, () => ({ state: "empty", age: 0 }));
+    }
     this.customers = new CustomerManager(def.schedule, def.generator, this.rng);
     this.eventsMgr = new EventManager(def.events);
-    this.tut = opts.tutorial && this.mode === "campaign" ? { step: 0, refillShown: false } : null;
+    this.tut = opts.tutorial && this.mode === "campaign" ? { step: 0 } : null;
   }
 
   // ---------- leitura ----------
@@ -103,31 +113,31 @@ export class RushLevel {
   get storm(): boolean {
     return this.eventsMgr.storm;
   }
+  /** durante o tutorial a paciência e o relógio da fase ficam parados (o forno continua) */
   get frozen(): boolean {
-    return !!this.tut && this.tut.step < 3;
+    return !!this.tut;
   }
   get waitingOutside(): number {
     return this.customers.waiting.length;
+  }
+  /** quanto falta (0 a 1) para o prato da vaga ficar pronto, ou quanto sobra antes de queimar quando já está pronto */
+  progress(feed: FeedId, idx: number): number {
+    const c = this.cells[feed]?.[idx];
+    const st = FEEDS[feed].station;
+    if (!c || c.state === "empty") return 0;
+    if (c.state === "cooking") return Math.min(1, c.age / st.cookTime);
+    if (c.state === "ready") return st.burnAfter > 0 ? Math.max(0, 1 - (c.age - st.cookTime) / st.burnAfter) : 1;
+    return 0;
   }
 
   hint(): TutorialHint {
     const tut = this.tut;
     if (!tut) return null;
-    const r = this.queue[0];
-    if (tut.step === 0) return { text: "1. Chegou um pedido! Toque no cartão para selecioná-lo.", target: "card" };
-    if (tut.step === 1 && r) {
-      const f = r.needs.find((n) => n.kind === "feed");
-      if (f && f.kind === "feed") return { text: `2. O par está com fome. Toque no alimento certo: ${FEEDS[f.id].emoji} ${FEEDS[f.id].name}.`, target: `feed:${f.id}` };
-    }
-    if (tut.step === 2 && r) {
-      const p = wantsPen(r);
-      if (p) return { text: `3. Agora leve o par ao lugar certo: ${PENS[p].emoji} ${PENS[p].name}.`, target: `pen:${p}` };
-    }
-    if (tut.step === 3) return { text: "4. Dois pedidos ao mesmo tempo! Atenda primeiro o mais impaciente (😠).", target: "card" };
-    if (tut.step === 4 && !tut.refillShown) {
-      const low = (Object.entries(this.resources.stock) as [FeedId, { n: number }][]).find(([, s]) => s.n <= 1);
-      if (low) return { text: `Está acabando! Toque em ↻ para reabastecer ${FEEDS[low[0]].name}.`, target: `refill:${low[0]}` };
-    }
+    if (tut.step === 0) return { text: "1. A ovelha pediu 🌾 Feno. Toque no Celeiro para pôr o feno na bandeja.", target: "slot:hay" };
+    if (tut.step === 1) return { text: "2. Com o prato na bandeja, toque na ovelha para servir.", target: "card" };
+    if (tut.step === 2) return { text: "3. A pomba quer 🥖 Pão de grãos. Toque num espaço vazio do forno para assar.", target: "slot:grain" };
+    if (tut.step === 3) return { text: "4. Quando o pão ficar no ponto (✓ verde), toque nele antes de queimar!", target: "ready:grain" };
+    if (tut.step === 4) return { text: "5. Agora sirva a pomba.", target: "card" };
     return null;
   }
 
@@ -138,8 +148,8 @@ export class RushLevel {
     this.rev++;
     this.clock += dt;
     this.floaters = this.floaters.filter((f) => this.clock - f.at < 1.4);
+    this.cook(dt);
 
-    this.resources.update(dt).forEach(() => this.onSound?.("refill"));
     if (this.frozen) {
       this.customers.update(this.t);
       this.seat();
@@ -177,9 +187,35 @@ export class RushLevel {
     if (this.mode === "campaign" && this.customers.exhausted && this.queue.length === 0) this.finish(true);
   }
 
+  /** Faz o forno, a grelha e a prensa andarem: cozinha, fica no ponto e (forno e grelha) queima se esquecer. */
+  private cook(dt: number): void {
+    for (const f of this.def.feeds) {
+      const cells = this.cells[f];
+      if (!cells) continue;
+      const st = FEEDS[f].station;
+      for (const c of cells) {
+        if (c.state === "cooking") {
+          c.age += dt;
+          if (c.age >= st.cookTime) {
+            c.state = "ready";
+            this.onSound?.("ready");
+          }
+        } else if (c.state === "ready" && st.burnAfter > 0) {
+          c.age += dt;
+          if (c.age >= st.cookTime + st.burnAfter) {
+            c.state = "burnt";
+            this.waste++;
+            this.float(`${FEEDS[f].emoji} queimou!`, "bad");
+            this.onSound?.("burn");
+          }
+        }
+      }
+    }
+  }
+
   private seat(): void {
     while (this.customers.waiting.length > 0) {
-      if (this.tut && this.tut.step < 3 && this.queue.length >= 1) break;
+      if (this.tut && this.queue.length >= 1) break;
       const free = this.slots.indexOf(null);
       if (free < 0) break;
       const a = this.customers.take();
@@ -188,13 +224,11 @@ export class RushLevel {
       this.slots[free] = r;
       this.lastArrivalId = r.id;
       this.onSound?.("arrive", a.species);
-      if (this.tut?.step === 3 && this.queue.length === 1 && r.species === "dove") r.patience = 0.5;
     }
   }
 
   private abandon(i: number, r: Request): void {
     this.slots[i] = null;
-    if (this.selected === r.id) this.selected = null;
     this.abandoned++;
     this.streak = 0;
     this.ratings.push("failed");
@@ -203,68 +237,88 @@ export class RushLevel {
   }
 
   // ---------- ações do jogador ----------
-  select(id: number | null): void {
-    if (this.status !== "playing") return;
-    if (id !== null && !this.queue.some((r) => r.id === id)) return;
-    this.selected = this.selected === id ? null : id;
-    if (this.selected !== null) {
-      this.onSound?.("select");
-      if (this.tut?.step === 0) this.tut.step = 1;
-    }
-    this.rev++;
+  private find(id: number): Request | null {
+    return this.queue.find((r) => r.id === id) ?? null;
   }
 
-  private find(id: number | null): Request | null {
-    return id === null ? null : (this.queue.find((r) => r.id === id) ?? null);
-  }
-
-  private slotOf(r: Request): number {
-    return this.slots.indexOf(r);
-  }
-
-  /** Alimentar (caixa de alimento) ou levar ao cercado. `forId` é o pedido arrastado até a estação; senão usa o selecionado, ou o mais urgente. */
-  press(st: StationRef, forId?: number): ActionResult {
+  /** Toque numa estação: pega o prato do celeiro, começa a assar numa vaga vazia, tira o que está no ponto ou joga fora o queimado. */
+  tapStation(feed: FeedId, idx: number): ActionResult {
     if (this.status !== "playing") return { ok: false, text: "", tone: "info" };
     this.rev++;
-    const target = this.find(forId ?? null) ?? this.find(this.selected);
-    return st.type === "feed" ? this.feed(st.id, target) : this.place(st.id, target);
-  }
-
-  private feed(f: FeedId, target: Request | null): ActionResult {
-    const name = `${FEEDS[f].emoji} ${FEEDS[f].name}`;
-    let r = target;
-    if (r && !needsFeed(r, f)) return this.mistake(r, `${SPECIES[r.species].emoji} não come ${FEEDS[f].name}.`);
-    if (!r) r = mostUrgent(this.queue, (q) => needsFeed(q, f));
-    if (!r) return this.say(`Ninguém precisa de ${name} agora.`, "info");
-    if (this.resources.busy(f)) return this.say(`${FEEDS[f].name}: reabastecendo…`, "info");
-    if (!this.resources.take(f)) return this.say(`Acabou ${FEEDS[f].name}! Toque em ↻ para reabastecer.`, "bad");
-    r.needs = r.needs.filter((n) => !(n.kind === "feed" && n.id === f));
-    r.restless = false;
-    this.onSound?.("ok", r.species);
-    this.float(`${name} ✓`, "good", this.slotOf(r));
-    if (this.tut?.step === 1 && feedsLeft(r) === 0) this.tut.step = 2;
-    return { ok: true, text: "", tone: "good" };
-  }
-
-  private place(p: PenId, target: Request | null): ActionResult {
-    let r = target;
-    if (r) {
-      if (feedsLeft(r) > 0) return this.say("Falta alimentar o par antes de levar.", "info");
-      if (wantsPen(r) !== p) return this.mistake(r, `${PENS[p].name} não é o lugar de ${SPECIES[r.species].plural}.`);
-    } else {
-      r = mostUrgent(this.queue, (q) => readyToPlace(q) && wantsPen(q) === p);
-      if (!r) return this.say("Nenhum par pronto para este lugar.", "info");
+    const def = FEEDS[feed];
+    if (def.station.kind === "direct") return this.toPlate(feed);
+    const c = this.cells[feed]?.[idx];
+    if (!c) return { ok: false, text: "", tone: "info" };
+    if (c.state === "empty") {
+      c.state = "cooking";
+      c.age = 0;
+      this.onSound?.("cook");
+      if (this.tut?.step === 2 && feed === "grain") this.tut.step = 3;
+      return { ok: true, text: "", tone: "good" };
     }
-    this.complete(r, p);
+    if (c.state === "cooking") return this.say(`${def.emoji} ${def.name} ainda não está no ponto.`, "info");
+    if (c.state === "burnt") {
+      c.state = "empty";
+      c.age = 0;
+      this.onSound?.("select");
+      return this.say("Jogado fora.", "info");
+    }
+    // pronto: vai para a bandeja
+    const r = this.toPlate(feed);
+    if (r.ok) {
+      c.state = "empty";
+      c.age = 0;
+    }
+    return r;
+  }
+
+  private toPlate(feed: FeedId): ActionResult {
+    if (this.plate.length >= this.def.plateMax) return this.say("Bandeja cheia! Sirva alguém ou jogue um prato fora (toque nele).", "bad");
+    this.plate.push(feed);
+    this.onSound?.("select");
+    if (this.tut) {
+      if (this.tut.step === 0 && feed === "hay") this.tut.step = 1;
+      else if (this.tut.step === 3 && feed === "grain") this.tut.step = 4;
+    }
     return { ok: true, text: "", tone: "good" };
   }
 
-  private mistake(r: Request, text: string): ActionResult {
+  /** Toque num prato da bandeja: joga fora. */
+  discard(idx: number): ActionResult {
+    if (this.status !== "playing" || idx < 0 || idx >= this.plate.length) return { ok: false, text: "", tone: "info" };
+    this.rev++;
+    const f = this.plate.splice(idx, 1)[0];
     this.waste++;
-    r.patience = Math.max(0.02, r.patience - 0.07);
-    this.float("Errou!", "bad", this.slotOf(r));
-    this.onSound?.("err");
-    return { ok: false, text, tone: "bad" };
+    this.onSound?.("select");
+    return this.say(`${FEEDS[f].emoji} jogado fora.`, "info");
+  }
+
+  /** Toque num par da fila: entrega tudo o que ele pediu e que está na bandeja. */
+  serve(id: number): ActionResult {
+    if (this.status !== "playing") return { ok: false, text: "", tone: "info" };
+    this.rev++;
+    const r = this.find(id);
+    if (!r) return { ok: false, text: "", tone: "info" };
+    const slot = this.slots.indexOf(r);
+    const given: FeedId[] = [];
+    for (const f of [...r.needs]) {
+      const i = this.plate.indexOf(f);
+      if (i < 0) continue;
+      this.plate.splice(i, 1);
+      r.needs.splice(r.needs.indexOf(f), 1);
+      given.push(f);
+    }
+    if (given.length === 0) {
+      const want = r.needs.map((f) => FEEDS[f].emoji).join(" ");
+      return this.say(`${SPECIES[r.species].emoji} quer ${want}. Não tem na bandeja.`, "info");
+    }
+    this.onSound?.("ok", r.species);
+    if (r.needs.length > 0) {
+      this.float(`${given.map((f) => FEEDS[f].emoji).join("")} ✓ falta mais`, "good", slot);
+      return { ok: true, text: "", tone: "good" };
+    }
+    this.complete(r, slot);
+    return { ok: true, text: "", tone: "good" };
   }
 
   private say(text: string, tone: "bad" | "info"): ActionResult {
@@ -273,8 +327,7 @@ export class RushLevel {
     return { ok: false, text, tone };
   }
 
-  private complete(r: Request, p: PenId): void {
-    const slot = this.slotOf(r);
+  private complete(r: Request, slot: number): void {
     const rating = rate(r.patience);
     const bonus = BONUS[rating];
     this.score += r.reward + bonus;
@@ -283,29 +336,15 @@ export class RushLevel {
     this.streak++;
     this.bestStreak = Math.max(this.bestStreak, this.streak);
     if (rating === "perfect") this.perfects++;
-    this.placed[p].push(r.species);
+    this.placed.push(r.species);
     this.servedSpecies.add(r.species);
     this.slots[slot] = null;
-    if (this.selected === r.id) this.selected = null;
     this.float(`${RATING_LABEL[rating]}! +${r.reward}${bonus ? ` +${bonus}` : ""}`, rating === "late" ? "info" : "good", slot);
     this.onSound?.("reward", r.species);
     if (this.tut) {
-      if (this.tut.step === 2) {
-        this.tut.step = 3;
-        this.customers.pullForward(1);
-      } else if (this.tut.step === 3 && this.served >= 3) this.tut.step = 4;
-      else if (this.tut.step === 4 && this.served >= 5) this.tut = null;
+      if (this.tut.step === 1) this.tut.step = 2;
+      else if (this.tut.step === 4) this.tut = null;
     }
-  }
-
-  refill(f: FeedId): ActionResult {
-    if (this.status !== "playing") return { ok: false, text: "", tone: "info" };
-    this.rev++;
-    if (this.resources.stock[f] && this.resources.stock[f].n >= 8) return this.say(`${FEEDS[f].name} já está cheio.`, "info");
-    if (!this.resources.startRefill(f)) return this.say(`${FEEDS[f].name}: já reabastecendo…`, "info");
-    if (this.tut) this.tut.refillShown = true;
-    this.onSound?.("select");
-    return { ok: true, text: "", tone: "good" };
   }
 
   private float(text: string, tone: Floater["tone"], slot?: number): void {
@@ -325,7 +364,7 @@ export class RushLevel {
     }
     const stars =
       this.mode === "campaign"
-        ? starsFor({ won: w, score: this.score, target: this.def.targetScore, satisfaction: this.satisfaction, waste: this.waste + this.resources.overflow, abandoned: this.abandoned })
+        ? starsFor({ won: w, score: this.score, target: this.def.targetScore, satisfaction: this.satisfaction, waste: this.waste, abandoned: this.abandoned })
         : 0;
     this.status = w ? "won" : "lost";
     this.result = {
@@ -335,8 +374,7 @@ export class RushLevel {
       satisfaction: this.satisfaction,
       served: this.served,
       abandoned: this.abandoned,
-      waste: this.waste + this.resources.overflow,
-      stockLeft: this.resources.total(),
+      waste: this.waste,
       timeLeft: Math.round(this.timeLeft),
       mode: this.mode,
       perfects: this.perfects,

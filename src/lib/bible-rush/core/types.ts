@@ -1,27 +1,28 @@
-// Tipos do Bible Rush: jogo de gerenciamento de tempo em fases bíblicas. Tudo aqui é client-safe e dirigido por dados.
+// Tipos do Bible Rush: jogo de gerenciamento de tempo em fases bíblicas (estilo "barraca de comida"). Tudo aqui é client-safe e dirigido por dados.
 
 export type FeedId = "hay" | "grain" | "fruit" | "fish";
-export type PenId = "pasture" | "stable" | "cages" | "aviary";
 export type SpeciesId = "sheep" | "rabbit" | "horse" | "camel" | "lion" | "bear" | "dove" | "parrot";
 
-export type FeedDef = { id: FeedId; name: string; emoji: string };
-export type PenDef = { id: PenId; name: string; emoji: string; blurb: string };
+/** Um prato do cardápio. `direct` sai pronto do balcão; `cook` assa e pode queimar; `press` fica pronto e espera. */
+export type FeedDef = {
+  id: FeedId;
+  name: string;
+  emoji: string;
+  /** quanto vale no pedido */
+  price: number;
+  station: { name: string; emoji: string; kind: "direct" | "cook" | "press"; slots: number; cookTime: number; burnAfter: number };
+};
 export type SpeciesDef = {
   id: SpeciesId;
   /** "ovelha(s)" */
   name: string;
   plural: string;
   emoji: string;
-  /** alimentos que o par precisa receber (em qualquer ordem) */
+  /** pratos que o par pede (em qualquer ordem) */
   feeds: FeedId[];
-  pen: PenId;
   /** segundos até a paciência acabar */
   patience: number;
-  reward: number;
 };
-
-/** Item de um pedido: o sistema de necessidades é abstrato (alimentar, levar a um lugar, entregar...). */
-export type NeedItem = { kind: "feed"; id: FeedId } | { kind: "place"; id: PenId };
 
 export type PatienceState = "happy" | "waiting" | "impatient" | "gone";
 export type Rating = "perfect" | "excellent" | "good" | "late" | "failed";
@@ -29,13 +30,14 @@ export type Rating = "perfect" | "excellent" | "good" | "late" | "failed";
 export type Request = {
   id: number;
   species: SpeciesId;
-  /** o que ainda falta fazer */
-  needs: NeedItem[];
+  /** o que ainda falta entregar */
+  needs: FeedId[];
+  /** o pedido completo (para mostrar o balão) */
+  want: FeedId[];
   /** 1 = acabou de chegar, 0 = foi embora */
   patience: number;
   reward: number;
-  priority: number;
-  /** o animal está inquieto (paciência cai mais rápido até ser alimentado) */
+  /** o animal está inquieto (paciência cai mais rápido até ser atendido) */
   restless: boolean;
   arrivedAt: number;
   /** passou pelo tutorial (paciência congelada) */
@@ -66,9 +68,10 @@ export type LevelDef = {
   /** pares que podem esperar ao mesmo tempo */
   queueCap: number;
   maxAbandon: number;
+  /** pratos do cardápio da fase (cada um tem a sua estação no balcão) */
   feeds: FeedId[];
-  pens: PenId[];
-  stock: Record<FeedId, number>;
+  /** pratos que cabem na bandeja ao mesmo tempo */
+  plateMax: number;
   schedule: Arrival[];
   events: LevelEvent[];
   generator?: Generator;
