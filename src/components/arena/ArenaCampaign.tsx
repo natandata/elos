@@ -17,6 +17,7 @@ import { NeryCutscene } from "./NeryCutscene";
 import { StageCutscene, hasStageScene } from "./StageCutscene";
 import { AT } from "./ArenaText";
 import { MatchResultHero } from "./MatchResultHero";
+import { START_TIMEOUT_MS, withTimeout } from "@/lib/arena/withTimeout";
 
 /** Arena do Nery (a 3ª, índice 2) */
 const NERY_STAGE = 2;
@@ -69,7 +70,7 @@ export function ArenaCampaign({ open, admin, cleared: initialCleared, tiers: ini
     setVerdict(null);
     setLaunching(true);
     const wait = new Promise<void>((r) => setTimeout(r, ARENA_LOAD_MS));
-    const res = await startCampaign(stage).catch(() => ({ error: "Sem conexão. Tente de novo." }) as { error?: string; matchId?: string; seed?: number; tier?: number });
+    const res = await withTimeout(startCampaign(stage), START_TIMEOUT_MS).catch((e) => ({ error: e instanceof Error && e.message === "timeout" ? "A conexão está lenta e a partida não abriu. Tente de novo." : "Sem conexão. Tente de novo." }) as { error?: string; matchId?: string; seed?: number; tier?: number });
     if (res.error || !res.matchId || res.seed === undefined) {
       setLaunching(false);
       setError(res.error ?? "Não foi possível começar.");

@@ -19,6 +19,7 @@ import { createGame, step } from "@/lib/arena/engine";
 import { ARENA_LOAD_MS, ArenaLoadingScreen } from "@/components/games/ArenaLoadingScreen";
 import { AT } from "./ArenaText";
 import { mana2Locked } from "@/lib/arena/challenges";
+import { START_TIMEOUT_MS, withTimeout } from "@/lib/arena/withTimeout";
 import { MatchResultHero } from "./MatchResultHero";
 
 type Phase = "intro" | "playing" | "finishing" | "result";
@@ -133,8 +134,8 @@ function ArenaGameInner({ onLaunching, dayRecord, winsToday, maxWins, initialDec
     // tela de carregamento de 5 s na entrada de toda partida (a partida é criada enquanto isso)
     onLaunching(true);
     const wait = new Promise<void>((r) => setTimeout(r, ARENA_LOAD_MS));
-    const res: { error?: string; matchId?: string; seed?: number; deck?: string[]; arena?: number; levels?: Record<string, number>; botBoost?: number } = await startArena(viewArena).catch(() => ({
-      error: "Sem conexão. Tente de novo.",
+    const res: { error?: string; matchId?: string; seed?: number; deck?: string[]; arena?: number; levels?: Record<string, number>; botBoost?: number } = await withTimeout(startArena(viewArena), START_TIMEOUT_MS).catch((e) => ({
+      error: e instanceof Error && e.message === "timeout" ? "A conexão está lenta e a partida não abriu. Tente de novo." : "Sem conexão. Tente de novo.",
     }));
     if (res.error || !res.matchId || res.seed === undefined) {
       onLaunching(false);
@@ -143,8 +144,19 @@ function ArenaGameInner({ onLaunching, dayRecord, winsToday, maxWins, initialDec
       return;
     }
     await wait;
-    matchRef.current = res.matchId;
-    const game = createGame(res.seed, res.deck ?? deck, undefined, { levels: res.levels ?? levels, arena: res.arena ?? 0, botBoost: res.botBoost ?? 0 });
+    try {
+      launchMatch(res);
+    } catch (err) {
+      console.error("arena: falha ao montar a partida", err);
+      onLaunching(false);
+      setError("Não foi possível entrar na partida. Tente de novo.");
+      startingRef.current = false;
+    }
+  }
+
+  function launchMatch(res: { matchId?: string; seed?: number; deck?: string[]; arena?: number; levels?: Record<string, number>; botBoost?: number }) {
+    matchRef.current = res.matchId as string;
+    const game = createGame(res.seed as number, res.deck ?? deck, undefined, { levels: res.levels ?? levels, arena: res.arena ?? 0, botBoost: res.botBoost ?? 0 });
     logRef.current = [];
     let pending: Input[] = [];
     setDriver({
