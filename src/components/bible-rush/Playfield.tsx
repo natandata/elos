@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { RushLevel, type ActionResult, type SoundKind } from "@/lib/bible-rush/core/engine";
-import type { FeedId, Request, Settings, SpeciesId } from "@/lib/bible-rush/core/types";
-import { FEEDS, FEED_LIST, SPECIES } from "@/lib/bible-rush/data/items";
+import type { FeedId, GuestId, Request, Settings } from "@/lib/bible-rush/core/types";
+import { FEEDS, GUESTS } from "@/lib/bible-rush/data/items";
 import { RushAudio } from "@/lib/bible-rush/audio/audio";
 import { PATIENCE_FACE, PATIENCE_LABEL, patienceState } from "@/lib/bible-rush/systems/patience";
 
@@ -37,7 +37,7 @@ export function Playfield({
   });
 
   useEffect(() => {
-    level.setSound((k: SoundKind, sp?: SpeciesId) => audio.play(k, sp));
+    level.setSound((k: SoundKind, g?: GuestId) => audio.play(k, g));
     const st = { raf: 0, last: performance.now() };
     const loop = (now: number) => {
       const dt = (now - st.last) / 1000;
@@ -76,7 +76,7 @@ export function Playfield({
   return (
     <div className={`br-play ${settings.colorblind ? "br-cb" : ""} ${settings.reduceMotion ? "br-calm" : ""} ${large ? "br-large" : ""}`}>
       {/* cenário: o campo da arca, com o HUD no céu e a fila de clientes no caminho */}
-      <div className="br-scene">
+      <div className="br-scene" style={{ ["--cena" as string]: `url(/bible-rush/cena-${level.def.scene}.webp)` }}>
         <header className="br-hud2">
           <div className="br-hud-row">
             <p className="br-chip">{campaign ? `FASE ${String(level.def.number).padStart(2, "0")}` : title}</p>
@@ -156,7 +156,7 @@ export function Playfield({
       {/* balcão com toldo: uma prateleira por prato do cardápio e a bandeja */}
       <div className="br-bench">
         <section className="br-shelves" aria-label="Cozinha da Arca">
-          {FEED_LIST.filter((f) => level.def.feeds.includes(f.id)).map((f) => {
+          {level.def.feeds.map((id) => FEEDS[id]).map((f) => {
             const st = f.station;
             const cells = level.cells[f.id];
             const firstEmpty = cells ? cells.findIndex((c) => c.state === "empty") : 0;
@@ -216,8 +216,8 @@ export function Playfield({
             })}
           </div>
           {level.placed.length > 0 ? (
-            <p className="br-aboard" aria-label="Já embarcaram na arca">
-              🛶 {level.placed.slice(-10).map((s) => SPECIES[s].emoji).join("")}
+            <p className="br-aboard" aria-label="Já atendidos">
+              🍽️ {level.placed.slice(-9).map((g) => GUESTS[g].faces[0]).join("")}
             </p>
           ) : null}
         </section>
@@ -275,7 +275,7 @@ function Slot({ feed, state, progress }: { feed: FeedId; state: "empty" | "cooki
 
 /** Um cliente no caminho: balão do pedido (enche de cor conforme a paciência), o par de animais e o aviso quando já dá para servir. */
 function Customer({ r, canServe, hl, onServe }: { r: Request; canServe: boolean; hl: boolean; onServe: () => void }) {
-  const d = SPECIES[r.species];
+  const d = GUESTS[r.guest];
   const st = patienceState(r.patience);
   const left = [...r.needs];
   const items = r.want.map((f) => {
@@ -287,7 +287,7 @@ function Customer({ r, canServe, hl, onServe }: { r: Request; canServe: boolean;
     return { f, done: true };
   });
   return (
-    <button type="button" className={`br-cust br-st-${st} ${canServe ? "br-can" : ""} ${hl ? "br-hl" : ""}`} onClick={onServe} aria-label={`2 ${d.plural}. ${PATIENCE_LABEL[st]}. Toque para servir.`}>
+    <button type="button" className={`br-cust br-st-${st} ${canServe ? "br-can" : ""} ${hl ? "br-hl" : ""}`} onClick={onServe} aria-label={`${d.name}. ${PATIENCE_LABEL[st]}. Toque para servir.`}>
       <span className="br-bubble" aria-hidden style={{ ["--p" as string]: `${Math.max(0, r.patience) * 100}%` }}>
         <span className="br-want">
           {items.map((it, k) => (
@@ -299,10 +299,14 @@ function Customer({ r, canServe, hl, onServe }: { r: Request; canServe: boolean;
         </span>
       </span>
       <span className="br-pair" aria-hidden>
-        <span className="br-an">{d.emoji}</span>
-        <span className="br-an br-an2">{d.emoji}</span>
+        {d.faces.map((f, k) => (
+          <span key={k} className={`br-an ${k > 0 ? "br-an2" : ""} ${d.faces.length > 1 ? "br-an-grp" : ""}`}>
+            {f}
+          </span>
+        ))}
         <span className="br-shadow" />
       </span>
+      <span className="br-name">{d.name}</span>
       <span className="br-face" aria-hidden>
         {PATIENCE_FACE[st]}
         {r.restless ? <span className="br-rest">🌀</span> : null}

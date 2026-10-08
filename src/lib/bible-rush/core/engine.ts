@@ -1,11 +1,11 @@
-import { FEEDS, SPECIES } from "../data/items";
+import { FEEDS, GUESTS } from "../data/items";
 import { CustomerManager } from "../systems/customers";
 import { EventManager } from "../systems/events";
 import { drainPerSecond, patienceState } from "../systems/patience";
 import { makeRequest } from "../systems/requests";
 import { BONUS, RATING_LABEL, SATISFACTION, rate, starsFor } from "../systems/score";
 import { makeRng } from "./rng";
-import type { ChallengeMode, FeedId, Floater, LevelDef, Rating, Request, SpeciesId, Status } from "./types";
+import type { ChallengeMode, FeedId, Floater, LevelDef, Rating, GuestId, Request, Status } from "./types";
 
 export type ActionResult = { ok: boolean; text: string; tone: "good" | "bad" | "info" };
 export type SoundKind = "arrive" | "ok" | "err" | "reward" | "tick" | "win" | "lose" | "event" | "select" | "cook" | "ready" | "burn";
@@ -54,8 +54,8 @@ export class RushLevel {
   /** pratos prontos esperando para servir */
   plate: FeedId[] = [];
   /** pares que já embarcaram na arca (só para mostrar) */
-  placed: SpeciesId[] = [];
-  servedSpecies = new Set<SpeciesId>();
+  placed: GuestId[] = [];
+  servedGuests = new Set<GuestId>();
   floaters: Floater[] = [];
   rev = 0;
   result: Result | null = null;
@@ -65,10 +65,10 @@ export class RushLevel {
   streak = 0;
   bestStreak = 0;
   tut: { step: number } | null;
-  private onSound?: (k: SoundKind, species?: SpeciesId) => void;
+  private onSound?: (k: SoundKind, guest?: GuestId) => void;
 
   /** Liga (ou desliga, com undefined) o som da partida. */
-  setSound(fn?: (k: SoundKind, species?: SpeciesId) => void): void {
+  setSound(fn?: (k: SoundKind, guest?: GuestId) => void): void {
     this.onSound = fn;
   }
 
@@ -93,7 +93,7 @@ export class RushLevel {
     }
     this.customers = new CustomerManager(def.schedule, def.generator, this.rng);
     this.eventsMgr = new EventManager(def.events);
-    this.tut = opts.tutorial && this.mode === "campaign" ? { step: 0 } : null;
+    this.tut = opts.tutorial && this.def.tutorial && this.mode === "campaign" ? { step: 0 } : null;
   }
 
   // ---------- leitura ----------
@@ -132,12 +132,15 @@ export class RushLevel {
 
   hint(): TutorialHint {
     const tut = this.tut;
-    if (!tut) return null;
-    if (tut.step === 0) return { text: "1. A ovelha pediu 🌾 Feno. Toque no Celeiro para pôr o feno na bandeja.", target: "slot:hay" };
-    if (tut.step === 1) return { text: "2. Com o prato na bandeja, toque na ovelha para servir.", target: "card" };
-    if (tut.step === 2) return { text: "3. A pomba quer 🥖 Pão de grãos. Toque num espaço vazio do forno para assar.", target: "slot:grain" };
-    if (tut.step === 3) return { text: "4. Quando o pão ficar no ponto (✓ verde), toque nele antes de queimar!", target: "ready:grain" };
-    if (tut.step === 4) return { text: "5. Agora sirva a pomba.", target: "card" };
+    const t = this.def.tutorial;
+    if (!tut || !t) return null;
+    const d = FEEDS[t.direct];
+    const c = FEEDS[t.cook];
+    if (tut.step === 0) return { text: `1. Toque em ${d.station.name} para pôr ${d.emoji} ${d.name} na bandeja.`, target: `slot:${t.direct}` };
+    if (tut.step === 1) return { text: "2. Com o prato na bandeja, toque no convidado para servir.", target: "card" };
+    if (tut.step === 2) return { text: `3. Agora o pedido é ${c.emoji} ${c.name}. Toque num espaço vazio de ${c.station.name} para preparar.`, target: `slot:${t.cook}` };
+    if (tut.step === 3) return { text: "4. Quando ficar no ponto (✓ verde), toque no prato antes de queimar!", target: `ready:${t.cook}` };
+    if (tut.step === 4) return { text: "5. Agora sirva o convidado.", target: "card" };
     return null;
   }
 
@@ -171,7 +174,7 @@ export class RushLevel {
     for (let i = 0; i < this.slots.length; i++) {
       const r = this.slots[i];
       if (!r) continue;
-      r.patience -= drainPerSecond(SPECIES[r.species].patience, { storm: this.eventsMgr.storm, restless: r.restless }) * dt;
+      r.patience -= drainPerSecond(GUESTS[r.guest].patience, { storm: this.eventsMgr.storm, restless: r.restless }) * dt;
       if (r.patience <= 0) this.abandon(i, r);
     }
 
@@ -220,10 +223,10 @@ export class RushLevel {
       if (free < 0) break;
       const a = this.customers.take();
       if (!a) break;
-      const r = makeRequest(this.nextId++, a.species, this.t, !!a.guided && !!this.tut);
+      const r = makeRequest(this.nextId++, a.guest, this.t, !!a.guided && !!this.tut);
       this.slots[free] = r;
       this.lastArrivalId = r.id;
-      this.onSound?.("arrive", a.species);
+      this.onSound?.("arrive", a.guest);
     }
   }
 
@@ -232,7 +235,7 @@ export class RushLevel {
     this.abandoned++;
     this.streak = 0;
     this.ratings.push("failed");
-    this.float(`${RATING_LABEL.failed}: ${SPECIES[r.species].emoji} foi embora`, "bad", i);
+    this.float(`${RATING_LABEL.failed}: ${GUESTS[r.guest].faces[0]} foi embora`, "bad", i);
     this.onSound?.("err");
   }
 
@@ -253,7 +256,7 @@ export class RushLevel {
       c.state = "cooking";
       c.age = 0;
       this.onSound?.("cook");
-      if (this.tut?.step === 2 && feed === "grain") this.tut.step = 3;
+      if (this.tut?.step === 2 && feed === this.def.tutorial?.cook) this.tut.step = 3;
       return { ok: true, text: "", tone: "good" };
     }
     if (c.state === "cooking") return this.say(`${def.emoji} ${def.name} ainda não está no ponto.`, "info");
@@ -277,8 +280,8 @@ export class RushLevel {
     this.plate.push(feed);
     this.onSound?.("select");
     if (this.tut) {
-      if (this.tut.step === 0 && feed === "hay") this.tut.step = 1;
-      else if (this.tut.step === 3 && feed === "grain") this.tut.step = 4;
+      if (this.tut.step === 0 && feed === this.def.tutorial?.direct) this.tut.step = 1;
+      else if (this.tut.step === 3 && feed === this.def.tutorial?.cook) this.tut.step = 4;
     }
     return { ok: true, text: "", tone: "good" };
   }
@@ -310,9 +313,9 @@ export class RushLevel {
     }
     if (given.length === 0) {
       const want = r.needs.map((f) => FEEDS[f].emoji).join(" ");
-      return this.say(`${SPECIES[r.species].emoji} quer ${want}. Não tem na bandeja.`, "info");
+      return this.say(`${GUESTS[r.guest].faces[0]} quer ${want}. Não tem na bandeja.`, "info");
     }
-    this.onSound?.("ok", r.species);
+    this.onSound?.("ok", r.guest);
     if (r.needs.length > 0) {
       this.float(`${given.map((f) => FEEDS[f].emoji).join("")} ✓ falta mais`, "good", slot);
       return { ok: true, text: "", tone: "good" };
@@ -336,11 +339,11 @@ export class RushLevel {
     this.streak++;
     this.bestStreak = Math.max(this.bestStreak, this.streak);
     if (rating === "perfect") this.perfects++;
-    this.placed.push(r.species);
-    this.servedSpecies.add(r.species);
+    this.placed.push(r.guest);
+    this.servedGuests.add(r.guest);
     this.slots[slot] = null;
     this.float(`${RATING_LABEL[rating]}! +${r.reward}${bonus ? ` +${bonus}` : ""}`, rating === "late" ? "info" : "good", slot);
-    this.onSound?.("reward", r.species);
+    this.onSound?.("reward", r.guest);
     if (this.tut) {
       if (this.tut.step === 1) this.tut.step = 2;
       else if (this.tut.step === 4) this.tut = null;

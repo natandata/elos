@@ -1,15 +1,15 @@
 import { DEFAULT_SETTINGS, type SaveData, type Settings } from "../core/types";
 
-const key = (uid: string) => `bible-rush:v1:${uid}`;
+const key = (uid: string) => `bible-rush:v2:${uid}`;
 
 export function freshSave(): SaveData {
   return {
-    unlockedChapter: 2,
+    unlockedChapter: 1,
     stars: {},
     bestScores: {},
     achievements: [],
     settings: { ...DEFAULT_SETTINGS },
-    gallery: ["noah", "ark"],
+    gallery: [],
     serveStreak: 0,
     totalServed: 0,
     tutorialDone: false,
@@ -34,7 +34,7 @@ export function loadSave(uid: string): SaveData {
     const strs = (v: unknown, f: string[]) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : f);
     const st: Partial<Settings> = d.settings ?? {};
     return {
-      unlockedChapter: Math.max(2, num(d.unlockedChapter, 2)),
+      unlockedChapter: Math.max(1, num(d.unlockedChapter, 1)),
       stars: rec(d.stars),
       bestScores: rec(d.bestScores),
       achievements: strs(d.achievements, []),

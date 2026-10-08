@@ -1,10 +1,11 @@
 import type { SoundKind } from "../core/engine";
-import type { SpeciesId } from "../core/types";
+import type { GuestId } from "../core/types";
 
 // Sons sintetizados (placeholders, sem arquivos de áudio nem músicas de terceiros).
 // O navegador só libera o som depois de um toque, então tudo nasce a partir de um gesto.
 
-const PITCH: Record<SpeciesId, number> = { sheep: 330, rabbit: 700, dove: 880, parrot: 990, horse: 260, camel: 200, lion: 110, bear: 140 };
+/** Tom da voz do convidado: sai do próprio id, então cada um soa diferente. */
+const pitchOf = (id: GuestId): number => 200 + ([...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 700, 7));
 
 export class RushAudio {
   private ctx: AudioContext | null = null;
@@ -50,11 +51,11 @@ export class RushAudio {
     o.stop(t0 + dur + 0.02);
   }
 
-  play(k: SoundKind, species?: SpeciesId): void {
+  play(k: SoundKind, guest?: GuestId): void {
     if (!this.sfxOn) return;
     switch (k) {
       case "arrive":
-        this.tone(species ? PITCH[species] : 440, 0.16, "triangle", 0.16, species ? -PITCH[species] * 0.25 : 0);
+        this.tone(guest ? pitchOf(guest) : 440, 0.16, "triangle", 0.16, guest ? -pitchOf(guest) * 0.25 : 0);
         this.tone(660, 0.08, "sine", 0.1, 0, 0.12);
         break;
       case "ok":

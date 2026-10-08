@@ -1,9 +1,12 @@
-// Tipos do Bible Rush: jogo de gerenciamento de tempo em fases bíblicas (estilo "barraca de comida"). Tudo aqui é client-safe e dirigido por dados.
+// Tipos do Bible Rush: jogo de gerenciamento de tempo em fases bíblicas que envolvem refeições (estilo "barraca de comida").
+// Tudo aqui é client-safe e dirigido por dados.
 
-export type FeedId = "hay" | "grain" | "fruit" | "fish";
-export type SpeciesId = "sheep" | "rabbit" | "horse" | "camel" | "lion" | "bear" | "dove" | "parrot";
+/** Identificador de um prato do cardápio (ex.: "pao", "peixe"). */
+export type FeedId = string;
+/** Identificador de um tipo de convidado (ex.: "esau", "familia"). */
+export type GuestId = string;
 
-/** Um prato do cardápio. `direct` sai pronto do balcão; `cook` assa e pode queimar; `press` fica pronto e espera. */
+/** Um prato. `direct` sai pronto da estação; `cook` assa e pode queimar; `press` fica pronto e espera. */
 export type FeedDef = {
   id: FeedId;
   name: string;
@@ -12,13 +15,13 @@ export type FeedDef = {
   price: number;
   station: { name: string; emoji: string; kind: "direct" | "cook" | "press"; slots: number; cookTime: number; burnAfter: number };
 };
-export type SpeciesDef = {
-  id: SpeciesId;
-  /** "ovelha(s)" */
+export type GuestDef = {
+  id: GuestId;
+  /** "Esaú faminto" */
   name: string;
-  plural: string;
-  emoji: string;
-  /** pratos que o par pede (em qualquer ordem) */
+  /** o que aparece em pé no caminho (1 a 3 emojis) */
+  faces: string[];
+  /** pratos que o convidado pede (em qualquer ordem) */
   feeds: FeedId[];
   /** segundos até a paciência acabar */
   patience: number;
@@ -29,7 +32,7 @@ export type Rating = "perfect" | "excellent" | "good" | "late" | "failed";
 
 export type Request = {
   id: number;
-  species: SpeciesId;
+  guest: GuestId;
   /** o que ainda falta entregar */
   needs: FeedId[];
   /** o pedido completo (para mostrar o balão) */
@@ -37,19 +40,19 @@ export type Request = {
   /** 1 = acabou de chegar, 0 = foi embora */
   patience: number;
   reward: number;
-  /** o animal está inquieto (paciência cai mais rápido até ser atendido) */
+  /** o convidado está inquieto (paciência cai mais rápido até ser atendido) */
   restless: boolean;
   arrivedAt: number;
   /** passou pelo tutorial (paciência congelada) */
   guided: boolean;
 };
 
-export type Arrival = { at: number; species: SpeciesId; guided?: boolean };
+export type Arrival = { at: number; guest: GuestId; guided?: boolean };
 
 export type EventKind = "crowd" | "restless" | "storm";
 export type LevelEvent = { at: number; kind: EventKind; text: string };
 
-export type Generator = { first: number; start: number; min: number; accel: number; pool: SpeciesId[] };
+export type Generator = { first: number; start: number; min: number; accel: number; pool: GuestId[] };
 
 export type LevelDef = {
   id: string;
@@ -57,15 +60,18 @@ export type LevelDef = {
   number: number;
   arc: string;
   title: string;
+  /** de quem é a história */
   hero: string;
   objective: string;
   ref: string;
   /** contexto bíblico mostrado depois da fase */
   context: string;
   note: string;
+  /** nome do cenário (arquivo /bible-rush/cena-<scene>.webp) */
+  scene: string;
   timeLimit: number;
   targetScore: number;
-  /** pares que podem esperar ao mesmo tempo */
+  /** convidados que podem esperar ao mesmo tempo */
   queueCap: number;
   maxAbandon: number;
   /** pratos do cardápio da fase (cada um tem a sua estação no balcão) */
@@ -75,7 +81,8 @@ export type LevelDef = {
   schedule: Arrival[];
   events: LevelEvent[];
   generator?: Generator;
-  tutorial?: boolean;
+  /** tutorial guiado: um prato que sai direto da estação e um que precisa assar */
+  tutorial?: { direct: FeedId; cook: FeedId };
   intro: string;
   outro: string;
 };

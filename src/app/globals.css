@@ -1193,6 +1193,12 @@ input[type="datetime-local"] {
 .br-bg-ark { background: linear-gradient(180deg, #f2b46a 0%, #f7d9a0 50%, #8a6a3a 100%); }
 .br-bg-storm { background: linear-gradient(180deg, #32445f 0%, #5b6f8c 60%, #2e3f55 100%); }
 .br-bg-night { background: linear-gradient(180deg, #0f1d3a, #2b3f6a); }
+.br-bg-tent { background: linear-gradient(180deg, #8fc9ea 0%, #f3e3b3 55%, #cfa86a 100%); }
+.br-bg-camp { background: linear-gradient(180deg, #f6a65a 0%, #f8d9a0 50%, #9a6b3a 100%); }
+.br-bg-egypt { background: linear-gradient(180deg, #14224a 0%, #2f3f78 55%, #7a5a3a 100%); }
+.br-bg-desert { background: linear-gradient(180deg, #f9c97a 0%, #fbe6b5 50%, #d9b676 100%); }
+.br-bg-feast { background: linear-gradient(180deg, #ffd9a0 0%, #f6e3c2 50%, #b98a5a 100%); }
+.br-bg-hill { background: linear-gradient(180deg, #8fc9ea 0%, #cfe8c8 50%, #7fae5a 100%); }
 .br-ground { position: absolute; left: 0; right: 0; bottom: 30%; height: 14%; background: rgba(90, 60, 25, 0.35); }
 .br-actors { position: absolute; inset: 0 0 38% 0; }
 .br-actor { position: absolute; bottom: 8%; font-size: 3.4rem; filter: drop-shadow(0 6px 4px rgba(0, 0, 0, 0.3)); }
@@ -1227,7 +1233,7 @@ input[type="datetime-local"] {
 .br-msg-info, .br-msg-good { border: 2px solid var(--br-gold); background: #fff3c4; color: #5e3a17; }
 /* ---- Bible Rush: cenário, clientes, balcão e bandeja ---- */
 .br-play { position: relative; display: flex; min-height: min(88dvh, 860px); flex-direction: column; }
-.br-scene { position: relative; display: flex; min-height: 20.5rem; flex-direction: column; gap: 0.4rem; padding: 0.55rem 0.5rem 0; background: url(/bible-rush/cena.webp) center 20% / cover no-repeat, #8ec9e8; }
+.br-scene { position: relative; display: flex; min-height: 20.5rem; flex-direction: column; gap: 0.4rem; padding: 0.55rem 0.5rem 0; background: var(--cena) center 20% / cover no-repeat, #8ec9e8; }
 .br-hud2 { display: flex; flex-direction: column; gap: 0.35rem; padding: 0.35rem 0.45rem; border: 3px solid var(--br-wood2); border-radius: 14px; background: rgba(255, 248, 230, 0.93); box-shadow: 0 3px 0 rgba(94, 58, 23, 0.5); }
 .br-hud-row { display: flex; align-items: center; justify-content: space-between; gap: 0.3rem; }
 .br-pill { margin: 0; padding: 0.12rem 0.5rem; border: 2px solid var(--br-wood2); border-radius: 999px; background: #fff; font-size: 0.78rem; font-weight: 900; white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -1259,6 +1265,9 @@ input[type="datetime-local"] {
 .br-pair { position: relative; display: flex; align-items: flex-end; justify-content: center; margin-top: 0.55rem; line-height: 1; animation: br-idle 2.4s ease-in-out infinite; }
 .br-an { font-size: 2.3rem; filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.18)); }
 .br-an2 { margin-left: -0.7rem; font-size: 1.8rem; }
+.br-an-grp { font-size: 1.7rem; }
+.br-an-grp.br-an2 { margin-left: -0.55rem; font-size: 1.7rem; }
+.br-name { max-width: 100%; margin: 0; overflow: hidden; padding: 0 0.15rem; font-size: 0.55rem; font-weight: 900; line-height: 1.1; text-align: center; text-overflow: ellipsis; white-space: nowrap; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.85); }
 .br-shadow { position: absolute; left: 50%; bottom: -0.25rem; z-index: -1; width: 85%; height: 0.55rem; transform: translateX(-50%); border-radius: 50%; background: rgba(0, 0, 0, 0.25); }
 .br-st-impatient .br-pair { animation: br-fret 0.45s ease-in-out infinite; }
 .br-face { display: flex; align-items: center; gap: 3px; margin: 0; font-size: 1.1rem; line-height: 1; filter: drop-shadow(0 1px 0 #fff); }

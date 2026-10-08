@@ -7,8 +7,7 @@ import type { LevelDef, SaveData, Settings } from "@/lib/bible-rush/core/types";
 import { RushAudio } from "@/lib/bible-rush/audio/audio";
 import { newlyUnlocked, type Achievement } from "@/lib/bible-rush/data/achievements";
 import { CUTSCENES } from "@/lib/bible-rush/data/cutscenes";
-import { CAMPAIGN, NOAH_ANIMALS, challengeLevel } from "@/lib/bible-rush/data/levels";
-import { SPECIES_GALLERY } from "@/lib/bible-rush/data/gallery";
+import { CAMPAIGN, FIRST_LEVEL, challengeLevel, type ChapterInfo } from "@/lib/bible-rush/data/levels";
 import { freshSave, loadSave, resetSave, writeSave } from "@/lib/bible-rush/save/save";
 import { CutscenePlayer } from "./Cutscene";
 import { Playfield } from "./Playfield";
@@ -22,7 +21,7 @@ export function BibleRushGame({ uid }: { uid: string }) {
   const [view, setView] = useState<View>({ kind: "screen", id: "menu" });
   const [level, setLevel] = useState<RushLevel | null>(null);
   const [runId, setRunId] = useState(0);
-  const [outcome, setOutcome] = useState<{ def: LevelDef; result: Result; newAch: Achievement[]; hasNext: boolean } | null>(null);
+  const [outcome, setOutcome] = useState<{ def: LevelDef; result: Result; newAch: Achievement[]; next: ChapterInfo | null } | null>(null);
   const [rushAudio] = useState(() => new RushAudio());
   const saveRef = useRef(save);
   const settings = save.settings;
@@ -63,6 +62,9 @@ export function BibleRushGame({ uid }: { uid: string }) {
     } else play();
   };
 
+  /** O capítulo para continuar: o último liberado que tem fase pronta. */
+  const currentLevel = (): LevelDef => [...CAMPAIGN].reverse().find((c) => c.level && save.unlockedChapter >= c.number)?.level ?? FIRST_LEVEL;
+
   const finish = () => {
     const lv = level;
     const cur = saveRef.current;
@@ -73,15 +75,11 @@ export function BibleRushGame({ uid }: { uid: string }) {
     next.tutorialDone = true;
     next.totalServed += result.served;
     next.serveStreak = result.abandoned === 0 ? cur.serveStreak + result.served : lv.streak;
-    for (const sp of lv.servedSpecies) {
-      const g = SPECIES_GALLERY[sp];
-      if (!next.gallery.includes(g)) next.gallery.push(g);
-    }
+    for (const g of lv.servedGuests) if (!next.gallery.includes(g)) next.gallery.push(g);
     if (result.mode === "campaign") {
       if (result.won) {
         next.stars[def.id] = Math.max(next.stars[def.id] ?? 0, result.stars);
         next.unlockedChapter = Math.max(next.unlockedChapter, def.number + 1);
-        if (!next.gallery.includes("door")) next.gallery.push("door");
       }
       next.bestScores[def.id] = Math.max(next.bestScores[def.id] ?? 0, result.score);
     } else next.challengeBest[result.mode] = Math.max(next.challengeBest[result.mode] ?? 0, result.score);
@@ -89,7 +87,7 @@ export function BibleRushGame({ uid }: { uid: string }) {
     const newAch = newlyUnlocked({ save: next, result, levelId: def.id });
     next.achievements.push(...newAch.map((a) => a.id));
     commit(next);
-    setOutcome({ def, result, newAch, hasNext: result.mode === "campaign" && result.won && CAMPAIGN.some((c) => c.number === def.number + 1) });
+    setOutcome({ def, result, newAch, next: result.mode === "campaign" && result.won ? (CAMPAIGN.find((c) => c.number === def.number + 1) ?? null) : null });
     rushAudio.stopMusic();
     if (result.mode === "campaign" && result.won) setView({ kind: "cutscene", id: def.outro, then: () => setView({ kind: "result" }) });
     else setView({ kind: "result" });
@@ -112,20 +110,20 @@ export function BibleRushGame({ uid }: { uid: string }) {
   } else if (view.kind === "play" && level) {
     body = <Playfield key={runId} level={level} audio={rushAudio} settings={settings} title={level.def.title} onEnd={finish} onQuit={menu} />;
   } else if (view.kind === "result" && outcome) {
-    body = <ResultScreen level={outcome.def} result={outcome.result} newAch={outcome.newAch} hasNext={outcome.hasNext} onRetry={retry} onMenu={menu} />;
+    body = <ResultScreen level={outcome.def} result={outcome.result} newAch={outcome.newAch} next={outcome.next} onNext={() => outcome.next?.level && startCampaign(outcome.next.level)} onRetry={retry} onMenu={menu} />;
   } else if (view.kind === "screen") {
     switch (view.id) {
       case "menu":
         body = (
           <MenuScreen
             save={save}
-            onContinue={() => startCampaign(NOAH_ANIMALS)}
+            onContinue={() => startCampaign(currentLevel())}
             onNew={() => {
               resetSave(uid);
               const f = freshSave();
               f.settings = settings;
               commit(f);
-              startCampaign(NOAH_ANIMALS);
+              startCampaign(FIRST_LEVEL);
             }}
             go={go}
           />

@@ -1,4 +1,4 @@
-import type { Arrival, Generator, SpeciesId } from "../core/types";
+import type { Arrival, Generator, GuestId } from "../core/types";
 
 /** Controla quem chega e quando: lista fixa da fase ou gerador com ritmo crescente (modo desafio). */
 export class CustomerManager {
@@ -17,7 +17,7 @@ export class CustomerManager {
     this.interval = gen?.start ?? 0;
   }
 
-  private pick(): SpeciesId {
+  private pick(): GuestId {
     const pool = this.gen!.pool;
     return pool[Math.floor(this.rng() * pool.length)];
   }
@@ -25,7 +25,7 @@ export class CustomerManager {
   update(t: number): void {
     if (this.gen) {
       while (t >= this.nextGen) {
-        this.waiting.push({ at: this.nextGen, species: this.pick() });
+        this.waiting.push({ at: this.nextGen, guest: this.pick() });
         this.interval = Math.max(this.gen.min, this.interval - this.gen.accel);
         this.nextGen += this.interval;
       }
@@ -37,7 +37,7 @@ export class CustomerManager {
   /** puxa já os próximos n da lista (evento de multidão) */
   pullForward(n: number): void {
     for (let i = 0; i < n; i++) {
-      if (this.gen) this.waiting.push({ at: 0, species: this.pick() });
+      if (this.gen) this.waiting.push({ at: 0, guest: this.pick() });
       else if (this.idx < this.schedule.length) this.waiting.push(this.schedule[this.idx++]);
     }
   }

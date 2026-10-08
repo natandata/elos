@@ -5,7 +5,7 @@ import { useState } from "react";
 import type { Result } from "@/lib/bible-rush/core/engine";
 import type { LevelDef, SaveData, Settings } from "@/lib/bible-rush/core/types";
 import { ACHIEVEMENTS, type Achievement } from "@/lib/bible-rush/data/achievements";
-import { CAMPAIGN, CHALLENGES } from "@/lib/bible-rush/data/levels";
+import { CAMPAIGN, CHALLENGES, type ChapterInfo } from "@/lib/bible-rush/data/levels";
 import { GALLERY } from "@/lib/bible-rush/data/gallery";
 
 export type ScreenId = "menu" | "chapters" | "challenge" | "achievements" | "gallery" | "settings";
@@ -44,10 +44,10 @@ export function MenuScreen({ save, onContinue, onNew, go }: { save: SaveData; on
     <div className="br-menu">
       <div className="br-logo">
         <span className="br-logo-ark" aria-hidden>
-          🛶
+          🍽️
         </span>
         <h1>BIBLE RUSH</h1>
-        <p>Histórias da Bíblia, uma missão de cada vez.</p>
+        <p>Histórias da Bíblia à mesa, uma refeição de cada vez.</p>
       </div>
       <nav className="br-menu-list" aria-label="Menu principal">
         {items.map((it) => (
@@ -82,7 +82,7 @@ export function ChapterSelect({ save, onPlay, onBack }: { save: SaveData; onPlay
     <div className="br-screen">
       <Back onClick={onBack} />
       <h2 className="br-h2">Capítulos</h2>
-      <p className="br-p">A campanha avança em ordem. Os próximos capítulos chegam em breve.</p>
+      <p className="br-p">Histórias da Bíblia que acontecem à mesa. A campanha avança em ordem; os próximos capítulos chegam em breve.</p>
       <ol className="br-chapters">
         {CAMPAIGN.map((c, idx) => {
           const head = idx === 0 || CAMPAIGN[idx - 1].arc !== c.arc ? <li key={`a${c.arc}`} className="br-arc">{c.arc}</li> : null;
@@ -119,14 +119,14 @@ export function ChapterSelect({ save, onPlay, onBack }: { save: SaveData; onPlay
 }
 
 export function ChallengeScreen({ save, onPlay, onBack }: { save: SaveData; onPlay: (m: "survival" | "speed" | "perfect") => void; onBack: () => void }) {
-  const open = (save.stars.noah_animals ?? 0) >= 1;
+  const open = (save.stars.abraao ?? 0) >= 1;
   return (
     <div className="br-screen">
       <Back onClick={onBack} />
       <h2 className="br-h2">Modo Desafio</h2>
       {!open ? (
         <div className="br-panel">
-          <p className="br-p">🔒 Complete a fase «Noé: Reunindo os Animais» para desbloquear os desafios.</p>
+          <p className="br-p">🔒 Complete a fase «Abraão: A Hospitalidade» para desbloquear os desafios.</p>
         </div>
       ) : (
         <ul className="br-list">
@@ -198,7 +198,7 @@ export function GalleryScreen({ save, onBack }: { save: SaveData; onBack: () => 
       <Back onClick={onBack} />
       <h2 className="br-h2">Galeria</h2>
       <p className="br-p">
-        {GALLERY.filter((g) => save.gallery.includes(g.id)).length} de {GALLERY.length} descobertos. Atenda cada animal para conhecê-lo.
+        {GALLERY.filter((g) => save.gallery.includes(g.id)).length} de {GALLERY.length} descobertos. Atenda cada convidado para conhecê-lo.
       </p>
       <ul className="br-gal">
         {GALLERY.map((g) => {
@@ -293,14 +293,16 @@ export function ResultScreen({
   level,
   result,
   newAch,
-  hasNext,
+  next,
+  onNext,
   onRetry,
   onMenu,
 }: {
   level: LevelDef;
   result: Result;
   newAch: Achievement[];
-  hasNext: boolean;
+  next: ChapterInfo | null;
+  onNext: () => void;
   onRetry: () => void;
   onMenu: () => void;
 }) {
@@ -312,7 +314,7 @@ export function ResultScreen({
       {campaign ? <Stars n={result.stars} big /> : null}
       <dl className="br-stats">
         <div>
-          <dt>{campaign ? "Ganhos" : "Pares atendidos"}</dt>
+          <dt>{campaign ? "Ganhos" : "Atendidos"}</dt>
           <dd>{result.score}</dd>
         </div>
         {campaign ? (
@@ -326,7 +328,7 @@ export function ResultScreen({
           <dd>{result.satisfaction}%</dd>
         </div>
         <div>
-          <dt>Pares atendidos</dt>
+          <dt>Atendidos</dt>
           <dd>{result.served}</dd>
         </div>
         <div>
@@ -366,9 +368,14 @@ export function ResultScreen({
           <p className="br-note">{level.note}</p>
         </div>
       ) : null}
-      {campaign && result.won ? <p className="br-p">{hasNext ? "🔓 Próximo capítulo desbloqueado: Abraão, Hospitalidade (em breve)." : ""}</p> : null}
+      {campaign && result.won && next ? <p className="br-p">{next.level ? `🔓 Próximo capítulo: ${next.title}.` : `Próximo capítulo: ${next.title} (em breve).`}</p> : null}
       <div className="br-actions">
-        <button type="button" className="br-btn br-btn-gold" onClick={onRetry}>
+        {next?.level ? (
+          <button type="button" className="br-btn br-btn-gold" onClick={onNext}>
+            Próximo capítulo ▶
+          </button>
+        ) : null}
+        <button type="button" className={`br-btn ${next?.level ? "" : "br-btn-gold"}`} onClick={onRetry}>
           ↻ Jogar de novo
         </button>
         <button type="button" className="br-btn" onClick={onMenu}>
