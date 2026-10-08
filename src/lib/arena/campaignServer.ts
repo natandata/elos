@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { gameOpenFor } from "@/lib/games/releaseServer";
-import { CAMPAIGN_DECK, CAMPAIGN_MIN_SECONDS, CAMPAIGN_STAGES, CAMPAIGN_TIERS, CAMPAIGN_XP, CAMPAIGN_XP_FEMALE_BONUS, stageBoost, stageUnlocked } from "./campaign";
-import { MATCH_TICKS, type Input } from "./core";
+import { CAMPAIGN_DECK, CAMPAIGN_STAGES, CAMPAIGN_TIERS, CAMPAIGN_XP, CAMPAIGN_XP_FEMALE_BONUS, stageBoost, stageUnlocked } from "./campaign";
+import { MATCH_TICKS, TICKS_PER_SEC, type Input } from "./core";
 import { MAX_INPUTS, simulate } from "./sim";
 
 /** `tiers[i]` = quantas batalhas (0–3) já foram vencidas na arena i; `cleared` = arenas com as 3 vencidas. */
@@ -44,7 +44,7 @@ function cleanInputs(raw: unknown): Input[] {
   return out;
 }
 
-export type CampaignFinish = { error?: string; result?: "win" | "loss" | "draw"; crownsMe?: number; crownsBot?: number; xp?: number; stage?: number; tier?: number; /** arena acabou de ser vencida pela 3ª vez */ firstClear?: boolean; /** a vitória contou como mais uma das 3 */ advanced?: boolean; cleared?: number[]; tiers?: number[] };
+export type CampaignFinish = { error?: string; result?: "win" | "loss" | "draw"; crownsMe?: number; crownsBot?: number; xp?: number; stage?: number; tier?: number; /** arena acabou de ser vencida pela 3ª vez */ firstClear?: boolean; /** a vitória contou como mais uma das 3 */ advanced?: boolean; /** a vitória não foi aceita: o relógio real não bate com o tempo da partida */ tooFast?: boolean; cleared?: number[]; tiers?: number[] };
 
 /** Fecha a partida: refaz tudo no servidor; vitória libera a próxima arena e paga o XP uma vez por arena. */
 export async function settleCampaign(admin: SupabaseClient, userId: string, input: { matchId: string; inputs: unknown; surrender?: boolean }): Promise<CampaignFinish> {
@@ -61,14 +61,19 @@ export async function settleCampaign(admin: SupabaseClient, userId: string, inpu
   let result: "win" | "loss" | "draw" = "loss";
   let crownsMe = 0;
   let crownsBot = 0;
+  let simSeconds = 0;
   if (!input.surrender) {
     const sim = simulate(match.seed, CAMPAIGN_DECK, cleanInputs(input.inputs), { botBoost: stageBoost(match.stage, match.tier ?? 0) }, CAMPAIGN_DECK);
     crownsMe = sim.crowns[0];
     crownsBot = sim.crowns[1];
     result = sim.winner === 0 ? "win" : sim.winner === 1 ? "loss" : "draw";
+    simSeconds = sim.ticks / TICKS_PER_SEC;
   }
+  // ninguém joga mais rápido que o relógio: a partida real dura pelo menos o tempo que a simulação mostra
+  // (vitória relâmpago de verdade, de 25 s, vale; já um envio instantâneo de jogadas montadas não)
   const elapsed = (Date.now() - new Date(match.started_at).getTime()) / 1000;
-  if (result === "win" && elapsed < CAMPAIGN_MIN_SECONDS) result = "draw";
+  const tooFast = result === "win" && elapsed < simSeconds - 4;
+  if (tooFast) result = "draw";
 
   const { data: closed } = await admin.from("arena_campaign_matches").update({ status: "finished", result, finished_at: new Date().toISOString() }).eq("id", match.id).eq("status", "open").select("id");
   if (!closed || closed.length === 0) return { error: "Essa partida já foi encerrada." };
@@ -107,5 +112,5 @@ export async function settleCampaign(admin: SupabaseClient, userId: string, inpu
     }
   }
   const st = await campaignState(admin, userId);
-  return { result, crownsMe, crownsBot, xp, stage: match.stage, tier: match.tier ?? 0, firstClear, advanced, cleared: st.cleared, tiers: st.tiers };
+  return { result, crownsMe, crownsBot, xp, stage: match.stage, tier: match.tier ?? 0, firstClear, advanced, tooFast, cleared: st.cleared, tiers: st.tiers };
 }

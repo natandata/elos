@@ -153,7 +153,7 @@ export function ArenaCampaign({ open, admin, cleared: initialCleared, tiers: ini
                 {r.firstClear && next !== null ? <p className="mt-3 rounded-2xl bg-amber-100 px-4 py-2 text-sm font-black text-amber-900">🔓 Nova arena liberada: {CAMPAIGN_STAGES[next].name}</p> : null}
                 {r.firstClear && next === null ? <p className="mt-3 rounded-2xl bg-amber-100 px-4 py-2 text-sm font-black text-amber-900">🎉 Você zerou a campanha!</p> : null}
               </>
-            ) : <p className="mt-2 text-sm text-[var(--muted)]">Tente de novo: escolha bem quando soltar cada carta.</p>}
+            ) : r.tooFast ? <p className="mt-2 text-sm font-bold text-rose-700">Não deu para confirmar esta vitória: a partida não durou o tempo que o placar mostra. Jogue de novo.</p> : <p className="mt-2 text-sm text-[var(--muted)]">Tente de novo: escolha bem quando soltar cada carta.</p>}
           </>
         )}
         {phase === "result" ? (
