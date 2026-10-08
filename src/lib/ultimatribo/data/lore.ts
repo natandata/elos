@@ -1,5 +1,5 @@
 // A narrativa de A Última Tribo (só dados): pergaminhos, Bíblias e mensagens espalhadas pelo mapa.
-// Versículos na Almeida Revista e Atualizada.
+// Versículos na Nova Versão Internacional (NVI).
 
 export type LoreKind = "pergaminho" | "biblia" | "mensagem";
 export type Lore = { id: string; kind: LoreKind; title: string; text: string; ref?: string };
@@ -16,16 +16,16 @@ export const LORE: Lore[] = [
   { id: "p8", kind: "pergaminho", title: "Para quem encontrar isto", text: "Se você está lendo, ainda há tempo. Não é tarde para quem ainda respira. Leia o livro que deixei junto. Eu só li depois que perdi tudo." },
 
   // ---- Bíblias: um versículo para o momento
-  { id: "b1", kind: "biblia", title: "Uma Bíblia marcada", text: "“Então, dois estarão no campo, um será tomado, e deixado o outro. Portanto, vigiai, porque não sabeis em que dia vem o vosso Senhor.”", ref: "Mateus 24:40,42" },
-  { id: "b2", kind: "biblia", title: "Uma Bíblia de bolso", text: "“Ainda que eu ande pelo vale da sombra da morte, não temerei mal nenhum, porque tu estás comigo.”", ref: "Salmo 23:4" },
-  { id: "b3", kind: "biblia", title: "Uma Bíblia molhada", text: "“Deus é o nosso refúgio e fortaleza, socorro bem presente nas tribulações.”", ref: "Salmo 46:1" },
-  { id: "b4", kind: "biblia", title: "Uma Bíblia sublinhada", text: "“Não temas, porque eu sou contigo; não te assombres, porque eu sou o teu Deus; eu te fortaleço, e te ajudo.”", ref: "Isaías 41:10" },
-  { id: "b5", kind: "biblia", title: "Uma Bíblia de púlpito", text: "“No mundo, passais por aflições; mas tende bom ânimo; eu venci o mundo.”", ref: "João 16:33" },
-  { id: "b6", kind: "biblia", title: "Uma Bíblia com dedicatória", text: "“Sê forte e corajoso; não temas, nem te espantes, porque o Senhor, teu Deus, é contigo por onde quer que andares.”", ref: "Josué 1:9" },
-  { id: "b7", kind: "biblia", title: "Uma Bíblia aberta", text: "“Vinde a mim, todos os que estais cansados e sobrecarregados, e eu vos aliviarei.”", ref: "Mateus 11:28" },
-  { id: "b8", kind: "biblia", title: "Uma Bíblia antiga", text: "“Elevo os olhos para os montes: de onde me virá o socorro? O meu socorro vem do Senhor, que fez o céu e a terra.”", ref: "Salmo 121:1-2" },
-  { id: "b9", kind: "biblia", title: "Uma Bíblia com folha dobrada", text: "“Melhor é serem dois do que um. Porque, se caírem, um levanta o companheiro.”", ref: "Eclesiastes 4:9-10" },
-  { id: "b10", kind: "biblia", title: "Uma Bíblia no altar", text: "“E lhes enxugará dos olhos toda lágrima, e a morte já não existirá, já não haverá luto, nem pranto, nem dor.”", ref: "Apocalipse 21:4" },
+  { id: "b1", kind: "biblia", title: "Uma Bíblia marcada", text: "“Dois homens estarão no campo; um será tirado e o outro deixado. Portanto, vigiem, porque vocês não sabem em que dia virá o Senhor de vocês.”", ref: "Mateus 24:40,42" },
+  { id: "b2", kind: "biblia", title: "Uma Bíblia de bolso", text: "“Mesmo que eu ande por um vale de trevas e morte, não temerei perigo algum, pois tu estás comigo.”", ref: "Salmo 23:4" },
+  { id: "b3", kind: "biblia", title: "Uma Bíblia molhada", text: "“Deus é o nosso refúgio e a nossa fortaleza, auxílio sempre presente na adversidade.”", ref: "Salmo 46:1" },
+  { id: "b4", kind: "biblia", title: "Uma Bíblia sublinhada", text: "“Não tema, pois estou com você; não tenha medo, pois sou o seu Deus. Eu o fortalecerei e o ajudarei.”", ref: "Isaías 41:10" },
+  { id: "b5", kind: "biblia", title: "Uma Bíblia de púlpito", text: "“Nesse mundo vocês terão aflições; mas tenham ânimo! Eu venci o mundo.”", ref: "João 16:33" },
+  { id: "b6", kind: "biblia", title: "Uma Bíblia com dedicatória", text: "“Seja forte e corajoso! Não se apavore nem desanime, pois o Senhor, o seu Deus, estará com você por onde você andar.”", ref: "Josué 1:9" },
+  { id: "b7", kind: "biblia", title: "Uma Bíblia aberta", text: "“Venham a mim, todos os que estão cansados e sobrecarregados, e eu darei descanso a vocês.”", ref: "Mateus 11:28" },
+  { id: "b8", kind: "biblia", title: "Uma Bíblia antiga", text: "“Levanto os meus olhos para os montes e pergunto: De onde me virá o socorro? O meu socorro vem do Senhor, que fez os céus e a terra.”", ref: "Salmo 121:1-2" },
+  { id: "b9", kind: "biblia", title: "Uma Bíblia com folha dobrada", text: "“É melhor ter companhia do que estar sozinho, porque maior é a recompensa do trabalho de duas pessoas. Se um cair, o amigo pode ajudá-lo a levantar-se.”", ref: "Eclesiastes 4:9-10" },
+  { id: "b10", kind: "biblia", title: "Uma Bíblia no altar", text: "“Ele enxugará dos seus olhos toda lágrima. Não haverá mais morte, nem tristeza, nem choro, nem dor, pois a antiga ordem já passou.”", ref: "Apocalipse 21:4" },
 
   // ---- mensagens: gravações e bilhetes
   { id: "m1", kind: "mensagem", title: "Gravação de rádio", text: "“...repito: há água limpa na fazenda ao sul da rodovia. Não venham armados. Não temos nada além disso para oferecer.”" },

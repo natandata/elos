@@ -1,5 +1,5 @@
 // Banco de palavras de Quem Desenha? (só dados, client-safe). Cada palavra tem categoria, dificuldade, duas pistas
-// e variações aceitas. Conteúdo segue a Bíblia protestante (66 livros, ARA). Uma palavra nova entra numa das listas abaixo.
+// e variações aceitas. Conteúdo segue a Bíblia protestante (66 livros, NVI). Uma palavra nova entra numa das listas abaixo.
 
 export type Category = "personagens" | "animais" | "objetos" | "lugares" | "historias" | "conceitos";
 export type Level = "facil" | "medio" | "dificil";

@@ -80,6 +80,7 @@ export type Profile = {
   game_streak_date: string | null;
   last_login_bonus_on: string | null;
   onboarding_completed_at: string | null;
+  birth_date: string | null;
   created_at: string;
   updated_at: string;
 };
