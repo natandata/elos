@@ -13,21 +13,29 @@ export const PALETTE = [
   "#ffffff", "#c3c3c3", "#b97a57", "#ffaec9", "#ffc90e", "#efe4b0", "#b5e61d", "#99d9ea", "#7092be", "#c8bfe7",
 ];
 
-const BRUSHES: { key: Brush; emoji: string; name: string }[] = [
-  { key: "l", emoji: "✏️", name: "Lápis" },
-  { key: "p", emoji: "🖌️", name: "Pincel macio" },
-  { key: "m", emoji: "🖍️", name: "Marcador" },
-  { key: "s", emoji: "💨", name: "Spray" },
-  { key: "c", emoji: "🖋️", name: "Caligrafia" },
+/** Ícones desenhados no Canva (public/quemdesenha/icones/<nome>.webp). */
+function Icon({ name, size = 28 }: { name: string; size?: number }) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={`/quemdesenha/icones/${name}.webp`} alt="" width={size} height={size} draggable={false} className="pointer-events-none" style={{ width: size, height: size }} />
+  );
+}
+
+const BRUSHES: { key: Brush; icon: string; name: string }[] = [
+  { key: "l", icon: "lapis", name: "Lápis" },
+  { key: "p", icon: "pincel", name: "Pincel macio" },
+  { key: "m", icon: "marcador", name: "Marcador" },
+  { key: "s", icon: "spray", name: "Spray" },
+  { key: "c", icon: "caligrafia", name: "Caligrafia" },
 ];
-const SHAPES: { key: ShapeKind; emoji: string; name: string }[] = [
-  { key: "line", emoji: "╱", name: "Linha" },
-  { key: "rect", emoji: "▭", name: "Retângulo" },
-  { key: "ellipse", emoji: "⬭", name: "Elipse" },
-  { key: "triangle", emoji: "△", name: "Triângulo" },
-  { key: "diamond", emoji: "◇", name: "Losango" },
-  { key: "star", emoji: "☆", name: "Estrela" },
-  { key: "arrow", emoji: "➜", name: "Seta" },
+const SHAPES: { key: ShapeKind; icon: string; name: string }[] = [
+  { key: "line", icon: "linha", name: "Linha" },
+  { key: "rect", icon: "retangulo", name: "Retângulo" },
+  { key: "ellipse", icon: "elipse", name: "Elipse" },
+  { key: "triangle", icon: "triangulo", name: "Triângulo" },
+  { key: "diamond", icon: "losango", name: "Losango" },
+  { key: "star", icon: "estrela", name: "Estrela" },
+  { key: "arrow", icon: "seta", name: "Seta" },
 ];
 const FILLS: { key: "o" | "f" | "b"; name: string }[] = [
   { key: "o", name: "Contorno" },
@@ -423,7 +431,7 @@ export function DrawBoard({ canDraw, onOp, onReady }: { canDraw: boolean; onOp: 
   const setColor = (hex: string) => (slot === 1 ? setC1(hex) : setC2(hex));
   const isTool = (t: Tool) => JSON.stringify(t) === JSON.stringify(tool);
   const tb = (t: Tool, label: string, content: React.ReactNode) => (
-    <button key={label} type="button" title={label} aria-label={label} onClick={() => setTool(t)} className={`grid h-9 min-w-9 place-items-center rounded-lg border-2 px-1.5 text-base leading-none ${isTool(t) ? "border-[var(--accent)] bg-[var(--accent-soft)]" : "border-[var(--line)]"}`}>
+    <button key={label} type="button" title={label} aria-label={label} onClick={() => setTool(t)} className={`grid h-11 min-w-11 place-items-center rounded-xl border-2 px-1 text-base leading-none ${isTool(t) ? "border-[var(--accent)] bg-[var(--accent-soft)]" : "border-[var(--line)]"}`}>
       {content}
     </button>
   );
@@ -447,15 +455,15 @@ export function DrawBoard({ canDraw, onOp, onReady }: { canDraw: boolean; onOp: 
       {canDraw ? (
         <div className="mt-2 space-y-2 rounded-2xl border-2 border-[var(--line)] p-2">
           <div className="flex flex-wrap items-center gap-1.5">
-            {BRUSHES.map((b) => tb({ kind: "brush", brush: b.key }, b.name, <span aria-hidden>{b.emoji}</span>))}
+            {BRUSHES.map((b) => tb({ kind: "brush", brush: b.key }, b.name, <Icon name={b.icon} />))}
             <span className="mx-0.5 h-6 w-px bg-[var(--line)]" />
-            {tb({ kind: "fill" }, "Balde de tinta", <span aria-hidden>🪣</span>)}
-            {tb({ kind: "eraser" }, "Borracha", <span aria-hidden>🧽</span>)}
-            {tb({ kind: "pick" }, "Conta-gotas (pega uma cor do desenho)", <span aria-hidden>💉</span>)}
+            {tb({ kind: "fill" }, "Balde de tinta", <Icon name="balde" />)}
+            {tb({ kind: "eraser" }, "Borracha", <Icon name="borracha" />)}
+            {tb({ kind: "pick" }, "Conta-gotas (pega uma cor do desenho)", <Icon name="conta-gotas" />)}
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5">
-            {SHAPES.map((s) => tb({ kind: "shape", shape: s.key }, s.name, <span aria-hidden className="text-lg">{s.emoji}</span>))}
+            {SHAPES.map((s) => tb({ kind: "shape", shape: s.key }, s.name, <Icon name={s.icon} />))}
             {tool.kind === "shape" ? (
               <select value={fillMode} onChange={(e) => setFillMode(e.target.value as "o" | "f" | "b")} aria-label="Preenchimento da forma" className="h-9 rounded-lg border-2 border-[var(--line)] bg-[var(--surface)] px-1 text-xs font-bold">
                 {FILLS.map((f) => (
@@ -490,7 +498,8 @@ export function DrawBoard({ canDraw, onOp, onReady }: { canDraw: boolean; onOp: 
               ))}
             </div>
             <label className="grid h-11 cursor-pointer place-items-center rounded-lg border-2 border-[var(--line)] px-2 text-center text-[10px] font-black leading-tight" title="Editar cores">
-              🎨 Editar
+              <Icon name="paleta" size={22} />
+              Editar
               <input type="color" value={slot === 1 ? c1 : c2} onChange={(e) => setColor(e.target.value)} className="sr-only" />
             </label>
           </div>
@@ -511,7 +520,7 @@ export function DrawBoard({ canDraw, onOp, onReady }: { canDraw: boolean; onOp: 
               }}
               className="btn btn-ghost !px-3 !py-1.5 !text-xs"
             >
-              ↶ Desfazer
+              <span className="flex items-center gap-1"><Icon name="desfazer" size={20} /> Desfazer</span>
             </button>
             <button
               type="button"
@@ -521,7 +530,7 @@ export function DrawBoard({ canDraw, onOp, onReady }: { canDraw: boolean; onOp: 
               }}
               className="btn btn-ghost !px-3 !py-1.5 !text-xs"
             >
-              🗑️ Limpar
+              <span className="flex items-center gap-1"><Icon name="lixeira" size={20} /> Limpar</span>
             </button>
           </div>
           <p className="text-[10px] text-[var(--muted)]">Botão direito desenha com a Cor 2. Não vale escrever letras ou números!</p>

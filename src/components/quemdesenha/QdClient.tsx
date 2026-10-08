@@ -62,7 +62,11 @@ export function QdClient({ me, initial }: { me: { id: string; name: string }; in
     <div className="space-y-3">
       <section className="overflow-hidden rounded-3xl bg-gradient-to-br from-sky-500 via-indigo-500 to-fuchsia-500 p-5 text-white shadow-lg">
         <p className="text-[11px] font-black uppercase tracking-widest opacity-80">Em construção · oculto</p>
-        <h1 className="mt-1 text-3xl font-black leading-none">🎨 Quem Desenha?</h1>
+        <h1 className="mt-1 flex items-center gap-2 text-3xl font-black leading-none">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/quemdesenha/icones/paleta.webp" alt="" width={40} height={40} draggable={false} />
+          Quem Desenha?
+        </h1>
         <p className="mt-2 text-sm font-bold opacity-95">Desenhe personagens, histórias, lugares e conceitos da Bíblia. Os outros tentam adivinhar antes do tempo acabar!</p>
       </section>
 
