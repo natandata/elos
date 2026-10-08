@@ -1,6 +1,6 @@
 // Simulação de A Última Tribo (modo Sobrevivência): sem desenho e sem rede, só as regras.
 // O anfitrião (ou a partida solo) roda isto; o render.ts só mostra o estado.
-import { AIRDROP_ITEMS, BASE_CAPACITY, CONSUMABLES, GEAR, LOOT_TABLES, MAX_GRENADES, WEAPONS, isAmmo, itemLabel, type AmmoKind, type WeaponDef } from "./data/items";
+import { AIRDROP_ITEMS, ATTACHMENTS, BASE_CAPACITY, CONSUMABLES, GEAR, LOOT_TABLES, MAX_GRENADES, WEAPONS, isAmmo, itemLabel, type AmmoKind, type WeaponDef } from "./data/items";
 import { BOT_PROFILES, LORE_BY_ID } from "./data/lore";
 import { thinkBot, type BotState, newBotState } from "./ai";
 import { HALF, blocked, buildWorld, moveCircle, rayBoxes, rng, zoneAt, type Container, type World } from "./world";
@@ -399,7 +399,8 @@ export class Game {
   // ---------------------------------------------------------------- saque
   private rollContainer(c: Container) {
     if (c.items) return;
-    const table = LOOT_TABLES[c.table] ?? LOOT_TABLES.casa;
+    // os acessórios de arma já estão nas tabelas, mas ainda não dá para encaixar: por enquanto não são sorteados
+    const table = (LOOT_TABLES[c.table] ?? LOOT_TABLES.casa).filter((e) => !ATTACHMENTS[e.id]);
     const r = rng(this.world.seed * 7919 + c.id * 104729);
     const total = table.reduce((s, e) => s + e.w, 0);
     const items: Record<string, number> = {};
@@ -541,7 +542,7 @@ export class Game {
       x = nx;
       z = nz;
     }
-    const c: Container = { id: 20000, x, z, table: "casa", opened: false, kind: "airdrop", items: { ...AIRDROP_ITEMS }, y: 110 };
+    const c: Container = { id: 20000, x, z, table: "casa", opened: false, kind: "airdrop", items: Object.fromEntries(Object.entries(AIRDROP_ITEMS).filter(([id]) => !ATTACHMENTS[id])), y: 110 };
     this.world.containers.push(c);
     this.ev.push({ t: "drop", cid: c.id });
     this.feed("📦 Uma caixa de suprimentos está caindo de paraquedas!", "good");

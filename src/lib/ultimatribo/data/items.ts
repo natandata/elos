@@ -29,9 +29,11 @@ export type WeaponDef = {
   ammo?: AmmoKind;
   /** raio em que os outros sobreviventes escutam (0 = silenciosa) */
   noise: number;
+  /** queda da bala: metros que ela desce = drop × distância² (0 no corpo a corpo) */
+  drop: number;
 };
 
-const melee = (id: string, name: string, emoji: string, tier: number, damage: number, range: number, cooldown: number): WeaponDef => ({ id, name, emoji, kind: "melee", tier, damage, pellets: 1, range, cooldown, spread: 0, recoil: 0, auto: true, zoom: 1, mag: 0, reload: 0, noise: 0 });
+const melee = (id: string, name: string, emoji: string, tier: number, damage: number, range: number, cooldown: number): WeaponDef => ({ id, name, emoji, kind: "melee", tier, damage, pellets: 1, range, cooldown, spread: 0, recoil: 0, auto: true, zoom: 1, mag: 0, reload: 0, noise: 0, drop: 0 });
 
 export const WEAPONS: Record<string, WeaponDef> = {
   punho: melee("punho", "Punhos", "✊", 0, 9, 2.1, 0.5),
@@ -39,12 +41,35 @@ export const WEAPONS: Record<string, WeaponDef> = {
   bastao: melee("bastao", "Bastão", "🏏", 2, 26, 2.6, 0.62),
   machado: melee("machado", "Machado", "🪓", 3, 38, 2.5, 0.85),
   frigideira: melee("frigideira", "Frigideira", "🍳", 4, 44, 2.3, 0.8),
-  arco: { id: "arco", name: "Besta", emoji: "🏹", kind: "bow", tier: 1, damage: 52, pellets: 1, range: 60, cooldown: 1.2, spread: 0.01, recoil: 0.01, auto: false, zoom: 1.5, mag: 1, reload: 1.6, ammo: "flecha", noise: 6 },
-  pistola: { id: "pistola", name: "Pistola", emoji: "🔫", kind: "gun", tier: 2, damage: 20, pellets: 1, range: 55, cooldown: 0.22, spread: 0.028, recoil: 0.012, auto: false, zoom: 1.25, mag: 15, reload: 1.6, ammo: "bala", noise: 60 },
-  submetralhadora: { id: "submetralhadora", name: "Submetralhadora", emoji: "🔫", kind: "gun", tier: 3, damage: 15, pellets: 1, range: 45, cooldown: 0.085, spread: 0.035, recoil: 0.009, auto: true, zoom: 1.3, mag: 25, reload: 2.1, ammo: "bala", noise: 65 },
-  espingarda: { id: "espingarda", name: "Espingarda", emoji: "💥", kind: "gun", tier: 3, damage: 11, pellets: 9, range: 24, cooldown: 0.9, spread: 0.1, recoil: 0.05, auto: false, zoom: 1.15, mag: 5, reload: 2.6, ammo: "cartucho", noise: 75 },
-  fuzil: { id: "fuzil", name: "Fuzil", emoji: "🪖", kind: "gun", tier: 4, damage: 24, pellets: 1, range: 85, cooldown: 0.1, spread: 0.016, recoil: 0.011, auto: true, zoom: 1.6, mag: 30, reload: 2.4, ammo: "bala", noise: 85 },
-  rifle: { id: "rifle", name: "Rifle de precisão", emoji: "🎯", kind: "gun", tier: 4, damage: 72, pellets: 1, range: 140, cooldown: 1.5, spread: 0.004, recoil: 0.06, auto: false, zoom: 3.2, mag: 5, reload: 2.8, ammo: "bala", noise: 95 },
+  arco: { id: "arco", name: "Besta", emoji: "🏹", kind: "bow", tier: 1, damage: 52, pellets: 1, range: 60, cooldown: 1.2, spread: 0.01, recoil: 0.01, auto: false, zoom: 1.5, mag: 1, reload: 1.6, ammo: "flecha", noise: 6, drop: 0.0009 },
+  pistola: { id: "pistola", name: "Pistola", emoji: "🔫", kind: "gun", tier: 2, damage: 20, pellets: 1, range: 55, cooldown: 0.22, spread: 0.028, recoil: 0.012, auto: false, zoom: 1.25, mag: 15, reload: 1.6, ammo: "bala", noise: 60, drop: 0.0004 },
+  submetralhadora: { id: "submetralhadora", name: "Submetralhadora", emoji: "🔫", kind: "gun", tier: 3, damage: 15, pellets: 1, range: 45, cooldown: 0.085, spread: 0.035, recoil: 0.009, auto: true, zoom: 1.3, mag: 25, reload: 2.1, ammo: "bala", noise: 65, drop: 0.0003 },
+  espingarda: { id: "espingarda", name: "Espingarda", emoji: "💥", kind: "gun", tier: 3, damage: 11, pellets: 9, range: 24, cooldown: 0.9, spread: 0.1, recoil: 0.05, auto: false, zoom: 1.15, mag: 5, reload: 2.6, ammo: "cartucho", noise: 75, drop: 0.0006 },
+  fuzil: { id: "fuzil", name: "Fuzil", emoji: "🪖", kind: "gun", tier: 4, damage: 24, pellets: 1, range: 85, cooldown: 0.1, spread: 0.016, recoil: 0.011, auto: true, zoom: 1.6, mag: 30, reload: 2.4, ammo: "bala", noise: 85, drop: 0.00012 },
+  rifle: { id: "rifle", name: "Rifle de precisão", emoji: "🎯", kind: "gun", tier: 4, damage: 72, pellets: 1, range: 140, cooldown: 1.5, spread: 0.004, recoil: 0.06, auto: false, zoom: 2.2, mag: 5, reload: 2.8, ammo: "bala", noise: 95, drop: 6e-05 },
+};
+
+export type AttSlot = "scope" | "mag" | "muzzle";
+export type AttachmentDef = { id: string; name: string; emoji: string; slot: AttSlot; zoom?: number; magMul?: number; reloadMul?: number; noiseMul?: number; recoilMul?: number; spreadMul?: number };
+
+/** Acessórios de arma: mira, pente e boca do cano. Cada arma aceita só alguns (WEAPON_SLOTS). */
+export const ATTACHMENTS: Record<string, AttachmentDef> = {
+  reddot: { id: "reddot", name: "Mira de ponto vermelho", emoji: "🔴", slot: "scope", zoom: 1.9, spreadMul: 0.85 },
+  mira4x: { id: "mira4x", name: "Luneta 4x", emoji: "🔭", slot: "scope", zoom: 4 },
+  mira8x: { id: "mira8x", name: "Luneta 8x", emoji: "🔭", slot: "scope", zoom: 7 },
+  pente: { id: "pente", name: "Pente estendido", emoji: "🧲", slot: "mag", magMul: 1.5, reloadMul: 0.82 },
+  silenciador: { id: "silenciador", name: "Silenciador", emoji: "🤫", slot: "muzzle", noiseMul: 0.2 },
+  compensador: { id: "compensador", name: "Compensador", emoji: "🧯", slot: "muzzle", recoilMul: 0.62 },
+};
+
+/** O que cabe em cada arma. */
+export const WEAPON_SLOTS: Record<string, { scope: string[]; mag: boolean; muzzle: boolean }> = {
+  pistola: { scope: ["reddot"], mag: true, muzzle: true },
+  submetralhadora: { scope: ["reddot", "mira4x"], mag: true, muzzle: true },
+  fuzil: { scope: ["reddot", "mira4x"], mag: true, muzzle: true },
+  rifle: { scope: ["reddot", "mira4x", "mira8x"], mag: true, muzzle: true },
+  espingarda: { scope: [], mag: false, muzzle: false },
+  arco: { scope: ["reddot", "mira4x"], mag: false, muzzle: false },
 };
 
 export type ConsumableDef = {
@@ -122,6 +147,11 @@ export const LOOT_TABLES: Record<string, LootEntry[]> = {
     { id: "agua", w: 4 },
   ],
   delegacia: [
+    { id: "mira4x", w: 3 },
+    { id: "reddot", w: 4 },
+    { id: "pente", w: 4 },
+    { id: "silenciador", w: 2 },
+    { id: "compensador", w: 3 },
     { id: "pistola", w: 6 },
     { id: "submetralhadora", w: 6 },
     { id: "espingarda", w: 5 },
@@ -137,6 +167,9 @@ export const LOOT_TABLES: Record<string, LootEntry[]> = {
     { id: "radio", w: 3 },
   ],
   casa: [
+    { id: "reddot", w: 3 },
+    { id: "pente", w: 3 },
+    { id: "compensador", w: 2 },
     { id: "agua", w: 7 },
     { id: "pao", w: 6 },
     { id: "enlatado", w: 6 },
@@ -181,6 +214,8 @@ export const LOOT_TABLES: Record<string, LootEntry[]> = {
     { id: "bandagem", n: [1, 3], w: 4 },
   ],
   igreja: [
+    { id: "mira4x", w: 3 },
+    { id: "silenciador", w: 2 },
     { id: "socorros", w: 6 },
     { id: "kit", w: 3 },
     { id: "agua", n: [1, 2], w: 6 },
@@ -194,6 +229,8 @@ export const LOOT_TABLES: Record<string, LootEntry[]> = {
     { id: "mochila2", w: 3 },
   ],
   rodovia: [
+    { id: "reddot", w: 2 },
+    { id: "pente", w: 2 },
     { id: "agua", w: 6 },
     { id: "enlatado", w: 6 },
     { id: "energetico", w: 5 },
@@ -208,6 +245,11 @@ export const LOOT_TABLES: Record<string, LootEntry[]> = {
     { id: "radio", w: 2 },
   ],
   fabrica: [
+    { id: "mira4x", w: 4 },
+    { id: "mira8x", w: 1 },
+    { id: "pente", w: 4 },
+    { id: "silenciador", w: 3 },
+    { id: "compensador", w: 3 },
     { id: "espingarda", w: 5 },
     { id: "fuzil", w: 6 },
     { id: "rifle", w: 3 },
@@ -223,6 +265,8 @@ export const LOOT_TABLES: Record<string, LootEntry[]> = {
     { id: "socorros", w: 4 },
   ],
   acampamento: [
+    { id: "reddot", w: 3 },
+    { id: "mira4x", w: 2 },
     { id: "agua", n: [1, 2], w: 8 },
     { id: "carne", w: 6 },
     { id: "enlatado", w: 6 },
@@ -238,7 +282,7 @@ export const LOOT_TABLES: Record<string, LootEntry[]> = {
 };
 
 /** A caixa de suprimentos que cai de paraquedas: sempre o melhor equipamento. */
-export const AIRDROP_ITEMS: Record<string, number> = { rifle: 1, fuzil: 1, bala: 90, colete3: 1, capacete3: 1, mochila3: 1, kit: 2, remedio: 2, granada: 2 };
+export const AIRDROP_ITEMS: Record<string, number> = { rifle: 1, fuzil: 1, mira8x: 1, silenciador: 1, pente: 1, bala: 90, colete3: 1, capacete3: 1, mochila3: 1, kit: 2, remedio: 2, granada: 2 };
 
 export const AMMO_NAME: Record<AmmoKind, string> = { bala: "Balas", cartucho: "Cartuchos", flecha: "Flechas" };
 export const isAmmo = (id: string): id is AmmoKind => id === "bala" || id === "cartucho" || id === "flecha";
@@ -247,6 +291,7 @@ export function itemLabel(id: string): { name: string; emoji: string } {
   if (WEAPONS[id]) return WEAPONS[id];
   if (CONSUMABLES[id]) return CONSUMABLES[id];
   if (GEAR[id]) return GEAR[id];
+  if (ATTACHMENTS[id]) return ATTACHMENTS[id];
   if (id === "granada") return { name: "Granada", emoji: "💣" };
   if (isAmmo(id)) return { name: AMMO_NAME[id], emoji: id === "flecha" ? "➶" : "🔸" };
   return { name: id, emoji: "📦" };
