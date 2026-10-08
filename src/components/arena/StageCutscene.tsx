@@ -16,10 +16,11 @@ const SCENES: Record<string, Scene> = {
   tiaaline: { title: "Aula com a Tia Aline", accent: "#93c5fd", float: ["➕", "✖️", "📐"], shots: ["tiaaline-1", "tiaaline-2", "tiaaline-3"], captions: ["Aula de matemática com a Tia Aline.", "Será que alguém entendeu a equação?", "Muito bem, turma! Até o Nery acertou."] },
   natanrebeca: { title: "O casamento do Natan e da Rebeca", accent: "#f9a8d4", float: ["🌸", "🤍", "💍"], shots: ["natanrebeca-1", "natanrebeca-2", "natanrebeca-3"], captions: ["Hoje é dia de casamento!", "Chuva de pétalas para os noivos!", "Para sempre juntos. 💍"] },
   zepa: { title: "A pregação do Pastor Zepa", accent: "#fde68a", float: ["✨", "🕊️", "📖"], shots: ["zepa-1", "zepa-2", "zepa-3"], captions: ["O Pastor Zepa abre a Palavra.", "Silêncio. Todos prestando atenção.", "A Palavra ilumina a arena."] },
+  marcelinho: { title: "A turma chega ao templo", accent: "#facc15", float: ["⛪", "✨", "🌹"], shots: ["marcelinho-1", "marcelinho-2", "marcelinho-3"], captions: ["O Marcelinho abre as portas do templo.", "A turma chegou! Toca aqui!", "Juntos somos mais fortes. Vitória da turma!"] },
 };
 
 export const stageSceneKey = (stage: number): string | null => CAMPAIGN_STAGES[stage]?.boss ?? null;
-/** A arena tem cena final própria (a do Nery, índice 2, usa a NeryCutscene; a do Marcelinho ainda não tem)? */
+/** A arena tem cena final própria (a do Nery, índice 2, usa a NeryCutscene)? */
 export const hasStageScene = (stage: number): boolean => stage !== 2 && !!SCENES[stageSceneKey(stage) ?? ""];
 
 const IMG = (n: string) => `/arena/cutscene/${n}.webp`;
