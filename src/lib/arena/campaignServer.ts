@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { gameOpenFor } from "@/lib/games/releaseServer";
 import { CAMPAIGN_DECK, CAMPAIGN_STAGES, CAMPAIGN_TIERS, CAMPAIGN_XP, CAMPAIGN_XP_FEMALE_BONUS, stageBoost, stageUnlocked } from "./campaign";
-import { MATCH_TICKS, TICKS_PER_SEC, type Input } from "./core";
+import { MAX_MATCH_TICKS, TICKS_PER_SEC, type Input } from "./core";
 import { MAX_INPUTS, simulate } from "./sim";
 
 /** `tiers[i]` = quantas batalhas (0–3) já foram vencidas na arena i; `cleared` = arenas com as 3 vencidas. */
@@ -38,7 +38,7 @@ function cleanInputs(raw: unknown): Input[] {
     const o = r as Partial<Input>;
     if (!o || !Number.isInteger(o.tick) || !Number.isInteger(o.slot)) continue;
     if (typeof o.x !== "number" || typeof o.y !== "number") continue;
-    if ((o.tick as number) < 0 || (o.tick as number) > MATCH_TICKS) continue;
+    if ((o.tick as number) < 0 || (o.tick as number) > MAX_MATCH_TICKS) continue;
     out.push({ tick: o.tick as number, side: 0, slot: o.slot as number, x: o.x, y: o.y });
   }
   return out;

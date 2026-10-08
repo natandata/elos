@@ -3,7 +3,7 @@ import { isValidDeck } from "./cards";
 import { ARENAS, arenaIndexFor, deckAllowed, trophyDelta, TROPHY_LOSS } from "./arenas";
 import { COPIES_OTHER, COPIES_WIN, pickBattleCard, unlockedCards } from "./economy";
 import { loadOwned } from "./owned";
-import { MATCH_TICKS, type Input } from "./core";
+import { MAX_MATCH_TICKS, type Input } from "./core";
 import { MAX_INPUTS, simulate } from "./sim";
 
 const MAX_XP_WINS_PER_DAY = 1;
@@ -24,6 +24,8 @@ export type ArenaFinish = {
   copyCard?: string;
   /** Partida de treino numa arena já vencida: sem troféus e sem XP. */
   training?: boolean;
+  /** Desafio especial (client-only): sem troféus, XP nem cópias. */
+  challenge?: "mana2";
   /** Nome da arena nova, quando a partida fez o jogador subir de arena. */
   arenaUp?: string;
 };
@@ -62,7 +64,7 @@ function cleanInputs(raw: unknown): Input[] {
     const o = r as Partial<Input>;
     if (!o || !Number.isInteger(o.tick) || !Number.isInteger(o.slot)) continue;
     if (typeof o.x !== "number" || typeof o.y !== "number") continue;
-    if ((o.tick as number) < 0 || (o.tick as number) > MATCH_TICKS) continue;
+    if ((o.tick as number) < 0 || (o.tick as number) > MAX_MATCH_TICKS) continue;
     out.push({ tick: o.tick as number, side: 0, slot: o.slot as number, x: o.x, y: o.y });
   }
   return out;

@@ -5,6 +5,7 @@ export const CAMPO = [
   "torre-azul", "torre-vermelha", "ruina-torre", "rei-azul", "rei-vermelho", "ruina-rei", "ponte",
   "arvore", "pinheiro", "macieira", "arbusto", "arbusto-flores", "pedras", "rochedo", "toco", "flores", "capim",
   "cerca", "cerca-canto", "feno", "tocha", "cogumelos", "toras", "vitoria-regia", "taboa", "seixos", "placa",
+  "palmeira", "oliveira", "arvore-moedas", "carvalho", "arvore-seca", "pinheiro-neve", "arbusto-bagas",
 ] as const;
 export type CampoName = (typeof CAMPO)[number];
 

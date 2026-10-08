@@ -4,6 +4,8 @@
 // (que quase ninguém usa) e em detalhes rasteiros no chão.
 // Coordenadas em tiles do campo (W=16, H=26); y de cada objeto = onde ele pisa.
 
+import { campo, tinted, type CampoName } from "./arenaAssets";
+
 export type Env = {
   g: CanvasRenderingContext2D;
   s: number;
@@ -110,10 +112,28 @@ const shadow = (e: Env, x: number, y: number, rx: number) => ell(e, x, y + 0.05,
 
 // ------------------------------------------------------------ plantas
 
+/** Desenha um sprite 3D (base no ponto, altura em tiles). Devolve false se ainda não carregou (cai no desenho de reserva). */
+function spr(e: Env, name: CampoName, x: number, y: number, h: number, tint?: string, amount = 0): boolean {
+  const base = campo(name);
+  const img = tint ? tinted(name, tint, amount) : base;
+  if (!base || !img) return false;
+  const H = h * e.s;
+  const W = (H * base.naturalWidth) / base.naturalHeight;
+  const px = e.X(x);
+  const py = e.Y(y);
+  e.g.fillStyle = "rgba(10,30,5,0.2)";
+  e.g.beginPath();
+  e.g.ellipse(px + W * 0.05, py - H * 0.03, W * 0.38, H * 0.09, 0, 0, TAU);
+  e.g.fill();
+  e.g.drawImage(img, px - W / 2, py - H, W, H);
+  return true;
+}
+
 type TreeOpts = { trunk?: string; dark: string; mid: string; light: string; fruit?: string; fruitGlow?: boolean; fruits?: number };
 
 function tree(e: Env, x: number, y: number, sc: number, o: TreeOpts) {
   sc *= K;
+  if (o.fruit && o.fruitGlow ? spr(e, "arvore-moedas", x, y, 3.2 * sc) : o.fruit ? spr(e, "macieira", x, y, 3.2 * sc) : spr(e, x * 7 % 2 > 1 ? "carvalho" : "arvore", x, y, 3.2 * sc, o.mid, 0.22)) return;
   shadow(e, x, y, 1.0 * sc);
   rect(e, x - 0.2 * sc, y - 1.5 * sc, 0.4 * sc, 1.5 * sc, o.trunk ?? "#6b4423", "#4a2f16", 0.03, 0.05);
   circ(e, x, y - 2.1 * sc, 1.15 * sc, o.dark);
@@ -137,6 +157,7 @@ function tree(e: Env, x: number, y: number, sc: number, o: TreeOpts) {
 
 function palm(e: Env, x: number, y: number, sc: number, lean = 0.3) {
   sc *= K;
+  if (spr(e, "palmeira", x, y, 3.0 * sc)) return;
   shadow(e, x, y, 0.7 * sc);
   curve(e, [[x, y], [x + lean * 0.4 * sc, y - 1.0 * sc], [x + lean * sc, y - 2.0 * sc]], "#8a5a2b", 0.3 * sc);
   curve(e, [[x, y], [x + lean * 0.4 * sc, y - 1.0 * sc], [x + lean * sc, y - 2.0 * sc]], "#a4713a", 0.15 * sc);
@@ -153,6 +174,7 @@ function palm(e: Env, x: number, y: number, sc: number, lean = 0.3) {
 
 function olive(e: Env, x: number, y: number, sc: number) {
   sc *= K;
+  if (spr(e, "oliveira", x, y, 2.9 * sc)) return;
   shadow(e, x, y, 1.0 * sc);
   curve(e, [[x, y], [x - 0.15 * sc, y - 0.8 * sc], [x + 0.2 * sc, y - 1.4 * sc]], "#6b5a45", 0.38 * sc);
   circ(e, x - 0.5 * sc, y - 1.7 * sc, 0.7 * sc, "#6f8456");
@@ -163,6 +185,7 @@ function olive(e: Env, x: number, y: number, sc: number) {
 }
 
 function bush(e: Env, x: number, y: number, r: number, d: string, m: string, l: string) {
+  if (spr(e, "arbusto", x, y + r * 0.7, r * 2.4, m, 0.3)) return;
   ell(e, x, y + r * 0.7, r * 1.1, r * 0.35, "rgba(0,0,0,0.2)");
   circ(e, x, y, r, d);
   circ(e, x - r * 0.2, y - r * 0.2, r * 0.75, m);

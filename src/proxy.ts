@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/config";
 
-const PUBLIC_PATHS = ["/", "/auth/callback", "/admin-access"];
+const PUBLIC_PATHS = ["/", "/auth/callback", "/admin-access", "/zzar", "/zzres"]; // TEMP-QD
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });

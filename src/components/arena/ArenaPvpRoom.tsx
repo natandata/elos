@@ -16,6 +16,8 @@ import type { Side } from "@/lib/arena/core";
 import { ARENAS } from "@/lib/arena/arenas";
 import { ArenaPlayfield, type PlayDriver } from "./ArenaPlayfield";
 import { AT } from "./ArenaText";
+import { MatchResultHero } from "./MatchResultHero";
+import { PostMatchChat } from "./PostMatchChat";
 
 type Stage = "invite" | "ready" | "connecting" | "playing" | "finishing" | "result";
 
@@ -430,7 +432,7 @@ export function ArenaPvpRoom({ id, meSide, opponentName, arena, seed, decks, lev
           </>
         ) : null}
 
-        {stage === "result" ? <Result view={view} status={status} opponentName={opponentName} tournamentId={tournamentId} /> : null}
+        {stage === "result" ? <Result view={view} status={status} opponentName={opponentName} tournamentId={tournamentId} roomId={id} myId={myId} /> : null}
 
         {error ? <p className="mt-3 text-sm font-semibold text-rose-600">{error}</p> : null}
       </div>
@@ -441,7 +443,7 @@ export function ArenaPvpRoom({ id, meSide, opponentName, arena, seed, decks, lev
   );
 }
 
-function Result({ view, status, opponentName, tournamentId }: { view: PvpView; status: string; opponentName: string; tournamentId?: string | null }) {
+function Result({ view, status, opponentName, tournamentId, roomId, myId }: { view: PvpView; status: string; opponentName: string; tournamentId?: string | null; roomId: string; myId: string }) {
   if (view.state === "declined" || status === "declined") return <p className="mt-4 font-bold">{opponentName} recusou o desafio.</p>;
   if (view.state === "disputed" || status === "disputed") {
     return (
@@ -456,17 +458,18 @@ function Result({ view, status, opponentName, tournamentId }: { view: PvpView; s
   const r = view.result;
   return (
     <>
-      <p className="mt-4 text-6xl" aria-hidden>
-        {r === "win" ? <AT>{"🏆"}</AT> : r === "draw" ? <AT>{"🤝"}</AT> : <AT>{"😅"}</AT>}
-      </p>
-      <h3 className="mt-1 text-2xl font-black">{r === "win" ? "Vitória!" : r === "draw" ? "Empate" : "Derrota"}</h3>
-      {view.why === "resigned" || view.why === "left" ? (
-        <p className="text-xs text-[var(--muted)]">{view.why === "left" ? "Por abandono do colega." : r === "win" ? "Seu colega desistiu." : "Você desistiu."}</p>
-      ) : (
-        <p className="text-lg font-bold tabular-nums"><AT>
-          👑 </AT>{view.crownsMe ?? 0} x {view.crownsThem ?? 0}<AT> 👑
-        </AT></p>
-      )}
+      <div className="mt-4">
+        <MatchResultHero
+          result={r === "win" || r === "draw" ? r : "loss"}
+          crownsMe={view.crownsMe ?? 0}
+          crownsThem={view.crownsThem ?? 0}
+          meName="Você"
+          themName={opponentName}
+          note={view.why === "resigned" || view.why === "left" ? (view.why === "left" ? "Por abandono do colega." : r === "win" ? "Seu colega desistiu." : "Você desistiu.") : undefined}
+        >
+          <PostMatchChat room={`pvp:${roomId}`} myId={myId} fallbackName={opponentName} lead={`Conversar com ${opponentName}`} />
+        </MatchResultHero>
+      </div>
       {view.medal ? (
         <div className="mt-2">
           {view.medal.winner === "me" ? (

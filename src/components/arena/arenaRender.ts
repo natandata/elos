@@ -357,8 +357,8 @@ export function buildBackground(l: Layout, dpr: number, th: ArenaTheme = ARENAS[
   const bridgeImg = campo("ponte");
   for (const bx of BRIDGES) {
     if (bridgeImg) {
-      const bh = (RIVER_BOT - RIVER_TOP + 1.7) * s;
-      const bw = (bh * bridgeImg.naturalWidth) / bridgeImg.naturalHeight;
+      const bh = (RIVER_BOT - RIVER_TOP + 1.8) * s;
+      const bw = ((bh * bridgeImg.naturalWidth) / bridgeImg.naturalHeight) * 1.25;
       // sombra da ponte na água
       g.fillStyle = "rgba(0,30,50,0.28)";
       g.fillRect(X(bx) - bw * 0.36, ry - s * 0.1, bw * 0.78, rh + s * 0.4);

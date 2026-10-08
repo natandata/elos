@@ -4,7 +4,7 @@
 
 import { createGame, createGameDuo, step } from "./engine";
 import { ARENA_CARD_BY_KEY, MAX_CARD_LEVEL, isValidDeck } from "./cards";
-import { MATCH_TICKS, teamOf, type Input, type Side } from "./core";
+import { MAX_MATCH_TICKS, teamOf, type Input, type Side } from "./core";
 import type { ArenaResult } from "./sim";
 import { stateHash } from "./engine";
 
@@ -59,7 +59,7 @@ export function cleanSideInputs(raw: unknown, side: Side): Input[] {
     if (!o || !Number.isInteger(o.tick) || !Number.isInteger(o.slot)) continue;
     if (typeof o.x !== "number" || typeof o.y !== "number") continue;
     if (!Number.isFinite(o.x) || !Number.isFinite(o.y)) continue;
-    if ((o.tick as number) < 0 || (o.tick as number) > MATCH_TICKS) continue;
+    if ((o.tick as number) < 0 || (o.tick as number) > MAX_MATCH_TICKS) continue;
     out.push({ tick: o.tick as number, side, slot: o.slot as number, x: o.x, y: o.y });
   }
   return orderInputs(out);
@@ -69,7 +69,7 @@ export function simulatePvp(seed: number, decks: [string[], string[]], inputs: I
   const state = createGame(seed, decks[0], decks[1], { arena, pvp: true, pvpLevels: pvpLevelsOf(levels) });
   const all = orderInputs(inputs);
   let cursor = 0;
-  while (!state.over && state.tick < MATCH_TICKS + 1) {
+  while (!state.over && state.tick < MAX_MATCH_TICKS + 1) {
     const batch: Input[] = [];
     while (cursor < all.length && all[cursor].tick <= state.tick) {
       if (all[cursor].tick === state.tick) batch.push(all[cursor]);
@@ -91,7 +91,7 @@ export function simulateDuo(seed: number, decks: string[][], inputs: Input[], le
   const state = createGameDuo(seed, decks, cleanLevels(levels, 4));
   const all = orderInputs(inputs);
   let cursor = 0;
-  while (!state.over && state.tick < MATCH_TICKS + 1) {
+  while (!state.over && state.tick < MAX_MATCH_TICKS + 1) {
     const batch: Input[] = [];
     while (cursor < all.length && all[cursor].tick <= state.tick) {
       if (all[cursor].tick === state.tick) batch.push(all[cursor]);
@@ -144,7 +144,7 @@ export function resolvePvp(
   if (c?.resigned || o?.resigned) {
     const loser: Side = c?.resigned ? 0 : 1;
     const t = Number((loser === 0 ? c : o)?.tick);
-    const ticks = Number.isFinite(t) ? Math.min(MATCH_TICKS, Math.max(0, Math.floor(t))) : 0;
+    const ticks = Number.isFinite(t) ? Math.min(MAX_MATCH_TICKS, Math.max(0, Math.floor(t))) : 0;
     return { kind: "finished", winner: (1 - loser) as Side, crowns: [0, 0], ticks, why: "resigned" };
   }
 
