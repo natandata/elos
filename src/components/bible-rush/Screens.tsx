@@ -206,9 +206,14 @@ export function GalleryScreen({ save, onBack }: { save: SaveData; onBack: () => 
           return (
             <li key={g.id}>
               <button type="button" className={`br-gal-i ${got ? "" : "br-locked"}`} disabled={!got} onClick={() => setOpen(g.id)}>
-                <span className="text-4xl" aria-hidden>
-                  {got ? g.emoji : "❔"}
-                </span>
+                {got ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={`/bible-rush/personagens/${g.id}.webp`} alt="" className="br-gal-art" draggable={false} />
+                ) : (
+                  <span className="text-4xl" aria-hidden>
+                    ❔
+                  </span>
+                )}
                 <span className="text-xs font-black">{got ? g.name : "???"}</span>
               </button>
             </li>
@@ -218,9 +223,8 @@ export function GalleryScreen({ save, onBack }: { save: SaveData; onBack: () => 
       {sel ? (
         <div className="br-overlay" role="dialog" aria-label={sel.name} onClick={() => setOpen(null)}>
           <div className="br-panel">
-            <p className="text-6xl" aria-hidden>
-              {sel.emoji}
-            </p>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={`/bible-rush/personagens/${sel.id}.webp`} alt="" className="br-gal-big" draggable={false} />
             <h3 className="br-h2">{sel.name}</h3>
             <p className="br-tag">{sel.kind}</p>
             <p className="br-p">{sel.desc}</p>

@@ -299,11 +299,8 @@ function Customer({ r, canServe, hl, onServe }: { r: Request; canServe: boolean;
         </span>
       </span>
       <span className="br-pair" aria-hidden>
-        {d.faces.map((f, k) => (
-          <span key={k} className={`br-an ${k > 0 ? "br-an2" : ""} ${d.faces.length > 1 ? "br-an-grp" : ""}`}>
-            {f}
-          </span>
-        ))}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={`/bible-rush/personagens/${d.id}.webp`} alt="" className="br-art" draggable={false} />
         <span className="br-shadow" />
       </span>
       <span className="br-name">{d.name}</span>

@@ -1233,7 +1233,7 @@ input[type="datetime-local"] {
 .br-msg-info, .br-msg-good { border: 2px solid var(--br-gold); background: #fff3c4; color: #5e3a17; }
 /* ---- Bible Rush: cenário, clientes, balcão e bandeja ---- */
 .br-play { position: relative; display: flex; min-height: min(88dvh, 860px); flex-direction: column; }
-.br-scene { position: relative; display: flex; min-height: 20.5rem; flex-direction: column; gap: 0.4rem; padding: 0.55rem 0.5rem 0; background: var(--cena) center 20% / cover no-repeat, #8ec9e8; }
+.br-scene { position: relative; display: flex; min-height: 22.5rem; flex-direction: column; gap: 0.4rem; padding: 0.55rem 0.5rem 0; background: var(--cena) center 20% / cover no-repeat, #8ec9e8; }
 .br-hud2 { display: flex; flex-direction: column; gap: 0.35rem; padding: 0.35rem 0.45rem; border: 3px solid var(--br-wood2); border-radius: 14px; background: rgba(255, 248, 230, 0.93); box-shadow: 0 3px 0 rgba(94, 58, 23, 0.5); }
 .br-hud-row { display: flex; align-items: center; justify-content: space-between; gap: 0.3rem; }
 .br-pill { margin: 0; padding: 0.12rem 0.5rem; border: 2px solid var(--br-wood2); border-radius: 999px; background: #fff; font-size: 0.78rem; font-weight: 900; white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -1251,9 +1251,9 @@ input[type="datetime-local"] {
 
 /* clientes no caminho */
 .br-street { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.2rem; margin-top: auto; padding-bottom: 0.1rem; }
-.br-seat { position: relative; min-height: 8.4rem; }
-.br-empty { height: 100%; min-height: 8.4rem; }
-.br-cust { position: relative; display: flex; width: 100%; height: 100%; min-height: 8.4rem; flex-direction: column; align-items: center; justify-content: flex-end; gap: 0.1rem; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; animation: br-walkin 0.5s ease-out; }
+.br-seat { position: relative; min-height: 10.2rem; }
+.br-empty { height: 100%; min-height: 10.2rem; }
+.br-cust { position: relative; display: flex; width: 100%; height: 100%; min-height: 10.2rem; flex-direction: column; align-items: center; justify-content: flex-end; gap: 0.1rem; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; animation: br-walkin 0.5s ease-out; }
 .br-bubble { --fill: #8fc14a; position: relative; display: flex; min-width: 3.4rem; max-width: 100%; min-height: 2.6rem; align-items: center; justify-content: center; padding: 0.15rem 0.35rem; border: 3px solid var(--br-wood2); border-radius: 16px; background: linear-gradient(to top, var(--fill) var(--p, 100%), #fffaf0 var(--p, 100%)); box-shadow: 0 2px 0 var(--br-wood2); }
 .br-bubble::after { content: ""; position: absolute; left: 50%; bottom: -8px; width: 11px; height: 11px; transform: translateX(-50%) rotate(45deg); border-right: 3px solid var(--br-wood2); border-bottom: 3px solid var(--br-wood2); background: #fffaf0; }
 .br-st-waiting .br-bubble { --fill: #f4c430; }
@@ -1262,17 +1262,16 @@ input[type="datetime-local"] {
 .br-want { position: relative; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 2px; font-size: 1.45rem; line-height: 1.1; filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.8)); }
 .br-want .done { opacity: 0.4; filter: grayscale(0.8); }
 .br-want b { margin-left: -0.45rem; margin-right: 0.1rem; color: #2f7a1c; font-size: 0.9rem; }
-.br-pair { position: relative; display: flex; align-items: flex-end; justify-content: center; margin-top: 0.55rem; line-height: 1; animation: br-idle 2.4s ease-in-out infinite; }
-.br-an { font-size: 2.3rem; filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.18)); }
-.br-an2 { margin-left: -0.7rem; font-size: 1.8rem; }
-.br-an-grp { font-size: 1.7rem; }
-.br-an-grp.br-an2 { margin-left: -0.55rem; font-size: 1.7rem; }
+.br-pair { position: relative; display: flex; height: 5.6rem; align-items: flex-end; justify-content: center; margin-top: 0.55rem; line-height: 1; animation: br-idle 2.4s ease-in-out infinite; }
 .br-name { max-width: 100%; margin: 0; overflow: hidden; padding: 0 0.15rem; font-size: 0.55rem; font-weight: 900; line-height: 1.1; text-align: center; text-overflow: ellipsis; white-space: nowrap; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.85); }
 .br-shadow { position: absolute; left: 50%; bottom: -0.25rem; z-index: -1; width: 85%; height: 0.55rem; transform: translateX(-50%); border-radius: 50%; background: rgba(0, 0, 0, 0.25); }
 .br-st-impatient .br-pair { animation: br-fret 0.45s ease-in-out infinite; }
-.br-face { display: flex; align-items: center; gap: 3px; margin: 0; font-size: 1.1rem; line-height: 1; filter: drop-shadow(0 1px 0 #fff); }
+.br-art { position: relative; max-width: 100%; height: 100%; width: auto; object-fit: contain; object-position: bottom; filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.18)); pointer-events: none; }
+.br-face { position: absolute; right: 0.1rem; top: 3.1rem; z-index: 2; display: flex; align-items: center; gap: 3px; margin: 0; font-size: 1.15rem; line-height: 1; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45)); }
+.br-gal-art { height: 4.2rem; width: auto; max-width: 100%; object-fit: contain; }
+.br-gal-big { height: 12rem; width: auto; max-width: 100%; margin: 0 auto; object-fit: contain; }
 .br-rest { animation: br-spin 1s linear infinite; }
-.br-serve { position: absolute; left: 50%; bottom: -0.45rem; padding: 0.05rem 0.45rem; border: 2px solid #fff; border-radius: 999px; background: #3fae2a; color: #fff; font-size: 0.6rem; font-weight: 900; letter-spacing: 0.04em; white-space: nowrap; transform: translateX(-50%); animation: br-readypulse 0.7s ease-in-out infinite; box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3); }
+.br-serve { position: absolute; left: 50%; bottom: 0.9rem; z-index: 3; padding: 0.05rem 0.45rem; border: 2px solid #fff; border-radius: 999px; background: #3fae2a; color: #fff; font-size: 0.6rem; font-weight: 900; letter-spacing: 0.04em; white-space: nowrap; transform: translateX(-50%); animation: br-readypulse 0.7s ease-in-out infinite; box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3); }
 .br-can .br-pair { animation: br-hop 0.6s ease-in-out infinite; }
 .br-float { position: absolute; left: 50%; top: 10%; z-index: 20; width: max-content; max-width: 160%; padding: 0.15rem 0.55rem; border-radius: 999px; font-size: 0.78rem; font-weight: 900; transform: translateX(-50%); pointer-events: none; animation: br-float 1.3s ease-out forwards; }
 .br-float-good { background: #e3f2c4; color: #2f4a10; border: 2px solid var(--br-olive); }
