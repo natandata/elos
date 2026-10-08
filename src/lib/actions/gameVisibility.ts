@@ -1,6 +1,6 @@
 "use server";
 
-import { GAME_RELEASES } from "@/lib/games/release";
+import { GAME_RELEASES, type ReleasedGame } from "@/lib/games/release";
 import { revalidatePath } from "next/cache";
 import { isGameKey, type Visibility } from "@/lib/games/catalog";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -22,8 +22,12 @@ export async function setReleaseDate(game: string, iso: string | null): Promise<
   if (!admin) return { error: "Servidor sem acesso ao banco." };
   const { error } = await admin.from("game_settings").upsert({ game, open_at: iso ? new Date(iso).toISOString() : null, updated_by: user.id, updated_at: new Date().toISOString() }, { onConflict: "game" });
   if (error) return { error: "Não foi possível salvar." };
+  // A Loja mostra a contagem e libera a compra por esta mesma data: um único relógio para o jogo e para o item à venda.
+  const effective = iso ? new Date(iso).toISOString() : new Date(GAME_RELEASES[game as ReleasedGame]).toISOString();
+  await admin.from("store_items").update({ release_at: effective }).eq("game_key", game).eq("status", "scheduled");
   revalidatePath("/app/jogos", "layout");
   revalidatePath("/app/admin/jogos");
+  revalidatePath("/app/admin/loja");
   return {};
 }
 

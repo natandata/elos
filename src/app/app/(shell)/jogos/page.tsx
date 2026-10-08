@@ -171,7 +171,7 @@ export default async function JogosPage() {
         </Link>
       )}
 
-      <StoreGallery items={storeItems} balance={coinBalance} ownedIds={ownedAll} />
+      <StoreGallery items={storeItems.map((i) => (i.status === "scheduled" && i.game_key && i.game_key in dates ? { ...i, release_at: dates[i.game_key as keyof typeof dates] } : i))} balance={coinBalance} ownedIds={ownedAll} />
       <XpExchange availableXp={availableXp} rate={xpRate} early={earlyExchange} />
 
       {hide("biblerush") || !rushOpen ? null : (
