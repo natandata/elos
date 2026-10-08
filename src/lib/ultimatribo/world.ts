@@ -18,7 +18,7 @@ export type Prop = { kind: PropKind; x: number; z: number; rot: number; s: numbe
 export type ZoneKey = "cidade" | "floresta" | "fazenda" | "igreja" | "rodovia" | "fabrica" | "acampamento" | "ermo";
 export type Zone = Box & { key: ZoneKey; name: string };
 
-export type Container = { id: number; x: number; z: number; table: string; opened: boolean; kind: "caixa" | "carro" | "mochila"; items?: Record<string, number> };
+export type Container = { id: number; x: number; z: number; table: string; opened: boolean; kind: "caixa" | "carro" | "mochila" | "airdrop"; items?: Record<string, number>; /** altura (a caixa de suprimentos desce de paraquedas) */ y?: number };
 export type LoreSpot = { id: number; lore: string; x: number; z: number; taken: boolean };
 
 export type World = {
@@ -33,7 +33,28 @@ export type World = {
   lore: LoreSpot[];
   spawns: { x: number; z: number }[];
   nav: Uint8Array;
+  /** relevo (só visual): altura do chão numa grade de HM_CELL metros */
+  hmap: Float32Array;
 };
+
+export const HM_CELL = 2;
+export const HM_N = Math.floor((HALF * 2) / HM_CELL) + 1;
+
+/** Altura do chão num ponto (interpolada). O relevo é só visual: a colisão continua plana. */
+export function heightAt(w: World, x: number, z: number): number {
+  const fx = Math.max(0, Math.min(HM_N - 1.001, (x + HALF) / HM_CELL));
+  const fz = Math.max(0, Math.min(HM_N - 1.001, (z + HALF) / HM_CELL));
+  const i = Math.floor(fx);
+  const j = Math.floor(fz);
+  const u = fx - i;
+  const v = fz - j;
+  const h = w.hmap;
+  const a = h[j * HM_N + i];
+  const b = h[j * HM_N + i + 1];
+  const c = h[(j + 1) * HM_N + i];
+  const d = h[(j + 1) * HM_N + i + 1];
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
 
 /** Sorteio com semente (mulberry32): o mesmo mapa para todo mundo. */
 export function rng(seed: number): () => number {
@@ -284,7 +305,10 @@ export function buildWorld(seed: number): World {
     }
   // tira objetos redondos que nasceram dentro de construção
   const insideBox = (x: number, z: number, pad = 0) => boxes.some((b) => x > b.x0 - pad && x < b.x1 + pad && z > b.z0 - pad && z < b.z1 + pad);
-  const keptCircles = circles.filter((c) => !insideBox(c.x, c.z, c.r));
+  // caixas que caíram dentro de parede saem; e nada redondo (pedra, árvore) pode cercar uma caixa
+  const keptContainers = containers.filter((c) => !insideBox(c.x, c.z, 0.5) && Math.abs(c.x) < HALF - 3 && Math.abs(c.z) < HALF - 3);
+  const nearLoot = (x: number, z: number, pad: number) => keptContainers.some((c) => Math.hypot(c.x - x, c.z - z) < pad);
+  const keptCircles = circles.filter((c) => !insideBox(c.x, c.z, c.r) && !nearLoot(c.x, c.z, c.r + 2.2));
   const circleGrid = new Map<number, Circle[]>();
   for (const c of keptCircles) {
     const k = gridKey(Math.floor(c.x / CG), Math.floor(c.z / CG));
@@ -292,9 +316,8 @@ export function buildWorld(seed: number): World {
     if (l) l.push(c);
     else circleGrid.set(k, [c]);
   }
-  const keptProps = props.filter((p) => p.kind === "carro" || p.kind === "plantacao" || !insideBox(p.x, p.z, 0.3));
-  // caixas que caíram dentro de parede são empurradas para fora
-  const keptContainers = containers.filter((c) => !insideBox(c.x, c.z, 0.5) && Math.abs(c.x) < HALF - 3 && Math.abs(c.z) < HALF - 3);
+  const solid = new Set<PropKind>(["arvore", "pinheiro", "pedra", "fardo", "barril", "lapide"]);
+  const keptProps = props.filter((p) => p.kind === "carro" || p.kind === "plantacao" || (!insideBox(p.x, p.z, 0.3) && !(solid.has(p.kind) && nearLoot(p.x, p.z, (p.kind === "pedra" ? 0.8 * p.s : 0.6) + 2.2))));
 
   // ---------------------------------------------------------------- malha de caminho
   const nav = new Uint8Array(NAV_N * NAV_N);
@@ -356,7 +379,49 @@ export function buildWorld(seed: number): World {
     spawns.push(best);
   }
 
-  return { seed, zones: ZONES, buildings, props: keptProps, boxes, circles: keptCircles, circleGrid, containers: keptContainers, lore, spawns, nav };
+  // ---------------------------------------------------------------- relevo: colinas suaves, plano onde há construção e asfalto
+  const hr = rng(seed ^ 0x51ed27);
+  const G = 24;
+  const lattice = new Float32Array((G + 2) * (G + 2));
+  for (let i = 0; i < lattice.length; i++) lattice[i] = hr();
+  const smooth = (t: number) => t * t * (3 - 2 * t);
+  const noise = (x: number, z: number, scale: number, off: number) => {
+    const fx = (((x + HALF) / scale + off) % G + G) % G;
+    const fz = (((z + HALF) / scale + off * 1.7) % G + G) % G;
+    const i = Math.floor(fx);
+    const j = Math.floor(fz);
+    const u = smooth(fx - i);
+    const v = smooth(fz - j);
+    const at = (a: number, b: number) => lattice[(b % G) * (G + 2) + (a % G)];
+    return at(i, j) * (1 - u) * (1 - v) + at(i + 1, j) * u * (1 - v) + at(i, j + 1) * (1 - u) * v + at(i + 1, j + 1) * u * v;
+  };
+  const flats: Box[] = [
+    { x0: -40, z0: -225, x1: 225, z1: -30 }, // cidade
+    { x0: 115, z0: 30, x1: 232, z1: 145 }, // fábrica
+    { x0: -HALF, z0: -10, x1: HALF, z1: 10 }, // rodovia
+    { x0: 48, z0: 172, x1: 92, z1: 212 }, // acampamento
+    ...buildings.filter((b) => b.kind !== "predio" && b.kind !== "conteiner").map((b) => ({ x0: b.x0 - 3, z0: b.z0 - 3, x1: b.x1 + 3, z1: b.z1 + 3 })),
+  ];
+  const hmap = new Float32Array(HM_N * HM_N);
+  for (let j = 0; j < HM_N; j++)
+    for (let i = 0; i < HM_N; i++) {
+      const x = -HALF + i * HM_CELL;
+      const z = -HALF + j * HM_CELL;
+      // quanto mais perto de uma área plana, menor a colina
+      let amp = 1;
+      for (const f of flats) {
+        const dx = Math.max(f.x0 - x, 0, x - f.x1);
+        const dz = Math.max(f.z0 - z, 0, z - f.z1);
+        const d = Math.hypot(dx, dz);
+        if (d < 16) amp = Math.min(amp, smooth(d / 16));
+      }
+      const hills = (noise(x, z, 46, 0) - 0.5) * 9 + (noise(x, z, 17, 5.3) - 0.5) * 2.4;
+      // o morro da igreja
+      const hill = 5 * Math.exp(-((x + 10) ** 2 + (z - 125) ** 2) / (2 * 42 * 42));
+      hmap[j * HM_N + i] = hills * amp + hill;
+    }
+
+  return { seed, zones: ZONES, buildings, props: keptProps, boxes, circles: keptCircles, circleGrid, containers: keptContainers, lore, spawns, nav, hmap };
 }
 
 // ====================================================================== geometria
@@ -455,6 +520,17 @@ export function blocked(w: World, x0: number, z0: number, x1: number, z1: number
   return rayBoxes(w, x0, z0, dx / d, dz / d, d) < d - 0.01;
 }
 
+/** Um sobrevivente (com a sua largura) passa em linha reta entre os dois pontos? */
+export function walkBlocked(w: World, x0: number, z0: number, x1: number, z1: number, rad = 0.55): boolean {
+  const dx = x1 - x0;
+  const dz = z1 - z0;
+  const d = Math.hypot(dx, dz);
+  if (d < 1e-6) return false;
+  const ox = (-dz / d) * rad;
+  const oz = (dx / d) * rad;
+  return blocked(w, x0, z0, x1, z1) || blocked(w, x0 + ox, z0 + oz, x1 + ox, z1 + oz) || blocked(w, x0 - ox, z0 - oz, x1 - ox, z1 - oz);
+}
+
 // ====================================================================== caminho (A* na malha)
 
 const navIdx = (x: number, z: number): [number, number] => [Math.max(0, Math.min(NAV_N - 1, Math.floor((x + HALF) / NAV_CELL))), Math.max(0, Math.min(NAV_N - 1, Math.floor((z + HALF) / NAV_CELL)))];
@@ -482,7 +558,7 @@ let stampNow = 0;
 
 /** Caminho entre dois pontos desviando das construções. Devolve os pontos a seguir (sem o de partida). */
 export function findPath(w: World, x0: number, z0: number, x1: number, z1: number): [number, number][] {
-  if (!blocked(w, x0, z0, x1, z1)) return [[x1, z1]];
+  if (!walkBlocked(w, x0, z0, x1, z1)) return [[x1, z1]];
   const [si, sj] = nearestFree(w, ...navIdx(x0, z0));
   const [ti, tj] = nearestFree(w, ...navIdx(x1, z1));
   const start = sj * NAV_N + si;
@@ -545,7 +621,7 @@ export function findPath(w: World, x0: number, z0: number, x1: number, z1: numbe
   let az = z0;
   for (let k = 0; k < pts.length; k++) {
     const next = pts[k + 1];
-    if (!next || blocked(w, ax, az, next[0], next[1])) {
+    if (!next || walkBlocked(w, ax, az, next[0], next[1])) {
       out.push(pts[k]);
       [ax, az] = pts[k];
     }

@@ -23,7 +23,7 @@ export async function finishTriboMatch(report: MatchReport): Promise<{ error?: s
 
   // limpa o que veio do aparelho: nada fora do possível numa partida
   const int = (v: unknown, lo: number, hi: number) => Math.max(lo, Math.min(hi, Math.floor(Number(v)) || 0));
-  const players = int(report?.players, 2, 10);
+  const players = int(report?.players, 2, 20);
   const place = int(report?.place, 1, players);
   const clean: MatchReport = {
     players,

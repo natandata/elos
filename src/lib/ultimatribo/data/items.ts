@@ -16,8 +16,14 @@ export type WeaponDef = {
   range: number;
   /** segundos entre golpes ou disparos */
   cooldown: number;
-  /** abertura do disparo, em radianos */
+  /** abertura do disparo parado, em radianos */
   spread: number;
+  /** quanto cada disparo abre a mira (recuo) */
+  recoil: number;
+  /** automática: segurar o gatilho continua atirando */
+  auto: boolean;
+  /** aproximação da mira (1 = sem luneta) */
+  zoom: number;
   mag: number;
   reload: number;
   ammo?: AmmoKind;
@@ -25,56 +31,71 @@ export type WeaponDef = {
   noise: number;
 };
 
-const w = (d: WeaponDef): WeaponDef => d;
+const melee = (id: string, name: string, emoji: string, tier: number, damage: number, range: number, cooldown: number): WeaponDef => ({ id, name, emoji, kind: "melee", tier, damage, pellets: 1, range, cooldown, spread: 0, recoil: 0, auto: true, zoom: 1, mag: 0, reload: 0, noise: 0 });
 
 export const WEAPONS: Record<string, WeaponDef> = {
-  punho: w({ id: "punho", name: "Punhos", emoji: "✊", kind: "melee", tier: 0, damage: 8, pellets: 1, range: 2.1, cooldown: 0.5, spread: 0, mag: 0, reload: 0, noise: 0 }),
-  faca: w({ id: "faca", name: "Faca", emoji: "🔪", kind: "melee", tier: 1, damage: 18, pellets: 1, range: 2.2, cooldown: 0.42, spread: 0, mag: 0, reload: 0, noise: 0 }),
-  bastao: w({ id: "bastao", name: "Bastão", emoji: "🏏", kind: "melee", tier: 2, damage: 24, pellets: 1, range: 2.6, cooldown: 0.62, spread: 0, mag: 0, reload: 0, noise: 0 }),
-  machado: w({ id: "machado", name: "Machado", emoji: "🪓", kind: "melee", tier: 3, damage: 36, pellets: 1, range: 2.5, cooldown: 0.85, spread: 0, mag: 0, reload: 0, noise: 0 }),
-  arco: w({ id: "arco", name: "Arco", emoji: "🏹", kind: "bow", tier: 1, damage: 40, pellets: 1, range: 48, cooldown: 1.15, spread: 0.012, mag: 1, reload: 0.9, ammo: "flecha", noise: 6 }),
-  pistola: w({ id: "pistola", name: "Pistola", emoji: "🔫", kind: "gun", tier: 2, damage: 19, pellets: 1, range: 55, cooldown: 0.34, spread: 0.03, mag: 10, reload: 1.5, ammo: "bala", noise: 60 }),
-  espingarda: w({ id: "espingarda", name: "Espingarda", emoji: "💥", kind: "gun", tier: 3, damage: 10, pellets: 8, range: 22, cooldown: 0.95, spread: 0.11, mag: 5, reload: 2.4, ammo: "cartucho", noise: 75 }),
-  rifle: w({ id: "rifle", name: "Rifle", emoji: "🎯", kind: "gun", tier: 4, damage: 48, pellets: 1, range: 115, cooldown: 1.05, spread: 0.008, mag: 5, reload: 2.2, ammo: "bala", noise: 90 }),
+  punho: melee("punho", "Punhos", "✊", 0, 9, 2.1, 0.5),
+  faca: melee("faca", "Faca", "🔪", 1, 20, 2.2, 0.42),
+  bastao: melee("bastao", "Bastão", "🏏", 2, 26, 2.6, 0.62),
+  machado: melee("machado", "Machado", "🪓", 3, 38, 2.5, 0.85),
+  frigideira: melee("frigideira", "Frigideira", "🍳", 4, 44, 2.3, 0.8),
+  arco: { id: "arco", name: "Besta", emoji: "🏹", kind: "bow", tier: 1, damage: 52, pellets: 1, range: 60, cooldown: 1.2, spread: 0.01, recoil: 0.01, auto: false, zoom: 1.5, mag: 1, reload: 1.6, ammo: "flecha", noise: 6 },
+  pistola: { id: "pistola", name: "Pistola", emoji: "🔫", kind: "gun", tier: 2, damage: 20, pellets: 1, range: 55, cooldown: 0.22, spread: 0.028, recoil: 0.012, auto: false, zoom: 1.25, mag: 15, reload: 1.6, ammo: "bala", noise: 60 },
+  submetralhadora: { id: "submetralhadora", name: "Submetralhadora", emoji: "🔫", kind: "gun", tier: 3, damage: 15, pellets: 1, range: 45, cooldown: 0.085, spread: 0.035, recoil: 0.009, auto: true, zoom: 1.3, mag: 25, reload: 2.1, ammo: "bala", noise: 65 },
+  espingarda: { id: "espingarda", name: "Espingarda", emoji: "💥", kind: "gun", tier: 3, damage: 11, pellets: 9, range: 24, cooldown: 0.9, spread: 0.1, recoil: 0.05, auto: false, zoom: 1.15, mag: 5, reload: 2.6, ammo: "cartucho", noise: 75 },
+  fuzil: { id: "fuzil", name: "Fuzil", emoji: "🪖", kind: "gun", tier: 4, damage: 24, pellets: 1, range: 85, cooldown: 0.1, spread: 0.016, recoil: 0.011, auto: true, zoom: 1.6, mag: 30, reload: 2.4, ammo: "bala", noise: 85 },
+  rifle: { id: "rifle", name: "Rifle de precisão", emoji: "🎯", kind: "gun", tier: 4, damage: 72, pellets: 1, range: 140, cooldown: 1.5, spread: 0.004, recoil: 0.06, auto: false, zoom: 3.2, mag: 5, reload: 2.8, ammo: "bala", noise: 95 },
 };
 
 export type ConsumableDef = {
   id: string;
   name: string;
   emoji: string;
-  group: "food" | "drink" | "med";
+  group: "food" | "drink" | "med" | "boost";
   hunger?: number;
   thirst?: number;
   hp?: number;
+  /** a cura só sobe a vida até este teto (como a bandagem e os primeiros socorros do PUBG) */
+  hpCap?: number;
   energy?: number;
-  /** segundos para usar (o personagem fica parado e vulnerável) */
+  boost?: number;
+  /** segundos para usar (o personagem fica lento e vulnerável) */
   useTime: number;
 };
 
 export const CONSUMABLES: Record<string, ConsumableDef> = {
-  agua: { id: "agua", name: "Água", emoji: "💧", group: "drink", thirst: 45, useTime: 1.2 },
-  pao: { id: "pao", name: "Pão", emoji: "🍞", group: "food", hunger: 28, useTime: 1.4 },
-  fruta: { id: "fruta", name: "Fruta", emoji: "🍎", group: "food", hunger: 16, thirst: 12, useTime: 1 },
-  carne: { id: "carne", name: "Carne", emoji: "🍖", group: "food", hunger: 50, useTime: 2 },
-  enlatado: { id: "enlatado", name: "Enlatado", emoji: "🥫", group: "food", hunger: 36, useTime: 1.6 },
-  bandagem: { id: "bandagem", name: "Bandagem", emoji: "🩹", group: "med", hp: 25, useTime: 2 },
-  kit: { id: "kit", name: "Kit médico", emoji: "🧰", group: "med", hp: 75, useTime: 4 },
-  remedio: { id: "remedio", name: "Remédio", emoji: "💊", group: "med", hp: 10, energy: 60, useTime: 1.2 },
-  antisseptico: { id: "antisseptico", name: "Antisséptico", emoji: "🧴", group: "med", hp: 40, useTime: 2.6 },
+  agua: { id: "agua", name: "Água", emoji: "💧", group: "drink", thirst: 45, useTime: 1.4 },
+  pao: { id: "pao", name: "Pão", emoji: "🍞", group: "food", hunger: 28, useTime: 1.6 },
+  fruta: { id: "fruta", name: "Fruta", emoji: "🍎", group: "food", hunger: 16, thirst: 12, useTime: 1.2 },
+  carne: { id: "carne", name: "Carne", emoji: "🍖", group: "food", hunger: 50, useTime: 2.2 },
+  enlatado: { id: "enlatado", name: "Enlatado", emoji: "🥫", group: "food", hunger: 36, useTime: 1.8 },
+  bandagem: { id: "bandagem", name: "Bandagem", emoji: "🩹", group: "med", hp: 15, hpCap: 75, useTime: 2.5 },
+  socorros: { id: "socorros", name: "Primeiros socorros", emoji: "⛑️", group: "med", hp: 75, hpCap: 75, useTime: 5 },
+  kit: { id: "kit", name: "Kit médico", emoji: "🧰", group: "med", hp: 100, useTime: 7 },
+  energetico: { id: "energetico", name: "Energético", emoji: "🥤", group: "boost", boost: 40, energy: 40, thirst: 10, useTime: 3 },
+  remedio: { id: "remedio", name: "Analgésico", emoji: "💊", group: "boost", boost: 60, energy: 30, useTime: 4 },
 };
 
-export type GearDef = { id: string; name: string; emoji: string; armor?: number; capacity?: number };
+export type GearDef = { id: string; name: string; emoji: string; slot: "mochila" | "colete" | "capacete" | "lanterna" | "radio"; level: number; capacity?: number; armor?: number; reduce?: number };
 
+/** Mochila, colete e capacete vêm em 3 níveis (como no PUBG): o nível mais alto substitui o menor. */
 export const GEAR: Record<string, GearDef> = {
-  mochila: { id: "mochila", name: "Mochila", emoji: "🎒", capacity: 8 },
-  colete: { id: "colete", name: "Colete", emoji: "🦺", armor: 60 },
-  capacete: { id: "capacete", name: "Capacete", emoji: "⛑️", armor: 30 },
-  lanterna: { id: "lanterna", name: "Lanterna", emoji: "🔦" },
-  radio: { id: "radio", name: "Rádio", emoji: "📻" },
+  mochila1: { id: "mochila1", name: "Mochila (nv. 1)", emoji: "🎒", slot: "mochila", level: 1, capacity: 5 },
+  mochila2: { id: "mochila2", name: "Mochila (nv. 2)", emoji: "🎒", slot: "mochila", level: 2, capacity: 10 },
+  mochila3: { id: "mochila3", name: "Mochila (nv. 3)", emoji: "🎒", slot: "mochila", level: 3, capacity: 15 },
+  colete1: { id: "colete1", name: "Colete (nv. 1)", emoji: "🦺", slot: "colete", level: 1, armor: 100, reduce: 0.3 },
+  colete2: { id: "colete2", name: "Colete (nv. 2)", emoji: "🦺", slot: "colete", level: 2, armor: 150, reduce: 0.4 },
+  colete3: { id: "colete3", name: "Colete (nv. 3)", emoji: "🦺", slot: "colete", level: 3, armor: 200, reduce: 0.55 },
+  capacete1: { id: "capacete1", name: "Capacete (nv. 1)", emoji: "🪖", slot: "capacete", level: 1, armor: 80, reduce: 0.3 },
+  capacete2: { id: "capacete2", name: "Capacete (nv. 2)", emoji: "🪖", slot: "capacete", level: 2, armor: 120, reduce: 0.4 },
+  capacete3: { id: "capacete3", name: "Capacete (nv. 3)", emoji: "🪖", slot: "capacete", level: 3, armor: 180, reduce: 0.55 },
+  lanterna: { id: "lanterna", name: "Lanterna", emoji: "🔦", slot: "lanterna", level: 1 },
+  radio: { id: "radio", name: "Rádio", emoji: "📻", slot: "radio", level: 1 },
 };
 
 /** Espaço para comida e remédios sem mochila. */
 export const BASE_CAPACITY = 8;
+export const MAX_GRENADES = 4;
 
 export type LootEntry = { id: string; n?: [number, number]; w: number };
 
@@ -85,101 +106,139 @@ export const LOOT_TABLES: Record<string, LootEntry[]> = {
     { id: "enlatado", n: [1, 2], w: 9 },
     { id: "pao", n: [1, 2], w: 8 },
     { id: "fruta", n: [1, 2], w: 6 },
-    { id: "mochila", w: 2 },
+    { id: "energetico", n: [1, 2], w: 6 },
+    { id: "mochila1", w: 3 },
+    { id: "mochila2", w: 2 },
     { id: "faca", w: 3 },
+    { id: "frigideira", w: 2 },
     { id: "lanterna", w: 2 },
   ],
   hospital: [
-    { id: "bandagem", n: [1, 3], w: 10 },
-    { id: "kit", w: 5 },
+    { id: "bandagem", n: [2, 5], w: 10 },
+    { id: "socorros", w: 7 },
+    { id: "kit", w: 3 },
     { id: "remedio", n: [1, 2], w: 7 },
-    { id: "antisseptico", w: 6 },
+    { id: "energetico", n: [1, 2], w: 5 },
     { id: "agua", w: 4 },
   ],
   delegacia: [
-    { id: "pistola", w: 8 },
+    { id: "pistola", w: 6 },
+    { id: "submetralhadora", w: 6 },
     { id: "espingarda", w: 5 },
+    { id: "fuzil", w: 4 },
     { id: "rifle", w: 2 },
-    { id: "bala", n: [8, 16], w: 10 },
-    { id: "cartucho", n: [4, 8], w: 6 },
-    { id: "colete", w: 5 },
-    { id: "capacete", w: 4 },
+    { id: "bala", n: [20, 40], w: 12 },
+    { id: "cartucho", n: [5, 10], w: 6 },
+    { id: "colete1", w: 4 },
+    { id: "colete2", w: 4 },
+    { id: "capacete1", w: 4 },
+    { id: "capacete2", w: 3 },
+    { id: "granada", n: [1, 2], w: 4 },
     { id: "radio", w: 3 },
   ],
   casa: [
     { id: "agua", w: 7 },
     { id: "pao", w: 6 },
     { id: "enlatado", w: 6 },
-    { id: "bandagem", w: 5 },
-    { id: "faca", w: 4 },
-    { id: "bastao", w: 4 },
-    { id: "mochila", w: 2 },
-    { id: "lanterna", w: 3 },
-    { id: "bala", n: [4, 8], w: 3 },
-    { id: "pistola", w: 1 },
+    { id: "bandagem", n: [1, 3], w: 7 },
+    { id: "energetico", w: 4 },
+    { id: "faca", w: 3 },
+    { id: "bastao", w: 3 },
+    { id: "frigideira", w: 2 },
+    { id: "mochila1", w: 4 },
+    { id: "capacete1", w: 4 },
+    { id: "colete1", w: 3 },
+    { id: "lanterna", w: 2 },
+    { id: "bala", n: [15, 30], w: 6 },
+    { id: "pistola", w: 5 },
+    { id: "submetralhadora", w: 3 },
+    { id: "espingarda", w: 2 },
+    { id: "cartucho", n: [5, 10], w: 2 },
   ],
   floresta: [
     { id: "fruta", n: [1, 3], w: 10 },
     { id: "carne", w: 6 },
     { id: "agua", n: [1, 2], w: 8 },
     { id: "arco", w: 5 },
-    { id: "flecha", n: [4, 8], w: 8 },
+    { id: "flecha", n: [5, 10], w: 8 },
     { id: "machado", w: 3 },
-    { id: "bandagem", w: 3 },
+    { id: "bandagem", n: [1, 3], w: 4 },
+    { id: "mochila1", w: 3 },
+    { id: "pistola", w: 3 },
+    { id: "bala", n: [15, 30], w: 4 },
   ],
   fazenda: [
     { id: "carne", w: 7 },
     { id: "fruta", n: [1, 3], w: 8 },
     { id: "pao", n: [1, 2], w: 7 },
     { id: "agua", n: [1, 2], w: 9 },
-    { id: "machado", w: 5 },
-    { id: "bastao", w: 4 },
-    { id: "espingarda", w: 2 },
-    { id: "cartucho", n: [3, 6], w: 4 },
-    { id: "mochila", w: 2 },
+    { id: "machado", w: 4 },
+    { id: "frigideira", w: 3 },
+    { id: "espingarda", w: 5 },
+    { id: "cartucho", n: [5, 10], w: 6 },
+    { id: "mochila2", w: 3 },
+    { id: "colete1", w: 3 },
+    { id: "bandagem", n: [1, 3], w: 4 },
   ],
   igreja: [
-    { id: "kit", w: 6 },
+    { id: "socorros", w: 6 },
+    { id: "kit", w: 3 },
     { id: "agua", n: [1, 2], w: 6 },
     { id: "pao", n: [1, 2], w: 6 },
-    { id: "colete", w: 4 },
-    { id: "rifle", w: 3 },
-    { id: "bala", n: [6, 12], w: 5 },
+    { id: "colete2", w: 4 },
+    { id: "capacete2", w: 4 },
+    { id: "rifle", w: 4 },
+    { id: "fuzil", w: 3 },
+    { id: "bala", n: [20, 40], w: 7 },
     { id: "radio", w: 4 },
-    { id: "mochila", w: 3 },
+    { id: "mochila2", w: 3 },
   ],
   rodovia: [
     { id: "agua", w: 6 },
     { id: "enlatado", w: 6 },
-    { id: "bandagem", w: 5 },
-    { id: "bastao", w: 4 },
-    { id: "pistola", w: 2 },
-    { id: "bala", n: [4, 10], w: 5 },
-    { id: "lanterna", w: 3 },
+    { id: "energetico", w: 5 },
+    { id: "bandagem", n: [1, 3], w: 6 },
+    { id: "bastao", w: 3 },
+    { id: "pistola", w: 5 },
+    { id: "submetralhadora", w: 3 },
+    { id: "bala", n: [15, 30], w: 7 },
+    { id: "capacete1", w: 3 },
+    { id: "mochila1", w: 3 },
+    { id: "lanterna", w: 2 },
     { id: "radio", w: 2 },
   ],
   fabrica: [
-    { id: "espingarda", w: 6 },
-    { id: "rifle", w: 4 },
-    { id: "pistola", w: 5 },
-    { id: "bala", n: [8, 16], w: 9 },
-    { id: "cartucho", n: [4, 8], w: 7 },
-    { id: "colete", w: 6 },
-    { id: "capacete", w: 5 },
-    { id: "machado", w: 4 },
-    { id: "kit", w: 3 },
+    { id: "espingarda", w: 5 },
+    { id: "fuzil", w: 6 },
+    { id: "rifle", w: 3 },
+    { id: "submetralhadora", w: 5 },
+    { id: "bala", n: [20, 40], w: 12 },
+    { id: "cartucho", n: [5, 10], w: 6 },
+    { id: "colete2", w: 5 },
+    { id: "colete3", w: 1 },
+    { id: "capacete2", w: 5 },
+    { id: "capacete3", w: 1 },
+    { id: "mochila3", w: 2 },
+    { id: "granada", n: [1, 2], w: 5 },
+    { id: "socorros", w: 4 },
   ],
   acampamento: [
     { id: "agua", n: [1, 2], w: 8 },
     { id: "carne", w: 6 },
     { id: "enlatado", w: 6 },
-    { id: "bandagem", n: [1, 2], w: 6 },
+    { id: "bandagem", n: [2, 4], w: 7 },
+    { id: "socorros", w: 3 },
     { id: "arco", w: 3 },
-    { id: "flecha", n: [4, 8], w: 5 },
-    { id: "mochila", w: 3 },
+    { id: "flecha", n: [5, 10], w: 5 },
+    { id: "fuzil", w: 2 },
+    { id: "bala", n: [15, 30], w: 5 },
+    { id: "mochila2", w: 3 },
     { id: "radio", w: 3 },
   ],
 };
+
+/** A caixa de suprimentos que cai de paraquedas: sempre o melhor equipamento. */
+export const AIRDROP_ITEMS: Record<string, number> = { rifle: 1, fuzil: 1, bala: 90, colete3: 1, capacete3: 1, mochila3: 1, kit: 2, remedio: 2, granada: 2 };
 
 export const AMMO_NAME: Record<AmmoKind, string> = { bala: "Balas", cartucho: "Cartuchos", flecha: "Flechas" };
 export const isAmmo = (id: string): id is AmmoKind => id === "bala" || id === "cartucho" || id === "flecha";
@@ -188,6 +247,7 @@ export function itemLabel(id: string): { name: string; emoji: string } {
   if (WEAPONS[id]) return WEAPONS[id];
   if (CONSUMABLES[id]) return CONSUMABLES[id];
   if (GEAR[id]) return GEAR[id];
+  if (id === "granada") return { name: "Granada", emoji: "💣" };
   if (isAmmo(id)) return { name: AMMO_NAME[id], emoji: id === "flecha" ? "➶" : "🔸" };
   return { name: id, emoji: "📦" };
 }

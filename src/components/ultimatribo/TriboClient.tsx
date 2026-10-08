@@ -6,7 +6,7 @@ import { useState } from "react";
 import { finishTriboMatch } from "@/lib/actions/tribo";
 import { LORE, LORE_BY_ID, LORE_ICON } from "@/lib/ultimatribo/data/lore";
 import { OUTFITS, levelOf, matchXp, titleOf, type TriboStats } from "@/lib/ultimatribo/progress";
-import type { MatchStats } from "@/lib/ultimatribo/sim";
+import type { Difficulty, GameOptions, MatchStats } from "@/lib/ultimatribo/sim";
 
 /** O jogo usa WebGL e o tamanho da tela: só existe no navegador. */
 const TriboGame = dynamic(() => import("./TriboGame").then((m) => m.TriboGame), {
@@ -22,6 +22,10 @@ export function TriboClient({ name, initial }: { name: string; initial: TriboSta
   const [seed, setSeed] = useState<number | null>(null);
   const [result, setResult] = useState<{ m: MatchStats; xp: number; saved: boolean; error?: string } | null>(null);
   const [outfit, setOutfit] = useState(0);
+  const [bots, setBots] = useState(9);
+  const [difficulty, setDifficulty] = useState<Difficulty>("normal");
+  // as opções ficam fixas durante a partida (trocar no meio reiniciaria o jogo)
+  const [options, setOptions] = useState<GameOptions>({ bots: 9, difficulty: "normal" });
   const [diary, setDiary] = useState(false);
 
   const lv = levelOf(stats.xp);
@@ -37,7 +41,13 @@ export function TriboClient({ name, initial }: { name: string; initial: TriboSta
     setResult({ m, xp: r.xp ?? xp, saved: true });
   }
 
-  if (seed !== null) return <TriboGame seed={seed} name={name} color={color} onEnd={end} onQuit={() => setSeed(null)} />;
+  const start = () => {
+    setOptions({ bots, difficulty });
+    setResult(null);
+    setSeed((Date.now() ^ (Math.random() * 1e9)) >>> 0);
+  };
+
+  if (seed !== null) return <TriboGame seed={seed} name={name} color={color} options={options} onEnd={end} onQuit={() => setSeed(null)} />;
 
   return (
     <div className="mx-auto max-w-xl overflow-hidden rounded-3xl bg-[#14110d] text-stone-100 shadow-2xl ring-2 ring-[#5a4a2a]">
@@ -59,7 +69,7 @@ export function TriboClient({ name, initial }: { name: string; initial: TriboSta
               {[
                 ["☠️", result.m.kills, "eliminações"],
                 ["⏱", clock(result.m.seconds), "vivo"],
-                ["📦", result.m.opened, "caixas"],
+                ["📦", result.m.opened, "saques"],
                 ["📜", result.m.lore.length, "achados"],
               ].map(([i, v, l]) => (
                 <div key={String(l)} className="rounded-xl bg-white/5 p-2">
@@ -98,11 +108,37 @@ export function TriboClient({ name, initial }: { name: string; initial: TriboSta
         <section className="rounded-2xl border-2 border-amber-700/60 bg-gradient-to-b from-[#2a2114] to-[#17130c] p-4">
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-400">Modo 1 · PvP</p>
           <h2 className="text-2xl font-black tracking-wide">SOBREVIVÊNCIA</h2>
-          <p className="mt-1 text-sm text-stone-300">Dez sobreviventes, um mapa, e as Trevas fechando o cerco. Ache comida, água e armas, forme uma tribo de até 3 e decida em quem confiar. Só um vence.</p>
-          <button type="button" onClick={() => setSeed((Date.now() ^ (Math.random() * 1e9)) >>> 0)} className="mt-3 w-full rounded-full bg-amber-500 py-3 text-base font-black uppercase tracking-wide text-black shadow-[0_4px_0_#7a4a08] active:translate-y-[3px] active:shadow-none">
-            Jogar sozinho · 9 sobreviventes do computador
-          </button>
-          <p className="mt-2 text-center text-[11px] text-stone-400">Salas ao vivo de 5 a 10 jogadores: próxima etapa.</p>
+          <p className="mt-1 text-sm text-stone-300">Todos saltam do mesmo avião, num mapa só, com as Trevas fechando o cerco. Ache armas, colete, comida e água, forme uma tribo de até 3 e decida em quem confiar. Só um vence.</p>
+          <div className="mt-3 rounded-xl bg-black/35 p-3">
+            <p className="text-[11px] font-black uppercase tracking-wide text-amber-300">🤖 Contra o computador</p>
+            <p className="mt-0.5 text-[11px] text-stone-400">Dá para jogar a qualquer hora, mesmo sem ninguém online.</p>
+            <p className="mt-2 text-[10px] font-black uppercase tracking-wide text-stone-300">Sobreviventes na partida</p>
+            <div className="mt-1 grid grid-cols-3 gap-1.5">
+              {[5, 9, 15].map((n) => (
+                <button key={n} type="button" onClick={() => setBots(n)} className={`rounded-lg py-1.5 text-sm font-black ${bots === n ? "bg-amber-500 text-black" : "bg-white/10 text-stone-200"}`}>
+                  {n + 1}
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-[10px] font-black uppercase tracking-wide text-stone-300">Dificuldade</p>
+            <div className="mt-1 grid grid-cols-3 gap-1.5">
+              {(
+                [
+                  ["facil", "Fácil"],
+                  ["normal", "Normal"],
+                  ["dificil", "Difícil"],
+                ] as const
+              ).map(([k, label]) => (
+                <button key={k} type="button" onClick={() => setDifficulty(k)} className={`rounded-lg py-1.5 text-sm font-black ${difficulty === k ? "bg-amber-500 text-black" : "bg-white/10 text-stone-200"}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            <button type="button" onClick={start} className="mt-3 w-full rounded-full bg-amber-500 py-3 text-base font-black uppercase tracking-wide text-black shadow-[0_4px_0_#7a4a08] active:translate-y-[3px] active:shadow-none">
+              ▶ Jogar agora
+            </button>
+          </div>
+          <p className="mt-2 text-center text-[11px] text-stone-400">📱 No celular, o jogo é com a tela deitada. Salas ao vivo com outros jogadores: próxima etapa.</p>
         </section>
 
         <section className="rounded-2xl border-2 border-stone-700 bg-black/30 p-4 opacity-70">
@@ -157,13 +193,14 @@ export function TriboClient({ name, initial }: { name: string; initial: TriboSta
 
         <section className="rounded-2xl bg-white/5 p-3 text-xs leading-relaxed text-stone-300">
           <p className="font-black uppercase tracking-wide text-stone-200">Como jogar</p>
+          <p className="mt-1">Você começa no avião: escolha onde pular, desça de paraquedas e procure armas, colete, capacete e remédios. As Trevas fecham o mapa aos poucos.</p>
           <p className="mt-1">
-            <b>Celular:</b> lado esquerdo anda (empurre até o fim para correr), lado direito olha, 🎯 atira ou bate.
+            <b>Celular (tela deitada):</b> lado esquerdo anda (empurre até o fim para correr), o resto da tela olha, 🔫 atira, 🔭 mira, e há botões para pular, agachar, deitar, recarregar e granada.
           </p>
           <p>
-            <b>Computador:</b> WASD, mouse, clique atira, Shift corre, E age, R recarrega, 1 2 3 trocam de arma, Z X C comem, bebem e curam.
+            <b>Computador:</b> WASD, mouse, clique atira, botão direito mira, Shift corre, Espaço pula, C agacha, Z deita, R recarrega, F pega, 1 2 3 armas, G granada, 5 6 7 8 cura, energético, comida e água.
           </p>
-          <p className="mt-1">Fome e sede baixam o tempo todo. Chegue perto de outro sobrevivente para propor aliança; ferir um aliado é traição.</p>
+          <p className="mt-1">Bandagem e primeiros socorros curam até 75; só o kit médico enche a vida. Fome e sede baixam o tempo todo. Chegue perto de outro sobrevivente para propor aliança; ferir um aliado é traição.</p>
         </section>
 
         <Link href="/app/jogos" className="block rounded-full bg-stone-800 py-2.5 text-center text-sm font-black text-stone-200">

@@ -18,6 +18,7 @@ export type BotState = {
   /** há quanto tempo está vendo o alvo (tempo de reação antes de atirar) */
   seenT: number;
   lootId: number;
+  lootSince: number;
   skip: Set<number>;
   strafe: number;
   strafeT: number;
@@ -31,9 +32,13 @@ export type BotState = {
   dodgeT: number;
   skill: number;
   sprint: boolean;
+  /** em que ponto do trajeto do avião pula (0..1) e para onde dirige o paraquedas */
+  jumpAt: number;
+  landX: number;
+  landZ: number;
 };
 
-export function newBotState(rand: () => number): BotState {
+export function newBotState(rand: () => number, skillAdj = 0): BotState {
   return {
     thinkT: rand() * 0.4,
     mode: "wander",
@@ -45,6 +50,7 @@ export function newBotState(rand: () => number): BotState {
     los: false,
     seenT: 0,
     lootId: -1,
+    lootSince: 0,
     skip: new Set(),
     strafe: rand() < 0.5 ? 1 : -1,
     strafeT: 0,
@@ -55,8 +61,11 @@ export function newBotState(rand: () => number): BotState {
     lastX: 0,
     lastZ: 0,
     dodgeT: 0,
-    skill: 0.35 + rand() * 0.45,
+    skill: Math.max(0.05, Math.min(0.95, 0.35 + rand() * 0.45 + skillAdj)),
     sprint: false,
+    jumpAt: 0.5,
+    landX: 0,
+    landZ: 0,
   };
 }
 
@@ -116,8 +125,12 @@ function decide(g: Game, a: Actor) {
   let enemy: Actor | null = null;
   let ed = 46;
   for (const o of g.actors) {
-    if (o === a || !o.alive || g.allies(a, o)) continue;
-    const d = dist(a, o);
+    if (o === a || !o.alive || o.where !== "ground" || g.allies(a, o)) continue;
+    let d = dist(a, o);
+    // quem está agachado ou deitado é mais difícil de notar
+    const seen = d * (o.stance === 2 ? 2.2 : o.stance === 1 ? 1.4 : 1);
+    if (seen >= 46 && (ai.anger.get(o.id) ?? 0) < g.time) continue;
+    d = Math.min(d, 45.9);
     if (d < ed && !blocked(g.world, a.x, a.z, o.x, o.z)) {
       ed = d;
       enemy = o;
@@ -132,7 +145,8 @@ function decide(g: Game, a: Actor) {
 
   // ---- cuidar do corpo quando ninguém está em cima
   if (!a.using && (!enemy || ed > 16)) {
-    if (a.hp < 50 && g.countGroup(a, "med")) g.useGroup(a, "med");
+    if (a.hp < 60 && g.countGroup(a, "med")) g.useGroup(a, "med");
+    else if (a.hp < 92 && a.boost < 15 && g.countGroup(a, "boost")) g.useGroup(a, "boost");
     else if (a.thirst < 42 && g.countGroup(a, "drink")) g.useGroup(a, "drink");
     else if (a.hunger < 42 && g.countGroup(a, "food")) g.useGroup(a, "food");
   }
@@ -203,10 +217,11 @@ function decide(g: Game, a: Actor) {
   let best: Container | null = null;
   let bd = withPlayer ? 20 : 1e9;
   for (const c of g.world.containers) {
-    if (c.opened || ai.skip.has(c.id)) continue;
+    if (c.opened || ai.skip.has(c.id) || (c.y ?? 0) > 0.5) continue;
     if (Math.hypot(c.x - g.dark.tx, c.z - g.dark.tz) > Math.max(g.dark.tr, 30) + 20 && g.dark.phase > 0) continue;
     if (g.inDark(c.x, c.z)) continue;
-    const d = dist(anchor, c) + (c.id === ai.lootId ? -6 : 0);
+    // a caixa de suprimentos atrai os mais ousados de longe
+    const d = dist(anchor, c) + (c.id === ai.lootId ? -6 : 0) - (c.kind === "airdrop" ? a.aggression * 90 : 0);
     if (d < bd) {
       bd = d;
       best = c;
@@ -214,6 +229,13 @@ function decide(g: Game, a: Actor) {
   }
   if (best) {
     ai.mode = "loot";
+    // insiste no máximo 14 s na mesma caixa: se não chega, larga
+    if (ai.lootId !== best.id) ai.lootSince = g.time;
+    else if (g.time - ai.lootSince > 14) {
+      ai.skip.add(best.id);
+      ai.lootId = -1;
+      return;
+    }
     ai.lootId = best.id;
     return setGoal(g, a, best.x, best.z);
   }
@@ -265,23 +287,34 @@ export function thinkBot(g: Game, a: Actor, dt: number) {
       a.yaw = turn(a.yaw, Math.atan2(target.x - a.x, target.z - a.z), dt * 7);
       const wp = g.weaponOf(a);
       if (wp.kind === "melee") {
+        a.stance = 0;
+        a.ads = false;
         mz = d > wp.range * 0.8 ? 1 : 0;
         mx = d < 5 ? ai.strafe * 0.35 : 0;
         if (d < wp.range) g.attack(a);
       } else {
-        const hi = Math.min(wp.range * 0.6, 22);
+        const hi = Math.min(wp.range * 0.6, 26);
         const lo = Math.min(8, hi * 0.5);
         mz = d > hi ? 1 : d < lo ? -1 : 0;
-        mx = ai.strafe * 0.7;
+        // de longe, para, agacha e mira; de perto, fica em pé e se mexe
+        const steady = d > 16 && mz === 0;
+        a.stance = steady ? 1 : 0;
+        a.ads = steady;
+        mx = steady ? 0 : ai.strafe * 0.7;
+        if (a.grenades > 0 && d > 10 && d < 24 && Math.random() < dt * 0.12) g.throwGrenade(a);
         // erra mais de longe e nos primeiros instantes; os mais hábeis erram menos
-        if (ai.seenT > 0.5 && d < wp.range) g.attack(a, 0.03 + (1 - ai.skill) * 0.09 + d * 0.0012);
+        else if (ai.seenT > g.diff.react && d < wp.range) g.attack(a, 0.025 + (1 - ai.skill) * 0.085 + d * 0.001);
       }
     } else {
       ai.seenT = 0;
+      a.stance = 0;
+      a.ads = false;
       if (ai.repathT <= 0) setGoal(g, a, target.x, target.z, true);
       [mx, mz] = follow(g, a, dt);
     }
   } else if (ai.mode !== "fight" || !target) {
+    a.stance = 0;
+    a.ads = false;
     [mx, mz] = follow(g, a, dt);
     // chegou na caixa: abre
     if (ai.mode === "loot" && !a.using) {
