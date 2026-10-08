@@ -10,6 +10,18 @@ export type DollBase = {
   /** cor do batom e da sombra (personalização da jogadora) */
   lip?: string;
   shadow?: string;
+  /** maquiagem completa da jogadora; sem isto o rosto fica como sempre foi (personagens da história) */
+  face?: {
+    lipStyle: "fosco" | "gloss" | "degrade";
+    blush: string | null;
+    eye: string;
+    liner: "none" | "fino" | "gatinho" | "grosso";
+    linerColor: string;
+    lashes: "none" | "natural" | "longos" | "dramaticos";
+    brows: "afiladas" | "grossas" | "arqueadas" | "retas" | "finas";
+    browColor: string | null;
+    marks: ("sardas" | "pinta" | "brilho" | "pontos")[];
+  };
 };
 
 export type DressCharacter = {

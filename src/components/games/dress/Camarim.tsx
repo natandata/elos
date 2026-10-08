@@ -7,7 +7,7 @@ import { RunwayWalk } from "./RunwayWalk";
 import { StarsStatic } from "./Stars";
 import { RARITY_ICON, SparkleBurst, Sparkles, rarityOf } from "./Vh";
 import { judgePractice, submitRunwayLook, type JuryResult, type PublishResult } from "@/lib/actions/runway";
-import { DEFAULT_BEAUTY, HAIR_COLORS, HAIR_STYLES, LIPS, SHADOWS, SKINS, baseFromBeauty, type Beauty } from "@/lib/games/dress/beauty";
+import { BLUSHES, BROW_COLORS, BROW_STYLES, DEFAULT_BEAUTY, EYE_COLORS, HAIR_COLORS, HAIR_STYLES, LASH_STYLES, LINER_COLORS, LINER_STYLES, LIPS, LIP_STYLES, MARKS, SHADOWS, SKINS, baseFromBeauty, type Beauty, type Mark } from "@/lib/games/dress/beauty";
 import { ITEM_BY_ID, SLOTS, familiesBySlot, type Look, type Slot } from "@/lib/games/dress/items";
 import { DRESS_ITEM_LIMIT, POSES, cleanPose, countItems, type PoseKey } from "@/lib/games/dress/live";
 import { fmtClock } from "@/lib/games/dress/rules";
@@ -305,10 +305,22 @@ export function Camarim({ theme, mode, msLeft, practiceN = 1, draftKey, exitHref
   const famItems = equippedFam && slotCat ? (fams.find((f) => f.family === equippedFam)?.items ?? []) : [];
   const catLabel = cat === "worn" ? "Vestes" : cat === "pose" ? "Pose do desfile" : (RAIL.find((r) => r.key === cat)?.label ?? "");
   const nameOf = (id: string | undefined) => (id && !id.endsWith("_none") ? (ITEM_BY_ID.get(id)?.name ?? null) : null);
+  const makeupParts = [
+    "batom",
+    beauty.lipStyle === "gloss" ? "gloss" : "",
+    beauty.shadow ? "sombra" : "",
+    beauty.liner !== "none" ? "delineado" : "",
+    beauty.blush ? "blush" : "",
+    beauty.lashes === "longos" || beauty.lashes === "dramaticos" ? "cílios" : "",
+    ...beauty.marks.map((m) => MARKS.find((x) => x.key === m)?.label.toLowerCase() ?? ""),
+  ].filter(Boolean);
+  const makeupCount = makeupParts.length;
+  const makeupSummary = makeupParts.length > 3 ? `${makeupParts.slice(0, 3).join(", ")} e mais ${makeupParts.length - 3}` : makeupParts.join(", ");
+  const toggleMark = (m: Mark) => tweak({ marks: beauty.marks.includes(m) ? beauty.marks.filter((x) => x !== m) : [...beauty.marks, m] });
   const wornRows: { key: string; label: string; name: string | null; dot?: string; go: Cat; remove?: () => void }[] = [
     { key: "head", label: "Cabeça", name: nameOf(look.head), go: "head", remove: nameOf(look.head) ? () => equip("head", undefined) : undefined },
     { key: "hair", label: "Cabelo", name: HAIR_STYLES.find((h) => h.key === beauty.hair)?.label ?? null, dot: beauty.hairColor, go: "hair" },
-    { key: "face", label: "Rosto", name: beauty.shadow ? "Batom e sombra" : "Batom", dot: beauty.lip, go: "makeup", remove: beauty.shadow ? () => tweak({ shadow: null }) : undefined },
+    { key: "face", label: "Maquiagem", name: makeupSummary, dot: beauty.lip, go: "makeup", remove: makeupCount > 1 ? () => tweak({ shadow: null, blush: null, liner: "none", marks: [], lashes: "natural", lipStyle: "fosco" }) : undefined },
     { key: "tunic", label: "Roupa", name: nameOf(look.tunic), go: "tunic", remove: look.tunic ? () => equip("tunic", undefined) : undefined },
     { key: "mantle", label: "Manto e enfeites", name: nameOf(look.mantle), go: "mantle", remove: nameOf(look.mantle) ? () => equip("mantle", undefined) : undefined },
     { key: "shoes", label: "Calçado", name: nameOf(look.shoes), go: "shoes", remove: nameOf(look.shoes) ? () => equip("shoes", undefined) : undefined },
@@ -462,7 +474,25 @@ export function Camarim({ theme, mode, msLeft, practiceN = 1, draftKey, exitHref
             {cat === "makeup" ? (
               <>
                 <Swatches label="Batom" colors={LIPS} value={beauty.lip} onPick={(c) => c && tweak({ lip: c })} />
+                <Chips label="Acabamento do batom" options={LIP_STYLES} value={beauty.lipStyle} onPick={(v) => tweak({ lipStyle: v })} />
                 <Swatches label="Sombra" colors={SHADOWS} value={beauty.shadow} onPick={(c) => tweak({ shadow: c })} />
+                <Chips label="Delineado" options={LINER_STYLES} value={beauty.liner} onPick={(v) => tweak({ liner: v })} />
+                {beauty.liner !== "none" ? <Swatches label="Cor do delineado" colors={LINER_COLORS} value={beauty.linerColor} onPick={(c) => c && tweak({ linerColor: c })} /> : null}
+                <Chips label="Cílios" options={LASH_STYLES} value={beauty.lashes} onPick={(v) => tweak({ lashes: v })} />
+                <Swatches label="Blush" colors={BLUSHES} value={beauty.blush} onPick={(c) => tweak({ blush: c })} />
+                <Swatches label="Cor dos olhos" colors={EYE_COLORS} value={beauty.eye} onPick={(c) => c && tweak({ eye: c })} />
+                <Chips label="Sobrancelhas" options={BROW_STYLES} value={beauty.brows} onPick={(v) => tweak({ brows: v })} />
+                <Swatches label="Cor das sobrancelhas (✕ = igual ao cabelo)" colors={BROW_COLORS} value={beauty.browColor} onPick={(c) => tweak({ browColor: c })} />
+                <div>
+                  <p className="mb-1 text-[10px] font-black uppercase tracking-wide text-amber-200">Detalhes no rosto</p>
+                  <div className="flex flex-wrap gap-2">
+                    {MARKS.map((m) => (
+                      <button key={m.key} type="button" className="vh-chip" data-on={beauty.marks.includes(m.key)} aria-pressed={beauty.marks.includes(m.key)} onClick={() => toggleMark(m.key)}>
+                        {m.icon} {m.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </>
             ) : null}
             {cat === "skin" ? <Swatches label="Tom de pele" colors={SKINS} value={beauty.skin} onPick={(c) => c && tweak({ skin: c })} /> : null}
@@ -484,6 +514,21 @@ export function Camarim({ theme, mode, msLeft, practiceN = 1, draftKey, exitHref
             {busy ? "..." : missing ? "👗 Escolha uma roupa" : isLive ? (ready ? "✓ PRONTA · aguardando as outras" : saved ? "ESTOU PRONTA" : "ESTOU PRONTA · salvando…") : daily ? "PRONTO · desfilar" : "PRONTO · ver a nota"}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function Chips<T extends string>({ label, options, value, onPick }: { label: string; options: { key: T; label: string }[]; value: T; onPick: (v: T) => void }) {
+  return (
+    <div>
+      <p className="mb-1 text-[10px] font-black uppercase tracking-wide text-amber-200">{label}</p>
+      <div className="flex flex-wrap gap-2">
+        {options.map((o) => (
+          <button key={o.key} type="button" className="vh-chip" data-on={value === o.key} aria-pressed={value === o.key} onClick={() => onPick(o.key)}>
+            {o.label}
+          </button>
+        ))}
       </div>
     </div>
   );

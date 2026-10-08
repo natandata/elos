@@ -42,6 +42,68 @@ function SoftDefs({ uid }: { uid: string }) {
   );
 }
 
+/** Sobrancelhas (lado esquerdo; o direito é o espelho). */
+const BROW_PATH = {
+  afiladas: "M80 53.4 Q87 46.4 98 49 L97.4 50.8 Q88 49.2 81.2 55 Z",
+  grossas: "M79.4 54.8 Q86.6 44.6 98.4 48.2 L97.8 52.2 Q88 49.6 80.8 56.6 Z",
+  arqueadas: "M80 52.6 Q85 44.2 91.4 45.6 Q96.6 46.6 98.4 49.8 L97.4 51.2 Q93 49.4 90 49.4 Q84.6 50 81.2 54.6 Z",
+  retas: "M79.6 52 Q88 48.4 98.2 49.4 L98.2 52 Q88 51 80.4 55.2 Z",
+  finas: "M80.4 53.4 Q87 47.6 98 49.6 L97.8 50.6 Q88 49.4 81.2 54.6 Z",
+} as const;
+
+/** Cílios: naturais (como era), longos ou dramáticos; `s` = lado de fora (-1 esquerdo, +1 direito). */
+function Lashes({ x, s, style }: { x: number; s: number; style: "none" | "natural" | "longos" | "dramaticos" }) {
+  if (style === "none") return null;
+  const n = style === "natural" ? 2 : style === "longos" ? 3 : 4;
+  const len = style === "natural" ? 1 : style === "longos" ? 1.5 : 1.9;
+  const w = style === "dramaticos" ? 1.4 : 1.1;
+  const starts = [8.8, 6.6, 4.2, 1.6];
+  const ys = [61.4, 58.8, 56.8, 55.6];
+  return (
+    <path
+      d={Array.from({ length: n }, (_, i) => `M${x + s * starts[i]} ${ys[i]} q${s * 2.6 * len} ${-0.6 * len} ${s * 3.4 * len} ${-3 * len}`).join(" ")}
+      fill="none"
+      stroke="#150c07"
+      strokeWidth={w}
+      strokeLinecap="round"
+    />
+  );
+}
+
+function Freckles() {
+  const dots: [number, number][] = [[78, 70], [82, 72.5], [86, 70.4], [80, 75], [85, 74.2], [92, 71], [108, 71], [114, 70.4], [118, 72.5], [122, 70], [115, 74.2], [120, 75]];
+  return (
+    <g fill="#a8693a" opacity="0.6">
+      {dots.map(([cx, cy], i) => (
+        <circle key={i} cx={cx} cy={cy} r={0.7 + (i % 3) * 0.12} />
+      ))}
+    </g>
+  );
+}
+
+function GoldDots() {
+  return (
+    <g fill="#f5c518" stroke="#a87a1a" strokeWidth="0.3">
+      {[[78.4, 67], [80.4, 69.6], [82.8, 67.4], [121.6, 67], [119.6, 69.6], [117.2, 67.4]].map(([cx, cy], i) => (
+        <circle key={i} cx={cx} cy={cy} r="0.9" />
+      ))}
+    </g>
+  );
+}
+
+function Glitter() {
+  const star = (cx: number, cy: number, r: number) => `M${cx} ${cy - r} L${cx + r * 0.3} ${cy - r * 0.3} L${cx + r} ${cy} L${cx + r * 0.3} ${cy + r * 0.3} L${cx} ${cy + r} L${cx - r * 0.3} ${cy + r * 0.3} L${cx - r} ${cy} L${cx - r * 0.3} ${cy - r * 0.3} Z`;
+  return (
+    <g fill="#fff6c2" opacity="0.95">
+      <path d={star(80, 69, 2.2)} />
+      <path d={star(84, 72.6, 1.3)} />
+      <path d={star(120, 69, 2.2)} />
+      <path d={star(116, 72.6, 1.3)} />
+      <path d={star(100, 41.5, 1.5)} />
+    </g>
+  );
+}
+
 /** Cabelo atrás do corpo: longo e ondulado, com volume, mechas e brilho. */
 function BackHair({ base, uid }: { base: DollBase; uid: string }) {
   if (base.hair !== "long" && base.hair !== "braids") return null;
@@ -154,7 +216,9 @@ export function PaperDoll({
   const show = (slot: Slot) => !only || only === slot;
   const skin = base.skin;
   const shade = dark(skin, 0.42);
-  const uid = `${skin.slice(1)}${base.hairColor.slice(1)}${(base.lip ?? "").slice(1)}${only ?? "f"}`;
+  const fc = base.face;
+  const eyeC = fc?.eye ?? "#6a3f1c";
+  const uid = `${skin.slice(1)}${base.hairColor.slice(1)}${(base.lip ?? "").slice(1)}${eyeC.slice(1)}${only ?? "f"}`;
   const gid = `bg-${uid}-${bg ? bg[0].slice(1) + bg[1].slice(1) : "x"}`;
   const noTunic = !look.tunic;
   // miniaturas de roupa/calçado/mão não precisam do rosto (deixa a lista de 75 peças leve)
@@ -162,6 +226,9 @@ export function PaperDoll({
   const dressed = !!look.tunic && show("tunic") && look.tunic !== "tunic_leaves" && look.tunic !== "tunic_armor";
   const hairDark = dark(base.hairColor, 0.25);
   const lipTop = base.lip ?? "#d9606d";
+  const browC = fc?.browColor ?? hairDark;
+  const blushC = fc ? fc.blush : "#ff6f6f";
+  const lipStyle = fc?.lipStyle ?? "fosco";
 
   return (
     <svg viewBox={only ? SLOT_VIEWBOX[only] : FULL} className={className} role="img" aria-label={title ?? "Personagem"} xmlns="http://www.w3.org/2000/svg">
@@ -174,13 +241,17 @@ export function PaperDoll({
           <stop offset="1" stopColor={dark(skin, 0.2)} />
         </radialGradient>
         <radialGradient id={`iris-${uid}`} cx="0.5" cy="0.4" r="0.7">
-          <stop offset="0" stopColor="#b07a42" />
-          <stop offset="0.65" stopColor="#6a3f1c" />
-          <stop offset="1" stopColor="#2a160a" />
+          <stop offset="0" stopColor={light(eyeC, 0.3)} />
+          <stop offset="0.65" stopColor={eyeC} />
+          <stop offset="1" stopColor={dark(eyeC, 0.6)} />
         </radialGradient>
         <linearGradient id={`lip-${uid}`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor={lipTop} />
           <stop offset="1" stopColor={dark(lipTop, 0.25)} />
+        </linearGradient>
+        <linearGradient id={`lipb-${uid}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor={lipStyle === "degrade" ? dark(lipTop, 0.12) : lipTop} />
+          <stop offset="1" stopColor={lipStyle === "degrade" ? light(lipTop, 0.45) : lipTop} />
         </linearGradient>
       </defs>
       {bg && !only ? (
@@ -242,8 +313,13 @@ export function PaperDoll({
       <circle cx="124.5" cy="64" r="3.6" fill={skin} stroke={shade} strokeWidth="1" />
       <FrontHair base={base} uid={uid} />
       <ellipse cx="100" cy="46" rx="14" ry="4.5" fill="#fff" opacity="0.2" filter={`url(#bl2-${uid})`} />
-      <ellipse cx="81" cy="73" rx="8" ry="5" fill="#ff6f6f" opacity="0.3" filter={`url(#bl2-${uid})`} />
-      <ellipse cx="119" cy="73" rx="8" ry="5" fill="#ff6f6f" opacity="0.3" filter={`url(#bl2-${uid})`} />
+      {blushC ? (
+        <>
+          <ellipse cx="81" cy="73" rx="8" ry="5" fill={blushC} opacity={fc ? 0.5 : 0.3} filter={`url(#bl2-${uid})`} />
+          <ellipse cx="119" cy="73" rx="8" ry="5" fill={blushC} opacity={fc ? 0.5 : 0.3} filter={`url(#bl2-${uid})`} />
+        </>
+      ) : null}
+      {fc?.marks.includes("sardas") ? <Freckles /> : null}
       <ellipse cx="100" cy="86" rx="9" ry="3.2" fill="#000" opacity="0.1" filter={`url(#bl1-${uid})`} />
 
       {/* olhos */}
@@ -266,23 +342,29 @@ export function PaperDoll({
               <path d={`M${x - 10} 57 Q${x} 51 ${x + 10} 57 L${x + 10} 52 L${x - 10} 52 Z`} fill="#000" opacity="0.18" />
             </g>
             {base.shadow ? <path d={`M${x - 10} 61.5 Q${x} 49.5 ${x + 10} 61.5 Q${x} 54.5 ${x - 10} 61.5 Z`} fill={base.shadow} opacity="0.62" /> : null}
-            <path d={`M${x - 9.4} 62.5 Q${x} 52.6 ${x + 9.4} 62.5`} fill="none" stroke="#150c07" strokeWidth="2" strokeLinecap="round" />
-            <path d={`M${x + s * 8.8} 61.4 q${s * 2.6} -0.6 ${s * 3.4} -3 M${x + s * 6.6} 58.8 q${s * 2.2} -1 ${s * 2.8} -3.2`} fill="none" stroke="#150c07" strokeWidth="1.1" strokeLinecap="round" />
+            <path d={`M${x - 9.4} 62.5 Q${x} 52.6 ${x + 9.4} 62.5`} fill="none" stroke={fc && fc.liner !== "none" ? fc.linerColor : "#150c07"} strokeWidth={fc?.liner === "grosso" ? 3.4 : fc?.liner === "fino" ? 2.4 : fc?.liner === "gatinho" ? 2.6 : 2} strokeLinecap="round" />
+            {fc?.liner === "gatinho" ? <path d={`M${x + s * 9.2} 62.2 L${x + s * 14.4} 57.6 L${x + s * 11} 63.6 Z`} fill={fc.linerColor} /> : null}
+            {fc?.liner === "grosso" ? <path d={`M${x - 8} 63.4 Q${x} 68.6 ${x + 8} 63.4`} fill="none" stroke={fc.linerColor} strokeWidth="1.5" strokeLinecap="round" opacity="0.9" /> : null}
+            <Lashes x={x} s={s} style={fc?.lashes ?? "natural"} />
             <path d={`M${x - 7} 55.2 Q${x} 51.4 ${x + 7} 55.2`} fill="none" stroke={shade} strokeWidth="0.7" opacity="0.35" />
           </g>
         );
       })}
       {/* sobrancelhas afiladas */}
-      <path d="M80 53.4 Q87 46.4 98 49 L97.4 50.8 Q88 49.2 81.2 55 Z" fill={hairDark} />
-      <path d="M120 53.4 Q113 46.4 102 49 L102.6 50.8 Q112 49.2 118.8 55 Z" fill={hairDark} />
+      <path d={BROW_PATH[fc?.brows ?? "afiladas"]} fill={browC} />
+      <path d={BROW_PATH[fc?.brows ?? "afiladas"]} fill={browC} transform="translate(200 0) scale(-1 1)" />
       {/* nariz */}
       <ellipse cx="101.4" cy="70.4" rx="2" ry="3.4" fill="#000" opacity="0.1" filter={`url(#bl1-${uid})`} />
       <path d="M98.4 71.8 Q100 74 102.4 72.4" fill="none" stroke={shade} strokeWidth="1" strokeLinecap="round" opacity="0.8" />
       <circle cx="99.8" cy="67" r="1.4" fill="#fff" opacity="0.3" />
       {/* boca */}
       <path d="M92 79.6 Q96 76.6 100 78 Q104 76.6 108 79.6 Q100 81.6 92 79.6 Z" fill={`url(#lip-${uid})`} stroke="#8a2f3a" strokeWidth="0.7" strokeLinejoin="round" />
-      <path d="M92.4 80 Q100 88.2 107.6 80 Q100 82.4 92.4 80 Z" fill={lipTop} stroke="#8a2f3a" strokeWidth="0.7" strokeLinejoin="round" />
-      <ellipse cx="100" cy="83.6" rx="2.6" ry="0.9" fill="#fff" opacity="0.55" />
+      <path d="M92.4 80 Q100 88.2 107.6 80 Q100 82.4 92.4 80 Z" fill={`url(#lipb-${uid})`} stroke="#8a2f3a" strokeWidth="0.7" strokeLinejoin="round" />
+      <ellipse cx="100" cy="83.6" rx={lipStyle === "gloss" ? 3.6 : 2.6} ry={lipStyle === "gloss" ? 1.3 : 0.9} fill="#fff" opacity={lipStyle === "gloss" ? 0.85 : 0.55} />
+      {lipStyle === "gloss" ? <path d="M95 78.6 Q98 77.4 100 78.2" fill="none" stroke="#fff" strokeWidth="1" strokeLinecap="round" opacity="0.8" /> : null}
+      {fc?.marks.includes("pinta") ? <circle cx="107.6" cy="76.4" r="0.95" fill="#3a2012" /> : null}
+      {fc?.marks.includes("pontos") ? <GoldDots /> : null}
+      {fc?.marks.includes("brilho") ? <Glitter /> : null}
 
         </>
       ) : null}
