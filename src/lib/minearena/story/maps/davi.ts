@@ -1,4 +1,4 @@
-// Mapas da Fase 6 (Davi): o vale de Elá (Davi e Golias), En-Gedi e Hiquilá (Davi e Saul) e Hebrom/Jerusalém (Davi, Rei).
+// Mapas da Fase 6 (Davi): o vale de Elá (Davi e Golias), En-Gedi e Haquilá (Davi e Saul) e Hebrom/Jerusalém (Davi, Rei).
 import { B } from "../../blocks/blocks";
 import { fbm2 } from "../../world/noise";
 import type { StoryMapDef } from "../types";
@@ -77,12 +77,12 @@ const ela: MapSpec = {
 };
 export const ELA_MAP: StoryMapDef = makeMap(ela);
 
-// ============================================================ DAVI E SAUL (En-Gedi e Hiquilá)
+// ============================================================ DAVI E SAUL (En-Gedi e Haquilá)
 export const ENGEDI = { caverna: { x: 96, z: 86 }, fundo: { x: 96, z: 52 }, colina: { x: 96, z: 108 }, hakila: { x: 160, z: 100 }, morro: { x: 126, z: 60 }, davi: { x: 28, z: 104 } };
 
 const engedi: MapSpec = {
   id: "engedi",
-  name: "O deserto de En-Gedi e o monte de Hiquilá",
+  name: "O deserto de En-Gedi e o monte de Haquilá",
   w: 200,
   d: 130,
   seed: 22222,
@@ -140,7 +140,7 @@ const engedi: MapSpec = {
     for (let z = cz + 6; z <= cz + 24; z += 6) for (const dx of [-2, 2]) c.set(cx + dx, 27, z, B.torch);
     c.set(cx - 3, 27, cz + 1, B.torch);
     c.set(cx + 3, 27, cz + 1, B.torch);
-    // o acampamento de Saul em Hiquilá: tendas em círculo, a lança fincada junto à cabeça do rei
+    // o acampamento de Saul em Haquilá: tendas em círculo, a lança fincada junto à cabeça do rei
     const hx = ENGEDI.hakila.x;
     const hz = ENGEDI.hakila.z;
     for (const [dx, dz] of [[-14, -10], [10, -12], [-16, 10], [14, 8], [0, -16], [0, 18]]) tent(c, hx + dx, groundOf(engedi, hx + dx, hz + dz), hz + dz);

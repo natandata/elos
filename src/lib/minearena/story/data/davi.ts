@@ -1,4 +1,4 @@
-// Fase 6 (Davi): Davi e Golias, Davi e Saul (En-Gedi e Hiquilá) e Davi, Rei. Textos adaptados da Bíblia (ARA como base), sempre com a referência.
+// Fase 6 (Davi): Davi e Golias, Davi e Saul (En-Gedi e Haquilá) e Davi, Rei. Textos adaptados da Bíblia (ARA como base), sempre com a referência.
 import type { CutStep, Cutscene, Dialogue, LearnCard, Mission, Vec3 } from "../types";
 
 const say = (who: string, text: string, ref?: string): CutStep => ({ t: "say", who, text, ref });
@@ -119,7 +119,7 @@ export const DAVI_MISSIONS: Mission[] = [
     id: "ds_5",
     chapter: "davi_saul",
     title: "A lança e o cantil",
-    desc: "Uma noite no acampamento de Saul, em Hiquilá.",
+    desc: "Uma noite no acampamento de Saul, em Haquilá.",
     ref: "1 Samuel 26:1–12",
     npc: "saul",
     onStart: "ds_hakila",
@@ -129,7 +129,7 @@ export const DAVI_MISSIONS: Mission[] = [
       ...soldados(8, 152, 95, "dormindo", "d"),
     ],
     objectives: [
-      { k: "reach", zone: "acampamento", text: "Entre no acampamento de Saul, em Hiquilá: todos dormem profundamente." },
+      { k: "reach", zone: "acampamento", text: "Entre no acampamento de Saul, em Haquilá: todos dormem profundamente." },
       { k: "reach", zone: "cabeceira", text: "Chegue até a cabeceira do rei, onde estão a lança e o cantil." },
     ],
     onComplete: "ds_spear",
@@ -457,12 +457,12 @@ export const DAVI_CUTSCENES: Record<string, Cutscene> = {
     steps: [
       { t: "bars", on: true },
       { t: "call", fn: "holdCamera" },
-      fade(1, 1.5, "Algum tempo depois, no monte de Hiquilá…"),
+      fade(1, 1.5, "Algum tempo depois, no monte de Haquilá…"),
       night,
       tp(128, 100, -Math.PI / 2),
       at(v(134, 34, 112), v(160, 27, 100)),
       fade(0, 2),
-      say("Narrador", "Os zifeus foram a Saul, em Gibeá, e lhe disseram que Davi estava escondido no monte de Hiquilá. Saul desceu ao deserto de Zife, com três mil homens escolhidos, e acampou no caminho, em Hiquilá.", "1 Samuel 26:1–3"),
+      say("Narrador", "Os zifeus foram a Saul, em Gibeá, e lhe disseram que Davi estava escondido no monte de Haquilá. Saul desceu ao deserto de Zife, com três mil homens escolhidos, e acampou no caminho, em Haquilá.", "1 Samuel 26:1–3"),
       say("Narrador", "Davi e Abisai chegaram de noite ao arraial, e eis que Saul estava deitado, dormindo, no meio do acampamento, com a lança fincada na terra à sua cabeceira; Abner e o povo estavam deitados ao redor dele.", "1 Samuel 26:5,7"),
       say("Narrador", "Ninguém os viu, ninguém o percebeu, ninguém acordou; todos dormiam, porque do Senhor tinha caído sobre eles um profundo sono.", "1 Samuel 26:12"),
       cam(v(140, 31, 106), v(150, 27, 100), 3),
@@ -640,7 +640,7 @@ export const DAVI_LEARN: Record<string, LearnCard> = {
   },
   davi_saul: {
     title: "DAVI E SAUL",
-    what: "Saul perseguia Davi, que fugia pelo deserto. Em En-Gedi, Saul entrou sozinho numa caverna onde Davi e seus homens estavam escondidos. Davi cortou a orla do manto do rei, mas não quis matá-lo, porque Saul era o ungido do Senhor. Do lado de fora, mostrou o pedaço do manto e Saul chorou. Mais tarde, em Hiquilá, Davi e Abisai entraram à noite no acampamento e levaram a lança e o cantil da cabeceira de Saul, e de novo Davi poupou o rei. Davi confiou que o Senhor faria justiça.",
+    what: "Saul perseguia Davi, que fugia pelo deserto. Em En-Gedi, Saul entrou sozinho numa caverna onde Davi e seus homens estavam escondidos. Davi cortou a orla do manto do rei, mas não quis matá-lo, porque Saul era o ungido do Senhor. Do lado de fora, mostrou o pedaço do manto e Saul chorou. Mais tarde, em Haquilá, Davi e Abisai entraram à noite no acampamento e levaram a lança e o cantil da cabeceira de Saul, e de novo Davi poupou o rei. Davi confiou que o Senhor faria justiça.",
     book: "1 Samuel",
     ref: "1 Samuel 24 e 26",
     characters: ["Davi", "Saul", "Abisai", "Abner", "Deus"],

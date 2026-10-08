@@ -358,7 +358,7 @@ export const PUZZLES: Record<string, PuzzleDef> = Object.fromEntries([
     title: "O cadeado de En-Gedi",
     intro: "Um cadeado de três dígitos guarda os números das duas vezes em que Davi poupou Saul. Procure nos capítulos 24 e 26 de 1 Samuel.",
     refs: ["1 Samuel 24:2", "1 Samuel 26:6–7"],
-    hints: ["1 Samuel 24:2 diz quantos milhares de homens escolhidos Saul levou.", "Quem desceu ao acampamento de Saul de noite foi Davi e mais um: quantos homens, ao todo?", "Contando En-Gedi e Hiquilá, quantas vezes Davi poupou a vida de Saul?"],
+    hints: ["1 Samuel 24:2 diz quantos milhares de homens escolhidos Saul levou.", "Quem desceu ao acampamento de Saul de noite foi Davi e mais um: quantos homens, ao todo?", "Contando En-Gedi e Haquilá, quantas vezes Davi poupou a vida de Saul?"],
     clues: ["Saul tomou quantos milhares de homens escolhidos para procurar Davi?", "Quantos homens desceram de noite ao acampamento de Saul (Davi e Abisai)?", "Quantas vezes, nestes dois relatos, Davi poupou a vida do rei?"],
     answer: "322",
   }),
