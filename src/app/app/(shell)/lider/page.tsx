@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { ArenaLaunchCard } from "@/components/games/ArenaLaunchCard";
 import { EbdAnnouncement } from "@/components/games/EbdAnnouncement";
+import { DevotionalSuggestionCard } from "@/components/devotional/DevotionalSuggestionCard";
+import { BirthdayCard } from "@/components/BirthdayCard";
 import { DailyPraiseSection } from "@/components/praise/DailyPraiseSection";
 import { Card, EmptyState, PageHeader, StatCard } from "@/components/ui";
 import { Avatar } from "@/components/Avatar";
@@ -227,6 +229,8 @@ export default async function LiderDashboard() {
 
       <WeeklyPushNudge eligible={showPushNudge} />
 
+      <BirthdayCard meId={profile.id} />
+      <DevotionalSuggestionCard />
       <DailyPraiseSection meId={profile.id} />
 
       <EbdAnnouncement />

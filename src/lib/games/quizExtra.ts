@@ -1,4 +1,4 @@
-// Perguntas extras do Quiz Bíblico (Bíblia protestante, ARA). Entram no FIM da lista (content.ts) para não
+// Perguntas extras do Quiz Bíblico (Bíblia protestante, NVI). Entram no FIM da lista (content.ts) para não
 // mudar as partidas antigas. d: 1 = fácil, 2 = médio, 3 = difícil.
 import type { QuizItem } from "./content";
 

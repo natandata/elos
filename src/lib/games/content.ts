@@ -1,6 +1,6 @@
 // Conteúdo dos jogos bíblicos. Só roda no servidor: as respostas certas nunca
 // vão para o navegador antes de o jogador responder (ver engine.ts).
-// Textos de versículos seguem a Almeida Revista e Atualizada (ARA).
+// Textos de versículos seguem a Nova Versão Internacional (NVI).
 // As listas "extra" (quizExtra, versesExtra, whoExtra, orderExtra) entram sempre no FIM, para não mudar partidas antigas.
 import { QUIZ_EXTRA } from "./quizExtra";
 import { VERSES_EXTRA } from "./versesExtra";
@@ -85,27 +85,27 @@ export const QUIZ: QuizItem[] = [...QUIZ_BASE, ...QUIZ_EXTRA];
 export type VerseItem = { ref: string; before: string; after: string; a: string; w: [string, string, string]; d: Level };
 
 const VERSES_BASE: VerseItem[] = [
-  { ref: "João 3:16", before: "Porque Deus", after: "ao mundo de tal maneira que deu o seu Filho unigênito, para que todo o que nele crê não pereça, mas tenha a vida eterna.", a: "amou", w: ["temeu", "chamou", "criou"], d: 1 },
-  { ref: "Salmos 23:1", before: "O Senhor é o meu", after: "; nada me faltará.", a: "pastor", w: ["rei", "refúgio", "escudo"], d: 1 },
-  { ref: "Filipenses 4:13", before: "Posso todas as coisas naquele que me", after: ".", a: "fortalece", w: ["ensina", "guia", "ama"], d: 1 },
-  { ref: "Provérbios 3:5", before: "Confia no Senhor de todo o teu", after: "e não te estribes no teu próprio entendimento.", a: "coração", w: ["tempo", "pensamento", "caminho"], d: 2 },
-  { ref: "Josué 1:9", before: "Não to mandei eu? Sê forte e", after: "; não temas, nem te espantes, porque o Senhor, teu Deus, é contigo por onde quer que andares.", a: "corajoso", w: ["sábio", "paciente", "humilde"], d: 2 },
-  { ref: "Romanos 8:28", before: "Sabemos que todas as coisas cooperam para o", after: "daqueles que amam a Deus, daqueles que são chamados segundo o seu propósito.", a: "bem", w: ["mal", "tempo", "caminho"], d: 2 },
-  { ref: "Isaías 41:10", before: "Não temas, porque eu sou contigo; não te assombres, porque eu sou o teu Deus; eu te fortaleço, e te", after: ", e te sustento com a destra da minha justiça.", a: "ajudo", w: ["guardo", "visito", "consolo"], d: 3 },
-  { ref: "Mateus 11:28", before: "Vinde a mim, todos os que estais cansados e sobrecarregados, e eu vos", after: ".", a: "aliviarei", w: ["ensinarei", "guardarei", "curarei"], d: 2 },
-  { ref: "Salmos 119:105", before: "", after: "para os meus pés é a tua palavra e luz para o meu caminho.", a: "Lâmpada", w: ["Espada", "Escudo", "Cajado"], d: 1 },
-  { ref: "1 Timóteo 4:12", before: "Ninguém despreze a tua", after: "; mas sê padrão dos fiéis, na palavra, no procedimento, no amor, no espírito, na fé, na pureza.", a: "mocidade", w: ["pobreza", "coragem", "presença"], d: 2 },
-  { ref: "Jeremias 29:11", before: "Porque eu bem sei os pensamentos que tenho a vosso respeito, diz o Senhor; pensamentos de", after: "e não de mal, para vos dar o fim que esperais.", a: "paz", w: ["guerra", "glória", "poder"], d: 2 },
-  { ref: "Salmos 46:1", before: "Deus é o nosso", after: "e fortaleza, socorro bem presente na angústia.", a: "refúgio", w: ["pastor", "escudo", "rei"], d: 3 },
-  { ref: "Mateus 6:33", before: "Buscai, pois, em primeiro lugar, o seu", after: "e a sua justiça, e todas estas coisas vos serão acrescentadas.", a: "reino", w: ["templo", "povo", "caminho"], d: 2 },
-  { ref: "Salmos 119:11", before: "Guardo no", after: "as tuas palavras, para não pecar contra ti.", a: "coração", w: ["livro", "altar", "caderno"], d: 3 },
-  { ref: "1 Coríntios 13:13", before: "Agora, pois, permanecem a fé, a esperança, o amor, estes três, mas o", after: "destes é o amor.", a: "maior", w: ["menor", "primeiro", "último"], d: 2 },
-  { ref: "Mateus 28:20", before: "E eis que estou", after: "todos os dias até à consumação do século.", a: "convosco", w: ["diante", "longe", "atrás"], d: 3 },
+  { ref: "João 3:16", before: "Pois Deus", after: "o mundo de tal maneira que deu o seu Filho Unigênito, para que todo o que nele crer não pereça, mas tenha a vida eterna.", a: "amou", w: ["temeu", "chamou", "criou"], d: 1 },
+  { ref: "Salmos 23:1", before: "O Senhor é o meu", after: "; de nada terei falta.", a: "pastor", w: ["rei", "refúgio", "escudo"], d: 1 },
+  { ref: "Filipenses 4:13", before: "Tudo posso naquele que me", after: ".", a: "fortalece", w: ["ensina", "guia", "ama"], d: 1 },
+  { ref: "Provérbios 3:5", before: "Confie no Senhor de todo o seu", after: "e não se apoie em seu próprio entendimento.", a: "coração", w: ["tempo", "pensamento", "caminho"], d: 2 },
+  { ref: "Josué 1:9", before: "Não fui eu que ordenei a você? Seja forte e", after: "! Não se apavore nem desanime, pois o Senhor, o seu Deus, estará com você por onde você andar.", a: "corajoso", w: ["sábio", "paciente", "humilde"], d: 2 },
+  { ref: "Romanos 8:28", before: "Sabemos que Deus age em todas as coisas para o", after: "daqueles que o amam, dos que foram chamados de acordo com o seu propósito.", a: "bem", w: ["mal", "tempo", "caminho"], d: 2 },
+  { ref: "Isaías 41:10", before: "Não tema, pois estou com você; não tenha medo, pois sou o seu Deus. Eu o fortalecerei e o", after: "; eu o segurarei com a minha mão direita vitoriosa.", a: "ajudarei", w: ["guardarei", "visitarei", "consolarei"], d: 3 },
+  { ref: "Mateus 11:28", before: "Venham a mim, todos os que estão cansados e sobrecarregados, e eu darei", after: "a vocês.", a: "descanso", w: ["alegria", "pressa", "vitória"], d: 2 },
+  { ref: "Salmos 119:105", before: "A tua palavra é", after: "para os meus pés e luz para o meu caminho.", a: "lâmpada", w: ["espada", "escudo", "cajado"], d: 1 },
+  { ref: "1 Timóteo 4:12", before: "Ninguém o menospreze pelo fato de você ser", after: "; mas seja um exemplo para os fiéis na palavra, no procedimento, no amor, na fé e na pureza.", a: "jovem", w: ["pobre", "fraco", "calado"], d: 2 },
+  { ref: "Jeremias 29:11", before: "Pois eu bem sei os planos que tenho para vocês, diz o Senhor, planos de fazê-los prosperar e não de causar dano, planos de dar a vocês esperança e um", after: ".", a: "futuro", w: ["lar", "reino", "descanso"], d: 2 },
+  { ref: "Salmos 46:1", before: "Deus é o nosso refúgio e a nossa", after: ", auxílio sempre presente na adversidade.", a: "fortaleza", w: ["torre", "casa", "muralha"], d: 3 },
+  { ref: "Mateus 6:33", before: "Busquem, pois, em primeiro lugar o", after: "de Deus e a sua justiça, e todas essas coisas lhes serão acrescentadas.", a: "Reino", w: ["Templo", "Povo", "Caminho"], d: 2 },
+  { ref: "Salmos 119:11", before: "Guardo no", after: "a tua palavra para não pecar contra ti.", a: "coração", w: ["livro", "altar", "caderno"], d: 3 },
+  { ref: "1 Coríntios 13:13", before: "Assim, permanecem a fé, a esperança e o amor, estes três. O", after: "deles, porém, é o amor.", a: "maior", w: ["menor", "primeiro", "último"], d: 2 },
+  { ref: "Mateus 28:20", before: "E eu estarei sempre com vocês, até o", after: "dos tempos.", a: "fim", w: ["começo", "meio", "segundo"], d: 3 },
   { ref: "Salmos 27:1", before: "O Senhor é a minha", after: "e a minha salvação; de quem terei temor?", a: "luz", w: ["voz", "sombra", "paz"], d: 1 },
-  { ref: "Provérbios 22:6", before: "Ensina a criança no", after: "em que deve andar, e, ainda quando for velho, não se desviará dele.", a: "caminho", w: ["tempo", "livro", "lar"], d: 2 },
-  { ref: "Eclesiastes 3:1", before: "Para tudo há uma", after: ", e tempo para cada propósito debaixo do céu.", a: "ocasião", w: ["pressa", "festa", "palavra"], d: 3 },
-  { ref: "Tiago 4:7", before: "Sujeitai-vos, pois, a Deus; resisti ao diabo, e ele", after: "de vós.", a: "fugirá", w: ["dormirá", "voltará", "falará"], d: 3 },
-  { ref: "Hebreus 11:1", before: "Ora, a fé é a", after: "de coisas que se esperam, a convicção de fatos que se não veem.", a: "certeza", w: ["dúvida", "história", "lembrança"], d: 3 },
+  { ref: "Provérbios 22:6", before: "Instrua a", after: "segundo os objetivos que você tem para ela, e mesmo com o passar dos anos não se desviará deles.", a: "criança", w: ["jovem", "pessoa", "família"], d: 2 },
+  { ref: "Filipenses 4:7", before: "E a", after: "de Deus, que excede todo o entendimento, guardará o coração e a mente de vocês em Cristo Jesus.", a: "paz", w: ["glória", "força", "luz"], d: 3 },
+  { ref: "Tiago 4:7", before: "Submetam-se, pois, a Deus. Resistam ao diabo, e ele", after: "de vocês.", a: "fugirá", w: ["dormirá", "voltará", "falará"], d: 3 },
+  { ref: "Hebreus 11:1", before: "Ora, a fé é a", after: "daquilo que esperamos e a prova das coisas que não vemos.", a: "certeza", w: ["dúvida", "história", "lembrança"], d: 3 },
 ];
 
 export const VERSES: VerseItem[] = [...VERSES_BASE, ...VERSES_EXTRA];

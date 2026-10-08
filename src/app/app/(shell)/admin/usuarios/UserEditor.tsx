@@ -7,6 +7,7 @@ import { startViewAs } from "@/lib/actions/viewAs";
 import { SendEmailForm } from "./SendEmailForm";
 import { Feedback, SubmitBtn } from "@/components/forms";
 import { Avatar } from "@/components/Avatar";
+import { daysUntilBirthday, formatBirth, untilLabel } from "@/lib/birthday";
 import {
   AGE_RANGE_LABEL,
   GENDER_LABEL,
@@ -36,6 +37,7 @@ type Row = {
   email: string | null;
   created_at: string;
   is_test_account: boolean;
+  birth_date: string | null;
 };
 
 type Presence = { online: boolean; screen: string } | null;
@@ -124,6 +126,11 @@ export function UserEditor({
           <p className="truncate text-xs text-[var(--muted)]">
             {signupNumber ? `${signupNumber}º cadastro · ` : ""}
             cadastrado em {formatDateTime(user.created_at)}
+          </p>
+          <p className="truncate text-xs font-semibold text-[var(--muted)]">
+            {user.birth_date
+              ? `🎂 ${formatBirth(user.birth_date)} · aniversário ${untilLabel(daysUntilBirthday(user.birth_date))}`
+              : "🎂 data de nascimento ainda não informada"}
           </p>
           </div>
         </Link>

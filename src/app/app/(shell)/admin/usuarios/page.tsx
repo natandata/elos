@@ -37,7 +37,7 @@ export default async function UsuariosPage({
   let query = supabase
     .from("profiles")
     .select(
-      "id, full_name, first_name, last_name, avatar_url, role, approved, gender, age_range, elo_id, xp, created_at, is_test_account",
+      "id, full_name, first_name, last_name, avatar_url, role, approved, gender, age_range, elo_id, xp, created_at, is_test_account, birth_date",
     )
     .order(bySignup ? "created_at" : "full_name", { ascending: !bySignup });
 
@@ -69,6 +69,7 @@ export default async function UsuariosPage({
     xp: number;
     created_at: string;
     is_test_account: boolean;
+    birth_date: string | null;
   }[];
 
   // Número da ordem de cadastro é sempre sobre TODO MUNDO, não só o que os
