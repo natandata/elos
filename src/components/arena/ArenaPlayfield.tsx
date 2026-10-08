@@ -6,7 +6,8 @@ import { ARENAS, type ArenaTheme } from "@/lib/arena/arenas";
 import { CAMPAIGN_CARDS, CAMPAIGN_COMBOS, activeCombos, inCombo, type Combo } from "@/lib/arena/campaignCards";
 import { drawLimbs } from "./arenaLimbs";
 import { CardArt } from "./CardArt";
-import { TEAM, buildBackground, drawTower, layoutFor, type Layout } from "./arenaRender";
+import { TEAM, buildAmbient, buildBackground, drawAmbient, drawRubble, drawTower, layoutFor, type Ambient, type Layout } from "./arenaRender";
+import { loadCampo } from "./arenaAssets";
 import { applyEvent, drawFx, newAnim, type Anim, type Fx } from "./arenaFx";
 import { ArenaSound, readMuted } from "./arenaSound";
 import { suspendMusic } from "./arenaMusicEngine";
@@ -153,6 +154,7 @@ export function ArenaPlayfield({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const areaRef = useRef<HTMLDivElement | null>(null);
   const bgRef = useRef<HTMLCanvasElement | null>(null);
+  const ambRef = useRef<Ambient | null>(null);
   const layoutRef = useRef<Layout | null>(null);
   const dprRef = useRef(1);
   const fxRef = useRef<Fx[]>([]);
@@ -208,7 +210,20 @@ export function ArenaPlayfield({
     canvas.height = Math.round(l.ch * dpr);
     layoutRef.current = l;
     dprRef.current = dpr;
-    bgRef.current = buildBackground(l, dpr, driverRef.current.campaign?.theme ?? ARENAS[driverRef.current.arena]?.theme, driverRef.current.campaign?.scenery ?? ARENAS[driverRef.current.arena]?.key);
+    const build = () => {
+      const theme = driverRef.current.campaign?.theme ?? ARENAS[driverRef.current.arena]?.theme ?? ARENAS[0].theme;
+      try {
+        bgRef.current = buildBackground(l, dpr, theme, driverRef.current.campaign?.scenery ?? ARENAS[driverRef.current.arena]?.key);
+        ambRef.current = buildAmbient(l, theme);
+      } catch (err) {
+        console.error("arena background", err);
+      }
+    };
+    build();
+    // os sprites do campo (torres, árvores, ponte...) chegam depois: refaz o fundo quando prontos, sem piscar
+    void loadCampo().then(() => {
+      if (layoutRef.current === l) build();
+    });
   }, []);
 
   // ------------------------------------------------------------ desenho
@@ -228,6 +243,7 @@ export function ArenaPlayfield({
       ctx.setTransform(dprRef.current, 0, 0, dprRef.current, 0, 0);
       ctx.clearRect(0, 0, l.cw, l.ch);
       ctx.drawImage(bg, 0, 0, l.cw, l.ch);
+      if (ambRef.current) drawAmbient(ctx, ambRef.current, tickF);
       ctx.save();
       const sh = shakeRef.current;
       const left = sh.until - tickF;
@@ -262,6 +278,9 @@ export function ArenaPlayfield({
           }
         }
       }
+
+      // escombros das torres que já caíram
+      drawRubble(ctx, s, game.entities, tickF);
 
       // entidades já no ponto de vista de quem joga
       const view = (e: Entity): Entity =>
