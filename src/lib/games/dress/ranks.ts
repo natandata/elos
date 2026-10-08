@@ -1,10 +1,11 @@
 // Títulos por Bilhetes Dourados (só rótulo, não bloqueia nada). Client-safe.
 export const TICKET_TITLES = [
-  { min: 0, title: "Aprendiz" },
-  { min: 50, title: "Costureiro" },
-  { min: 150, title: "Estilista" },
-  { min: 400, title: "Alta-Costura" },
-  { min: 1000, title: "Lenda da Passarela" },
+  { min: 0, title: "Peregrina" },
+  { min: 50, title: "Pastora" },
+  { min: 150, title: "Escriba" },
+  { min: 400, title: "Discípula" },
+  { min: 800, title: "Mestra das Vestes" },
+  { min: 1500, title: "Conhecedora das Escrituras" },
 ] as const;
 
 export function ticketTitle(tickets: number): { title: string; next: { min: number; title: string } | null } {

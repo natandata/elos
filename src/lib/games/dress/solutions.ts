@@ -219,3 +219,70 @@ export const SOLUTIONS: Record<string, Solution> = {
     hand: { ideal: "hand_sheaf", ok: ["hand_pitcher"], note: "Levou “duzentos pães, dois odres de vinho... e cinco medidas de grão torrado” (1 Samuel 25:18)." },
   },
 };
+
+// Temas de histórias, lugares e estéticas (themes.ts). Mesmo formato dos personagens.
+Object.assign(SOLUTIONS, {
+  mulher_virtuosa: {
+    head: { ideal: "head_none", ok: ["head_scarf", "head_veil"], note: "O texto não descreve nada na cabeça dela." },
+    tunic: { ideal: "tunic_linen", ok: ["embroidered__lilas", "embroidered__creme"], note: "“Veste-se de linho fino e de púrpura” (Provérbios 31:22)." },
+    mantle: { ideal: "mantle_belt", ok: ["mantle_sash"], note: "“Cinge os lombos de força” (Provérbios 31:17): um cinto para o trabalho." },
+    shoes: { ideal: "shoes_sandals", ok: ["shoes_none"], note: "Sandálias simples de quem trabalha." },
+    hand: { ideal: "basket__marrom", ok: ["hand_pitcher", "hand_sheaf"], note: "“Com as mãos trabalha de boa vontade”: cestas, fios e provisões." },
+  },
+  pastora_ovelhas: {
+    head: { ideal: "head_scarf", ok: ["head_none"], note: "Pano na cabeça contra o sol do pasto." },
+    tunic: { ideal: "tunic_simple", ok: ["tunic_skins"], note: "Roupa simples e resistente para o campo." },
+    mantle: { ideal: "mantle_striped", ok: ["mantle_belt", "mantle_sheep"], note: "Mantos de lã listrados eram comuns entre pastores." },
+    shoes: { ideal: "shoes_sandals", ok: ["shoes_none"], note: "Sandálias para andar pelas colinas." },
+    hand: { ideal: "hand_staff", ok: ["hand_sling"], note: "O cajado guiava e defendia o rebanho (Salmo 23:4)." },
+  },
+  viajante_deserto: {
+    head: { ideal: "head_scarf", ok: ["head_turban", "head_veil"], note: "Pano na cabeça protege do sol e da areia." },
+    tunic: { ideal: "tunic_simple", ok: ["dress__ocre", "dress__areia"], note: "Roupa leve em cores de areia." },
+    mantle: { ideal: "mantle_striped", ok: ["mantle_white", "cape__creme"], note: "Um manto de lã contra o frio da noite no deserto." },
+    shoes: { ideal: "shoes_sandals", ok: ["shoes_boots"], note: "Calçado firme para longas caminhadas." },
+    hand: { ideal: "hand_staff", ok: ["hand_pitcher"], note: "Cajado para caminhar e um cântaro para a água." },
+  },
+  pesca_galileia: {
+    head: { ideal: "head_scarf", ok: ["head_none"], note: "Um pano contra o sol do lago." },
+    tunic: { ideal: "tunic_simple", ok: ["dress__areia"], note: "Pescadores usavam túnicas curtas e simples para trabalhar." },
+    mantle: { ideal: "mantle_belt", ok: ["mantle_none"], note: "Um cinto para prender a túnica durante o trabalho." },
+    shoes: { ideal: "shoes_none", ok: ["shoes_sandals"], note: "No barco e na margem, muitos iam descalços." },
+    hand: { ideal: "basket__marrom", ok: ["hand_none"], note: "Cestas guardavam os peixes (a rede ainda não está no jogo)." },
+  },
+  princesa_israel: {
+    head: { ideal: "head_diadem", ok: ["head_veil", "tiara__dourado"], note: "Uma filha do rei se distinguia pelos adornos." },
+    tunic: { ideal: "tunic_colors", ok: ["patchwork__1", "patchwork__2", "embroidered__carmim"], note: "“Uma túnica de mangas compridas, pois assim se vestiam as filhas virgens do rei” (2 Samuel 13:18)." },
+    mantle: { ideal: "mantle_collar", ok: ["necklace__1", "necklace__6"], note: "Colares e joias eram sinais de realeza." },
+    shoes: { ideal: "shoes_sandals", ok: ["gladiator__dourado"], note: "A Bíblia não descreve o calçado." },
+    hand: { ideal: "hand_none", ok: ["hand_olive"], note: "Nada especial na mão." },
+  },
+  peregrina_jerusalem: {
+    head: { ideal: "head_veil", ok: ["head_scarf"], note: "Mulheres cobriam a cabeça para subir ao templo." },
+    tunic: { ideal: "tunic_linen", ok: ["tunic_simple", "embroidered__branco"], note: "Roupa digna para a festa." },
+    mantle: { ideal: "shawl__creme", ok: ["shawl__branco", "mantle_white"], note: "Um xale para o frio do caminho." },
+    shoes: { ideal: "shoes_sandals", ok: ["shoes_none"], note: "Sandálias de longa caminhada." },
+    hand: { ideal: "hand_staff", ok: ["hand_scroll"], note: "Cajado de peregrino; a viagem a pé podia durar dias." },
+  },
+  mercadora_jerusalem: {
+    head: { ideal: "head_scarf", ok: ["head_veil"], note: "Pano na cabeça para o dia inteiro ao ar livre." },
+    tunic: { ideal: "tunic_simple", ok: ["dress__ocre", "dress__terracota"], note: "Roupa prática para trabalhar e vender." },
+    mantle: { ideal: "mantle_belt", ok: ["mantle_sash"], note: "Cinto para prender a túnica e a bolsa." },
+    shoes: { ideal: "shoes_sandals", ok: ["sandals__marrom"], note: "Sandálias firmes para o calçamento." },
+    hand: { ideal: "basket__marrom", ok: ["hand_pitcher"], note: "Cestas e jarros guardavam as mercadorias." },
+  },
+  festa_israel: {
+    head: { ideal: "flowers__rosa", ok: ["flowers__branco", "head_veil"], note: "Enfeites de flores marcavam as festas." },
+    tunic: { ideal: "embroidered__azul", ok: ["embroidered__carmim", "tunic_colors"], note: "Roupa colorida e bordada para celebrar." },
+    mantle: { ideal: "mantle_sash", ok: ["sash__dourado", "mantle_collar"], note: "Faixas e colares alegravam o traje de festa." },
+    shoes: { ideal: "gladiator__dourado", ok: ["shoes_sandals"], note: "Sandálias enfeitadas para dançar." },
+    hand: { ideal: "hand_tambourine", ok: ["hand_harp"], note: "“Miriã tomou o pandeiro, e todas as mulheres saíram atrás dela com pandeiros e danças” (Êxodo 15:20)." },
+  },
+  noite_belem: {
+    head: { ideal: "head_scarf", ok: ["head_veil"], note: "Pano na cabeça contra o frio da noite." },
+    tunic: { ideal: "tunic_simple", ok: ["dress__marrom", "dress__areia"], note: "Roupas simples de gente humilde." },
+    mantle: { ideal: "shawl__creme", ok: ["mantle_striped", "mantle_white"], note: "Um xale de lã para a noite fria." },
+    shoes: { ideal: "shoes_sandals", ok: ["shoes_none"], note: "Sandálias simples." },
+    hand: { ideal: "lamp__bronze", ok: ["lamp__marrom", "hand_staff"], note: "Uma lamparina para a noite, enquanto os pastores vigiavam o rebanho (Lucas 2:8)." },
+  },
+});

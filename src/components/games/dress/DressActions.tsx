@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { startCamarim } from "@/lib/actions/runway";
 
-/** Botão JOGAR do hub: entra no camarim (o relógio começa) e abre a tela de vestir. */
+/** Botão ENTENDI da tela do tema: entra no camarim (o relógio começa aqui) e abre a tela de vestir. */
 export function EnterCamarim({ seconds }: { seconds: number }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -25,7 +25,7 @@ export function EnterCamarim({ seconds }: { seconds: number }) {
   return (
     <div>
       <button type="button" disabled={busy} onClick={go} className="vh-btn">
-        {busy ? "Abrindo o camarim..." : `👗 JOGAR · ${Math.floor(seconds / 60)} min no camarim`}
+        {busy ? "Abrindo o camarim..." : `✅ ENTENDI · começar (${Math.floor(seconds / 60)} min)`}
       </button>
       {error ? <p className="mt-2 rounded-xl bg-rose-900/70 px-3 py-2 text-sm font-bold text-rose-100">{error}</p> : null}
     </div>

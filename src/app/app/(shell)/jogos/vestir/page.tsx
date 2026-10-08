@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { Avatar } from "@/components/Avatar";
-import { EnterCamarim } from "@/components/games/dress/DressActions";
 import { DressCountdown } from "@/components/games/dress/DressTeaser";
-import { HeroCover } from "@/components/games/dress/HeroCover";
+import { ThemeCard } from "@/components/games/dress/ThemeCard";
 import { StarsStatic } from "@/components/games/dress/Stars";
 import { VhStage } from "@/components/games/dress/Vh";
 import { requireRole } from "@/lib/auth";
@@ -86,7 +85,7 @@ export default async function VestirPage() {
         </div>
       </section>
 
-      <HeroCover ch={theme} label="Tema de hoje" />
+      <ThemeCard theme={theme} label="Tema de hoje" />
 
       <section className="vh-panel mb-5">
         <h2 className="vh-h2">Rodada de hoje</h2>
@@ -115,9 +114,9 @@ export default async function VestirPage() {
             <p className="mt-2 text-xs text-purple-200">
               🎫 {PUBLISH_TICKETS} por participar + até 5 pela fidelidade à história · pódio do dia: {RUNWAY_PRIZES.join(", ")} 🎫
             </p>
-            <div className="mt-4">
-              <EnterCamarim seconds={DRESS_SECONDS} />
-            </div>
+            <Link href="/app/jogos/vestir/tema" className="vh-btn mt-4">
+              👗 JOGAR · ver o tema de hoje
+            </Link>
           </>
         )}
         <Link href="/app/jogos/vestir/treino" className="vh-btn vh-btn-purple mt-3">

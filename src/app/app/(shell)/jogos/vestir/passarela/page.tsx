@@ -10,10 +10,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { todayBR } from "@/lib/games/engine";
 import { gameOpenFor } from "@/lib/games/releaseServer";
 import { baseFromBeauty, cleanBeauty } from "@/lib/games/dress/beauty";
-import { DRESS_CHARACTER_BY_ID } from "@/lib/games/dress/characters";
 import { juryStars } from "@/lib/games/dress/engine";
 import type { Look } from "@/lib/games/dress/items";
 import { runwayTheme, votingDates } from "@/lib/games/dress/runway";
+import { THEME_BY_ID } from "@/lib/games/dress/themes";
 import { MAX_RATING_TICKETS, RUNWAY_PRIZES } from "@/lib/games/dress/rules";
 
 type LookRow = {
@@ -63,13 +63,22 @@ export default async function PassarelaPage() {
       id: l.id,
       name: l.profiles?.full_name || "Sem nome",
       elo: l.profiles?.elos?.name ?? null,
-      theme: DRESS_CHARACTER_BY_ID.get(l.theme_character)?.name ?? "",
+      theme: THEME_BY_ID.get(l.theme_character)?.name ?? "",
+      scene: THEME_BY_ID.get(l.theme_character)?.scene ?? "palacio",
       day: dayLabel(l.theme_date, today),
       items: l.items,
       beauty: l.beauty,
     }));
   const results = resultsRes.data ?? [];
   const mine = mineToday ? statsOf(mineToday.id) : null;
+  // resultados do último dia fechado: notas de cada look do pódio
+  const lastDay = results[0]?.theme_date;
+  const podium = results.filter((l) => l.theme_date === lastDay);
+  const podiumVotes = podium.length ? await admin.from("dress_runway_votes").select("look_id, stars").in("look_id", podium.map((l) => l.id)) : { data: [] };
+  const podiumStats = (id: string) => {
+    const vs = ((podiumVotes.data ?? []) as { look_id: string; stars: number }[]).filter((v) => v.look_id === id);
+    return { count: vs.length, avg: vs.length ? vs.reduce((a, v) => a + v.stars, 0) / vs.length : 0 };
+  };
 
   return (
     <VhStage>
@@ -90,7 +99,7 @@ export default async function PassarelaPage() {
         <h2 className="vh-h2 mb-2">Seu look de hoje</h2>
         {mineToday && mine ? (
           <div>
-            <RunwayWalk base={baseFromBeauty(cleanBeauty(mineToday.beauty))} look={mineToday.items} name="você" still />
+            <RunwayWalk base={baseFromBeauty(cleanBeauty(mineToday.beauty))} look={mineToday.items} name="você" scene={theme.scene} still />
             <div className="vh-panel mx-auto mt-3 max-w-[400px] text-center">
               <p className="text-xs font-bold text-purple-200">Júri bíblico</p>
               <StarsStatic value={juryStars(mineToday.fidelity)} className="!text-2xl" />
@@ -122,24 +131,36 @@ export default async function PassarelaPage() {
         <RunwayShow looks={pending} />
       </section>
 
-      {results.length > 0 ? (
+      {podium.length > 0 ? (
         <section className="mb-6">
-          <h2 className="vh-h2 mb-2">🏆 Últimos vencedores</h2>
-          <div className="grid grid-cols-3 gap-2">
-            {results.map((l) => {
-              const ch = DRESS_CHARACTER_BY_ID.get(l.theme_character);
+          <h2 className="vh-h2 mb-2">🏆 Resultados · {THEME_BY_ID.get(podium[0].theme_character)?.name} ({lastDay?.split("-").reverse().slice(0, 2).join("/")})</h2>
+          <ol className="space-y-3">
+            {podium.map((l) => {
+              const st = podiumStats(l.id);
+              const me = l.user_id === profile.id;
               return (
-                <div key={l.id} className="vh-card !cursor-default !px-1 !pb-2" data-rare={l.place === 1 ? "legend" : "epic"}>
-                  <div className="rounded-lg bg-gradient-to-b from-[#5a1238] to-[#2d104b] py-0.5">
-                    <PaperDoll base={baseFromBeauty(cleanBeauty(l.beauty))} look={l.items} className="mx-auto h-28 w-auto" title={`Look de ${l.profiles?.full_name}`} />
+                <li key={l.id} className="vh-panel flex items-center gap-3 !p-2.5" style={me ? { borderColor: "#fff4a8" } : undefined}>
+                  <span className="text-3xl" aria-hidden>
+                    {["🥇", "🥈", "🥉"][(l.place ?? 1) - 1]}
+                  </span>
+                  <div className="shrink-0 rounded-lg bg-gradient-to-b from-[#5a1238] to-[#2d104b] py-0.5">
+                    <PaperDoll base={baseFromBeauty(cleanBeauty(l.beauty))} look={l.items} className="mx-auto h-24 w-auto" title={`Look de ${l.profiles?.full_name}`} />
                   </div>
-                  <p className="mt-1 text-base font-black">{["🥇", "🥈", "🥉"][(l.place ?? 1) - 1]}</p>
-                  <p className="truncate text-[11px] font-black">{l.profiles?.full_name}</p>
-                  <p className="text-[10px] font-bold text-amber-900/70">{ch?.name}</p>
-                </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-black text-amber-50">
+                      {l.profiles?.full_name}
+                      {me ? " (você)" : ""}
+                    </p>
+                    {l.profiles?.elos?.name ? <p className="truncate text-[11px] text-purple-200">{l.profiles.elos.name}</p> : null}
+                    <StarsStatic value={st.avg} />
+                    <p className="text-[11px] font-bold text-purple-100">
+                      {st.avg.toFixed(1)} · {st.count} nota{st.count === 1 ? "" : "s"} · <span className="text-amber-200">+{l.prize} 🎫</span>
+                    </p>
+                  </div>
+                </li>
               );
             })}
-          </div>
+          </ol>
         </section>
       ) : null}
 

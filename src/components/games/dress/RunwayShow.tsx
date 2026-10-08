@@ -7,8 +7,9 @@ import { StarPicker } from "./Stars";
 import { rateRunwayLook } from "@/lib/actions/runway";
 import { baseFromBeauty, cleanBeauty } from "@/lib/games/dress/beauty";
 import type { Look } from "@/lib/games/dress/items";
+import type { SceneKey } from "@/lib/games/dress/themes";
 
-export type ShowLook = { id: string; name: string; elo: string | null; theme: string; day: string; items: Look; beauty: unknown };
+export type ShowLook = { id: string; name: string; elo: string | null; theme: string; scene: SceneKey; day: string; items: Look; beauty: unknown };
 
 /** O desfile: um look por vez andando na passarela e a nota de 1 a 5 estrelas, como as colegas do Dress to Impress avaliam. */
 export function RunwayShow({ looks: initial }: { looks: ShowLook[] }) {
@@ -60,7 +61,7 @@ export function RunwayShow({ looks: initial }: { looks: ShowLook[] }) {
       <p className="mb-2 text-center text-xs font-black uppercase tracking-wide text-amber-200">
         Look {idx + 1} de {looks.length} · tema {l.theme} ({l.day})
       </p>
-      <RunwayWalk key={l.id} base={baseFromBeauty(cleanBeauty(l.beauty))} look={l.items} name={l.name}>
+      <RunwayWalk key={l.id} base={baseFromBeauty(cleanBeauty(l.beauty))} look={l.items} name={l.name} scene={l.scene}>
         <div className="absolute inset-x-0 bottom-0 z-[4] bg-gradient-to-t from-black/80 to-transparent px-3 pb-2 pt-8 text-center">
           <p className="truncate text-base font-black text-amber-100 [text-shadow:0_2px_4px_#000]">{l.name}</p>
           {l.elo ? <p className="truncate text-[11px] font-bold text-purple-200">{l.elo}</p> : null}

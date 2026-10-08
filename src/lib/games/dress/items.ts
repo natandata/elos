@@ -342,6 +342,9 @@ export type Look = Partial<Record<Slot, string>>;
 
 export type FamilyGroup = { family: string; base: string; items: DressItem[] };
 
+/** Famílias modernas: continuam desenhando nos looks antigos, mas não aparecem mais no armário bíblico. */
+export const MODERN_FAMILIES = new Set(["cap", "hoodie", "phone", "sneakers"]);
+
 const GROUPS = new Map<Slot, FamilyGroup[]>();
 /** Peças do espaço agrupadas por família (o desenho), cada uma com as suas variações de cor. Sem a opção "nada". */
 export function familiesBySlot(slot: Slot): FamilyGroup[] {
@@ -349,7 +352,7 @@ export function familiesBySlot(slot: Slot): FamilyGroup[] {
   if (cached) return cached;
   const out: FamilyGroup[] = [];
   for (const i of ITEMS_BY_SLOT(slot)) {
-    if (i.family === "none") continue;
+    if (i.family === "none" || MODERN_FAMILIES.has(i.family)) continue;
     let g = out.find((x) => x.family === i.family);
     if (!g) out.push((g = { family: i.family, base: i.base ?? i.name, items: [] }));
     g.items.push(i);

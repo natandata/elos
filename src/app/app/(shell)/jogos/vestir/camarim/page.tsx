@@ -26,5 +26,5 @@ export default async function CamarimPage() {
   if (msLeft === null) redirect(HUB);
 
   const theme = runwayTheme(date);
-  return <Camarim theme={{ id: theme.id, name: theme.name, clue: theme.clue, ref: theme.ref }} mode="daily" msLeft={msLeft} draftKey={`vh:draft:${date}`} exitHref={HUB} />;
+  return <Camarim theme={theme} mode="daily" msLeft={msLeft} draftKey={`vh:draft:${date}`} exitHref={HUB} />;
 }

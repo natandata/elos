@@ -1,14 +1,13 @@
 // Passarela do "Vista o Herói" (SÓ SERVIDOR: usa as respostas certas pra nota do júri).
 import "server-only";
 import { pickDaily } from "../engine";
-import { FEMALE_CHARACTERS, type DressCharacter } from "./characters";
-import { ITEM_BY_ID, SLOTS, noneId, type Look, type Slot } from "./items";
+import { MODERN_FAMILIES, ITEM_BY_ID, SLOTS, noneId, type Look, type Slot } from "./items";
+import { THEMES, type BibleTheme } from "./themes";
 import { scoreLook } from "./engine";
 
-/** Tema (personagem) do desfile de um dia. */
-export function runwayTheme(date: string): DressCharacter {
-  // o jogo só tem personagens femininas
-  return pickDaily(FEMALE_CHARACTERS, 1, date, "runway-f")[0];
+/** Tema bíblico do desfile de um dia (sorteio sem repetir dentro de um ciclo da lista). */
+export function runwayTheme(date: string): BibleTheme {
+  return pickDaily(THEMES, 1, date, "runway-themes")[0];
 }
 
 /** Dias em que dá pra avaliar: o de hoje e o de ontem. */
@@ -31,7 +30,7 @@ export function cleanLook(raw: unknown): Look | null {
       continue;
     }
     const item = typeof id === "string" ? ITEM_BY_ID.get(id) : undefined;
-    if (!item || item.slot !== s.key) return null;
+    if (!item || item.slot !== s.key || MODERN_FAMILIES.has(item.family)) return null;
     out[s.key as Slot] = item.id;
   }
   return out;

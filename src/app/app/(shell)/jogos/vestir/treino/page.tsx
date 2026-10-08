@@ -11,5 +11,5 @@ export default async function TreinoPage({ searchParams }: { searchParams: Promi
   const { n: raw } = await searchParams;
   const n = Math.max(1, Math.min(99, Math.floor(Number(raw)) || 1));
   const theme = practiceTheme(todayBR(), n);
-  return <Camarim key={n} theme={{ id: theme.id, name: theme.name, clue: theme.clue, ref: theme.ref }} mode="practice" practiceN={n} draftKey={`vh:draft:p${n}`} exitHref="/app/jogos/vestir" />;
+  return <Camarim key={n} theme={theme} mode="practice" practiceN={n} draftKey={`vh:draft:p${n}`} exitHref="/app/jogos/vestir" />;
 }

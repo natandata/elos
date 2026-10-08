@@ -1,9 +1,9 @@
 // Nota do júri bíblico do "Vista o Herói" (SÓ SERVIDOR: usa as respostas certas).
 import "server-only";
 import { shuffle } from "../engine";
-import { FEMALE_CHARACTERS, type DressCharacter } from "./characters";
 import { ITEM_BY_ID, SLOTS, type Look, type Slot } from "./items";
 import { SOLUTIONS, type Solution } from "./solutions";
+import { THEMES, type BibleTheme } from "./themes";
 
 /** Família (desenho base) de uma peça: peças da mesma família valem o mesmo na pontuação. */
 export const famOf = (id: string | undefined): string => (id ? (ITEM_BY_ID.get(id)?.family ?? id) : "");
@@ -11,8 +11,8 @@ export const famOf = (id: string | undefined): string => (id ? (ITEM_BY_ID.get(i
 export const MAX_FIDELITY = SLOTS.length * 2;
 
 /** Tema do treino: sorteio por número (1, 2, 3...), diferente a cada rodada do dia. */
-export function practiceTheme(date: string, n: number): DressCharacter {
-  const order = shuffle(FEMALE_CHARACTERS, `dress-practice:${date}`);
+export function practiceTheme(date: string, n: number): BibleTheme {
+  const order = shuffle(THEMES, `dress-practice:${date}`);
   return order[Math.max(0, n - 1) % order.length];
 }
 
