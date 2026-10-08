@@ -6,6 +6,7 @@ export const CAMPO = [
   "arvore", "pinheiro", "macieira", "arbusto", "arbusto-flores", "pedras", "rochedo", "toco", "flores", "capim",
   "cerca", "cerca-canto", "feno", "tocha", "cogumelos", "toras", "vitoria-regia", "taboa", "seixos", "placa",
   "palmeira", "oliveira", "arvore-moedas", "carvalho", "arvore-seca", "pinheiro-neve", "arbusto-bagas",
+  "selva-arvore", "selva-folhas", "selva-totem", "selva-tronco", "paris-torre", "paris-mesa", "paris-poste", "paris-jardineira", "quartel-barraca", "quartel-sacos", "quartel-bandeira", "quartel-jipe", "rock-caixas", "rock-bateria", "rock-trelica", "rock-guitarra", "aula-carteira", "aula-lousa", "aula-globo", "aula-livros", "igreja-banco", "igreja-vitral", "igreja-candelabro", "igreja-cruz", "casamento-arco", "casamento-bolo", "casamento-cadeira", "casamento-baloes", "gabinete-estante", "gabinete-mesa", "gabinete-poltrona", "gabinete-abajur",
 ] as const;
 export type CampoName = (typeof CAMPO)[number];
 
