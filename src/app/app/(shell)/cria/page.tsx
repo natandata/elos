@@ -234,7 +234,6 @@ export default async function CriaDashboard() {
       <WeeklyPushNudge eligible={showPushNudge} />
 
       <BirthdayCard meId={profile.id} />
-      <DevotionalSuggestionCard />
       <DailyPraiseSection meId={profile.id} />
 
       <EbdAnnouncement />
@@ -416,6 +415,8 @@ export default async function CriaDashboard() {
           </p>
         </Link>
       )}
+
+      <DevotionalSuggestionCard />
 
       <section>
         <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">

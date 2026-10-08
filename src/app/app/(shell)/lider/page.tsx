@@ -230,7 +230,6 @@ export default async function LiderDashboard() {
       <WeeklyPushNudge eligible={showPushNudge} />
 
       <BirthdayCard meId={profile.id} />
-      <DevotionalSuggestionCard />
       <DailyPraiseSection meId={profile.id} />
 
       <EbdAnnouncement />
@@ -486,6 +485,8 @@ export default async function LiderDashboard() {
           </Link>
         </Card>
       </section>
+
+      <DevotionalSuggestionCard />
 
       <section>
         <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">
