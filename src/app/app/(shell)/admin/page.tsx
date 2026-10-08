@@ -3,6 +3,8 @@ import { Bar, Card, PageHeader, StatCard } from "@/components/ui";
 import { needsWeeklyPushNudge, requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { WeeklyPushNudge } from "@/components/push/WeeklyPushNudge";
+import { DevotionalSuggestionCard } from "@/components/devotional/DevotionalSuggestionCard";
+import { BirthdayCard } from "@/components/BirthdayCard";
 import { DailyPraiseSection } from "@/components/praise/DailyPraiseSection";
 import { formatDateTime, STATUS_LABEL, type StatusLevel } from "@/lib/types";
 
@@ -124,6 +126,8 @@ export default async function AdminDashboard() {
 
       <WeeklyPushNudge eligible={showPushNudge} />
 
+      <BirthdayCard meId={profile.id} />
+      <DevotionalSuggestionCard />
       <DailyPraiseSection meId={profile.id} isAdmin />
 
       <section className="mb-6">

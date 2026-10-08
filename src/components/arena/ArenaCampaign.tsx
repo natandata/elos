@@ -15,6 +15,9 @@ import { ArenaPlayfield, type PlayDriver } from "./ArenaPlayfield";
 import { CardArt } from "./CardArt";
 import { NeryCutscene } from "./NeryCutscene";
 import { StageCutscene, hasStageScene } from "./StageCutscene";
+import { AT } from "./ArenaText";
+import { MatchResultHero } from "./MatchResultHero";
+import { START_TIMEOUT_MS, withTimeout } from "@/lib/arena/withTimeout";
 
 /** Arena do Nery (a 3ª, índice 2) */
 const NERY_STAGE = 2;
@@ -67,7 +70,7 @@ export function ArenaCampaign({ open, admin, cleared: initialCleared, tiers: ini
     setVerdict(null);
     setLaunching(true);
     const wait = new Promise<void>((r) => setTimeout(r, ARENA_LOAD_MS));
-    const res = await startCampaign(stage).catch(() => ({ error: "Sem conexão. Tente de novo." }) as { error?: string; matchId?: string; seed?: number; tier?: number });
+    const res = await withTimeout(startCampaign(stage), START_TIMEOUT_MS).catch((e) => ({ error: e instanceof Error && e.message === "timeout" ? "A conexão está lenta e a partida não abriu. Tente de novo." : "Sem conexão. Tente de novo." }) as { error?: string; matchId?: string; seed?: number; tier?: number });
     if (res.error || !res.matchId || res.seed === undefined) {
       setLaunching(false);
       setError(res.error ?? "Não foi possível começar.");
@@ -134,15 +137,13 @@ export function ArenaCampaign({ open, admin, cleared: initialCleared, tiers: ini
           <p className="text-lg font-black">Conferindo o resultado…</p>
         ) : r.error ? (
           <>
-            <p className="text-5xl" aria-hidden>⚠️</p>
+            <p className="text-5xl" aria-hidden><AT>⚠️</AT></p>
             <p className="mt-2 font-bold text-rose-700">{r.error}</p>
             <button type="button" onClick={() => void finish(lastSurrender.current)} className="btn btn-ghost mt-3">Tentar confirmar de novo</button>
           </>
         ) : (
           <>
-            <p className="text-6xl" aria-hidden>{r.result === "win" ? "🏆" : r.result === "draw" ? "🤝" : "😅"}</p>
-            <h2 className="mt-2 text-2xl font-black">{r.result === "win" ? "Vitória!" : r.result === "draw" ? "Empate" : "Derrota"}</h2>
-            <p className="mt-1 text-lg font-bold tabular-nums">👑 {r.crownsMe ?? 0} x {r.crownsBot ?? 0} 👑</p>
+            <MatchResultHero result={r.result ?? "loss"} crownsMe={r.crownsMe ?? 0} crownsThem={r.crownsBot ?? 0} meName="Você" themName={st.name} />
             {r.result === "win" ? (
               <>
                 <p className="mt-2 text-sm font-bold">
@@ -150,17 +151,17 @@ export function ArenaCampaign({ open, admin, cleared: initialCleared, tiers: ini
                 </p>
                 {r.advanced && !r.firstClear ? <p className="mt-2 rounded-2xl bg-sky-100 px-4 py-2 text-sm font-black text-sky-900">Próxima batalha: {TIER_LABEL[Math.min(CAMPAIGN_TIERS - 1, (r.tier ?? 0) + 1)]}</p> : null}
                 {(r.xp ?? 0) > 0 ? <p className="mt-3 inline-block rounded-full bg-[var(--accent-soft)] px-4 py-1.5 text-lg font-black text-[var(--accent-strong)]">+{r.xp} XP</p> : null}
-                {r.firstClear && next !== null ? <p className="mt-3 rounded-2xl bg-amber-100 px-4 py-2 text-sm font-black text-amber-900">🔓 Nova arena liberada: {CAMPAIGN_STAGES[next].name}</p> : null}
-                {r.firstClear && next === null ? <p className="mt-3 rounded-2xl bg-amber-100 px-4 py-2 text-sm font-black text-amber-900">🎉 Você zerou a campanha!</p> : null}
+                {r.firstClear && next !== null ? <p className="mt-3 rounded-2xl bg-amber-100 px-4 py-2 text-sm font-black text-amber-900"><AT>🔓 Nova arena liberada: </AT>{CAMPAIGN_STAGES[next].name}</p> : null}
+                {r.firstClear && next === null ? <p className="mt-3 rounded-2xl bg-amber-100 px-4 py-2 text-sm font-black text-amber-900"><AT>🎉 Você zerou a campanha!</AT></p> : null}
               </>
-            ) : <p className="mt-2 text-sm text-[var(--muted)]">Tente de novo: escolha bem quando soltar cada carta.</p>}
+            ) : r.tooFast ? <p className="mt-2 text-sm font-bold text-rose-700">Não deu para confirmar esta vitória: a partida não durou o tempo que o placar mostra. Jogue de novo.</p> : <p className="mt-2 text-sm text-[var(--muted)]">Tente de novo: escolha bem quando soltar cada carta.</p>}
           </>
         )}
         {phase === "result" ? (
           <div className="mt-6 grid gap-3">
             {r?.result === "win" && r.advanced && !r.firstClear ? null : <button type="button" onClick={() => void begin(lastStage)} className="btn btn-primary !py-3 !text-base">Jogar de novo</button>}
-            {r?.result === "win" && r.advanced && !r.firstClear ? <button type="button" onClick={() => void begin(lastStage)} className="btn btn-primary !py-3 !text-base">Próxima batalha ▶</button> : null}
-            {r?.result === "win" && r.firstClear && next !== null ? <button type="button" onClick={() => void begin(next)} className="btn btn-primary !py-3 !text-base">Próxima arena ▶</button> : null}
+            {r?.result === "win" && r.advanced && !r.firstClear ? <button type="button" onClick={() => void begin(lastStage)} className="btn btn-primary !py-3 !text-base"><AT>Próxima batalha ▶</AT></button> : null}
+            {r?.result === "win" && r.firstClear && next !== null ? <button type="button" onClick={() => void begin(next)} className="btn btn-primary !py-3 !text-base"><AT>Próxima arena ▶</AT></button> : null}
             <button type="button" onClick={() => setPhase("menu")} className="btn btn-ghost">Voltar à Campanha</button>
           </div>
         ) : null}
@@ -175,12 +176,12 @@ export function ArenaCampaign({ open, admin, cleared: initialCleared, tiers: ini
   return (
     <div className="space-y-3">
       <section className="card p-3">
-        <p className="text-lg font-black">🛡️ Campanha</p>
+        <p className="text-lg font-black"><AT>🛡️ Campanha</AT></p>
         <p className="mt-1 text-xs text-[var(--muted)]">
           Enfrente os 8 personagens do ELOS, um por arena, do mais fraco ao mais forte. Você e o computador jogam com o mesmo baralho dos 8. Cada arena precisa ser vencida 3 vezes: a 1ª batalha no nível normal, a 2ª 15% mais difícil e a 3ª 25% mais difícil. Vencendo as 3, a próxima arena é liberada e você ganha +{CAMPAIGN_XP} XP (Elos femininos ganham +{CAMPAIGN_XP_FEMALE_BONUS} XP a mais). As batalhas da campanha não contam nas partidas do dia e podem ser jogadas sem limite.
         </p>
-        <p className="mt-2 text-xs font-bold">{cleared.length}/{CAMPAIGN_STAGES.length} arenas vencidas ({tiers.reduce((a, b) => a + b, 0)}/{CAMPAIGN_STAGES.length * CAMPAIGN_TIERS} batalhas){allDone ? " 🎉" : ""}</p>
-        {!open ? <p className="mt-2 rounded-xl bg-amber-100 px-3 py-2 text-xs font-black text-amber-900">🔒 A campanha ainda não foi liberada. Você pode ver as cartas e as arenas, mas só consegue batalhar quando ela abrir{opensAt ? `: ${new Date(opensAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}` : ""}.</p> : null}
+        <p className="mt-2 text-xs font-bold">{cleared.length}/{CAMPAIGN_STAGES.length} arenas vencidas ({tiers.reduce((a, b) => a + b, 0)}/{CAMPAIGN_STAGES.length * CAMPAIGN_TIERS} batalhas){allDone ? <AT>{" 🎉"}</AT> : ""}</p>
+        {!open ? <p className="mt-2 rounded-xl bg-amber-100 px-3 py-2 text-xs font-black text-amber-900"><AT>🔒 A campanha ainda não foi liberada. Você pode ver as cartas e as arenas, mas só consegue batalhar quando ela abrir</AT>{opensAt ? `: ${new Date(opensAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}` : ""}.</p> : null}
         {admin ? <p className="mt-2 text-[11px] font-bold text-sky-600">Admin: você pode jogar qualquer arena para testar.</p> : null}
       </section>
 
@@ -206,10 +207,10 @@ export function ArenaCampaign({ open, admin, cleared: initialCleared, tiers: ini
                   <span className="absolute inset-0 flex items-end justify-between gap-2 bg-gradient-to-t from-black/80 via-black/10 to-transparent p-3">
                     <span className="min-w-0 text-white">
                       <span className="block text-[11px] font-black uppercase tracking-wide text-amber-200">Arena {s.n} · {s.setting}</span>
-                      <span className="block truncate text-lg font-black [text-shadow:0_2px_6px_#000]">{s.emoji} {boss.name}</span>
-                      <span className="block text-[11px] font-black text-white/90">{"●".repeat(tiers[i] ?? 0)}{"○".repeat(CAMPAIGN_TIERS - (tiers[i] ?? 0))} {tiers[i] >= CAMPAIGN_TIERS ? "vencida" : `batalha ${(tiers[i] ?? 0) + 1}/${CAMPAIGN_TIERS}`}</span>
+                      <span className="block truncate text-lg font-black [text-shadow:0_2px_6px_#000]"><AT>{s.emoji}</AT> {boss.name}</span>
+                      <span className="block text-[11px] font-black text-white/90"><AT>{"●".repeat(tiers[i] ?? 0)}{"○".repeat(CAMPAIGN_TIERS - (tiers[i] ?? 0))}</AT> {tiers[i] >= CAMPAIGN_TIERS ? "vencida" : `batalha ${(tiers[i] ?? 0) + 1}/${CAMPAIGN_TIERS}`}</span>
                     </span>
-                    <span className="shrink-0 text-2xl" aria-hidden>{done ? "✅" : locked ? "🔒" : "⚔️"}</span>
+                    <span className="shrink-0 text-2xl" aria-hidden>{done ? <AT>{"✅"}</AT> : locked ? <AT>{"🔒"}</AT> : <AT>{"⚔️"}</AT>}</span>
                   </span>
                   <CardArt card={boss} className="absolute bottom-0 right-12 h-[88%] drop-shadow-[0_4px_6px_rgba(0,0,0,0.6)]" />
                 </button>
@@ -220,7 +221,7 @@ export function ArenaCampaign({ open, admin, cleared: initialCleared, tiers: ini
       ) : (
         <>
         <div className="card space-y-1 p-3 text-xs">
-          <p className="font-black">✨ Combos</p>
+          <p className="font-black"><AT>✨ Combos</AT></p>
           {CAMPAIGN_COMBOS.map((c) => (
             <p key={c.id}>Com <b>{c.label}</b> vivos em campo do mesmo lado, os outros personagens brilham e ganham <b>{c.effect}</b>.</p>
           ))}
@@ -230,9 +231,9 @@ export function ArenaCampaign({ open, admin, cleared: initialCleared, tiers: ini
           {CAMPAIGN_CARDS.map((c) => (
             <li key={c.key} className="card flex flex-col p-2.5">
               <div className="rounded-xl bg-gradient-to-b from-[#4a90e2] to-[#2d62b8] p-2"><CardArt card={c} className="h-28" /></div>
-              <p className="mt-2 text-sm font-black leading-tight">{c.name} <span className="rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] text-white">🍞 {c.cost}</span></p>
+              <p className="mt-2 text-sm font-black leading-tight">{c.name} <span className="rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] text-white"><AT>🍞 </AT>{c.cost}</span></p>
               <p className="mt-0.5 text-[11px] text-[var(--muted)]">{c.desc}</p>
-              <p className="mt-1 text-[11px] font-bold tabular-nums">❤️ {c.hp}{c.count ? ` ×${c.count}` : ""} · ⚔️ {c.dmg}</p>
+              <p className="mt-1 text-[11px] font-bold tabular-nums"><AT>❤️ </AT>{c.hp}{c.count ? ` ×${c.count}` : ""}<AT> · ⚔️ </AT>{c.dmg}</p>
             </li>
           ))}
         </ul>
@@ -251,14 +252,14 @@ export function ArenaCampaign({ open, admin, cleared: initialCleared, tiers: ini
               <p className="text-xl font-black">{stage.name}</p>
               <p className="mt-1 text-sm text-[var(--muted)]">{stage.blurb}</p>
               <p className="mt-2 text-xs font-bold">{(tiers[sel!] ?? 0) >= CAMPAIGN_TIERS ? `Arena vencida · rejogar no nível: ${TIER_LABEL[CAMPAIGN_TIERS - 1]}` : `Batalha ${(tiers[sel!] ?? 0) + 1} de ${CAMPAIGN_TIERS} · ${TIER_LABEL[tiers[sel!] ?? 0]}`}</p>
-              <p className="mt-1 text-xs"><b>Chefe:</b> {ARENA_CARD_BY_KEY.get(stage.boss)?.name} · <b>Dificuldade:</b> {"★".repeat(Math.min(5, Math.ceil((sel! + 1) * 5 / 8)))}</p>
+              <p className="mt-1 text-xs"><b>Chefe:</b> {ARENA_CARD_BY_KEY.get(stage.boss)?.name} · <b>Dificuldade:</b> <AT>{"★".repeat(Math.min(5, Math.ceil((sel! + 1) * 5 / 8)))}</AT></p>
               {error ? <p className="mt-2 text-xs font-bold text-rose-600">{error}</p> : null}
               <div className="mt-3 grid gap-2">
                 {canPlay(sel!) ? (
-                  <button type="button" onClick={() => { setSel(null); void begin(sel!); }} className="btn btn-primary !py-3 !text-base">⚔️ Batalhar</button>
+                  <button type="button" onClick={() => { setSel(null); void begin(sel!); }} className="btn btn-primary !py-3 !text-base"><AT>⚔️ Batalhar</AT></button>
                 ) : (
                   <button type="button" disabled className="btn btn-primary !py-3 !text-base opacity-50">
-                    {!open ? "🔒 Campanha bloqueada" : "🔒 Vença a arena anterior"}
+                    {!open ? <AT>{"🔒 Campanha bloqueada"}</AT> : <AT>{"🔒 Vença a arena anterior"}</AT>}
                   </button>
                 )}
                 <button type="button" onClick={() => setSel(null)} className="btn btn-ghost">Fechar</button>
@@ -268,7 +269,7 @@ export function ArenaCampaign({ open, admin, cleared: initialCleared, tiers: ini
         </div>
       ) : null}
 
-      <Link href="/app/jogos/arena" className="btn btn-ghost block w-full text-center">← Voltar à Arena</Link>
+      <Link href="/app/jogos/arena" className="btn btn-ghost block w-full text-center"><AT>← Voltar à Arena</AT></Link>
       {launching ? <ArenaLoadingScreen label="Preparando a batalha…" /> : null}
     </div>
   );

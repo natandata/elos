@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { openTournamentMatch, setMatchWinner } from "@/lib/actions/tournaments";
 import { realLevelsApply, roundLabel, type TMatch } from "@/lib/arena/tournament";
+import { AT } from "./ArenaText";
 
 export type EntryLabel = { names: string[]; elo: string | null; /** posição no ranking da Arena quando o torneio começou */ pos?: number | null };
 
@@ -86,7 +87,7 @@ export function TournamentBracket({
                           {id && labels[id]?.pos ? <span className="mr-1 text-[10px] font-black text-[var(--muted)]">#{labels[id].pos}</span> : null}
                           {name(id) ?? <span className="font-semibold text-[var(--muted)]">{m.status === "pending" ? "A definir" : "Folga"}</span>}
                         </span>
-                        {won ? <span aria-hidden>✔</span> : null}
+                        {won ? <span aria-hidden><AT>✔</AT></span> : null}
                       </div>
                     );
                   };
@@ -95,11 +96,11 @@ export function TournamentBracket({
                       {side(m.entryA)}
                       {side(m.entryB)}
                       {m.entryA && m.entryB && m.status !== "done" ? (
-                        <p className="text-[10px] font-bold text-[var(--muted)]">{realLevelsApply(labels[m.entryA]?.pos ?? null, labels[m.entryB]?.pos ?? null) ? "⬆️ Níveis reais das cartas" : "Cartas no nível 1"}</p>
+                        <p className="text-[10px] font-bold text-[var(--muted)]">{realLevelsApply(labels[m.entryA]?.pos ?? null, labels[m.entryB]?.pos ?? null) ? <AT>{"⬆️ Níveis reais das cartas"}</AT> : "Cartas no nível 1"}</p>
                       ) : null}
                       {running && ready && mine && !admin ? (
                         <button type="button" disabled={busy !== null} onClick={() => play(m.id)} className="btn btn-primary mt-1 w-full !py-2 !text-sm disabled:opacity-60">
-                          {busy === m.id ? "Abrindo…" : m.status === "playing" ? "▶ Entrar na sala" : "⚔️ Jogar"}
+                          {busy === m.id ? "Abrindo…" : m.status === "playing" ? <AT>{"▶ Entrar na sala"}</AT> : <AT>{"⚔️ Jogar"}</AT>}
                         </button>
                       ) : null}
                       {running && ready && mine && admin ? (

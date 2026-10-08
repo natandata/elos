@@ -10,6 +10,8 @@ import { PasswordResetRequestCard } from "./PasswordResetRequestCard";
 import { UserEditor } from "./UserEditor";
 import { ExportUsersCsv } from "./ExportUsersCsv";
 import { ResetAllXpButton } from "./ResetAllXpButton";
+import { AbasUsuarios } from "./AbasUsuarios";
+import { AniversariosTab } from "./AniversariosTab";
 
 type Search = {
   q?: string;
@@ -18,6 +20,7 @@ type Search = {
   age?: string;
   role?: string;
   sort?: string;
+  aba?: string;
 };
 
 export default async function UsuariosPage({
@@ -27,6 +30,15 @@ export default async function UsuariosPage({
 }) {
   const { profile: current } = await requireRole("admin");
   const sp = await searchParams;
+  if (sp.aba === "aniversarios") {
+    return (
+      <>
+        <PageHeader title="Usuários" subtitle="Datas de nascimento e quantos dias faltam para cada aniversário." />
+        <AbasUsuarios ativa="aniversarios" />
+        <AniversariosTab />
+      </>
+    );
+  }
   const supabase = await createClient();
 
   const { data: elosData } = await supabase.from("elos").select("*").order("gender").order("age_range");
@@ -37,7 +49,7 @@ export default async function UsuariosPage({
   let query = supabase
     .from("profiles")
     .select(
-      "id, full_name, first_name, last_name, avatar_url, role, approved, gender, age_range, elo_id, xp, created_at, is_test_account",
+      "id, full_name, first_name, last_name, avatar_url, role, approved, gender, age_range, elo_id, xp, created_at, is_test_account, birth_date",
     )
     .order(bySignup ? "created_at" : "full_name", { ascending: !bySignup });
 
@@ -69,6 +81,7 @@ export default async function UsuariosPage({
     xp: number;
     created_at: string;
     is_test_account: boolean;
+    birth_date: string | null;
   }[];
 
   // Número da ordem de cadastro é sempre sobre TODO MUNDO, não só o que os
@@ -126,6 +139,8 @@ export default async function UsuariosPage({
           </div>
         }
       />
+
+      <AbasUsuarios ativa="lista" />
 
       <div className="mb-4 flex gap-2">
         <Link

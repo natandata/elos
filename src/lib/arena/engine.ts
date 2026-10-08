@@ -11,6 +11,7 @@ import {
   MANA_SECS_PER_POINT,
   MANA_START,
   MATCH_TICKS,
+  JERICHO_TICKS,
   RIVER_BOT,
   RIVER_TOP,
   TICKS_PER_SEC,
@@ -50,6 +51,8 @@ export type GameOpts = {
   pvp?: boolean;
   /** 1x1: nível das cartas de cada lado (partida de torneio entre vizinhos do ranking); sem isso, todos no nível 1 */
   pvpLevels?: [Record<string, number>, Record<string, number>];
+  /** desafio Maná Duplo: o Maná enche em dobro desde o início (e em quádruplo no último minuto) */
+  manaMult?: number;
 };
 
 function makeTower(id: number, side: Side, kind: "atalaia" | "santuario", lane: number, x: number, y: number): Entity {
@@ -69,7 +72,7 @@ const unalias = (deck: string[]) => deck.map((k) => CARD_ALIAS[k] ?? k);
 const SHUFFLE_SEEDS = [0xa5a5, 0x5a5a, 0x3c3c3c, 0xc3c3c3];
 const RNG_SEEDS = [0x1234567, 0x7654321, 0x2468ace, 0x13579bd];
 
-function buildState(seed: number, decks: string[][], levels: Record<string, number>[]): GameState {
+function buildState(seed: number, decks: string[][], levels: Record<string, number>[], manaMult = 1): GameState {
   const players = decks.length;
   const shuffled = decks.map((d, i) => shuffleWith(unalias(d), seed ^ SHUFFLE_SEEDS[i]));
   const state: GameState = {
@@ -86,6 +89,8 @@ function buildState(seed: number, decks: string[][], levels: Record<string, numb
     rng: decks.map((_, i) => (seed ^ RNG_SEEDS[i]) | 0),
     over: false,
     winner: null,
+    jericho: false,
+    manaMult,
   };
   const mk = (side: Side, kind: "atalaia" | "santuario", lane: number, x: number, y: number) =>
     state.entities.push(makeTower(state.nextId++, side, kind, lane, x, y));
@@ -105,8 +110,9 @@ export function createGame(seed: number, playerDeck: string[], botDeck?: string[
   const botLevel = opts.pvp ? 1 : 1 + (levelMult(botLevelForArena(opts.arena ?? 0)) * (1 + boost) - 1) / 0.05;
   const botLevels: Record<string, number> = {};
   for (const k of ARENA_CARD_BY_KEY.keys()) botLevels[k] = botLevel;
-  if (opts.pvp) return buildState(seed, [playerDeck, botDeck], [opts.pvpLevels?.[0] ?? {}, opts.pvpLevels?.[1] ?? {}]);
-  return buildState(seed, [playerDeck, botDeck], [opts.levels ?? {}, botLevels]);
+  const manaMult = opts.manaMult === 2 ? 2 : 1;
+  if (opts.pvp) return buildState(seed, [playerDeck, botDeck], [opts.pvpLevels?.[0] ?? {}, opts.pvpLevels?.[1] ?? {}], manaMult);
+  return buildState(seed, [playerDeck, botDeck], [opts.levels ?? {}, botLevels], manaMult);
 }
 
 /** Partida em duplas: 4 baralhos (jogadores 0–1 = lado 0, 2–3 = lado 1), todos no nível 1. */
@@ -442,7 +448,7 @@ export function step(state: GameState, inputs: Input[], bots: Side[] = [1]): Gam
     if (inp) applyInput(state, inp, ev);
   }
 
-  const rate = (state.tick >= DOUBLE_MANA_TICK ? 2 : 1) / (MANA_SECS_PER_POINT * TICKS_PER_SEC);
+  const rate = ((state.tick >= DOUBLE_MANA_TICK ? 2 : 1) * (state.manaMult ?? 1)) / (MANA_SECS_PER_POINT * TICKS_PER_SEC);
   for (let i = 0; i < state.mana.length; i++) state.mana[i] = Math.min(MANA_MAX, state.mana[i] + rate);
 
   for (const e of state.entities.slice()) {
@@ -475,7 +481,17 @@ export function step(state: GameState, inputs: Input[], bots: Side[] = [1]): Gam
   state.entities = alive;
 
   state.tick++;
-  if (!state.over && state.tick >= MATCH_TICKS) finishByTime(state);
+  if (!state.over) {
+    if (state.jericho) {
+      // morte súbita: a primeira torre que cair desempata; sem torre nenhuma até o fim do Jericó, é empate
+      if (state.crowns[0] !== state.crowns[1] || state.tick >= MATCH_TICKS + JERICHO_TICKS) finishByTime(state);
+    } else if (state.tick >= MATCH_TICKS) {
+      if (state.crowns[0] === state.crowns[1]) {
+        state.jericho = true;
+        ev.push({ t: "jericho" });
+      } else finishByTime(state);
+    }
+  }
   return ev;
 }
 

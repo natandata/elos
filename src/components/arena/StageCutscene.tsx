@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { CAMPAIGN_STAGES } from "@/lib/arena/campaign";
+import { AT } from "./ArenaText";
 
 /** Duração total de cada cena final. */
 export const STAGE_CUTSCENE_MS = 10_000;
@@ -79,14 +80,14 @@ export function StageCutscene({ stage, onDone }: { stage: number; onDone: () => 
       <div className="pointer-events-none absolute inset-0" aria-hidden>
         {Array.from({ length: 10 }, (_, i) => (
           <span key={i} className="absolute text-2xl" style={{ left: `${(i * 37) % 100}%`, bottom: 0, animation: `scFloat ${5 + (i % 4)}s linear ${(i * 0.7) % 4}s infinite` }}>
-            {scene.float[i % scene.float.length]}
+            <AT>{scene.float[i % scene.float.length]}</AT>
           </span>
         ))}
       </div>
 
       <div className="absolute inset-x-0 top-3 text-center">
         <p className="text-[11px] font-black uppercase tracking-[0.22em]" style={{ color: scene.accent }}>
-          {st.emoji} {st.name}
+          <AT>{st.emoji}</AT> {st.name}
         </p>
         <p className="mt-0.5 text-lg font-black [text-shadow:0_2px_8px_#000]">{scene.title}</p>
       </div>

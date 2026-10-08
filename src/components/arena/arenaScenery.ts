@@ -4,6 +4,8 @@
 // (que quase ninguém usa) e em detalhes rasteiros no chão.
 // Coordenadas em tiles do campo (W=16, H=26); y de cada objeto = onde ele pisa.
 
+import { campo, tinted, type CampoName } from "./arenaAssets";
+
 export type Env = {
   g: CanvasRenderingContext2D;
   s: number;
@@ -110,10 +112,28 @@ const shadow = (e: Env, x: number, y: number, rx: number) => ell(e, x, y + 0.05,
 
 // ------------------------------------------------------------ plantas
 
+/** Desenha um sprite 3D (base no ponto, altura em tiles). Devolve false se ainda não carregou (cai no desenho de reserva). */
+function spr(e: Env, name: CampoName, x: number, y: number, h: number, tint?: string, amount = 0): boolean {
+  const base = campo(name);
+  const img = tint ? tinted(name, tint, amount) : base;
+  if (!base || !img) return false;
+  const H = h * e.s;
+  const W = (H * base.naturalWidth) / base.naturalHeight;
+  const px = e.X(x);
+  const py = e.Y(y);
+  e.g.fillStyle = "rgba(10,30,5,0.2)";
+  e.g.beginPath();
+  e.g.ellipse(px + W * 0.05, py - H * 0.03, W * 0.38, H * 0.09, 0, 0, TAU);
+  e.g.fill();
+  e.g.drawImage(img, px - W / 2, py - H, W, H);
+  return true;
+}
+
 type TreeOpts = { trunk?: string; dark: string; mid: string; light: string; fruit?: string; fruitGlow?: boolean; fruits?: number };
 
 function tree(e: Env, x: number, y: number, sc: number, o: TreeOpts) {
   sc *= K;
+  if (o.fruit && o.fruitGlow ? spr(e, "arvore-moedas", x, y, 3.2 * sc) : o.fruit ? spr(e, "macieira", x, y, 3.2 * sc) : spr(e, x * 7 % 2 > 1 ? "carvalho" : "arvore", x, y, 3.2 * sc, o.mid, 0.22)) return;
   shadow(e, x, y, 1.0 * sc);
   rect(e, x - 0.2 * sc, y - 1.5 * sc, 0.4 * sc, 1.5 * sc, o.trunk ?? "#6b4423", "#4a2f16", 0.03, 0.05);
   circ(e, x, y - 2.1 * sc, 1.15 * sc, o.dark);
@@ -137,6 +157,7 @@ function tree(e: Env, x: number, y: number, sc: number, o: TreeOpts) {
 
 function palm(e: Env, x: number, y: number, sc: number, lean = 0.3) {
   sc *= K;
+  if (spr(e, "palmeira", x, y, 3.0 * sc)) return;
   shadow(e, x, y, 0.7 * sc);
   curve(e, [[x, y], [x + lean * 0.4 * sc, y - 1.0 * sc], [x + lean * sc, y - 2.0 * sc]], "#8a5a2b", 0.3 * sc);
   curve(e, [[x, y], [x + lean * 0.4 * sc, y - 1.0 * sc], [x + lean * sc, y - 2.0 * sc]], "#a4713a", 0.15 * sc);
@@ -153,6 +174,7 @@ function palm(e: Env, x: number, y: number, sc: number, lean = 0.3) {
 
 function olive(e: Env, x: number, y: number, sc: number) {
   sc *= K;
+  if (spr(e, "oliveira", x, y, 2.9 * sc)) return;
   shadow(e, x, y, 1.0 * sc);
   curve(e, [[x, y], [x - 0.15 * sc, y - 0.8 * sc], [x + 0.2 * sc, y - 1.4 * sc]], "#6b5a45", 0.38 * sc);
   circ(e, x - 0.5 * sc, y - 1.7 * sc, 0.7 * sc, "#6f8456");
@@ -163,6 +185,7 @@ function olive(e: Env, x: number, y: number, sc: number) {
 }
 
 function bush(e: Env, x: number, y: number, r: number, d: string, m: string, l: string) {
+  if (spr(e, "arbusto", x, y + r * 0.7, r * 2.4, m, 0.3)) return;
   ell(e, x, y + r * 0.7, r * 1.1, r * 0.35, "rgba(0,0,0,0.2)");
   circ(e, x, y, r, d);
   circ(e, x - r * 0.2, y - r * 0.2, r * 0.75, m);
@@ -619,6 +642,7 @@ function campaignScenery(e: Env, key: string) {
       for (const [x, y, sc] of [[L - 0.2, 4.6, 1.5], [R + 0.1, 5.4, 1.4], [L + 0.3, 9.4, 1.3], [R - 0.2, 9.0, 1.5], [L, 18.2, 1.4], [R, 19.0, 1.5], [L + 0.1, 23.2, 1.3], [R - 0.1, 23.6, 1.4]] as const) {
         tree(e, x, y, sc, { trunk: "#5a3a1a", dark: "#1f6a2b", mid: "#2e8b3a", light: "#5cba55" });
       }
+      for (const [n, x, y, h] of [["selva-totem", L + 0.2, 10.4, 2.4], ["selva-folhas", R - 0.2, 10.6, 1.6], ["selva-tronco", L + 0.5, 16.4, 1.0], ["selva-folhas", L, 6.9, 1.5], ["selva-totem", R - 0.2, 20.8, 2.2], ["selva-arvore", L + 0.1, 20.4, 3.4], ["selva-tronco", R - 0.4, 16.6, 1.0], ["selva-folhas", L + 0.3, 24.4, 1.4]] as const) spr(e, n, x, y, h);
       for (let i = 0; i < 14; i++) {
         const [x, y] = edge();
         glow(e, x, y, 0.35, "rgba(253,224,71,0.55)");
@@ -629,23 +653,28 @@ function campaignScenery(e: Env, key: string) {
       // Torre Eiffel
       const ex = R - 0.2;
       const ey = 9.6;
-      poly(e, [[ex - 1.5, ey], [ex - 0.12, ey - 5.6], [ex + 0.12, ey - 5.6], [ex + 1.5, ey]], "#6b5b4b", "#3d3228", 0.04);
-      poly(e, [[ex - 0.9, ey - 1.4], [ex + 0.9, ey - 1.4], [ex + 0.55, ey - 2.6], [ex - 0.55, ey - 2.6]], "#8a7864", "#3d3228", 0.03);
-      line(e, ex, ey - 5.6, ex, ey - 6.6, "#3d3228", 0.06);
-      glow(e, ex, ey - 6.6, 0.9, "rgba(255,240,170,0.7)");
+      if (!spr(e, "paris-torre", ex, ey + 0.4, 6.8)) {
+        poly(e, [[ex - 1.5, ey], [ex - 0.12, ey - 5.6], [ex + 0.12, ey - 5.6], [ex + 1.5, ey]], "#6b5b4b", "#3d3228", 0.04);
+        poly(e, [[ex - 0.9, ey - 1.4], [ex + 0.9, ey - 1.4], [ex + 0.55, ey - 2.6], [ex - 0.55, ey - 2.6]], "#8a7864", "#3d3228", 0.03);
+        line(e, ex, ey - 5.6, ex, ey - 6.6, "#3d3228", 0.06);
+        glow(e, ex, ey - 6.6, 0.9, "rgba(255,240,170,0.7)");
+      }
       // postes de luz, árvores aparadas e mesinhas de café
       for (const [x, y] of [[L + 1.2, 5.2], [L + 1.2, 9.4], [R - 1.8, 17.2], [L + 1.2, 18.4], [R - 1.8, 22.6], [L + 1.2, 22.8]] as const) {
-        line(e, x, y, x, y - 1.5, "#2d2d38", 0.08);
+        if (!spr(e, "paris-poste", x, y, 1.9)) line(e, x, y, x, y - 1.5, "#2d2d38", 0.08);
         glow(e, x, y - 1.6, 0.7, "rgba(255,230,150,0.75)");
       }
       for (const [x, y] of [[L - 0.3, 4.6], [R, 4.2], [L - 0.2, 23.4], [R + 0.2, 20.4]] as const) {
         tree(e, x, y, 1.0, { trunk: "#6b4a2b", dark: "#3f7d3a", mid: "#5a9a4c", light: "#86c06e" });
       }
       for (const [x, y] of [[L + 0.2, 14.9], [R - 0.3, 6.4]] as const) {
-        ell(e, x, y, 0.55, 0.25, "#fff", "#c9bda3", 0.03);
-        circ(e, x - 0.9, y + 0.1, 0.18, "#b91c1c");
-        circ(e, x + 0.9, y + 0.1, 0.18, "#1d4ed8");
+        if (!spr(e, "paris-mesa", x, y + 0.5, 1.7)) {
+          ell(e, x, y, 0.55, 0.25, "#fff", "#c9bda3", 0.03);
+          circ(e, x - 0.9, y + 0.1, 0.18, "#b91c1c");
+          circ(e, x + 0.9, y + 0.1, 0.18, "#1d4ed8");
+        }
       }
+      for (const [x, y] of [[L + 0.4, 10.6], [R - 0.5, 20.8], [L + 0.5, 25.0]] as const) spr(e, "paris-jardineira", x, y, 0.9);
       for (let i = 0; i < 24; i++) {
         const [x, y] = edge();
         flower(e, x, y, 0.1, ["#f472b6", "#fff", "#fde047"][i % 3]);
@@ -655,16 +684,21 @@ function campaignScenery(e: Env, key: string) {
     case "c-quartel": {
       // sacos de areia, barracas, bandeira e pneus de treino
       for (const [x, y] of [[L - 0.3, 5.8], [R - 0.2, 6.0], [L, 17.6], [R - 0.3, 18.2]] as const) {
+        if (spr(e, "quartel-sacos", x, y + 0.3, 1.2)) continue;
         for (let i = 0; i < 4; i++) rect(e, x - 0.9 + i * 0.5, y, 0.5, 0.3, "#c9b27a", "#8f7a4f", 0.02, 0.1);
         for (let i = 0; i < 3; i++) rect(e, x - 0.65 + i * 0.5, y - 0.28, 0.5, 0.3, "#d6c28a", "#8f7a4f", 0.02, 0.1);
       }
       for (const [x, y] of [[L + 0.1, 8.8], [R - 0.2, 22.4]] as const) {
+        if (spr(e, "quartel-barraca", x, y + 0.2, 2.2)) continue;
         poly(e, [[x - 1.3, y], [x, y - 1.8], [x + 1.3, y]], "#5a6b34", "#33401b", 0.04);
         rect(e, x - 0.3, y - 0.8, 0.6, 0.8, "#2b3416", undefined, 0.02, 0.05);
       }
-      line(e, L, 22.6, L, 19.6, "#3d2f1c", 0.08);
-      poly(e, [[L, 19.6], [L + 1.1, 19.9], [L, 20.4]], "#b91c1c", "#7f1d1d", 0.02);
+      if (!spr(e, "quartel-bandeira", L + 0.2, 23.4, 3.2)) {
+        line(e, L, 22.6, L, 19.6, "#3d2f1c", 0.08);
+        poly(e, [[L, 19.6], [L + 1.1, 19.9], [L, 20.4]], "#b91c1c", "#7f1d1d", 0.02);
+      }
       for (const [x, y] of [[R, 21.9], [L + 1.5, 4.0]] as const) {
+        if (spr(e, "quartel-jipe", x, y + 0.5, 1.5)) continue;
         circ(e, x, y, 0.4, "#1f1f24", "#000", 0.03);
         circ(e, x, y, 0.16, "#7a6a4a");
       }
@@ -677,10 +711,12 @@ function campaignScenery(e: Env, key: string) {
     case "c-rock": {
       // caixas de som, luzes de palco e pontos de luz
       for (const [x, y] of [[L, 5.2], [R - 0.2, 5.0], [L + 0.1, 20.8], [R - 0.3, 21.2]] as const) {
+        if (spr(e, "rock-caixas", x, y + 0.2, 2.2)) continue;
         rect(e, x - 0.7, y - 1.7, 1.4, 1.7, "#15131f", "#000", 0.04, 0.1);
         circ(e, x, y - 1.15, 0.38, "#2a2740", "#6b6b85", 0.03);
         circ(e, x, y - 0.5, 0.2, "#2a2740", "#6b6b85", 0.03);
       }
+      for (const [n, x, y, h] of [["rock-bateria", L + 0.3, 10.6, 1.7], ["rock-trelica", R - 0.3, 10.8, 2.4], ["rock-guitarra", R - 0.2, 16.8, 1.7], ["rock-bateria", L + 0.2, 25.0, 1.6]] as const) spr(e, n, x, y, h);
       const beams: [number, number, string][] = [[L + 0.3, 8.8, "rgba(244,114,182,0.5)"], [R - 0.3, 9.2, "rgba(96,165,250,0.5)"], [L, 17.8, "rgba(250,204,21,0.5)"], [R - 0.2, 17.2, "rgba(74,222,128,0.5)"]];
       for (const [x, y, c] of beams) {
         glow(e, x, y, 1.9, c);
@@ -694,17 +730,23 @@ function campaignScenery(e: Env, key: string) {
     }
     case "c-aula": {
       // carteiras, lousa, globo e cadernos
-      rect(e, 3.2, 0.3, 9.6, 1.0, "#1f4a3a", "#7a5a2b", 0.07, 0.08);
-      line(e, 4.2, 0.8, 6.8, 0.8, "rgba(255,255,255,0.8)", 0.06);
-      line(e, 8.0, 0.65, 10.8, 0.9, "rgba(255,255,255,0.7)", 0.05);
+      if (!spr(e, "aula-lousa", 8, 2.3, 2.6)) {
+        rect(e, 3.2, 0.3, 9.6, 1.0, "#1f4a3a", "#7a5a2b", 0.07, 0.08);
+        line(e, 4.2, 0.8, 6.8, 0.8, "rgba(255,255,255,0.8)", 0.06);
+        line(e, 8.0, 0.65, 10.8, 0.9, "rgba(255,255,255,0.7)", 0.05);
+      }
       for (const [x, y] of [[L - 0.2, 5.6], [R - 0.2, 5.8], [L, 8.8], [R - 0.3, 9.2], [L, 17.4], [R - 0.2, 17.8], [L + 0.1, 21.6], [R - 0.3, 22.0]] as const) {
+        if (spr(e, "aula-carteira", x, y + 0.5, 1.3)) continue;
         rect(e, x - 0.7, y - 0.55, 1.4, 0.55, "#b98b4e", "#7a5a2b", 0.03, 0.05);
         rect(e, x - 0.55, y, 0.1, 0.55, "#7a5a2b");
         rect(e, x + 0.45, y, 0.1, 0.55, "#7a5a2b");
         rect(e, x - 0.3, y - 0.8, 0.6, 0.25, "#93c5fd", "#1d4ed8", 0.02, 0.04);
       }
-      circ(e, L + 0.6, 14.9, 0.55, "#3b82f6", "#1e3a8a", 0.04);
-      rect(e, L + 0.45, 15.4, 0.3, 0.4, "#7a5a2b");
+      if (!spr(e, "aula-globo", L + 0.7, 16.0, 1.6)) {
+        circ(e, L + 0.6, 14.9, 0.55, "#3b82f6", "#1e3a8a", 0.04);
+        rect(e, L + 0.45, 15.4, 0.3, 0.4, "#7a5a2b");
+      }
+      for (const [x, y] of [[R - 0.6, 12.0 - 0.9], [L + 0.4, 24.8]] as const) spr(e, "aula-livros", x, y, 1.1);
       for (let i = 0; i < 18; i++) {
         const [x, y] = edge();
         rect(e, x, y, 0.32, 0.4, ["#ef4444", "#3b82f6", "#22c55e", "#f59e0b"][i % 4], "#00000055", 0.02, 0.04);
@@ -714,17 +756,20 @@ function campaignScenery(e: Env, key: string) {
     case "c-igreja": {
       // bancos, vitrais, cruz e velas
       for (const [x, y] of [[L, 5.8], [R - 0.2, 6.0], [L + 0.1, 9.2], [R - 0.3, 9.4], [L, 17.6], [R - 0.2, 17.8], [L + 0.1, 21.8], [R - 0.3, 22.0]] as const) {
+        if (spr(e, "igreja-banco", x, y + 0.2, 1.3)) continue;
         rect(e, x - 0.9, y - 0.35, 1.8, 0.35, "#8a5a2b", "#4a2f16", 0.03, 0.06);
         rect(e, x - 0.9, y - 0.9, 1.8, 0.2, "#74502d", "#4a2f16", 0.03, 0.05);
       }
       for (const [x, y, c] of [[3.6, 0.9, "rgba(96,165,250,0.6)"], [8.0, 0.8, "rgba(250,204,21,0.6)"], [12.4, 0.9, "rgba(244,114,182,0.6)"]] as const) {
-        rect(e, x - 0.6, y - 0.8, 1.2, 1.8, "#2a2a3a", "#d6d3d1", 0.05, 0.5);
+        if (!spr(e, "igreja-vitral", x, y + 1.6, 2.0)) rect(e, x - 0.6, y - 0.8, 1.2, 1.8, "#2a2a3a", "#d6d3d1", 0.05, 0.5);
         glow(e, x, y, 1.6, c);
       }
-      rect(e, 7.88, 1.6, 0.24, 1.3, "#f5d97a", "#8a6a1a", 0.03, 0.04);
-      rect(e, 7.5, 1.95, 1.0, 0.24, "#f5d97a", "#8a6a1a", 0.03, 0.04);
+      if (!spr(e, "igreja-cruz", 8, 4.2, 2.3)) {
+        rect(e, 7.88, 1.6, 0.24, 1.3, "#f5d97a", "#8a6a1a", 0.03, 0.04);
+        rect(e, 7.5, 1.95, 1.0, 0.24, "#f5d97a", "#8a6a1a", 0.03, 0.04);
+      }
       for (const [x, y] of [[L + 1.4, 13.2], [R - 1.4, 13.0], [L + 1.5, 4.0], [R - 1.5, 21.0]] as const) {
-        rect(e, x - 0.1, y - 0.5, 0.2, 0.5, "#fef3c7", "#a16207", 0.02, 0.04);
+        if (!spr(e, "igreja-candelabro", x, y, 1.3)) rect(e, x - 0.1, y - 0.5, 0.2, 0.5, "#fef3c7", "#a16207", 0.02, 0.04);
         glow(e, x, y - 0.7, 0.55, "rgba(253,224,71,0.8)");
       }
       break;
@@ -732,18 +777,22 @@ function campaignScenery(e: Env, key: string) {
     case "c-casamento": {
       // arco de flores, balões, mesinhas e luzinhas
       for (const [x, y] of [[L, 6.2], [R - 0.2, 6.0]] as const) {
+        if (spr(e, "casamento-arco", x + (x < 8 ? 0.4 : -0.4), y + 0.4, 2.9)) continue;
         rect(e, x - 0.12, y - 2.2, 0.24, 2.2, "#f5ebe0", "#c9b9a0", 0.03, 0.05);
         for (let i = 0; i < 7; i++) circ(e, x + Math.sin(i) * 0.45, y - 2.4 + i * 0.1, 0.26, ["#f472b6", "#fb7185", "#fff", "#fda4af"][i % 4]);
       }
       for (const [x, y, c] of [[L + 0.3, 9.4, "#f472b6"], [L + 1.0, 8.9, "#fde047"], [R - 0.4, 17.0, "#60a5fa"], [R - 1.1, 16.6, "#f472b6"], [R - 0.2, 9.6, "#fff"], [L, 17.6, "#a78bfa"]] as const) {
+        if (spr(e, "casamento-baloes", x, y + 1.5, 1.9)) continue;
         line(e, x, y, x, y + 1.4, "#d1d5db", 0.03);
         ell(e, x, y, 0.38, 0.5, c, "#00000033", 0.02);
       }
       for (const [x, y] of [[L + 0.1, 21.8], [R - 0.2, 22.2]] as const) {
+        if (spr(e, "casamento-bolo", x, y + 0.4, 1.4)) continue;
         ell(e, x, y, 0.8, 0.32, "#fff", "#e5d9c8", 0.03);
         circ(e, x, y - 0.25, 0.2, "#f472b6");
         circ(e, x - 0.35, y - 0.18, 0.14, "#fda4af");
       }
+      for (const [x, y] of [[L + 0.5, 15.9], [R - 0.5, 14.9 + 1.4]] as const) spr(e, "casamento-cadeira", x, y, 1.2);
       for (let i = 0; i < 28; i++) {
         const [x, y] = edge();
         glow(e, x, y, 0.3, "rgba(255,240,170,0.7)");
@@ -754,16 +803,22 @@ function campaignScenery(e: Env, key: string) {
     case "c-gabinete": {
       // estantes de livros, mesa do pastor, luminárias e tapete
       for (const [x, y] of [[L - 0.1, 5.6], [R - 0.1, 5.4], [L - 0.1, 9.2], [R - 0.1, 21.2], [L - 0.1, 21.4]] as const) {
+        if (spr(e, "gabinete-estante", x, y + 0.2, 2.5)) continue;
         rect(e, x - 0.8, y - 2.0, 1.6, 2.0, "#3b2615", "#1e1208", 0.04, 0.06);
         for (let row = 0; row < 3; row++) {
           for (let i = 0; i < 5; i++) rect(e, x - 0.7 + i * 0.28, y - 1.85 + row * 0.62, 0.22, 0.5, ["#7f1d1d", "#1e3a5f", "#14532d", "#78350f", "#4c1d95"][(i + row) % 5], undefined, 0.02, 0.02);
         }
       }
-      rect(e, R - 1.9, 17.0, 2.6, 0.9, "#52361d", "#2a1a0b", 0.04, 0.08);
-      rect(e, R - 1.6, 16.5, 0.7, 0.5, "#fef3c7", "#a16207", 0.02, 0.04);
+      if (!spr(e, "gabinete-mesa", R - 0.6, 18.4, 1.9)) {
+        rect(e, R - 1.9, 17.0, 2.6, 0.9, "#52361d", "#2a1a0b", 0.04, 0.08);
+        rect(e, R - 1.6, 16.5, 0.7, 0.5, "#fef3c7", "#a16207", 0.02, 0.04);
+      }
+      spr(e, "gabinete-poltrona", L + 0.8, 17.2, 1.5);
       for (const [x, y] of [[L + 1.5, 14.9], [R - 1.2, 13.0]] as const) {
-        line(e, x, y, x, y - 1.2, "#2a1a0b", 0.07);
-        poly(e, [[x - 0.35, y - 1.2], [x + 0.35, y - 1.2], [x + 0.2, y - 1.7], [x - 0.2, y - 1.7]], "#facc15", "#a16207", 0.02);
+        if (!spr(e, "gabinete-abajur", x, y, 1.9)) {
+          line(e, x, y, x, y - 1.2, "#2a1a0b", 0.07);
+          poly(e, [[x - 0.35, y - 1.2], [x + 0.35, y - 1.2], [x + 0.2, y - 1.7], [x - 0.2, y - 1.7]], "#facc15", "#a16207", 0.02);
+        }
         glow(e, x, y - 1.6, 0.9, "rgba(253,224,71,0.5)");
       }
       for (let i = 0; i < 14; i++) {

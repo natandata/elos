@@ -5,6 +5,7 @@ import { ARENA_CARDS, ARENA_CARD_BY_KEY, MAX_CARD_LEVEL, STARTER_DECK, levelMult
 import { ARENAS, CARD_UNLOCK_ARENA, CHEST_ONLY, isCardUnlocked } from "@/lib/arena/arenas";
 import { CARD_LORE } from "@/lib/arena/cardLore";
 import { CardArt } from "./CardArt";
+import { AT } from "./ArenaText";
 
 const SIZE = 8;
 
@@ -23,9 +24,9 @@ function Tile({ card, picked, locked, level, copies, onClick }: { card: ArenaCar
       ) : card.key === "jesus" ? (
         <span className="absolute -right-1 -top-1 rounded-full bg-gradient-to-r from-fuchsia-500 to-amber-400 px-1.5 text-[9px] font-black text-white">ULTRA</span>
       ) : null}
-      {locked ? <span className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-black/55 text-2xl" aria-hidden>🔒</span> : null}
+      {locked ? <span className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-black/55 text-2xl" aria-hidden><AT>🔒</AT></span> : null}
       <div className="flex h-14 items-end justify-center">
-        {card.art ? <CardArt card={card} className="h-14" /> : <span className="text-3xl" aria-hidden>{card.emoji}</span>}
+        {card.art ? <CardArt card={card} className="h-14" /> : <span className="text-3xl" aria-hidden><AT>{card.emoji}</AT></span>}
       </div>
       <p className={`mt-1 font-bold leading-tight [overflow-wrap:anywhere] ${card.name.split(" ").some((w) => w.length >= 12) ? "text-[8px]" : "text-[10px]"}`}>{card.name}</p>
       {level ? <p className="text-[9px] font-black text-violet-500">Nv.{level}</p> : null}
@@ -135,8 +136,8 @@ export function DeckBuilder({
         <p className="text-sm font-bold uppercase tracking-wide text-[var(--muted)]">
           Seu baralho · {deck.length}/{SIZE}
         </p>
-        <p className="text-sm font-black">
-          🍞 {avg.toFixed(1)} <span className="text-xs font-bold text-[var(--muted)]">custo médio</span>
+        <p className="text-sm font-black"><AT>
+          🍞 </AT>{avg.toFixed(1)} <span className="text-xs font-bold text-[var(--muted)]">custo médio</span>
         </p>
       </div>
       <div className="mb-4 grid grid-cols-4 gap-2">
@@ -235,27 +236,27 @@ function CardSheet({
       <div className="max-h-[90vh] w-full max-w-[460px] overflow-y-auto rounded-t-3xl bg-[var(--bg)] p-4 pb-6 shadow-2xl sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start gap-3">
           <div className="flex h-24 w-20 shrink-0 items-end justify-center rounded-2xl bg-gradient-to-b from-[#4a90e2] to-[#2d62b8] p-1">
-            {card.art ? <CardArt card={card} className="h-[88px]" /> : <span className="text-5xl" aria-hidden>{card.emoji}</span>}
+            {card.art ? <CardArt card={card} className="h-[88px]" /> : <span className="text-5xl" aria-hidden><AT>{card.emoji}</AT></span>}
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-xl font-black leading-tight">{card.name}</p>
-            <p className="text-sm font-bold text-amber-600">
-              🍞 {card.cost} de Maná {card.kind === "spell" ? "· Poder" : ""}
+            <p className="text-sm font-bold text-amber-600"><AT>
+              🍞 </AT>{card.cost} de Maná {card.kind === "spell" ? "· Poder" : ""}
             </p>
-            {card.key === "jesus" ? <p className="text-xs font-black text-fuchsia-500">👑 Ultra lendária · 1% nos baús</p> : null}
+            {card.key === "jesus" ? <p className="text-xs font-black text-fuchsia-500"><AT>👑 Ultra lendária · 1% nos baús</AT></p> : null}
             {unlocked ? <p className="text-sm font-black text-violet-500">Nível {level}{level >= MAX_CARD_LEVEL ? " (máximo)" : ""}</p> : null}
             <p className="mt-1 text-xs font-semibold text-[var(--muted)]">{card.desc}</p>
           </div>
-          <button type="button" onClick={onClose} aria-label="Fechar" className="shrink-0 rounded-full bg-[var(--card)] px-3 py-1.5 text-lg font-black">
+          <button type="button" onClick={onClose} aria-label="Fechar" className="shrink-0 rounded-full bg-[var(--card)] px-3 py-1.5 text-lg font-black"><AT>
             ✕
-          </button>
+          </AT></button>
         </div>
 
         {unlocked ? (
           <div className="card mt-4 p-3">
             <p className="text-xs font-black uppercase tracking-wide text-[var(--muted)]">Cartas do herói</p>
             {level >= MAX_CARD_LEVEL ? (
-              <p className="mt-1 text-sm font-black text-amber-600">⭐ Nível máximo</p>
+              <p className="mt-1 text-sm font-black text-amber-600"><AT>⭐ Nível máximo</AT></p>
             ) : (
               <>
                 <div className="relative mt-1 h-5 overflow-hidden rounded-full bg-black/25">
@@ -265,7 +266,7 @@ function CardSheet({
                   </span>
                 </div>
                 <button type="button" disabled={upBusy || !canUp} onClick={onUpgrade} className="btn btn-primary mt-2 w-full !py-2.5 disabled:opacity-50">
-                  {upBusy ? "Evoluindo…" : canUp ? `⬆️ Evoluir para o nível ${level + 1}` : `Faltam ${need - have} cartas pra evoluir`}
+                  {upBusy ? "Evoluindo…" : canUp ? <AT>{`⬆️ Evoluir para o nível ${level + 1}`}</AT> : `Faltam ${need - have} cartas pra evoluir`}
                 </button>
               </>
             )}
@@ -273,19 +274,19 @@ function CardSheet({
           </div>
         ) : (
           chestOnly ? (
-          <p className="mt-4 rounded-2xl bg-fuchsia-500/10 px-3 py-2 text-sm font-black text-fuchsia-600">
-            🔒 Herói de baú: ainda não achado. Cada baú tem 25% de chance de trazer um herói de baú, a partir da arena {arena.emoji} {arena.name}.
+          <p className="mt-4 rounded-2xl bg-fuchsia-500/10 px-3 py-2 text-sm font-black text-fuchsia-600"><AT>
+            🔒 Herói de baú: ainda não achado. Cada baú tem 25% de chance de trazer um herói de baú, a partir da arena </AT><AT>{arena.emoji}</AT> {arena.name}.
           </p>
         ) : (
-          <p className="mt-4 rounded-2xl bg-amber-400/15 px-3 py-2 text-sm font-black text-amber-600">
-            🔒 Libera na arena {arena.emoji} {arena.name} ({arena.min} 🏆)
-          </p>
+          <p className="mt-4 rounded-2xl bg-amber-400/15 px-3 py-2 text-sm font-black text-amber-600"><AT>
+            🔒 Libera na arena </AT><AT>{arena.emoji}</AT> {arena.name} ({arena.min}<AT> 🏆)
+          </AT></p>
         )
         )}
 
         {lore ? (
           <div className="card mt-3 p-3">
-            <p className="text-xs font-black uppercase tracking-wide text-[var(--muted)]">📖 A história</p>
+            <p className="text-xs font-black uppercase tracking-wide text-[var(--muted)]"><AT>📖 A história</AT></p>
             <p className="mt-1 text-sm font-semibold leading-relaxed">{lore.story}</p>
             <p className="mt-2 text-xs font-black text-amber-600">Leia na Bíblia: {lore.ref}</p>
           </div>
@@ -293,25 +294,25 @@ function CardSheet({
 
         {lore ? (
           <div className="card mt-3 p-3">
-            <p className="text-xs font-black uppercase tracking-wide text-[var(--muted)]">⚔️ Como ataca</p>
+            <p className="text-xs font-black uppercase tracking-wide text-[var(--muted)]"><AT>⚔️ Como ataca</AT></p>
             <p className="mt-1 text-sm font-semibold leading-relaxed">{lore.attack}</p>
           </div>
         ) : null}
 
         <div className="card mt-3 p-3">
-          <p className="text-xs font-black uppercase tracking-wide text-[var(--muted)]">📊 Detalhes (nível {level})</p>
+          <p className="text-xs font-black uppercase tracking-wide text-[var(--muted)]"><AT>📊 Detalhes (nível </AT>{level})</p>
           <dl className="mt-1 divide-y divide-[var(--line)]">
             {statRows(card, level).map(([k, v]) => (
               <div key={k} className="flex justify-between py-1.5 text-sm">
-                <dt className="font-semibold text-[var(--muted)]">{k}</dt>
+                <dt className="font-semibold text-[var(--muted)]"><AT>{k}</AT></dt>
                 <dd className="font-black">{v}</dd>
               </div>
             ))}
           </dl>
-          <p className="mt-2 text-xs font-black uppercase tracking-wide text-[var(--muted)]">✨ Habilidades</p>
+          <p className="mt-2 text-xs font-black uppercase tracking-wide text-[var(--muted)]"><AT>✨ Habilidades</AT></p>
           <ul className="mt-1 space-y-1 text-sm font-semibold">
             {abilities(card).map((a) => (
-              <li key={a}>{a}</li>
+              <li key={a}><AT>{a}</AT></li>
             ))}
           </ul>
         </div>

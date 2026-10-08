@@ -10,6 +10,7 @@ import { entryUsers, loadTournamentData } from "@/lib/arena/tournamentServer";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { formatDateTime } from "@/lib/types";
+import { AT } from "@/components/arena/ArenaText";
 
 const STATUS: Record<string, string> = { open: "Inscrições abertas", running: "Em andamento", finished: "Terminado", cancelled: "Cancelado" };
 
@@ -47,14 +48,14 @@ export default async function TorneioPage({ params }: { params: Promise<{ id: st
 
   return (
     <>
-      <PageHeader title={`🏆 ${t.name}`} subtitle={`${t.format === "duo" ? "Duplas" : "1x1"} · ${STATUS[t.status] ?? t.status}`} />
+      <PageHeader title={<AT>{`🏆 ${t.name}`}</AT>} subtitle={`${t.format === "duo" ? "Duplas" : "1x1"} · ${STATUS[t.status] ?? t.status}`} />
 
       <div className="card mb-4 flex items-center gap-3 p-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={arena.art} alt="" className="h-20 w-auto shrink-0" draggable={false} />
         <div className="min-w-0 text-sm font-semibold">
           <p className="font-black">{arena.name}</p>
-          <p className="text-[var(--muted)]">Arena das fases até a semifinal: todo mundo joga nela, mesmo quem ainda não a liberou. A Final é sempre na ✨ Nova Jerusalém.</p>
+          <p className="text-[var(--muted)]"><AT>Arena das fases até a semifinal: todo mundo joga nela, mesmo quem ainda não a liberou. A Final é sempre na ✨ Nova Jerusalém.</AT></p>
           {t.starts_at ? <p className="text-xs text-[var(--muted)]">Início: {formatDateTime(t.starts_at)}</p> : null}
           {t.max_entries ? <p className="text-xs text-[var(--muted)]">Vagas: {confirmed.length}/{t.max_entries}</p> : null}
         </div>
@@ -68,10 +69,10 @@ export default async function TorneioPage({ params }: { params: Promise<{ id: st
           {places.map((p, i) => (
             <li key={i} className="card flex items-center gap-3 p-2.5 text-sm font-bold">
               <span className="text-2xl" aria-hidden>
-                {["🥇", "🥈", "🥉"][i]}
+                <AT>{["🥇", "🥈", "🥉"][i]}</AT>
               </span>
               {i + 1}º lugar
-              <span className="ml-auto text-right text-amber-600">{prizeText(p)}</span>
+              <span className="ml-auto text-right text-amber-600"><AT>{prizeText(p)}</AT></span>
             </li>
           ))}
         </ul>
@@ -81,12 +82,12 @@ export default async function TorneioPage({ params }: { params: Promise<{ id: st
       <section className="mb-4">
         <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">Como funciona</h2>
         <ul className="card space-y-1 p-3 text-sm font-semibold">
-          <li>⚔️ Mata-mata: quem perde está fora; os vencedores avançam de fase até a Final.</li>
-          <li>
-            🃏 Duelo entre vizinhos do ranking da Arena (até {NEAR_RANK} posições de diferença, ex.: 1º x 2º): cada um joga com o nível real do seu baralho.
+          <li><AT>⚔️ Mata-mata: quem perde está fora; os vencedores avançam de fase até a Final.</AT></li>
+          <li><AT>
+            🃏 Duelo entre vizinhos do ranking da Arena (até </AT>{NEAR_RANK} posições de diferença, ex.: 1º x 2º): cada um joga com o nível real do seu baralho.
           </li>
-          <li>🃏 Duelo entre posições mais distantes (ou quem está fora do ranking): cartas no nível 1 para os dois.</li>
-          <li>✨ A Final é sempre na Arena Nova Jerusalém.</li>
+          <li><AT>🃏 Duelo entre posições mais distantes (ou quem está fora do ranking): cartas no nível 1 para os dois.</AT></li>
+          <li><AT>✨ A Final é sempre na Arena Nova Jerusalém.</AT></li>
         </ul>
       </section>
 
@@ -118,7 +119,7 @@ export default async function TorneioPage({ params }: { params: Promise<{ id: st
             {results.map((r) => (
               <li key={r.place} className="card flex items-center gap-3 p-2.5 text-sm font-bold">
                 <span className="text-2xl" aria-hidden>
-                  {["🥇", "🥈", "🥉"][r.place - 1]}
+                  <AT>{["🥇", "🥈", "🥉"][r.place - 1]}</AT>
                 </span>
                 <span className="min-w-0 flex-1 truncate">{labels[r.entryId]?.names.join(" + ") ?? "?"}</span>
               </li>
@@ -155,7 +156,7 @@ export default async function TorneioPage({ params }: { params: Promise<{ id: st
                       {labels[s.entryId]?.pos ? <span className="ml-1 text-[10px] font-semibold text-[var(--muted)]">ranking #{labels[s.entryId].pos}</span> : null}
                     </td>
                     <td className="px-2.5 py-1.5 text-right text-xs font-bold">
-                      {s.status === "champion" ? "🏆 Campeão" : s.status === "out" ? `Eliminado · ${roundLabel("main", s.round, finalRound)}` : `Na disputa · ${roundLabel("main", s.round, finalRound)}`}
+                      {s.status === "champion" ? <AT>{"🏆 Campeão"}</AT> : s.status === "out" ? `Eliminado · ${roundLabel("main", s.round, finalRound)}` : `Na disputa · ${roundLabel("main", s.round, finalRound)}`}
                     </td>
                   </tr>
                 ))}
@@ -183,9 +184,9 @@ export default async function TorneioPage({ params }: { params: Promise<{ id: st
         )}
       </section>
 
-      <Link href="/app/jogos/arena/torneios" className="btn btn-ghost w-full">
+      <Link href="/app/jogos/arena/torneios" className="btn btn-ghost w-full"><AT>
         ← Todos os torneios
-      </Link>
+      </AT></Link>
     </>
   );
 }

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { claimArenaMission } from "@/lib/actions/arena";
+import { AT } from "./ArenaText";
 
 /** Botão de resgatar o prêmio de uma missão da Arena. */
 export function MissionClaim({ missionKey, reward }: { missionKey: string; reward: number }) {
@@ -28,7 +29,7 @@ export function MissionClaim({ missionKey, reward }: { missionKey: string; rewar
   return (
     <div className="shrink-0 text-right">
       <button type="button" onClick={claim} disabled={busy} className="btn btn-primary !px-3 !py-2 !text-sm disabled:opacity-60">
-        {busy ? "…" : `Resgatar +${reward} 🏆`}
+        {busy ? "…" : <AT>{`Resgatar +${reward} 🏆`}</AT>}
       </button>
       {error ? <p className="mt-1 max-w-[150px] text-[11px] font-semibold text-rose-600">{error}</p> : null}
     </div>

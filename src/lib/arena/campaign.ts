@@ -8,8 +8,6 @@ export const CAMPAIGN_DECK = CAMPAIGN_CARDS.map((c) => c.key);
 export const CAMPAIGN_XP = 2;
 /** Elos femininos ganham este XP a mais a cada arena conquistada. */
 export const CAMPAIGN_XP_FEMALE_BONUS = 2;
-/** Vitória mais rápida que isso não conta (evita partida fantasma). */
-export const CAMPAIGN_MIN_SECONDS = 30;
 
 export type CampaignStage = {
   n: number;

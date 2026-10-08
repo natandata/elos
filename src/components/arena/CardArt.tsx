@@ -1,4 +1,5 @@
 import type { ArenaCard } from "@/lib/arena/cards";
+import { AT } from "./ArenaText";
 
 /** Ilustração do herói (quando existe) ou o emoji da carta. */
 export function CardArt({ card, className = "h-10" }: { card: ArenaCard; className?: string }) {
@@ -8,7 +9,7 @@ export function CardArt({ card, className = "h-10" }: { card: ArenaCard; classNa
   }
   return (
     <span className="block text-center text-2xl leading-none" aria-hidden>
-      {card.emoji}
+      <AT>{card.emoji}</AT>
     </span>
   );
 }

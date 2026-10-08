@@ -1,13 +1,18 @@
 // Conteúdo dos jogos bíblicos. Só roda no servidor: as respostas certas nunca
 // vão para o navegador antes de o jogador responder (ver engine.ts).
-// Textos de versículos seguem a Almeida Revista e Atualizada (ARA).
+// Textos de versículos seguem a Nova Versão Internacional (NVI).
+// As listas "extra" (quizExtra, versesExtra, whoExtra, orderExtra) entram sempre no FIM, para não mudar partidas antigas.
+import { QUIZ_EXTRA } from "./quizExtra";
+import { VERSES_EXTRA } from "./versesExtra";
+import { WHO_EXTRA } from "./whoExtra";
+import { ORDER_EXTRA } from "./orderExtra";
 
 /** d: 1 = fácil, 2 = médio, 3 = difícil */
 export type Level = 1 | 2 | 3;
 
 export type QuizItem = { q: string; a: string; w: [string, string, string]; ref: string; d: Level };
 
-export const QUIZ: QuizItem[] = [
+const QUIZ_BASE: QuizItem[] = [
   { q: "Quem construiu a arca para sobreviver ao dilúvio?", a: "Noé", w: ["Abraão", "Moisés", "Davi"], ref: "Gênesis 6–7", d: 1 },
   { q: "Quantos dias Jesus ficou no deserto sendo tentado?", a: "40", w: ["7", "12", "3"], ref: "Mateus 4:2", d: 1 },
   { q: "Quem foi lançado na cova dos leões?", a: "Daniel", w: ["José", "Jonas", "Elias"], ref: "Daniel 6", d: 1 },
@@ -75,35 +80,39 @@ export const QUIZ: QuizItem[] = [
   { q: "Qual profeta viu uma visão de um vale cheio de ossos secos?", a: "Ezequiel", w: ["Isaías", "Jeremias", "Daniel"], ref: "Ezequiel 37", d: 3 },
 ];
 
+export const QUIZ: QuizItem[] = [...QUIZ_BASE, ...QUIZ_EXTRA];
+
 export type VerseItem = { ref: string; before: string; after: string; a: string; w: [string, string, string]; d: Level };
 
-export const VERSES: VerseItem[] = [
-  { ref: "João 3:16", before: "Porque Deus", after: "ao mundo de tal maneira que deu o seu Filho unigênito, para que todo o que nele crê não pereça, mas tenha a vida eterna.", a: "amou", w: ["temeu", "chamou", "criou"], d: 1 },
-  { ref: "Salmos 23:1", before: "O Senhor é o meu", after: "; nada me faltará.", a: "pastor", w: ["rei", "refúgio", "escudo"], d: 1 },
-  { ref: "Filipenses 4:13", before: "Posso todas as coisas naquele que me", after: ".", a: "fortalece", w: ["ensina", "guia", "ama"], d: 1 },
-  { ref: "Provérbios 3:5", before: "Confia no Senhor de todo o teu", after: "e não te estribes no teu próprio entendimento.", a: "coração", w: ["tempo", "pensamento", "caminho"], d: 2 },
-  { ref: "Josué 1:9", before: "Não to mandei eu? Sê forte e", after: "; não temas, nem te espantes, porque o Senhor, teu Deus, é contigo por onde quer que andares.", a: "corajoso", w: ["sábio", "paciente", "humilde"], d: 2 },
-  { ref: "Romanos 8:28", before: "Sabemos que todas as coisas cooperam para o", after: "daqueles que amam a Deus, daqueles que são chamados segundo o seu propósito.", a: "bem", w: ["mal", "tempo", "caminho"], d: 2 },
-  { ref: "Isaías 41:10", before: "Não temas, porque eu sou contigo; não te assombres, porque eu sou o teu Deus; eu te fortaleço, e te", after: ", e te sustento com a destra da minha justiça.", a: "ajudo", w: ["guardo", "visito", "consolo"], d: 3 },
-  { ref: "Mateus 11:28", before: "Vinde a mim, todos os que estais cansados e sobrecarregados, e eu vos", after: ".", a: "aliviarei", w: ["ensinarei", "guardarei", "curarei"], d: 2 },
-  { ref: "Salmos 119:105", before: "", after: "para os meus pés é a tua palavra e luz para o meu caminho.", a: "Lâmpada", w: ["Espada", "Escudo", "Cajado"], d: 1 },
-  { ref: "1 Timóteo 4:12", before: "Ninguém despreze a tua", after: "; mas sê padrão dos fiéis, na palavra, no procedimento, no amor, no espírito, na fé, na pureza.", a: "mocidade", w: ["pobreza", "coragem", "presença"], d: 2 },
-  { ref: "Jeremias 29:11", before: "Porque eu bem sei os pensamentos que tenho a vosso respeito, diz o Senhor; pensamentos de", after: "e não de mal, para vos dar o fim que esperais.", a: "paz", w: ["guerra", "glória", "poder"], d: 2 },
-  { ref: "Salmos 46:1", before: "Deus é o nosso", after: "e fortaleza, socorro bem presente na angústia.", a: "refúgio", w: ["pastor", "escudo", "rei"], d: 3 },
-  { ref: "Mateus 6:33", before: "Buscai, pois, em primeiro lugar, o seu", after: "e a sua justiça, e todas estas coisas vos serão acrescentadas.", a: "reino", w: ["templo", "povo", "caminho"], d: 2 },
-  { ref: "Salmos 119:11", before: "Guardo no", after: "as tuas palavras, para não pecar contra ti.", a: "coração", w: ["livro", "altar", "caderno"], d: 3 },
-  { ref: "1 Coríntios 13:13", before: "Agora, pois, permanecem a fé, a esperança, o amor, estes três, mas o", after: "destes é o amor.", a: "maior", w: ["menor", "primeiro", "último"], d: 2 },
-  { ref: "Mateus 28:20", before: "E eis que estou", after: "todos os dias até à consumação do século.", a: "convosco", w: ["diante", "longe", "atrás"], d: 3 },
+const VERSES_BASE: VerseItem[] = [
+  { ref: "João 3:16", before: "Pois Deus", after: "o mundo de tal maneira que deu o seu Filho Unigênito, para que todo o que nele crer não pereça, mas tenha a vida eterna.", a: "amou", w: ["temeu", "chamou", "criou"], d: 1 },
+  { ref: "Salmos 23:1", before: "O Senhor é o meu", after: "; de nada terei falta.", a: "pastor", w: ["rei", "refúgio", "escudo"], d: 1 },
+  { ref: "Filipenses 4:13", before: "Tudo posso naquele que me", after: ".", a: "fortalece", w: ["ensina", "guia", "ama"], d: 1 },
+  { ref: "Provérbios 3:5", before: "Confie no Senhor de todo o seu", after: "e não se apoie em seu próprio entendimento.", a: "coração", w: ["tempo", "pensamento", "caminho"], d: 2 },
+  { ref: "Josué 1:9", before: "Não fui eu que ordenei a você? Seja forte e", after: "! Não se apavore nem desanime, pois o Senhor, o seu Deus, estará com você por onde você andar.", a: "corajoso", w: ["sábio", "paciente", "humilde"], d: 2 },
+  { ref: "Romanos 8:28", before: "Sabemos que Deus age em todas as coisas para o", after: "daqueles que o amam, dos que foram chamados de acordo com o seu propósito.", a: "bem", w: ["mal", "tempo", "caminho"], d: 2 },
+  { ref: "Isaías 41:10", before: "Não tema, pois estou com você; não tenha medo, pois sou o seu Deus. Eu o fortalecerei e o", after: "; eu o segurarei com a minha mão direita vitoriosa.", a: "ajudarei", w: ["guardarei", "visitarei", "consolarei"], d: 3 },
+  { ref: "Mateus 11:28", before: "Venham a mim, todos os que estão cansados e sobrecarregados, e eu darei", after: "a vocês.", a: "descanso", w: ["alegria", "pressa", "vitória"], d: 2 },
+  { ref: "Salmos 119:105", before: "A tua palavra é", after: "para os meus pés e luz para o meu caminho.", a: "lâmpada", w: ["espada", "escudo", "cajado"], d: 1 },
+  { ref: "1 Timóteo 4:12", before: "Ninguém o menospreze pelo fato de você ser", after: "; mas seja um exemplo para os fiéis na palavra, no procedimento, no amor, na fé e na pureza.", a: "jovem", w: ["pobre", "fraco", "calado"], d: 2 },
+  { ref: "Jeremias 29:11", before: "Pois eu bem sei os planos que tenho para vocês, diz o Senhor, planos de fazê-los prosperar e não de causar dano, planos de dar a vocês esperança e um", after: ".", a: "futuro", w: ["lar", "reino", "descanso"], d: 2 },
+  { ref: "Salmos 46:1", before: "Deus é o nosso refúgio e a nossa", after: ", auxílio sempre presente na adversidade.", a: "fortaleza", w: ["torre", "casa", "muralha"], d: 3 },
+  { ref: "Mateus 6:33", before: "Busquem, pois, em primeiro lugar o", after: "de Deus e a sua justiça, e todas essas coisas lhes serão acrescentadas.", a: "Reino", w: ["Templo", "Povo", "Caminho"], d: 2 },
+  { ref: "Salmos 119:11", before: "Guardo no", after: "a tua palavra para não pecar contra ti.", a: "coração", w: ["livro", "altar", "caderno"], d: 3 },
+  { ref: "1 Coríntios 13:13", before: "Assim, permanecem a fé, a esperança e o amor, estes três. O", after: "deles, porém, é o amor.", a: "maior", w: ["menor", "primeiro", "último"], d: 2 },
+  { ref: "Mateus 28:20", before: "E eu estarei sempre com vocês, até o", after: "dos tempos.", a: "fim", w: ["começo", "meio", "segundo"], d: 3 },
   { ref: "Salmos 27:1", before: "O Senhor é a minha", after: "e a minha salvação; de quem terei temor?", a: "luz", w: ["voz", "sombra", "paz"], d: 1 },
-  { ref: "Provérbios 22:6", before: "Ensina a criança no", after: "em que deve andar, e, ainda quando for velho, não se desviará dele.", a: "caminho", w: ["tempo", "livro", "lar"], d: 2 },
-  { ref: "Eclesiastes 3:1", before: "Para tudo há uma", after: ", e tempo para cada propósito debaixo do céu.", a: "ocasião", w: ["pressa", "festa", "palavra"], d: 3 },
-  { ref: "Tiago 4:7", before: "Sujeitai-vos, pois, a Deus; resisti ao diabo, e ele", after: "de vós.", a: "fugirá", w: ["dormirá", "voltará", "falará"], d: 3 },
-  { ref: "Hebreus 11:1", before: "Ora, a fé é a", after: "de coisas que se esperam, a convicção de fatos que se não veem.", a: "certeza", w: ["dúvida", "história", "lembrança"], d: 3 },
+  { ref: "Provérbios 22:6", before: "Instrua a", after: "segundo os objetivos que você tem para ela, e mesmo com o passar dos anos não se desviará deles.", a: "criança", w: ["jovem", "pessoa", "família"], d: 2 },
+  { ref: "Filipenses 4:7", before: "E a", after: "de Deus, que excede todo o entendimento, guardará o coração e a mente de vocês em Cristo Jesus.", a: "paz", w: ["glória", "força", "luz"], d: 3 },
+  { ref: "Tiago 4:7", before: "Submetam-se, pois, a Deus. Resistam ao diabo, e ele", after: "de vocês.", a: "fugirá", w: ["dormirá", "voltará", "falará"], d: 3 },
+  { ref: "Hebreus 11:1", before: "Ora, a fé é a", after: "daquilo que esperamos e a prova das coisas que não vemos.", a: "certeza", w: ["dúvida", "história", "lembrança"], d: 3 },
 ];
+
+export const VERSES: VerseItem[] = [...VERSES_BASE, ...VERSES_EXTRA];
 
 export type WhoItem = { key: string; name: string; hints: [string, string, string, string]; ref: string; d: Level };
 
-export const WHO: WhoItem[] = [
+const WHO_BASE: WhoItem[] = [
   { key: "noe", name: "Noé", ref: "Gênesis 6–9", hints: ["Deus me avisou de algo que nunca tinha acontecido e mandou construir algo enorme.", "Levei minha família e muitos animais para dentro do que construí.", "Choveu quarenta dias e quarenta noites.", "Uma pomba voltou com um ramo de oliveira."], d: 1 },
   { key: "moises", name: "Moisés", ref: "Êxodo 2–20", hints: ["Fui salvo de um rio ainda bebê, dentro de um cesto.", "Cresci na casa do faraó, mas fugi para Midiã.", "Deus falou comigo numa sarça que queimava sem se consumir.", "Abri o Mar Vermelho e recebi os Dez Mandamentos."], d: 1 },
   { key: "davi", name: "Davi", ref: "1 Samuel 16–17", hints: ["Eu era o mais novo dos irmãos e cuidava de ovelhas.", "Tocava harpa e escrevi muitos Salmos.", "Fui ungido rei por Samuel ainda jovem.", "Derrubei um gigante com uma pedra e uma funda."], d: 1 },
@@ -122,10 +131,12 @@ export const WHO: WhoItem[] = [
   { key: "debora", name: "Débora", ref: "Juízes 4–5", hints: ["Fui juíza e profetisa de Israel.", "Julgava o povo sentada debaixo de uma palmeira.", "Chamei Baraque para liderar o exército.", "Cantei uma canção de vitória depois de derrotarmos Sísera."], d: 3 },
 ];
 
+export const WHO: WhoItem[] = [...WHO_BASE, ...WHO_EXTRA];
+
 export type OrderSet = { title: string; events: [string, string, string, string]; ref: string; d: Level };
 
 // "events" já está na ordem cronológica correta.
-export const ORDER: OrderSet[] = [
+const ORDER_BASE: OrderSet[] = [
   { title: "Do começo de tudo", events: ["Criação do mundo", "Adão e Eva comem do fruto proibido", "O dilúvio", "A torre de Babel"], ref: "Gênesis 1–11", d: 1 },
   { title: "Os patriarcas", events: ["Deus chama Abraão", "Nasce Isaque", "José é vendido ao Egito", "O povo sai do Egito"], ref: "Gênesis 12 – Êxodo 12", d: 2 },
   { title: "Liberdade e deserto", events: ["O povo sai do Egito", "Os Dez Mandamentos", "Os muros de Jericó caem", "Davi vira rei"], ref: "Êxodo – 2 Samuel", d: 2 },
@@ -141,3 +152,5 @@ export const ORDER: OrderSet[] = [
   { title: "Dias da paixão", events: ["A Última Ceia", "A oração no Getsêmani", "A negação de Pedro", "A crucificação"], ref: "Mateus 26–27", d: 2 },
   { title: "Reconstrução de Israel", events: ["O exílio na Babilônia", "Daniel na cova dos leões", "Neemias reconstrói os muros", "O povo lê a Lei com Esdras"], ref: "Daniel – Neemias", d: 3 },
 ];
+
+export const ORDER: OrderSet[] = [...ORDER_BASE, ...ORDER_EXTRA];

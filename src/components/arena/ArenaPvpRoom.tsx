@@ -15,6 +15,9 @@ import type { PvpView } from "@/lib/arena/settlePvp";
 import type { Side } from "@/lib/arena/core";
 import { ARENAS } from "@/lib/arena/arenas";
 import { ArenaPlayfield, type PlayDriver } from "./ArenaPlayfield";
+import { AT } from "./ArenaText";
+import { MatchResultHero } from "./MatchResultHero";
+import { PostMatchChat } from "./PostMatchChat";
 
 type Stage = "invite" | "ready" | "connecting" | "playing" | "finishing" | "result";
 
@@ -334,7 +337,7 @@ export function ArenaPvpRoom({ id, meSide, opponentName, arena, seed, decks, lev
         extra={
           peerGone ? (
             <div className="absolute inset-x-3 top-24 rounded-2xl border-2 border-amber-300 bg-black/80 p-3 text-center text-white">
-              <p className="text-sm font-black">📡 {opponentName} está sem conexão</p>
+              <p className="text-sm font-black"><AT>📡 </AT>{opponentName} está sem conexão</p>
               <p className="mt-1 text-xs font-semibold text-white/80">Se ele não voltar, você pode encerrar e ganhar por abandono.</p>
               <button
                 type="button"
@@ -358,18 +361,18 @@ export function ArenaPvpRoom({ id, meSide, opponentName, arena, seed, decks, lev
             // eslint-disable-next-line @next/next/no-img-element
             <img src={arenaInfo.art} alt="" className="h-20 w-auto drop-shadow" draggable={false} />
           ) : (
-            <span className="text-5xl" aria-hidden>
+            <span className="text-5xl" aria-hidden><AT>
               ⚔️
-            </span>
+            </AT></span>
           )}
         </div>
-        <h2 className="mt-1 text-xl font-black">⚔️ Você x {opponentName}</h2>
+        <h2 className="mt-1 text-xl font-black"><AT>⚔️ Você x </AT>{opponentName}</h2>
         <p className="text-sm text-[var(--muted)]">{arenaInfo?.name} · {levels ? "cartas nos níveis reais (vizinhos no ranking)" : "todos com cartas no nível 1"}</p>
 
         {stage === "invite" ? (
           iAmChallenger ? (
             <>
-              <p className="mt-4 font-bold">⏳ Esperando {opponentName} aceitar o desafio…</p>
+              <p className="mt-4 font-bold"><AT>⏳ Esperando </AT>{opponentName} aceitar o desafio…</p>
               <p className="mt-1 text-xs text-[var(--muted)]">Pode deixar esta tela aberta: ela avisa quando ele aceitar.</p>
               <button type="button" disabled={busy} onClick={leaveRoom} className="btn btn-ghost mt-3 w-full">
                 Cancelar desafio
@@ -379,9 +382,9 @@ export function ArenaPvpRoom({ id, meSide, opponentName, arena, seed, decks, lev
             <>
               <p className="mt-4 font-bold">{opponentName} te desafiou para uma partida 1x1!</p>
               <div className="mt-4 grid gap-2">
-                <button type="button" disabled={busy} onClick={() => respond(true)} className="btn btn-primary !py-3">
+                <button type="button" disabled={busy} onClick={() => respond(true)} className="btn btn-primary !py-3"><AT>
                   ✅ Aceitar o desafio
-                </button>
+                </AT></button>
                 <button type="button" disabled={busy} onClick={() => respond(false)} className="btn btn-ghost">
                   Recusar
                 </button>
@@ -394,9 +397,9 @@ export function ArenaPvpRoom({ id, meSide, opponentName, arena, seed, decks, lev
           <>
             <p className="mt-4 font-bold">Tudo pronto! Os dois precisam entrar na partida ao mesmo tempo.</p>
             <p className="mt-1 text-xs text-[var(--muted)]">Se você sair no meio, conta como desistência.</p>
-            <button type="button" onClick={() => setIntro(true)} className="btn btn-primary mt-4 w-full !py-3 !text-lg">
+            <button type="button" onClick={() => setIntro(true)} className="btn btn-primary mt-4 w-full !py-3 !text-lg"><AT>
               ⚔️ Entrar na partida
-            </button>
+            </AT></button>
             {intro ? <ArenaLoadingScreen label="Entrando na partida…" onComplete={enter} /> : null}
             <button type="button" disabled={busy} onClick={leaveRoom} className="btn btn-ghost mt-2 w-full">
               Sair da sala
@@ -406,7 +409,7 @@ export function ArenaPvpRoom({ id, meSide, opponentName, arena, seed, decks, lev
 
         {stage === "connecting" ? (
           <>
-            <p className="mt-4 font-bold">⏳ Esperando {opponentName} entrar…</p>
+            <p className="mt-4 font-bold"><AT>⏳ Esperando </AT>{opponentName} entrar…</p>
             <button
               type="button"
               onClick={() => {
@@ -429,23 +432,23 @@ export function ArenaPvpRoom({ id, meSide, opponentName, arena, seed, decks, lev
           </>
         ) : null}
 
-        {stage === "result" ? <Result view={view} status={status} opponentName={opponentName} tournamentId={tournamentId} /> : null}
+        {stage === "result" ? <Result view={view} status={status} opponentName={opponentName} tournamentId={tournamentId} roomId={id} myId={myId} /> : null}
 
         {error ? <p className="mt-3 text-sm font-semibold text-rose-600">{error}</p> : null}
       </div>
       <Link href={tournamentId ? `/app/jogos/arena/torneios/${tournamentId}` : "/app/jogos/arena"} className="btn btn-ghost mt-3 w-full">
-        {tournamentId ? "← Voltar ao torneio" : "← Voltar à Batalha"}
+        {tournamentId ? <AT>{"← Voltar ao torneio"}</AT> : <AT>{"← Voltar à Batalha"}</AT>}
       </Link>
     </div>
   );
 }
 
-function Result({ view, status, opponentName, tournamentId }: { view: PvpView; status: string; opponentName: string; tournamentId?: string | null }) {
+function Result({ view, status, opponentName, tournamentId, roomId, myId }: { view: PvpView; status: string; opponentName: string; tournamentId?: string | null; roomId: string; myId: string }) {
   if (view.state === "declined" || status === "declined") return <p className="mt-4 font-bold">{opponentName} recusou o desafio.</p>;
   if (view.state === "disputed" || status === "disputed") {
     return (
       <>
-        <p className="mt-4 text-4xl" aria-hidden>⚠️</p>
+        <p className="mt-4 text-4xl" aria-hidden><AT>⚠️</AT></p>
         <p className="mt-1 font-bold">Não deu pra confirmar essa partida.</p>
         <p className="mt-1 text-xs text-[var(--muted)]">Os dois aparelhos não concordaram com as jogadas. Ninguém ganha nem perde troféu.</p>
       </>
@@ -455,23 +458,24 @@ function Result({ view, status, opponentName, tournamentId }: { view: PvpView; s
   const r = view.result;
   return (
     <>
-      <p className="mt-4 text-6xl" aria-hidden>
-        {r === "win" ? "🏆" : r === "draw" ? "🤝" : "😅"}
-      </p>
-      <h3 className="mt-1 text-2xl font-black">{r === "win" ? "Vitória!" : r === "draw" ? "Empate" : "Derrota"}</h3>
-      {view.why === "resigned" || view.why === "left" ? (
-        <p className="text-xs text-[var(--muted)]">{view.why === "left" ? "Por abandono do colega." : r === "win" ? "Seu colega desistiu." : "Você desistiu."}</p>
-      ) : (
-        <p className="text-lg font-bold tabular-nums">
-          👑 {view.crownsMe ?? 0} x {view.crownsThem ?? 0} 👑
-        </p>
-      )}
+      <div className="mt-4">
+        <MatchResultHero
+          result={r === "win" || r === "draw" ? r : "loss"}
+          crownsMe={view.crownsMe ?? 0}
+          crownsThem={view.crownsThem ?? 0}
+          meName="Você"
+          themName={opponentName}
+          note={view.why === "resigned" || view.why === "left" ? (view.why === "left" ? "Por abandono do colega." : r === "win" ? "Seu colega desistiu." : "Você desistiu.") : undefined}
+        >
+          <PostMatchChat room={`pvp:${roomId}`} myId={myId} fallbackName={opponentName} lead={`Conversar com ${opponentName}`} />
+        </MatchResultHero>
+      </div>
       {view.medal ? (
         <div className="mt-2">
           {view.medal.winner === "me" ? (
-            <p className="text-lg font-black text-amber-500">🏅 +1 medalha de vitória contra {opponentName}!</p>
+            <p className="text-lg font-black text-amber-500"><AT>🏅 +1 medalha de vitória contra </AT>{opponentName}!</p>
           ) : view.medal.winner === "them" ? (
-            <p className="text-sm font-bold text-[var(--muted)]">🏅 {opponentName} ganhou uma medalha de vitória contra você.</p>
+            <p className="text-sm font-bold text-[var(--muted)]"><AT>🏅 </AT>{opponentName} ganhou uma medalha de vitória contra você.</p>
           ) : null}
           <p className="text-sm font-black">
             Medalhas: você {view.medal.mine} x {view.medal.theirs} {opponentName}
@@ -484,8 +488,8 @@ function Result({ view, status, opponentName, tournamentId }: { view: PvpView; s
             <div className="mt-2">
               {view.rankMove ? (
                 <p className={`text-xl font-black ${view.rankMove.to < view.rankMove.from ? "text-amber-500" : "text-rose-500"}`}>
-                  {view.rankMove.to < view.rankMove.from ? "⬆️" : "⬇️"} Você foi do {view.rankMove.from}º para o {view.rankMove.to}º lugar!
-                  {view.trophyDelta ? <span className="block text-sm font-bold">{view.trophyDelta > 0 ? "+" : ""}{view.trophyDelta} 🏆 {typeof view.trophies === "number" ? `(total ${view.trophies})` : ""}</span> : null}
+                  {view.rankMove.to < view.rankMove.from ? <AT>{"⬆️"}</AT> : <AT>{"⬇️"}</AT>} Você foi do {view.rankMove.from}º para o {view.rankMove.to}º lugar!
+                  {view.trophyDelta ? <span className="block text-sm font-bold">{view.trophyDelta > 0 ? "+" : ""}{view.trophyDelta}<AT> 🏆 </AT>{typeof view.trophies === "number" ? `(total ${view.trophies})` : ""}</span> : null}
                 </p>
               ) : r === "draw" ? (
                 <p className="text-sm font-bold text-[var(--muted)]">Empate: ninguém trocou de posição.</p>
@@ -497,8 +501,8 @@ function Result({ view, status, opponentName, tournamentId }: { view: PvpView; s
             </div>
           ) : r !== "draw" ? (
             <p className={`mt-2 text-xl font-black tabular-nums ${(view.trophyDelta ?? 0) >= 0 ? "text-amber-500" : "text-rose-500"}`}>
-              {r === "win" ? `Você roubou ${view.trophyDelta ?? 0} 🏆 de ${opponentName}` : `${opponentName} roubou ${Math.abs(view.trophyDelta ?? 0)} 🏆 de você`}
-              {typeof view.trophies === "number" ? <span className="block text-sm font-bold text-[var(--muted)]">Total: {view.trophies} 🏆</span> : null}
+              {r === "win" ? <AT>{`Você roubou ${view.trophyDelta ?? 0} 🏆 de ${opponentName}`}</AT> : <AT>{`${opponentName} roubou ${Math.abs(view.trophyDelta ?? 0)} 🏆 de você`}</AT>}
+              {typeof view.trophies === "number" ? <span className="block text-sm font-bold text-[var(--muted)]">Total: {view.trophies}<AT> 🏆</AT></span> : null}
             </p>
           ) : null}
           <CopyReward card={view.copyCard} n={view.copies} />
