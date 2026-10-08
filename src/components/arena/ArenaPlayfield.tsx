@@ -208,7 +208,7 @@ export function ArenaPlayfield({
     const canvas = canvasRef.current;
     if (!area || !canvas || area.clientWidth === 0) return;
     const l = layoutFor(area.clientWidth, area.clientHeight);
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
     canvas.style.width = `${l.cw}px`;
     canvas.style.height = `${l.ch}px`;
     canvas.width = Math.round(l.cw * dpr);
@@ -217,11 +217,28 @@ export function ArenaPlayfield({
     dprRef.current = dpr;
     const build = () => {
       const theme = driverRef.current.campaign?.theme ?? ARENAS[driverRef.current.arena]?.theme ?? ARENAS[0].theme;
+      const key = driverRef.current.campaign?.scenery ?? ARENAS[driverRef.current.arena]?.key;
       try {
-        bgRef.current = buildBackground(l, dpr, theme, driverRef.current.campaign?.scenery ?? ARENAS[driverRef.current.arena]?.key);
-        ambRef.current = buildAmbient(l, theme);
+        bgRef.current = buildBackground(l, dpr, theme, key);
       } catch (err) {
         console.error("arena background", err);
+        // aparelho sem memória/contexto: tenta de novo em resolução baixa; sem fundo a tela ficaria só verde
+        try {
+          if (dpr > 1) {
+            canvas.width = l.cw;
+            canvas.height = l.ch;
+            dprRef.current = 1;
+          }
+          bgRef.current = buildBackground(l, 1, theme, key);
+        } catch (err2) {
+          console.error("arena background (fallback)", err2);
+        }
+      }
+      try {
+        ambRef.current = buildAmbient(l, theme);
+      } catch (err) {
+        console.error("arena ambient", err);
+        ambRef.current = null;
       }
     };
     build();
@@ -478,6 +495,14 @@ export function ArenaPlayfield({
 
   // ------------------------------------------------------------ laço
   const startLoop = useCallback(() => {
+    // um erro de desenho num aparelho antigo não pode parar o jogo: ignora o quadro e segue
+    const safeDraw = (alpha: number) => {
+      try {
+        draw(alpha);
+      } catch (err) {
+        console.error("arena draw", err);
+      }
+    };
     let last = performance.now();
     let acc = 0;
     let stalledSince: number | null = null;
@@ -578,9 +603,9 @@ export function ArenaPlayfield({
         stalledSince = null;
         setWaiting(false);
       }
-      draw(Math.min(1, acc / STEP_MS));
+      safeDraw(Math.min(1, acc / STEP_MS));
       if (game.over) {
-        draw(1);
+        safeDraw(1);
         if (game.winner === d.mySide) soundRef.current?.win();
         else if (game.winner !== null) soundRef.current?.lose();
         onOverRef.current();
