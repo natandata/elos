@@ -18,6 +18,7 @@ import { inDeployZone, inField, type Input } from "@/lib/arena/core";
 import { createGame, step } from "@/lib/arena/engine";
 import { ARENA_LOAD_MS, ArenaLoadingScreen } from "@/components/games/ArenaLoadingScreen";
 import { AT } from "./ArenaText";
+import { mana2Locked } from "@/lib/arena/challenges";
 import { MatchResultHero } from "./MatchResultHero";
 
 type Phase = "intro" | "playing" | "finishing" | "result";
@@ -89,7 +90,7 @@ function ArenaGameInner({ onLaunching, dayRecord, winsToday, maxWins, initialDec
 
   /** Desafio Maná Duplo: partida contra o computador só no aparelho, com o Maná em dobro. */
   function beginChallenge(kind: "mana2") {
-    if (startingRef.current) return;
+    if (startingRef.current || mana2Locked()) return;
     startingRef.current = true;
     setError(null);
     setVerdict(null);

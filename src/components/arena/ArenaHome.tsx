@@ -10,6 +10,7 @@ import { ArenaGateBanner } from "./ArenaGateBanner";
 import { useNow, useOnlineMap, type Presence } from "./arenaPresence";
 import type { GateInfo } from "@/lib/arena/gate";
 import { AT } from "./ArenaText";
+import { mana2Locked } from "@/lib/arena/challenges";
 
 export type RankRow = { id: string; name: string; avatar: string | null; elo: string | null; trophies: number };
 export type EloRow = { id: string; name: string; points: number };
@@ -60,6 +61,9 @@ function MiniBtn({ children, label, badge, onClick, href }: { children: ReactNod
     </button>
   );
 }
+
+/** Desafio Maná Duplo ainda bloqueado? (some sozinho em 16/10) */
+const MANA2_LOCKED = mana2Locked();
 
 function Slot({ icon, iconSrc, iconNode, title, sub, open, href, onClick }: { icon: string; iconSrc?: string; iconNode?: ReactNode; title: string; sub: ReactNode; open?: boolean; href?: string; onClick?: () => void }) {
   const body = (
@@ -307,17 +311,18 @@ export function ArenaHome({
             {/* desafios */}
             <button
               type="button"
-              onClick={gate.locked ? undefined : () => onChallenge("mana2")}
-              disabled={gate.locked}
-              className={`cr-panel mt-3 flex w-full items-center gap-3 px-3 py-2.5 text-left active:translate-y-[2px] ${gate.locked ? "grayscale opacity-60" : ""}`}
+              onClick={gate.locked || MANA2_LOCKED ? undefined : () => onChallenge("mana2")}
+              disabled={gate.locked || MANA2_LOCKED}
+              className={`cr-panel mt-3 flex w-full items-center gap-3 px-3 py-2.5 text-left active:translate-y-[2px] ${gate.locked || MANA2_LOCKED ? "grayscale opacity-60" : ""}`}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/arena/icones/raio.webp" alt="" className="h-11 w-11 shrink-0 drop-shadow" draggable={false} />
               <span className="min-w-0 flex-1">
                 <span className="cr-text block text-base leading-tight">Desafio: Maná Duplo</span>
                 <span className="cr-text block text-[11px] leading-tight opacity-90">O Maná enche em dobro desde o início e em quádruplo no último minuto. Não vale troféus.</span>
+                {MANA2_LOCKED ? <span className="cr-text mt-0.5 block text-[11px] leading-tight text-yellow-200">🔒 Liberado na sexta, 16 de outubro</span> : null}
               </span>
-              <span className="cr-btn cr-btn-yellow cr-text shrink-0 px-3 py-1.5 text-sm leading-none">Jogar</span>
+              <span className="cr-btn cr-btn-yellow cr-text shrink-0 px-3 py-1.5 text-sm leading-none">{MANA2_LOCKED ? "Em breve" : "Jogar"}</span>
             </button>
 
             {/* espaços de recompensa */}
