@@ -119,6 +119,9 @@ export default async function VestirPage() {
             </Link>
           </>
         )}
+        <Link href="/app/jogos/vestir/sala" className="vh-btn mt-3">
+          🎭 Passarela ao vivo · com as amigas
+        </Link>
         <Link href="/app/jogos/vestir/treino" className="vh-btn vh-btn-purple mt-3">
           🏋️ Treino · outro tema, sem bilhetes
         </Link>

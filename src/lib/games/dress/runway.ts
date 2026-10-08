@@ -40,3 +40,19 @@ export function cleanLook(raw: unknown): Look | null {
 export function fidelityOf(characterId: string, look: Look): number {
   return scoreLook(characterId, look).score;
 }
+
+/**
+ * Look em montagem (sala ao vivo): só entram peças do catálogo, no espaço certo; o que vier estranho é ignorado.
+ * A roupa é obrigatória: sem ela, entra a túnica simples (a modelo nunca desfila sem roupa).
+ */
+export function cleanDraftLook(raw: unknown): Look {
+  const out: Look = {};
+  const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  for (const s of SLOTS) {
+    const id = r[s.key];
+    const item = typeof id === "string" ? ITEM_BY_ID.get(id) : undefined;
+    if (item && item.slot === s.key && !MODERN_FAMILIES.has(item.family)) out[s.key as Slot] = item.id;
+  }
+  if (!out.tunic && ITEM_BY_ID.has("tunic_simple")) out.tunic = "tunic_simple";
+  return out;
+}

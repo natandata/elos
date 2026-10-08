@@ -9,10 +9,18 @@ import { RARITY_ICON, SparkleBurst, Sparkles, rarityOf } from "./Vh";
 import { judgePractice, submitRunwayLook, type JuryResult, type PublishResult } from "@/lib/actions/runway";
 import { DEFAULT_BEAUTY, HAIR_COLORS, HAIR_STYLES, LIPS, SHADOWS, SKINS, baseFromBeauty, type Beauty } from "@/lib/games/dress/beauty";
 import { ITEM_BY_ID, SLOTS, familiesBySlot, type Look, type Slot } from "@/lib/games/dress/items";
+import { DRESS_ITEM_LIMIT, POSES, cleanPose, countItems, type PoseKey } from "@/lib/games/dress/live";
 import { fmtClock } from "@/lib/games/dress/rules";
 import type { BibleTheme } from "@/lib/games/dress/themes";
 
-type Cat = "hair" | "makeup" | "skin" | "worn" | Slot;
+type Cat = "hair" | "makeup" | "skin" | "worn" | "pose" | Slot;
+
+/** Sala ao vivo: o look vai sendo salvo no servidor e o "pronto" só avisa as outras (dá para continuar mexendo). */
+export type LiveCamarim = {
+  initial: { look: Look; beauty: unknown; pose: string; ready: boolean };
+  /** devolve a mensagem de erro, ou null se salvou */
+  onSave: (look: Look, beauty: Beauty, pose: PoseKey, ready: boolean) => Promise<string | null>;
+};
 type Snap = { look: Look; beauty: Beauty };
 const RAIL: { side: "l" | "r"; key: Cat; label: string; icon: string }[] = [
   { side: "l", key: "hair", label: "Cabelo", icon: "💇‍♀️" },
@@ -47,13 +55,23 @@ function save(key: string, v: unknown) {
  * personalização (cabelo, pele, make) e a avaliação do júri bíblico depois de "Pronto".
  * `daily`: valendo o desfile do dia (tempo contado pelo servidor). `practice`: treino sem tempo e sem bilhetes.
  */
-export function Camarim({ theme, mode, msLeft, practiceN = 1, draftKey, exitHref }: { theme: BibleTheme; mode: "daily" | "practice"; msLeft?: number; practiceN?: number; draftKey: string; exitHref: string }) {
+export function Camarim({ theme, mode, msLeft, practiceN = 1, draftKey, exitHref, live }: { theme: BibleTheme; mode: "daily" | "practice" | "live"; msLeft?: number; practiceN?: number; draftKey: string; exitHref: string; live?: LiveCamarim }) {
   const router = useRouter();
   const daily = mode === "daily";
+  const isLive = mode === "live" && !!live;
+  const timed = daily || isLive;
+  const [pose, setPose] = useState<PoseKey>(cleanPose(live?.initial.pose));
+  const [ready, setReady] = useState(!!live?.initial.ready);
+  const [saved, setSaved] = useState(true);
+  // sala ao vivo: `rev` sobe a cada mudança e `savedRev` é a última que o servidor confirmou
+  const [rev, setRev] = useState(0);
+  const [savedRev, setSavedRev] = useState(0);
+  const dirty = rev !== savedRev;
+  const sending = useRef(false);
   const [look, setLook] = useState<Look>({});
   const [beauty, setBeauty] = useState<Beauty>(DEFAULT_BEAUTY);
   const [cat, setCat] = useState<Cat>("tunic");
-  const [left, setLeft] = useState(daily ? Math.max(0, (msLeft ?? 0) / 1000) : 0);
+  const [left, setLeft] = useState(timed ? Math.max(0, (msLeft ?? 0) / 1000) : 0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [burst, setBurst] = useState(0);
@@ -72,10 +90,15 @@ export function Camarim({ theme, mode, msLeft, practiceN = 1, draftKey, exitHref
   // rascunho (o look e a avatar ficam guardados se a página recarregar)
   useEffect(() => {
     const t = setTimeout(() => {
-      setLook(store<Look>(draftKey, {}));
-      setBeauty({ ...DEFAULT_BEAUTY, ...store<Partial<Beauty>>("vh:beauty", {}) });
+      // na sala ao vivo o rascunho mora no servidor (se a página recarregar, o look volta de lá)
+      const serverLook = live?.initial.look;
+      setLook(serverLook && Object.keys(serverLook).length ? serverLook : store<Look>(draftKey, {}));
+      const serverBeauty = live?.initial.beauty && typeof live.initial.beauty === "object" ? (live.initial.beauty as Partial<Beauty>) : {};
+      setBeauty({ ...DEFAULT_BEAUTY, ...store<Partial<Beauty>>("vh:beauty", {}), ...serverBeauty });
     }, 0);
     return () => clearTimeout(t);
+    // o estado inicial do servidor só vale na montagem
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftKey]);
   useEffect(() => {
     const t = setTimeout(() => setClue(false), 9000);
@@ -89,6 +112,26 @@ export function Camarim({ theme, mode, msLeft, practiceN = 1, draftKey, exitHref
       if (!l.tunic) {
         if (!auto) return setError("Escolha uma roupa para o seu look.");
         l.tunic = ITEM_BY_ID.has("tunic_simple") ? "tunic_simple" : undefined;
+      }
+      if (isLive && live) {
+        // sala ao vivo: "pronta" avisa as outras; o look continua editável até o relógio zerar
+        if (sending.current) return;
+        sending.current = true;
+        setBusy(true);
+        setError(null);
+        const sentRev = rev;
+        const err = await live.onSave(l, beauty, pose, true);
+        sending.current = false;
+        setBusy(false);
+        if (err) {
+          if (!auto) setError(err);
+          return;
+        }
+        setSavedRev(sentRev);
+        setSaved(true);
+        setReady(true);
+        save("vh:beauty", beauty);
+        return;
       }
       submitted.current = true;
       setBusy(true);
@@ -107,34 +150,73 @@ export function Camarim({ theme, mode, msLeft, practiceN = 1, draftKey, exitHref
       }
       setDone({ jury: r.jury, tickets: r.tickets ?? 0, look: l });
     },
-    [look, beauty, daily, practiceN, draftKey],
+    [look, beauty, pose, rev, daily, isLive, live, practiceN, draftKey],
   );
 
   useEffect(() => {
-    if (!daily || done) return;
+    if (!timed || done) return;
     const id = setInterval(() => {
       const s = Math.max(0, (deadline.current - Date.now()) / 1000);
       setLeft(s);
-      if (s <= 0) void finish(true);
+      // ao vivo: nos últimos segundos manda o que estiver na tela (o servidor congela o look quando o tempo acaba)
+      if (isLive ? s <= 2.5 && dirty : s <= 0) void finish(true);
     }, 250);
     return () => clearInterval(id);
-  }, [daily, done, finish]);
+  }, [timed, isLive, dirty, done, finish]);
+
+  // sala ao vivo: salva sozinha um pouco depois de cada mudança (sem marcar "pronta")
+  useEffect(() => {
+    if (!isLive || !live || !dirty) return;
+    const t = setTimeout(async () => {
+      if (sending.current) return;
+      sending.current = true;
+      const sentRev = rev;
+      const err = await live.onSave(look, beauty, pose, false);
+      sending.current = false;
+      if (!err) {
+        // se mudou de novo enquanto enviava, continua "sujo" e salva outra vez
+        setSavedRev(sentRev);
+        setSaved(true);
+      }
+    }, 1400);
+    return () => clearTimeout(t);
+  }, [isLive, live, dirty, rev, look, beauty, pose]);
+
+  /** qualquer mudança no look ao vivo desmarca o "pronta" e agenda o salvamento */
+  function touched() {
+    if (!isLive) return;
+    setRev((r) => r + 1);
+    setSaved(false);
+    setReady(false);
+  }
 
   function remember() {
     setPast((p) => [...p.slice(-39), { look, beauty }]);
     setFuture([]);
   }
   function change(next: Look) {
+    // limite de itens: tirar ou trocar sempre pode; só não deixa passar do teto
+    if (countItems(next) > DRESS_ITEM_LIMIT && countItems(next) > countItems(look)) {
+      setError(`Limite de ${DRESS_ITEM_LIMIT} itens: tire uma peça antes de pôr outra.`);
+      return;
+    }
+    setError(null);
     remember();
     setLook(next);
     save(draftKey, next);
     setBurst((b) => b + 1);
+    touched();
   }
   const equip = (slot: Slot, id: string | undefined) => change({ ...look, [slot]: id });
   const tweak = (patch: Partial<Beauty>) => {
     remember();
     setBeauty((b) => ({ ...b, ...patch }));
     setBurst((b) => b + 1);
+    touched();
+  };
+  const pickPose = (k: PoseKey) => {
+    setPose(k);
+    touched();
   };
   function undo() {
     const prev = past[past.length - 1];
@@ -144,6 +226,7 @@ export function Camarim({ theme, mode, msLeft, practiceN = 1, draftKey, exitHref
     setLook(prev.look);
     setBeauty(prev.beauty);
     save(draftKey, prev.look);
+    touched();
   }
   function redo() {
     const next = future[future.length - 1];
@@ -153,9 +236,10 @@ export function Camarim({ theme, mode, msLeft, practiceN = 1, draftKey, exitHref
     setLook(next.look);
     setBeauty(next.beauty);
     save(draftKey, next.look);
+    touched();
   }
   const exit = () => {
-    if (daily && !window.confirm("Sair do camarim? O tempo continua correndo.")) return;
+    if (timed && !window.confirm(isLive ? "Sair da sala? A rodada continua sem você." : "Sair do camarim? O tempo continua correndo.")) return;
     router.push(exitHref);
   };
 
@@ -219,7 +303,7 @@ export function Camarim({ theme, mode, msLeft, practiceN = 1, draftKey, exitHref
   const equippedId = slotCat ? look[slotCat] : undefined;
   const equippedFam = equippedId ? ITEM_BY_ID.get(equippedId)?.family : undefined;
   const famItems = equippedFam && slotCat ? (fams.find((f) => f.family === equippedFam)?.items ?? []) : [];
-  const catLabel = cat === "worn" ? "Vestes" : (RAIL.find((r) => r.key === cat)?.label ?? "");
+  const catLabel = cat === "worn" ? "Vestes" : cat === "pose" ? "Pose do desfile" : (RAIL.find((r) => r.key === cat)?.label ?? "");
   const nameOf = (id: string | undefined) => (id && !id.endsWith("_none") ? (ITEM_BY_ID.get(id)?.name ?? null) : null);
   const wornRows: { key: string; label: string; name: string | null; dot?: string; go: Cat; remove?: () => void }[] = [
     { key: "head", label: "Cabeça", name: nameOf(look.head), go: "head", remove: nameOf(look.head) ? () => equip("head", undefined) : undefined },
@@ -243,10 +327,10 @@ export function Camarim({ theme, mode, msLeft, practiceN = 1, draftKey, exitHref
           ✕
         </button>
         <button type="button" className="vh-theme" onClick={() => setClue((c) => !c)} aria-expanded={clue}>
-          <small>{daily ? "Tema de hoje" : "Tema do treino"} · toque pra ver a dica</small>
+          <small>{isLive ? "Tema da rodada" : daily ? "Tema de hoje" : "Tema do treino"} · toque pra ver a dica</small>
           <b>{theme.name}</b>
         </button>
-        {daily ? (
+        {timed ? (
           <div className="vh-timer" data-low={left <= 30} role="timer" aria-label="Tempo restante">
             ⏱ {fmtClock(left)}
           </div>
@@ -291,8 +375,13 @@ export function Camarim({ theme, mode, msLeft, practiceN = 1, draftKey, exitHref
           <p className="vh-h2">{catLabel}</p>
           <div className="flex items-center gap-2">
             {slotCat ? <p className="hidden text-[10px] font-bold text-purple-200 min-[380px]:block">{fams.length} peças · toque de novo pra tirar</p> : null}
-            <button type="button" className="vh-chip !px-3 !py-1 !text-[11px]" data-on={cat === "worn"} onClick={() => setCat(cat === "worn" ? "tunic" : "worn")}>
-              🧥 Vestes ({wornCount})
+            {isLive ? (
+              <button type="button" className="vh-chip !px-3 !py-1 !text-[11px]" data-on={cat === "pose"} onClick={() => setCat(cat === "pose" ? "tunic" : "pose")}>
+                {POSES.find((x) => x.key === pose)?.icon} Pose
+              </button>
+            ) : null}
+            <button type="button" className="vh-chip !px-3 !py-1 !text-[11px]" data-on={cat === "worn"} onClick={() => setCat(cat === "worn" ? "tunic" : "worn")} aria-label={`Vestes: ${wornCount} de ${DRESS_ITEM_LIMIT} itens`}>
+              🧥 Vestes ({wornCount}/{DRESS_ITEM_LIMIT})
             </button>
           </div>
         </div>
@@ -322,6 +411,20 @@ export function Camarim({ theme, mode, msLeft, practiceN = 1, draftKey, exitHref
                 </button>
               );
             })}
+          </div>
+        ) : cat === "pose" ? (
+          <div className="min-h-0 flex-1 overflow-y-auto pb-2">
+            <p className="mb-2 text-[11px] font-bold text-purple-200">Como a sua modelo para no fim da passarela.</p>
+            <div className="grid grid-cols-3 gap-2">
+              {POSES.map((x) => (
+                <button key={x.key} type="button" className="vh-chip !flex-col !gap-0.5 !py-2" data-on={pose === x.key} aria-pressed={pose === x.key} onClick={() => pickPose(x.key)}>
+                  <span className="text-xl" aria-hidden>
+                    {x.icon}
+                  </span>
+                  {x.label}
+                </button>
+              ))}
+            </div>
           </div>
         ) : cat === "worn" ? (
           <ul className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pb-2" aria-label="Peças vestidas">
@@ -377,8 +480,8 @@ export function Camarim({ theme, mode, msLeft, practiceN = 1, draftKey, exitHref
           <button type="button" className="vh-btn vh-btn-dark !w-auto !px-3" onClick={() => change({})} aria-label="Tirar todas as peças">
             🗑
           </button>
-          <button type="button" className="vh-btn vh-btn-purple" disabled={busy} onClick={() => void finish(false)}>
-            {busy ? "..." : missing ? "👗 Escolha uma roupa" : daily ? "PRONTO · desfilar" : "PRONTO · ver a nota"}
+          <button type="button" className="vh-btn vh-btn-purple" disabled={busy || (isLive && ready)} onClick={() => void finish(false)}>
+            {busy ? "..." : missing ? "👗 Escolha uma roupa" : isLive ? (ready ? "✓ PRONTA · aguardando as outras" : saved ? "ESTOU PRONTA" : "ESTOU PRONTA · salvando…") : daily ? "PRONTO · desfilar" : "PRONTO · ver a nota"}
           </button>
         </div>
       </div>

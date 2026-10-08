@@ -1675,6 +1675,42 @@ input[type="datetime-local"] {
 @keyframes vh-sway { from { transform: rotate(-1.8deg); } to { transform: rotate(1.8deg) translateY(-1%); } }
 @keyframes vh-flash { 0% { opacity: 0.85; } 100% { opacity: 0; } }
 
+/* Salas ao vivo: poses do fim da passarela (a modelo chega andando e depois faz a pose) */
+.vh-walker[data-pose] svg { animation: vh-sway 0.55s ease-in-out 6 alternate both, vh-pose-modelo 2.4s ease-in-out 3.4s infinite; }
+.vh-walker[data-pose="realeza"] svg { animation: vh-sway 0.55s ease-in-out 6 alternate both, vh-pose-realeza 3.2s ease-in-out 3.4s infinite; }
+.vh-walker[data-pose="celebracao"] svg { animation: vh-sway 0.55s ease-in-out 6 alternate both, vh-pose-celebracao 0.9s ease-in-out 3.4s infinite; }
+.vh-walker[data-pose="elegante"] svg { animation: vh-sway 0.55s ease-in-out 6 alternate both, vh-pose-elegante 2.8s ease-in-out 3.4s infinite; }
+.vh-walker[data-pose="viajante"] svg { animation: vh-sway 0.55s ease-in-out 6 alternate both, vh-pose-viajante 1.6s ease-in-out 3.4s infinite; }
+.vh-walker[data-pose="dramatica"] svg { animation: vh-sway 0.55s ease-in-out 6 alternate both, vh-pose-dramatica 3s ease-in-out 3.4s infinite; }
+@keyframes vh-pose-modelo { 0%, 100% { transform: rotate(-2deg); } 50% { transform: rotate(2.5deg) translateY(-1%); } }
+@keyframes vh-pose-realeza { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05) translateY(-1.5%); } }
+@keyframes vh-pose-celebracao { 0%, 100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-6%) rotate(3deg); } }
+@keyframes vh-pose-elegante { 0%, 100% { transform: rotate(-4deg) translateX(-2%); } 50% { transform: rotate(4deg) translateX(2%); } }
+@keyframes vh-pose-viajante { 0%, 100% { transform: translateX(-4%) rotate(-1.5deg); } 50% { transform: translateX(4%) rotate(1.5deg); } }
+@keyframes vh-pose-dramatica { 0%, 70%, 100% { transform: rotateY(0) scale(1); } 85% { transform: rotateY(180deg) scale(1.06); } }
+
+/* revelação do tema: o cartão "desenrola" como um pergaminho */
+.vh-reveal { animation: vh-unroll 0.9s cubic-bezier(0.2, 0.9, 0.3, 1.1) both; transform-origin: 50% 0%; }
+@keyframes vh-unroll { 0% { opacity: 0; transform: scaleY(0.2) translateY(-20px); } 60% { opacity: 1; } 100% { opacity: 1; transform: none; } }
+
+/* pódio de três lugares, no palácio */
+.vh-podium { display: flex; align-items: flex-end; justify-content: center; gap: 6px; min-height: 300px; padding: 14px 8px 0; border-radius: 24px; border: 3px solid #f6c445; background-size: cover; background-position: 50% 40%; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55); overflow: hidden; }
+.vh-podium-col { position: relative; flex: 1; max-width: 120px; text-align: center; animation: vh-rise 0.7s cubic-bezier(0.2, 1.2, 0.4, 1) both; }
+.vh-podium-col[data-place="1"] { animation-delay: 0.9s; }
+.vh-podium-col[data-place="2"] { animation-delay: 0.45s; }
+.vh-podium-col[data-place="3"] { animation-delay: 0.1s; }
+.vh-podium-doll { display: flex; align-items: flex-end; justify-content: center; height: 150px; }
+.vh-podium-col[data-place="1"] .vh-podium-doll { height: 178px; filter: drop-shadow(0 0 14px rgba(255, 214, 120, 0.9)); }
+.vh-podium-step { padding: 6px 4px 8px; border-radius: 12px 12px 0 0; color: #fff7e6; background: linear-gradient(180deg, #7a4a12, #3a2208); border: 2px solid #f6c445; border-bottom: 0; }
+.vh-podium-col[data-place="1"] .vh-podium-step { min-height: 96px; background: linear-gradient(180deg, #c9932a, #6b4210); }
+.vh-podium-col[data-place="2"] .vh-podium-step { min-height: 74px; }
+.vh-podium-col[data-place="3"] .vh-podium-step { min-height: 58px; }
+.vh-podium-col[data-me="true"] .vh-podium-step { box-shadow: 0 0 14px rgba(255, 200, 60, 0.8); }
+@keyframes vh-rise { 0% { opacity: 0; transform: translateY(60px); } 100% { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .vh-walker[data-pose] svg, .vh-reveal, .vh-podium-col { animation: none; }
+}
+
 .vh-stars { display: flex; justify-content: center; gap: 0.3rem; }
 .vh-starbtn { font-size: 2.6rem; line-height: 1; color: #5a3a78; cursor: pointer; text-shadow: 0 2px 0 rgba(0, 0, 0, 0.5); transition: transform 0.12s, color 0.12s; }
 .vh-starbtn:active { transform: scale(0.88); }
