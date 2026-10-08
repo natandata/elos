@@ -6,8 +6,7 @@ import { PLANE_ALT, type Actor, type Game } from "./sim";
 import { HALF, HM_N, heightAt, rayBoxes, zoneAt, type Building, type Container, type World } from "./world";
 
 const SKIN = [0xe0b08a, 0xc68a5e, 0x8f6040, 0xf0c8a2, 0x70482c];
-const GRASS_N = 2600;
-const GRASS_R = 44;
+const GRASS_R = 40;
 
 const lam = (color: number, map?: THREE.Texture) => new THREE.MeshLambertMaterial({ color, map });
 const hex = (n: number) => `#${n.toString(16).padStart(6, "0")}`;
@@ -27,6 +26,23 @@ const hash = (x: number, z: number) => {
   const s = Math.sin(x * 127.1 + z * 311.7) * 43758.5453;
   return s - Math.floor(s);
 };
+
+/** Ruído suave e fixo no mapa (0..1). Acima de DIRT o chão é terra batida, sem capim. */
+function patchNoise(x: number, z: number): number {
+  const f = (sx: number, sz: number, sc: number) => {
+    const fx = x / sc + sx;
+    const fz = z / sc + sz;
+    const i = Math.floor(fx);
+    const j = Math.floor(fz);
+    const u = fx - i;
+    const v = fz - j;
+    const su = u * u * (3 - 2 * u);
+    const sv = v * v * (3 - 2 * v);
+    return hash(i, j) * (1 - su) * (1 - sv) + hash(i + 1, j) * su * (1 - sv) + hash(i, j + 1) * (1 - su) * sv + hash(i + 1, j + 1) * su * sv;
+  };
+  return f(0, 0, 26) * 0.65 + f(7.3, 3.1, 9) * 0.35;
+}
+const DIRT = 0.63;
 
 type Rig = {
   root: THREE.Group;
@@ -69,6 +85,13 @@ export class Renderer {
   private zoneTex!: THREE.CanvasTexture;
   private planeMesh!: THREE.Group;
   private grass!: THREE.InstancedMesh;
+  /** capim de longe: tufos maiores e mais espaçados, para o campo não virar uma cor lisa à distância */
+  private grassFar!: THREE.InstancedMesh;
+  private grassFarN = 3600;
+  private grassN = 6500;
+  private wind = { value: 0 };
+  /** copas das árvores numa grade, para escurecer o capim debaixo delas */
+  private shade = new Map<number, { x: number; z: number; r: number }[]>();
   private grassAt = { x: 1e9, z: 1e9 };
   private tracers: { line: THREE.Line; t: number }[] = [];
   private puffs: { m: THREE.Mesh; t: number; life: number; grow: number; rise: number }[] = [];
@@ -89,11 +112,15 @@ export class Renderer {
     const mobile = matchMedia("(pointer: coarse)").matches;
     this.r = new THREE.WebGLRenderer({ canvas, antialias: !mobile, powerPreference: "high-performance" });
     this.r.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.4 : 2));
-    this.scene.background = new THREE.Color(0xcfe0ee);
-    this.scene.fog = new THREE.Fog(0xcfe0ee, 70, 430);
-    this.scene.add(new THREE.HemisphereLight(0xe6f1ff, 0x8a8f66, 2.3));
-    const sun = new THREE.DirectionalLight(0xfff2d6, 3.1);
-    sun.position.set(-140, 220, -90);
+    this.grassN = mobile ? 3000 : 7500;
+    this.grassFarN = mobile ? 1400 : 3600;
+    this.r.toneMapping = THREE.ACESFilmicToneMapping;
+    this.r.toneMappingExposure = 0.92;
+    this.scene.background = new THREE.Color(0xbfd2e4);
+    this.scene.fog = new THREE.Fog(0xbfd2e4, 90, 560);
+    this.scene.add(new THREE.HemisphereLight(0xd6e4ff, 0x8a8a64, 2.3));
+    const sun = new THREE.DirectionalLight(0xfff0d0, 2.7);
+    sun.position.set(-160, 200, -60);
     this.scene.add(sun);
     this.camo = this.camoTex();
     this.buildSky();
@@ -136,72 +163,99 @@ export class Renderer {
     return t;
   }
 
-  private foliageTex(tall: boolean, pine: boolean): THREE.CanvasTexture {
-    const W = tall ? 128 : 256;
-    const H = 256;
-    return canvasTexture(W, H, (c) => {
-      const greens = pine ? ["#2f4a2a", "#3a5a30", "#27401f", "#466a38"] : ["#5f8a34", "#739c3c", "#4c7429", "#8aa84a", "#3f6424"];
-      for (let i = 0; i < (tall ? 150 : 260); i++) {
-        // copa: mais cheia no meio, rala nas bordas
+  /** Um "cartão" de folhagem: muitas folhas pequenas em tufos, com vãos e alguns galhos. */
+  private foliageTex(kind: "folha" | "alamo" | "pinho"): THREE.CanvasTexture {
+    const S = 256;
+    return canvasTexture(S, S, (c) => {
+      const pal = kind === "pinho" ? ["#263f22", "#30502a", "#1f341c", "#3f6034"] : kind === "alamo" ? ["#456a28", "#5c8430", "#3a5a22", "#739a3c"] : ["#5f8a2a", "#7cac38", "#507824", "#98bc46", "#b2cc5a"];
+      // galhos
+      c.strokeStyle = "#3a2c1e";
+      c.lineCap = "round";
+      for (let i = 0; i < 7; i++) {
+        c.lineWidth = 1.5 + Math.random() * 2.5;
+        c.beginPath();
+        c.moveTo(S / 2 + (Math.random() - 0.5) * 30, S * 0.95);
+        c.quadraticCurveTo(S / 2 + (Math.random() - 0.5) * 80, S * 0.6, S / 2 + (Math.random() - 0.5) * 170, S * (0.15 + Math.random() * 0.4));
+        c.stroke();
+      }
+      // tufos de folhas
+      const tufts = kind === "folha" ? 40 : 44;
+      for (let t = 0; t < tufts; t++) {
         const a = Math.random() * 6.28;
         const rr = Math.sqrt(Math.random());
-        const x = W / 2 + Math.cos(a) * rr * W * 0.44;
-        const y = H * 0.47 + Math.sin(a) * rr * H * (tall ? 0.45 : 0.4);
-        c.fillStyle = greens[Math.floor(Math.random() * greens.length)];
-        c.globalAlpha = 0.9;
-        c.beginPath();
-        c.arc(x, y, (tall ? 7 : 11) + Math.random() * (tall ? 9 : 16), 0, 6.3);
-        c.fill();
-        if (y / H > 0.55) {
-          c.fillStyle = "rgba(20,30,10,0.18)";
+        const tx = S / 2 + Math.cos(a) * rr * S * (kind === "folha" ? 0.4 : 0.3);
+        const ty = S * 0.46 + Math.sin(a) * rr * S * 0.4;
+        const tr = 14 + Math.random() * 22;
+        for (let i = 0; i < 70; i++) {
+          const b = Math.random() * 6.28;
+          const q = Math.sqrt(Math.random()) * tr;
+          const x = tx + Math.cos(b) * q;
+          const y = ty + Math.sin(b) * q * 0.8;
+          // em cima mais claro (sol), embaixo mais escuro
+          const lit = 1 - (y - (ty - tr)) / (tr * 2);
+          c.fillStyle = pal[Math.min(pal.length - 1, Math.floor((lit * 0.7 + Math.random() * 0.5) * pal.length))] ?? pal[0];
+          c.beginPath();
+          c.ellipse(x, y, 2.6 + Math.random() * 3.6, 1.8 + Math.random() * 2.4, Math.random() * 3.1, 0, 6.3);
           c.fill();
         }
       }
-      c.globalAlpha = 1;
-      // luz no topo
-      const g = c.createLinearGradient(0, 0, 0, H);
-      g.addColorStop(0, "rgba(255,255,200,0.22)");
-      g.addColorStop(0.5, "rgba(255,255,200,0)");
-      c.globalCompositeOperation = "source-atop";
-      c.fillStyle = g;
-      c.fillRect(0, 0, W, H);
     });
   }
 
   // ---------------------------------------------------------------- céu, chão e horizonte
   private buildSky() {
-    const tex = canvasTexture(1024, 512, (c) => {
-      const g = c.createLinearGradient(0, 0, 0, 512);
-      g.addColorStop(0, "#5f93cf");
-      g.addColorStop(0.45, "#9cc2e6");
-      g.addColorStop(0.62, "#d6e6f2");
-      g.addColorStop(1, "#d6e6f2");
+    const tex = canvasTexture(2048, 1024, (c) => {
+      const g = c.createLinearGradient(0, 0, 0, 1024);
+      g.addColorStop(0, "#2f66b4");
+      g.addColorStop(0.35, "#4f8bd0");
+      g.addColorStop(0.62, "#86b2e0");
+      g.addColorStop(0.8, "#bfd2e4");
+      g.addColorStop(1, "#bfd2e4");
       c.fillStyle = g;
-      c.fillRect(0, 0, 1024, 512);
-      // nuvens: montes de bolas brancas com a base levemente cinza
-      for (let k = 0; k < 26; k++) {
-        const cx = Math.random() * 1024;
-        const cy = 40 + Math.random() * 230;
-        const s = 0.5 + Math.random() * 1.3;
-        for (let i = 0; i < 16; i++) {
-          const x = cx + (Math.random() - 0.5) * 150 * s;
-          const y = cy + (Math.random() - 0.5) * 34 * s;
-          const rr = (14 + Math.random() * 26) * s;
-          const gr = c.createRadialGradient(x, y - rr * 0.3, rr * 0.1, x, y, rr);
-          gr.addColorStop(0, "rgba(255,255,255,0.85)");
-          gr.addColorStop(0.7, "rgba(238,243,248,0.5)");
-          gr.addColorStop(1, "rgba(225,232,240,0)");
-          c.fillStyle = gr;
-          for (const ox of [0, -1024, 1024]) {
+      c.fillRect(0, 0, 2048, 1024);
+      // cúmulos: topo claro e fofo, base achatada e acinzentada
+      const cloud = (cx: number, cy: number, s: number) => {
+        for (let i = 0; i < 46; i++) {
+          const a = Math.random() * Math.PI;
+          const rr = Math.sqrt(Math.random());
+          const x = cx + Math.cos(a) * rr * 190 * s * (0.6 + Math.random() * 0.7);
+          const y = cy - Math.sin(a) * rr * 60 * s;
+          const rad = (22 + Math.random() * 46) * s;
+          for (const ox of [0, -2048, 2048]) {
+            const gr = c.createRadialGradient(x + ox, y - rad * 0.35, rad * 0.1, x + ox, y, rad);
+            gr.addColorStop(0, "rgba(255,255,255,0.95)");
+            gr.addColorStop(0.55, "rgba(246,249,252,0.75)");
+            gr.addColorStop(1, "rgba(214,224,236,0)");
+            c.fillStyle = gr;
             c.beginPath();
-            c.arc(x + ox, y, rr, 0, 6.3);
+            c.arc(x + ox, y, rad, 0, 6.3);
             c.fill();
           }
         }
-      }
+        // sombra da base
+        for (const ox of [0, -2048, 2048]) {
+          const sh = c.createRadialGradient(cx + ox, cy + 16 * s, 4, cx + ox, cy + 16 * s, 170 * s);
+          sh.addColorStop(0, "rgba(140,158,184,0.3)");
+          sh.addColorStop(1, "rgba(140,158,184,0)");
+          c.fillStyle = sh;
+          c.beginPath();
+          c.ellipse(cx + ox, cy + 16 * s, 170 * s, 26 * s, 0, 0, 6.3);
+          c.fill();
+        }
+      };
+      for (let k = 0; k < 16; k++) cloud(Math.random() * 2048, 60 + Math.random() * 300, 0.7 + Math.random() * 1.1);
+      for (let k = 0; k < 26; k++) cloud(Math.random() * 2048, 380 + Math.random() * 260, 0.5 + Math.random() * 0.9);
+      // perto do horizonte as nuvens ficam menores e mais juntas
+      for (let k = 0; k < 46; k++) cloud(Math.random() * 2048, 660 + Math.random() * 120, 0.16 + Math.random() * 0.3);
+      // bruma no horizonte
+      const hz = c.createLinearGradient(0, 720, 0, 830);
+      hz.addColorStop(0, "rgba(191,210,228,0)");
+      hz.addColorStop(1, "rgba(191,210,228,0.95)");
+      c.fillStyle = hz;
+      c.fillRect(0, 720, 2048, 304);
     });
     tex.wrapS = THREE.RepeatWrapping;
-    this.sky = new THREE.Mesh(new THREE.SphereGeometry(900, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.62), new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false, depthWrite: false }));
+    this.sky = new THREE.Mesh(new THREE.SphereGeometry(900, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.62), new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false, depthWrite: false, toneMapped: false }));
     this.sky.renderOrder = -1;
     this.scene.add(this.sky);
   }
@@ -213,7 +267,7 @@ export class Renderer {
     const px = (x: number) => (x + HALF) * k;
     const tex = canvasTexture(S, S, (c) => {
       // capim: base verde-amarelada com manchas, como um campo aberto
-      c.fillStyle = "#86923f";
+      c.fillStyle = "#6d8236";
       c.fillRect(0, 0, S, S);
       const patch = (n: number, cols: string[], lo: number, hi: number, alpha: number) => {
         for (let i = 0; i < n; i++) {
@@ -225,9 +279,20 @@ export class Renderer {
         }
         c.globalAlpha = 1;
       };
-      patch(700, ["#74873a", "#93a049", "#6d7f35", "#a3a856"], 30, 110, 0.5);
-      patch(260, ["#a89a5c", "#9c8c52", "#b3a468"], 20, 80, 0.4); // capim seco
-      patch(120, ["#8a7450", "#7d6846"], 18, 60, 0.45); // terra
+      patch(900, ["#5f7830", "#7c9240", "#56702c", "#88984a", "#6a8638"], 30, 120, 0.5);
+      patch(300, ["#938c4e", "#9f9858", "#8a8448"], 24, 90, 0.36); // capim seco
+      for (let x = -HALF; x < HALF; x += 2.5)
+        for (let z = -HALF; z < HALF; z += 2.5) {
+          const n = patchNoise(x, z);
+          if (n < DIRT - 0.05) continue;
+          c.globalAlpha = Math.min(0.95, (n - (DIRT - 0.05)) * 24);
+          c.fillStyle = ["#b8986a", "#aa8a60", "#c4a474", "#a08458"][Math.floor(hash(x, z) * 4)];
+          c.beginPath();
+          c.arc(px(x + hash(z, x) * 2), px(z + hash(x + 5, z) * 2), (2.6 + hash(x, z + 3) * 2.4) * k, 0, 6.3);
+          c.fill();
+        }
+      c.globalAlpha = 1;
+      patch(1400, ["#5f7830", "#93a84a", "#a8a058"], 6, 22, 0.35); // manchas miúdas
       const zone = (key: string, color: string, alpha = 1) => {
         const z = w.zones.find((q) => q.key === key)!;
         c.globalAlpha = alpha;
@@ -237,21 +302,21 @@ export class Renderer {
       };
       zone("floresta", "#55692f", 0.45);
       zone("fazenda", "#a08a55", 0.35);
-      zone("fabrica", "#8a8780");
-      zone("cidade", "#6a6a6c");
+      zone("fabrica", "#c2beb4");
+      zone("cidade", "#9c9c9e");
       // calçadas dos quarteirões
-      c.fillStyle = "#96938b";
+      c.fillStyle = "#cfcbc0";
       for (let bx = 0; bx < 6; bx++) for (let bz = 0; bz < 4; bz++) c.fillRect(px(-18 + bx * 44 - 17), px(-202 + bz * 46 - 17), 34 * k, 34 * k);
       // rodovia com faixas
-      c.fillStyle = "#47474a";
+      c.fillStyle = "#6c6c70";
       c.fillRect(0, px(-9), S, 18 * k);
-      c.fillStyle = "#e0c04a";
+      c.fillStyle = "#ffe070";
       for (let x = 0; x < S; x += 34) c.fillRect(x, px(-0.25), 18, 0.5 * k);
-      c.fillStyle = "#d8d8d0";
+      c.fillStyle = "#ffffff";
       c.fillRect(0, px(-8.4), S, 0.35 * k);
       c.fillRect(0, px(8.05), S, 0.35 * k);
       // estradas de terra ligando os lugares
-      c.strokeStyle = "#a08a62";
+      c.strokeStyle = "#c8ae80";
       c.lineCap = "round";
       c.lineWidth = 5 * k;
       const road = (pts: [number, number][]) => {
@@ -280,14 +345,14 @@ export class Renderer {
         [-150, -130],
       ]);
       // acampamento: chão batido
-      c.fillStyle = "#9a8056";
+      c.fillStyle = "#c4a474";
       c.beginPath();
       c.arc(px(70), px(192), 22 * k, 0, 6.3);
       c.fill();
       // plantações em fileiras
       for (const p of w.props)
         if (p.kind === "plantacao") {
-          c.fillStyle = "#7a6642";
+          c.fillStyle = "#a88c5c";
           c.fillRect(px(p.x - p.s / 2), px(p.z - p.rot / 2), p.s * k, p.rot * k);
           c.fillStyle = "#6f9a3a";
           for (let z = p.z - p.rot / 2 + 1; z < p.z + p.rot / 2; z += 2.4) c.fillRect(px(p.x - p.s / 2 + 1), px(z), (p.s - 2) * k, 0.9 * k);
@@ -307,7 +372,43 @@ export class Renderer {
     const pos = geo.attributes.position;
     for (let i = 0; i < pos.count; i++) pos.setY(i, this.gy(pos.getX(i), pos.getZ(i)));
     geo.computeVertexNormals();
-    this.scene.add(new THREE.Mesh(geo, lam(0xffffff, tex)));
+    // textura de detalhe: de perto o chão parece capim rente, não uma cor chapada
+    const detail = canvasTexture(256, 256, (c) => {
+      c.fillStyle = "#8f8f8f";
+      c.fillRect(0, 0, 256, 256);
+      c.lineCap = "round";
+      for (let i = 0; i < 2600; i++) {
+        const v = 90 + Math.floor(Math.random() * 120);
+        c.strokeStyle = `rgb(${v},${v},${v})`;
+        c.lineWidth = 0.8 + Math.random() * 1.2;
+        const x = Math.random() * 256;
+        const y = Math.random() * 256;
+        const l = 3 + Math.random() * 7;
+        const a = -Math.PI / 2 + (Math.random() - 0.5) * 1.6;
+        for (const [ox, oy] of [
+          [0, 0],
+          [256, 0],
+          [-256, 0],
+          [0, 256],
+          [0, -256],
+        ]) {
+          c.beginPath();
+          c.moveTo(x + ox, y + oy);
+          c.lineTo(x + ox + Math.cos(a) * l, y + oy + Math.sin(a) * l);
+          c.stroke();
+        }
+      }
+    });
+    detail.wrapS = detail.wrapT = THREE.RepeatWrapping;
+    detail.colorSpace = THREE.NoColorSpace;
+    const groundMat = lam(0xffffff, tex);
+    groundMat.onBeforeCompile = (sh) => {
+      sh.uniforms.detailMap = { value: detail };
+      sh.fragmentShader = sh.fragmentShader
+        .replace("uniform vec3 diffuse;", "uniform vec3 diffuse;\nuniform sampler2D detailMap;")
+        .replace("#include <map_fragment>", "#include <map_fragment>\n  vec3 det = texture2D(detailMap, vMapUv * 170.0).rgb * 0.55 + texture2D(detailMap, vMapUv * 31.0).rgb * 0.3 + texture2D(detailMap, vMapUv * 7.0).rgb * 0.15;\n  diffuseColor.rgb *= 0.56 + (det - 0.56) * 1.7;");
+    };
+    this.scene.add(new THREE.Mesh(geo, groundMat));
     // além da borda: campo liso até o horizonte
     const far = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000), lam(0x7f8c3e));
     far.rotation.x = -Math.PI / 2;
@@ -334,6 +435,56 @@ export class Renderer {
       m.setColorAt(i, col.setHex(hash(i, 2) < 0.5 ? 0x5f7a3a : 0x6f8846));
     }
     this.scene.add(m);
+
+    // torres de energia ao longe (só paisagem, ficam fora do mapa)
+    const steel = lam(0x7a8088);
+    for (let k = 0; k < 5; k++) {
+      const a = k * 1.31 + 0.4;
+      const x = Math.cos(a) * 285;
+      const z = Math.sin(a) * 285;
+      const tower = new THREE.Group();
+      for (const [ox, oz] of [
+        [-1, -1],
+        [1, -1],
+        [-1, 1],
+        [1, 1],
+      ]) {
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.2, 30, 4), steel);
+        leg.position.set(ox * 1.6, 15, oz * 1.6);
+        leg.rotation.z = -ox * 0.085;
+        leg.rotation.x = oz * 0.085;
+        tower.add(leg);
+      }
+      for (const y of [8, 15, 21, 26]) {
+        const ring = new THREE.Mesh(new THREE.BoxGeometry(4.6 - y * 0.11, 0.18, 4.6 - y * 0.11), steel);
+        ring.position.y = y;
+        tower.add(ring);
+      }
+      for (const y of [23, 27]) {
+        const arm = new THREE.Mesh(new THREE.BoxGeometry(11, 0.22, 0.3), steel);
+        arm.position.y = y;
+        tower.add(arm);
+      }
+      tower.position.set(x, -2, z);
+      tower.rotation.y = a;
+      this.scene.add(tower);
+    }
+
+    // linha de mata na borda do mapa: árvores distantes em volta
+    const tex = this.foliageTex("folha");
+    const ring = new THREE.InstancedMesh(new THREE.PlaneGeometry(13, 11), new THREE.MeshLambertMaterial({ map: tex, alphaTest: 0.5, side: THREE.DoubleSide }), 150);
+    for (let i = 0; i < 150; i++) {
+      const a = (i / 150) * Math.PI * 2 + hash(i, 21) * 0.05;
+      const rr = 262 + hash(i, 23) * 70;
+      d.position.set(Math.cos(a) * rr, 3.5 + hash(i, 29) * 2, Math.sin(a) * rr);
+      d.rotation.set(0, -a + Math.PI / 2, 0);
+      const sc = 0.8 + hash(i, 31) * 0.9;
+      d.scale.set(sc, sc, sc);
+      d.updateMatrix();
+      ring.setMatrixAt(i, d.matrix);
+      ring.setColorAt(i, col.setHex([0xb8c8a0, 0xa8bc90, 0xc8d0a8][i % 3]));
+    }
+    this.scene.add(ring);
   }
 
   // ---------------------------------------------------------------- construções
@@ -487,37 +638,97 @@ export class Renderer {
     const white = () => lam(0xffffff);
     const g = (p: P) => this.gy(p.x, p.z);
 
-    // ---- árvores: tronco + copa em três planos cruzados com textura de folhagem
+    // ---- árvores: tronco fino e uma copa feita de vários cartões de folhas (volume e vãos, como árvore de verdade)
     const leafy = by("arvore");
     const pines = by("pinheiro");
     // metade dos "pinheiros" vira álamo alto e fino, como no campo
     const poplar = pines.filter((_, i) => i % 2 === 0);
     const pine = pines.filter((_, i) => i % 2 === 1);
-    inst(new THREE.CylinderGeometry(0.2, 0.34, 5, 6), lam(0x5c4630), [...leafy, ...pines], (p) => {
+    inst(new THREE.CylinderGeometry(0.11, 0.3, 4.8, 7), lam(0x3f3226), [...leafy, ...pines], (p) => {
       d.position.set(p.x, g(p) + 2.3 * p.s, p.z);
       d.scale.setScalar(p.s);
     }, false);
-    const crown = (list: P[], tex: THREE.Texture, wdt: number, hgt: number, cy: number, tint: number[]) => {
+    const cards = (list: P[], tex: THREE.Texture, per: number, size: number, place: (p: P, k: number, r: (n: number) => number) => [number, number, number, number], tint: number[]) => {
       if (!list.length) return;
-      const mat = new THREE.MeshLambertMaterial({ map: tex, alphaTest: 0.4, side: THREE.DoubleSide });
-      const m = new THREE.InstancedMesh(new THREE.PlaneGeometry(wdt, hgt), mat, list.length * 3);
+      const mat = new THREE.MeshLambertMaterial({ map: tex, alphaTest: 0.5, side: THREE.DoubleSide });
+      const m = new THREE.InstancedMesh(new THREE.PlaneGeometry(size, size), mat, list.length * per);
       list.forEach((p, i) => {
-        for (let k = 0; k < 3; k++) {
-          d.position.set(p.x, g(p) + cy * p.s, p.z);
-          d.rotation.set(0, p.rot + (k * Math.PI) / 3, 0);
-          d.scale.setScalar(p.s);
+        for (let k = 0; k < per; k++) {
+          const r = (n: number) => hash(p.x * 1.3 + k * 7.1 + n, p.z * 0.7 - k * 3.3 + n * 1.7);
+          const [ox, oy, oz, sc] = place(p, k, r);
+          d.position.set(p.x + ox * p.s, g(p) + oy * p.s, p.z + oz * p.s);
+          d.rotation.set((r(5) - 0.5) * 0.24, p.rot + r(6) * 6.28, (r(7) - 0.5) * 0.14);
+          d.scale.setScalar(p.s * sc);
           d.updateMatrix();
-          m.setMatrixAt(i * 3 + k, d.matrix);
-          m.setColorAt(i * 3 + k, col.setHex(tint[Math.floor(hash(p.x, p.z) * tint.length)]));
+          m.setMatrixAt(i * per + k, d.matrix);
+          // os cartões de cima pegam mais sol
+          const base = new THREE.Color(tint[Math.floor(hash(p.x, p.z) * tint.length)]);
+          m.setColorAt(i * per + k, base.multiplyScalar(0.86 + Math.min(0.5, oy / 22) + r(8) * 0.2));
         }
       });
       this.scene.add(m);
     };
-    crown(leafy, this.foliageTex(false, false), 8.4, 7.6, 6.6, [0xffffff, 0xe8f0c8, 0xd8e8b0, 0xf4f0c0]);
-    crown(poplar, this.foliageTex(true, false), 4.2, 11, 7.2, [0xd8e0b0, 0xc8d8a0, 0xe8e8c0]);
-    crown(pine, this.foliageTex(true, true), 5.2, 10, 6.8, [0xffffff, 0xe0f0d8]);
+    cards(leafy, this.foliageTex("folha"), 12, 4.8, (_p, k, r) => {
+      const a = (k / 12) * 6.28 + r(1) * 1.2;
+      const rad = k < 2 ? 0.3 : 1.3 + r(2) * 1.7;
+      return [Math.cos(a) * rad, 4.6 + r(3) * 2.8 + (k < 2 ? 1.6 : 0), Math.sin(a) * rad, 0.9 + r(4) * 0.5];
+    }, [0xe8eccc, 0xd8e0b0, 0xc8d8a0, 0xe4dca8]);
+    cards(poplar, this.foliageTex("alamo"), 8, 3.2, (_p, k, r) => {
+      const a = r(1) * 6.28;
+      const h = 3.4 + (k / 7) * 8.2;
+      const rad = (1 - Math.abs(k / 7 - 0.4)) * 0.7;
+      return [Math.cos(a) * rad, h, Math.sin(a) * rad, 1.15 - (k / 7) * 0.5];
+    }, [0xe8f0c8, 0xd8e4b4, 0xf0f0d0]);
+    cards(pine, this.foliageTex("pinho"), 8, 3.6, (_p, k, r) => {
+      const a = r(1) * 6.28;
+      const h = 2.6 + (k / 7) * 8;
+      const rad = (1 - k / 7) * 1.1;
+      return [Math.cos(a) * rad, h, Math.sin(a) * rad, 1.35 - (k / 7) * 0.8];
+    }, [0xffffff, 0xe6f0de]);
 
-    inst(new THREE.DodecahedronGeometry(1, 0), white(), by("pedra"), (p) => {
+    for (const t of [...leafy, ...pines]) {
+      // a sombra cai um pouco para o lado oposto ao sol
+      const sp = { x: t.x + 1.6 * t.s, z: t.z + 0.6 * t.s, r: (t.kind === "arvore" ? 4.2 : 2.3) * t.s };
+      const key = Math.floor(sp.x / 12) * 1000 + Math.floor(sp.z / 12);
+      const l = this.shade.get(key);
+      if (l) l.push(sp);
+      else this.shade.set(key, [sp]);
+    }
+
+    // sombra das copas no chão
+    const shadowTex = canvasTexture(64, 64, (c) => {
+      const gr = c.createRadialGradient(32, 32, 2, 32, 32, 31);
+      gr.addColorStop(0, "rgba(0,0,0,0.55)");
+      gr.addColorStop(0.6, "rgba(0,0,0,0.3)");
+      gr.addColorStop(1, "rgba(0,0,0,0)");
+      c.fillStyle = gr;
+      c.fillRect(0, 0, 64, 64);
+    });
+    const sg = new THREE.PlaneGeometry(1, 1);
+    sg.rotateX(-Math.PI / 2);
+    inst(sg, new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), [...leafy, ...pines], (p) => {
+      // o sol vem de um lado: a sombra cai para o outro
+      d.position.set(p.x + 1.6 * p.s, g(p) + 0.12, p.z + 0.6 * p.s);
+      const wide = p.kind === "arvore" ? 8.5 : 4.6;
+      d.scale.set(wide * p.s, 1, wide * 0.8 * p.s);
+    }, false);
+
+    const rockTex = canvasTexture(128, 128, (c) => {
+      c.fillStyle = "#9a968c";
+      c.fillRect(0, 0, 128, 128);
+      for (let i = 0; i < 500; i++) {
+        c.fillStyle = Math.random() < 0.5 ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.09)";
+        c.fillRect(Math.random() * 128, Math.random() * 128, 2 + Math.random() * 10, 1 + Math.random() * 5);
+      }
+      // um pouco de musgo
+      for (let i = 0; i < 26; i++) {
+        c.fillStyle = "rgba(90,110,50,0.25)";
+        c.beginPath();
+        c.arc(Math.random() * 128, Math.random() * 128, 4 + Math.random() * 10, 0, 6.3);
+        c.fill();
+      }
+    });
+    inst(new THREE.DodecahedronGeometry(1, 1), lam(0xffffff, rockTex), by("pedra"), (p) => {
       d.position.set(p.x, g(p) + 0.35 * p.s, p.z);
       d.scale.set(p.s, p.s * 0.7, p.s);
       d.rotation.y = p.rot;
@@ -584,66 +795,120 @@ export class Renderer {
   private buildGrass() {
     const tex = canvasTexture(256, 128, (c) => {
       c.lineCap = "round";
-      for (let i = 0; i < 90; i++) {
+      for (let i = 0; i < 120; i++) {
         const x = 6 + Math.random() * 244;
-        const h = 40 + Math.random() * 84;
-        const lean = (Math.random() - 0.5) * 34;
-        c.strokeStyle = ["#9aa648", "#86993c", "#b4b060", "#768f36", "#a39a52"][i % 5];
-        c.lineWidth = 1.6 + Math.random() * 2;
+        const h = 46 + Math.random() * 78;
+        const lean = (Math.random() - 0.5) * 30;
+        // base verde-escura, ponta clara; algumas folhas secas
+        const dry = Math.random() < 0.3;
+        const gr = c.createLinearGradient(0, 128, 0, 128 - h);
+        gr.addColorStop(0, dry ? "#5a5428" : "#33431a");
+        gr.addColorStop(0.5, dry ? "#8c8044" : "#5a7030");
+        gr.addColorStop(1, dry ? "#bcae68" : "#9aa24e");
+        c.strokeStyle = gr;
+        c.lineWidth = 1.2 + Math.random() * 1.8;
         c.beginPath();
         c.moveTo(x, 128);
         c.quadraticCurveTo(x + lean * 0.3, 128 - h * 0.6, x + lean, 128 - h);
         c.stroke();
+        // uma ou outra flor miúda na ponta
+        if (Math.random() < 0.07) {
+          c.fillStyle = ["#f4f0e0", "#e8d870", "#c8b8e8"][i % 3];
+          c.beginPath();
+          c.arc(x + lean, 128 - h, 2.6, 0, 6.3);
+          c.fill();
+        }
       }
     });
-    const geo = new THREE.PlaneGeometry(1.9, 0.8);
-    geo.translate(0, 0.4, 0);
-    const mat = new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.35, side: THREE.DoubleSide });
-    this.grass = new THREE.InstancedMesh(geo, mat, GRASS_N * 2);
+    const geo = new THREE.PlaneGeometry(1.5, 0.56);
+    geo.translate(0, 0.28, 0);
+    const mat = new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.4, side: THREE.DoubleSide });
+    // vento: a ponta do capim balança, a base fica presa
+    mat.onBeforeCompile = (sh) => {
+      sh.uniforms.uWind = this.wind;
+      sh.vertexShader = sh.vertexShader
+        .replace("void main() {", "uniform float uWind;\nvoid main() {")
+        .replace("#include <begin_vertex>", "#include <begin_vertex>\n  #ifdef USE_INSTANCING\n  vec4 wpos = instanceMatrix * vec4(position, 1.0);\n  transformed.x += sin(uWind * 1.6 + wpos.x * 0.31 + wpos.z * 0.23) * 0.1 * uv.y;\n  transformed.z += cos(uWind * 1.3 + wpos.x * 0.19 - wpos.z * 0.27) * 0.06 * uv.y;\n  #endif");
+    };
+    this.grass = new THREE.InstancedMesh(geo, mat, this.grassN * 2);
     this.grass.frustumCulled = false;
     this.scene.add(this.grass);
+    const farGeo = new THREE.PlaneGeometry(3.4, 0.62);
+    farGeo.translate(0, 0.31, 0);
+    this.grassFar = new THREE.InstancedMesh(farGeo, mat, this.grassFarN * 2);
+    this.grassFar.frustumCulled = false;
+    this.scene.add(this.grassFar);
   }
 
-  /** Repõe o capim em volta de um ponto (cada tufo tem lugar fixo no mapa). */
-  private placeGrass(cx: number, cz: number) {
+  /** Repõe o capim em volta de um ponto (cada tufo tem lugar fixo no mapa). `inner` deixa um miolo vazio (camada de longe). */
+  private placeGrass(mesh: THREE.InstancedMesh, N: number, R: number, inner: number, cx: number, cz: number) {
     const d = new THREE.Object3D();
     const col = new THREE.Color();
-    const step = (GRASS_R * 2) / Math.sqrt(GRASS_N);
-    const gx0 = Math.floor((cx - GRASS_R) / step);
-    const gz0 = Math.floor((cz - GRASS_R) / step);
-    const n = Math.ceil((GRASS_R * 2) / step);
+    const step = (R * 2) / Math.sqrt(N);
+    const gx0 = Math.floor((cx - R) / step);
+    const gz0 = Math.floor((cz - R) / step);
+    const n = Math.ceil((R * 2) / step);
+    const tints = [0xf0f0e0, 0xd8dcb4, 0xc4d49a, 0xe4d8a4, 0xb4c890, 0xfffff0];
+    const salt = inner > 0 ? 97 : 0;
+    const up = new THREE.Vector3(0, 1, 0);
+    const normal = new THREE.Vector3();
+    const tilt = new THREE.Quaternion();
     let i = 0;
-    for (let a = 0; a < n && i < GRASS_N; a++)
-      for (let b = 0; b < n && i < GRASS_N; b++) {
+    for (let a = 0; a < n && i < N; a++)
+      for (let b = 0; b < n && i < N; b++) {
         const ix = gx0 + a;
         const iz = gz0 + b;
-        const x = (ix + hash(ix, iz)) * step;
-        const z = (iz + hash(iz, ix + 9)) * step;
+        const x = (ix + hash(ix + salt, iz)) * step;
+        const z = (iz + hash(iz, ix + 9 + salt)) * step;
         const zn = zoneAt(x, z);
-        // sem capim no asfalto, no concreto e fora do mapa
-        const bare = Math.abs(x) > HALF - 1 || Math.abs(z) > HALF - 1 || (zn && (zn.key === "cidade" || zn.key === "rodovia" || zn.key === "fabrica" || zn.key === "acampamento")) || hash(ix + 31, iz + 17) < 0.16;
-        const s = bare ? 0 : 0.7 + hash(ix + 3, iz + 5) * 0.8;
+        // sem capim no asfalto, no concreto, na terra batida e fora do mapa
+        const bare = Math.abs(x) > HALF - 1 || Math.abs(z) > HALF - 1 || (zn && (zn.key === "cidade" || (zn.key === "rodovia" && Math.abs(z) < 9.6) || zn.key === "fabrica" || zn.key === "acampamento")) || patchNoise(x, z) > DIRT + (hash(ix + 31, iz + 17) - 0.5) * 0.06;
+        // some aos poucos na borda (e no miolo, na camada de longe)
+        const dist = Math.hypot(x - cx, z - cz);
+        const fade = Math.max(0, Math.min(1, (1 - dist / R) * 4)) * (inner > 0 ? Math.max(0, Math.min(1, (dist - inner) / 8)) : 1);
+        const clump = 0.82 + patchNoise(x * 2.3 + 40, z * 2.3 - 17) * 0.5;
+        const s = bare ? 0 : (0.7 + hash(ix + 3, iz + 5) * 0.6) * clump * fade;
         const y = this.gy(x, z);
         const rot = hash(ix + 7, iz + 1) * 3.14;
+        // debaixo de árvore o capim fica na sombra
+        let lit = 1;
+        if (s > 0) {
+          const kx = Math.floor(x / 12);
+          const kz = Math.floor(z / 12);
+          for (let ax = -1; ax <= 1 && lit === 1; ax++)
+            for (let az = -1; az <= 1; az++) {
+              const l = this.shade.get((kx + ax) * 1000 + kz + az);
+              if (!l) continue;
+              for (const t of l) {
+                const dd = Math.hypot(t.x - x, t.z - z) / t.r;
+                if (dd < 1) lit = Math.min(lit, 0.5 + dd * dd * 0.5);
+              }
+            }
+        }
+        // o tufo acompanha a inclinação do terreno (reto, metade dele afundava na encosta)
+        if (s > 0) {
+          const e = 0.7;
+          normal.set((this.gy(x - e, z) - this.gy(x + e, z)) / (2 * e), 1, (this.gy(x, z - e) - this.gy(x, z + e)) / (2 * e)).normalize();
+          tilt.setFromUnitVectors(up, normal);
+        }
         for (let k = 0; k < 2; k++) {
-          d.position.set(x, y, z);
-          d.rotation.set(0, rot + (k * Math.PI) / 2, 0);
-          d.scale.set(s, s, s);
+          d.position.set(x, y + 0.02, z);
+          d.quaternion.setFromAxisAngle(up, rot + (k * Math.PI) / 2).premultiply(tilt);
+          d.scale.set(s, s * (0.8 + hash(ix + 2, iz + 8) * 0.6), s);
           d.updateMatrix();
-          this.grass.setMatrixAt(i * 2 + k, d.matrix);
-          this.grass.setColorAt(i * 2 + k, col.setHex([0xffffff, 0xe6e8b0, 0xd0e09a, 0xf0e0a0][Math.floor(hash(ix + 13, iz + 2) * 4)]));
+          mesh.setMatrixAt(i * 2 + k, d.matrix);
+          mesh.setColorAt(i * 2 + k, col.setHex(tints[Math.floor(hash(ix + 13, iz + 2) * tints.length)]).multiplyScalar(lit));
         }
         i++;
       }
     d.scale.set(0, 0, 0);
     d.updateMatrix();
-    for (; i < GRASS_N; i++) {
-      this.grass.setMatrixAt(i * 2, d.matrix);
-      this.grass.setMatrixAt(i * 2 + 1, d.matrix);
+    for (; i < N; i++) {
+      mesh.setMatrixAt(i * 2, d.matrix);
+      mesh.setMatrixAt(i * 2 + 1, d.matrix);
     }
-    this.grass.instanceMatrix.needsUpdate = true;
-    if (this.grass.instanceColor) this.grass.instanceColor.needsUpdate = true;
-    this.grassAt = { x: cx, z: cz };
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   }
 
   // ---------------------------------------------------------------- suprimentos no chão
@@ -748,68 +1013,101 @@ export class Renderer {
     const skin = lam(SKIN[a.id % SKIN.length]);
     const shirt = lam(a.color);
     const camo = lam(0xffffff, this.camo);
-    const pants = lam(0x9a9a80, this.camo);
+    const pants = lam(0xe6e2c4, this.camo);
     const boots = lam(0x231d18);
     const mats = [skin, shirt, pants];
     const sleeved = a.id % 3 !== 0; // alguns de regata, como na imagem
 
     const torso = new THREE.Group();
-    torso.position.y = 0.94;
+    torso.position.y = 0.96;
     body.add(torso);
-    const chest = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.19, 0.6, 10), shirt);
-    chest.scale.set(1.25, 1, 0.78);
-    chest.position.y = 0.32;
-    const hips = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.2, 10), pants);
-    hips.scale.set(1.2, 1, 0.8);
-    hips.position.y = -0.02;
-    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.12, 8), skin);
-    neck.position.y = 0.68;
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), skin);
-    head.scale.set(0.92, 1.08, 1);
-    head.position.y = 0.86;
-    const hair = new THREE.Mesh(new THREE.SphereGeometry(0.165, 12, 8, 0, 6.3, 0, Math.PI * 0.55), lam([0x2a1c12, 0x4a3320, 0x151212, 0x6a4a2a][a.id % 4]));
-    hair.position.y = 0.88;
-    torso.add(chest, hips, neck, head, hair);
+    const cap = (rad: number, len: number, mat: THREE.Material, sx = 1, sz = 1) => {
+      const m = new THREE.Mesh(new THREE.CapsuleGeometry(rad, len, 4, 12), mat);
+      m.scale.set(sx, 1, sz);
+      return m;
+    };
+    // tronco em duas partes: peito largo afinando na cintura
+    const chest = cap(0.17, 0.2, shirt, 1.32, 0.86);
+    chest.position.y = 0.42;
+    const waist = cap(0.15, 0.14, shirt, 1.18, 0.82);
+    waist.position.y = 0.18;
+    const hips = cap(0.16, 0.06, pants, 1.22, 0.86);
+    hips.position.y = 0;
+    const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.165, 0.165, 0.05, 12), lam(0x2a2218));
+    belt.scale.set(1.2, 1, 0.85);
+    belt.position.y = 0.08;
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.1, 8), skin);
+    neck.position.y = 0.67;
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.115, 14, 12), skin);
+    head.scale.set(0.9, 1.12, 1);
+    head.position.y = 0.8;
+    const hair = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 8, 0, 6.3, 0, Math.PI * 0.55), lam([0x2a1c12, 0x4a3320, 0x151212, 0x6a4a2a][a.id % 4]));
+    hair.position.y = 0.815;
+    // ombros
+    for (const x of [-0.24, 0.24]) {
+      const sh = new THREE.Mesh(new THREE.SphereGeometry(0.085, 10, 8), sleeved ? shirt : skin);
+      sh.position.set(x, 0.56, 0);
+      torso.add(sh);
+    }
+    torso.add(chest, waist, hips, belt, neck, head, hair);
 
-    const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 8, 0, 6.3, 0, Math.PI * 0.56), camo);
-    helmet.position.y = 0.87;
-    const vest = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.23, 0.5, 10), lam(0x3f4634));
-    vest.scale.set(1.25, 1, 0.9);
-    vest.position.y = 0.34;
-    const pack = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 0.24, 4, 10), camo);
-    pack.scale.set(1.15, 1, 0.8);
-    pack.position.set(0, 0.36, -0.25);
+    const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.142, 14, 8, 0, 6.3, 0, Math.PI * 0.58), camo);
+    helmet.scale.set(1, 1.05, 1.08);
+    helmet.position.y = 0.815;
+    const vest = cap(0.185, 0.22, lam(0x3f4634), 1.32, 0.95);
+    vest.position.y = 0.4;
+    // mochila com alças, como na imagem
+    const pack = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 0.2, 4, 10), lam(0xa8a888, this.camo));
+    pack.scale.set(1.25, 1, 0.9);
+    pack.position.set(0, 0.34, -0.23);
+    const flap = new THREE.Mesh(new THREE.SphereGeometry(0.15, 10, 6, 0, 6.3, 0, Math.PI / 2), lam(0x8a8a6c, this.camo));
+    flap.scale.set(1.1, 0.7, 0.9);
+    flap.position.y = 0.2;
+    pack.add(flap);
+    for (const x of [-0.13, 0.13]) {
+      const strap = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.42, 0.02), lam(0x2c2a22));
+      strap.position.set(x / 1.2, 0.08, 0.36);
+      strap.rotation.x = 0.12;
+      pack.add(strap);
+    }
     torso.add(helmet, vest, pack);
 
-    const seg = (len: number, rad: number, mat: THREE.Material) => {
-      const m = new THREE.Mesh(new THREE.CapsuleGeometry(rad, Math.max(0.01, len - rad * 2), 3, 8), mat);
+    const seg = (len: number, r1: number, r2: number, mat: THREE.Material) => {
+      // membro que afina da raiz para a ponta
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, len, 10), mat);
       m.position.y = -len / 2;
-      return m;
+      const top = new THREE.Mesh(new THREE.SphereGeometry(r1, 10, 6), mat);
+      const g2 = new THREE.Group();
+      g2.add(m, top);
+      return g2;
     };
     const limb = (parent: THREE.Object3D, x: number, y: number, l1: number, l2: number, rad: number, m1: THREE.Material, m2: THREE.Material, foot: boolean) => {
       const up = new THREE.Group();
       up.position.set(x, y, 0);
-      up.add(seg(l1, rad, m1));
+      up.add(seg(l1, rad, rad * 0.8, m1));
       const low = new THREE.Group();
       low.position.y = -l1;
-      low.add(seg(l2, rad * 0.9, m2));
+      low.add(seg(l2, rad * 0.82, rad * 0.6, m2));
       if (foot) {
-        const f = new THREE.Mesh(new THREE.BoxGeometry(rad * 2.1, 0.12, rad * 3.6), boots);
-        f.position.set(0, -l2 + 0.02, rad * 0.9);
-        low.add(f);
+        const f = new THREE.Mesh(new THREE.BoxGeometry(rad * 1.7, 0.1, rad * 3.1), boots);
+        f.position.set(0, -l2 + 0.03, rad * 0.8);
+        const ankle = new THREE.Mesh(new THREE.CylinderGeometry(rad * 0.72, rad * 0.78, 0.16, 8), boots);
+        ankle.position.y = -l2 + 0.1;
+        low.add(f, ankle);
       } else {
-        const h = new THREE.Mesh(new THREE.SphereGeometry(rad * 1.05, 8, 6), skin);
-        h.position.y = -l2;
+        const h = new THREE.Mesh(new THREE.SphereGeometry(rad * 0.75, 8, 6), skin);
+        h.scale.set(0.8, 1.2, 1);
+        h.position.y = -l2 - 0.02;
         low.add(h);
       }
       up.add(low);
       parent.add(up);
       return [up, low] as const;
     };
-    const [thighL, shinL] = limb(body, -0.13, 0.94, 0.47, 0.47, 0.1, pants, pants, true);
-    const [thighR, shinR] = limb(body, 0.13, 0.94, 0.47, 0.47, 0.1, pants, pants, true);
-    const [armL, foreL] = limb(torso, -0.36, 0.56, 0.3, 0.3, 0.075, sleeved ? shirt : skin, skin, false);
-    const [armR, foreR] = limb(torso, 0.36, 0.56, 0.3, 0.3, 0.075, sleeved ? shirt : skin, skin, false);
+    const [thighL, shinL] = limb(body, -0.11, 0.96, 0.46, 0.46, 0.105, pants, pants, true);
+    const [thighR, shinR] = limb(body, 0.11, 0.96, 0.46, 0.46, 0.105, pants, pants, true);
+    const [armL, foreL] = limb(torso, -0.27, 0.56, 0.29, 0.27, 0.07, sleeved ? shirt : skin, skin, false);
+    const [armR, foreR] = limb(torso, 0.27, 0.56, 0.29, 0.27, 0.07, sleeved ? shirt : skin, skin, false);
 
     const hand: Record<string, THREE.Object3D> = {};
     const back: Record<string, THREE.Object3D> = {};
@@ -821,8 +1119,9 @@ export class Renderer {
       hand[id] = h;
       const b = this.weaponMesh(id);
       // atravessada nas costas, como na imagem
-      b.position.set(0.02, 0.36, -0.42);
-      b.rotation.set(0, 0, 0.5);
+      b.position.set(0.02, 0.42, -0.4);
+      b.rotation.set(0, 0, 0.55);
+      b.scale.setScalar(1.15);
       b.visible = false;
       torso.add(b);
       back[id] = b;
@@ -849,17 +1148,30 @@ export class Renderer {
     chute.visible = false;
     root.add(chute);
 
-    const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.5, 14), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.28, depthWrite: false }));
+    const shadow = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 2.5), new THREE.MeshBasicMaterial({ map: this.softShadow(), transparent: true, opacity: 0.85, depthWrite: false }));
     shadow.rotation.x = -Math.PI / 2;
-    shadow.position.y = 0.04;
+    shadow.position.set(0, 0.05, 0);
     root.add(shadow);
 
     const tag = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthWrite: false, fog: false }));
-    tag.position.y = 2.35;
+    tag.position.y = 2.15;
     tag.scale.set(2.4, 0.6, 1);
     root.add(tag);
     this.scene.add(root);
     return { root, body, torso, thighL, thighR, shinL, shinR, armL, armR, foreL, foreR, pack, vest, helmet, hand, back, chute, mats, tag, tagKey: "", shadow, phase: a.id, fall: 0, crouch: 0, prone: 0, aim: 0 };
+  }
+
+  private shadowTexture: THREE.CanvasTexture | null = null;
+  private softShadow(): THREE.CanvasTexture {
+    this.shadowTexture ??= canvasTexture(64, 64, (c) => {
+      const gr = c.createRadialGradient(32, 32, 2, 32, 32, 31);
+      gr.addColorStop(0, "rgba(0,0,0,0.6)");
+      gr.addColorStop(0.5, "rgba(0,0,0,0.3)");
+      gr.addColorStop(1, "rgba(0,0,0,0)");
+      c.fillStyle = gr;
+      c.fillRect(0, 0, 64, 64);
+    });
+    return this.shadowTexture;
   }
 
   private setTag(v: Rig, a: Actor, ally: boolean) {
@@ -899,8 +1211,8 @@ export class Renderer {
     if (v.tag.visible) this.setTag(v, a, ally);
     v.pack.visible = a.gear.mochila > 0;
     if (v.pack.visible) {
-      const s = 0.82 + a.gear.mochila * 0.1;
-      v.pack.scale.set(1.15 * s, s, 0.8 * s);
+      const s = 0.84 + a.gear.mochila * 0.12;
+      v.pack.scale.set(1.25 * s, s, 0.9 * s);
     }
     v.vest.visible = a.gear.colete > 0;
     v.helmet.visible = a.gear.capacete > 0;
@@ -914,6 +1226,7 @@ export class Renderer {
     v.chute.visible = a.chute;
     v.shadow.visible = a.alive && a.where === "ground";
     v.shadow.position.y = 0.05 - a.y;
+    v.shadow.rotation.z = -a.yaw + 1.1;
 
     const R = v;
     for (const p of [R.thighL, R.thighR, R.shinL, R.shinR, R.armL, R.armR, R.foreL, R.foreR, R.torso]) p.rotation.set(0, 0, 0);
@@ -1103,6 +1416,7 @@ export class Renderer {
     const g = this.game;
     const p = g.player;
     this.clock += dt;
+    this.wind.value = this.clock;
     for (const e of g.ev) {
       if (e.t === "shot") {
         const a = g.actors[e.id];
@@ -1231,12 +1545,12 @@ export class Renderer {
     const cp = Math.cos(pitch);
     const sp = Math.sin(pitch);
     const rig = this.rigs.get(p.id)!;
-    const eye = air ? 1.2 : 1.62 - rig.crouch * 0.5 - rig.prone * 1.15;
-    const side = air ? 0 : aiming ? 0.42 : 0.62;
+    const eye = air ? 1.2 : 1.56 - rig.crouch * 0.5 - rig.prone * 1.1;
+    const side = air ? 0 : aiming ? 0.4 : 0.55;
     const tx = p.x - cy * side;
     const tz = p.z + sy * side;
     const ty = this.gy(p.x, p.z) + p.y + eye;
-    const want = p.where === "plane" ? 26 : air ? 9 : aiming ? 1.5 : 3.9;
+    const want = p.where === "plane" ? 26 : air ? 9 : aiming ? 1.3 : 2.75;
     this.camDist += (want - this.camDist) * Math.min(1, dt * 8);
     let dist = this.camDist;
     // encurta a câmera quando há parede atrás
@@ -1252,7 +1566,11 @@ export class Renderer {
     // câmera colada na parede ou na luneta: some com o próprio boneco para não tapar a tela
     rig.body.visible = dist > 1.2 || !p.alive;
     this.sky.position.set(cxp, -40, czp);
-    if (Math.hypot(cxp - this.grassAt.x, czp - this.grassAt.z) > 8) this.placeGrass(cxp, czp);
+    if (Math.hypot(p.x - this.grassAt.x, p.z - this.grassAt.z) > 6) {
+      this.placeGrass(this.grass, this.grassN, GRASS_R, 0, p.x, p.z);
+      this.placeGrass(this.grassFar, this.grassFarN, 120, GRASS_R - 10, p.x, p.z);
+      this.grassAt = { x: p.x, z: p.z };
+    }
     this.r.render(this.scene, this.cam);
   }
 

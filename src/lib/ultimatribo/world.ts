@@ -53,7 +53,8 @@ export function heightAt(w: World, x: number, z: number): number {
   const b = h[j * HM_N + i + 1];
   const c = h[(j + 1) * HM_N + i];
   const d = h[(j + 1) * HM_N + i + 1];
-  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+  // mesma divisão em triângulos da malha desenhada (diagonal de b até c), para nada afundar nem flutuar
+  return u + v <= 1 ? a + (b - a) * u + (c - a) * v : d + (c - d) * (1 - u) + (b - d) * (1 - v);
 }
 
 /** Sorteio com semente (mulberry32): o mesmo mapa para todo mundo. */
@@ -415,7 +416,7 @@ export function buildWorld(seed: number): World {
         const d = Math.hypot(dx, dz);
         if (d < 16) amp = Math.min(amp, smooth(d / 16));
       }
-      const hills = (noise(x, z, 46, 0) - 0.5) * 9 + (noise(x, z, 17, 5.3) - 0.5) * 2.4;
+      const hills = (noise(x, z, 58, 0) - 0.5) * 9 + (noise(x, z, 24, 5.3) - 0.5) * 1.6;
       // o morro da igreja
       const hill = 5 * Math.exp(-((x + 10) ** 2 + (z - 125) ** 2) / (2 * 42 * 42));
       hmap[j * HM_N + i] = hills * amp + hill;

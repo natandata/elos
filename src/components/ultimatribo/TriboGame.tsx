@@ -102,7 +102,7 @@ export function TriboGame({ seed, name, color, options, onEnd, onQuit }: { seed:
     const game = new Game(seed, name, color, options);
     const view = new Renderer(canvas, game);
     // só no ambiente de desenvolvimento: deixa a partida à mão para testes pelo console
-    if (process.env.NODE_ENV !== "production") (window as unknown as { __ut?: Game }).__ut = game;
+    if (process.env.NODE_ENV !== "production") Object.assign(window, { __ut: game, __utView: view });
     const sfx = new Sfx();
     const isTouch = matchMedia("(pointer: coarse)").matches;
     let yaw = game.player.yaw;
@@ -563,7 +563,7 @@ export function TriboGame({ seed, name, color, options, onEnd, onQuit }: { seed:
 
   return (
     <div className="fixed inset-0 z-[70] select-none overflow-hidden bg-black font-sans" style={{ touchAction: "none" }}>
-      <canvas ref={canvasRef} className="block h-full w-full" />
+      <canvas ref={canvasRef} className="block h-full w-full" style={{ filter: "contrast(1.1) saturate(0.96)" }} />
 
       {/* fora da área segura: a tela fica azulada, como dentro da zona */}
       {hud?.inDark ? <div className="pointer-events-none absolute inset-0 animate-pulse" style={{ background: "radial-gradient(circle, rgba(40,90,230,0.12) 30%, rgba(30,70,220,0.55) 100%)" }} /> : null}
