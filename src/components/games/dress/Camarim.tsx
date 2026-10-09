@@ -71,6 +71,7 @@ export function Camarim({ theme, mode, msLeft, practiceN = 1, draftKey, exitHref
   const [savedRev, setSavedRev] = useState(0);
   const dirty = rev !== savedRev;
   const sending = useRef(false);
+  const [retry, setRetry] = useState(0);
   const [look, setLook] = useState<Look>({});
   const [beauty, setBeauty] = useState<Beauty>(DEFAULT_BEAUTY);
   const [cat, setCat] = useState<Cat>("tunic");
@@ -203,10 +204,16 @@ export function Camarim({ theme, mode, msLeft, practiceN = 1, draftKey, exitHref
         // se mudou de novo enquanto enviava, continua "sujo" e salva outra vez
         setSavedRev(sentRev);
         setSaved(true);
+        setError(null);
+        setRetry(0);
+      } else {
+        // falhou: avisa e tenta de novo daqui a pouco (antes ficava "salvando…" para sempre, sem aviso)
+        setError(err);
+        setRetry((n) => n + 1);
       }
-    }, 1400);
+    }, retry > 0 ? 3000 : 1400);
     return () => clearTimeout(t);
-  }, [isLive, live, dirty, rev, look, beauty, pose]);
+  }, [isLive, live, dirty, rev, look, beauty, pose, retry]);
 
   /** qualquer mudança no look ao vivo desmarca o "pronta" e agenda o salvamento */
   function touched() {
