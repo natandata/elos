@@ -1,4 +1,4 @@
-// Movimento da jogadora no Madureira Shopping (client-safe e sem navegador, para o jogo 3D e os testes usarem o mesmo código):
+// Movimento da jogadora no Shopping Elos (client-safe e sem navegador, para o jogo 3D e os testes usarem o mesmo código):
 // piso (andares, escadas rolantes, degraus e bancos), pulo, gravidade, paredes e colunas.
 import { ESCALATORS, FLOOR_H, HX, STEP_UP, WALLS, floorAt, floorHalfZ, inRect, rampY, surfaceY, type Wall } from "./shopping";
 
@@ -23,7 +23,7 @@ export const JUMP_V = 6.4;
 export const WALK = 5.2;
 export const RUN = 8.5;
 export const ESC_SPEED = 2.6;
-const PAD = 0.3;
+const PAD = 0.5;
 
 const insideSolid = (o: Solid, x: number, z: number): boolean =>
   o.r !== undefined ? Math.hypot(x - o.x, z - o.z) < o.r : Math.abs(x - o.x) < (o.hw ?? 0) && Math.abs(z - o.z) < (o.hd ?? 0);

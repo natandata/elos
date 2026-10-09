@@ -520,10 +520,10 @@ J("wrist", "charm", "Pulseira de pingentes", "f", METAL_ONLY, true);
 J("wrist", "cuff", "Bracelete largo", "m", MET);
 J("wrist", "ribbonw", "Fita no pulso", "f", ["rosa", "vermelho", "azul", "branco", "preto", "lilas", "verde", "dourado", "turquesa", "creme", "coral", "amarelo"]);
 
-// ============================================================ EDIÇÃO LIMITADA (só nas ofertas raras do Madureira Shopping)
-custom("head", "madcrown", "Coroa Madureira", [{ id: "head_madcrown", label: "", p: P("#ffd34d", "#ff4fa3", "#7cf0ff") }]);
+// ============================================================ EDIÇÃO LIMITADA (só nas ofertas raras do Shopping Elos)
+custom("head", "madcrown", "Coroa Elos", [{ id: "head_madcrown", label: "", p: P("#ffd34d", "#ff4fa3", "#7cf0ff") }]);
 custom("head", "aurora", "Tiara Aurora", [{ id: "head_aurora", label: "", p: P("#f3e6ff", "#7cf0ff", "#ff9ad5") }]);
-custom("tunic", "galadress", "Vestido Gala Madureira", [{ id: "tunic_galadress", label: "", p: P("#ffc4de", "#ffd34d", "#fff2a8") }]);
+custom("tunic", "galadress", "Vestido Gala Elos", [{ id: "tunic_galadress", label: "", p: P("#ffc4de", "#ffd34d", "#fff2a8") }]);
 custom("tunic", "starmaid", "Sereia Estelar", [{ id: "tunic_starmaid", label: "", p: P("#4fd6ff", "#a78bfa", "#ffd34d") }]);
 custom("mantle", "starcape", "Capa Estrelada", [{ id: "mantle_starcape", label: "", p: P("#3a1d6e", "#ffd34d", "#7cf0ff") }]);
 custom("shoes", "crystal", "Sapatos de Cristal", [{ id: "shoes_crystal", label: "", p: P("#cfeaff", "#7cf0ff", "#ffffff") }]);

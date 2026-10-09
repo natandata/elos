@@ -311,6 +311,7 @@ export function PaperDoll({
   title,
   step = 0,
   back = false,
+  noShadow = false,
 }: {
   base: DollBase;
   look?: Look;
@@ -322,6 +323,8 @@ export function PaperDoll({
   step?: number;
   /** vista de costas (a modelo andando para longe da câmera) */
   back?: boolean;
+  /** sem a sombra no chão (no 3D a sombra é desenhada à parte) */
+  noShadow?: boolean;
 }) {
   const wrap = (id: string | undefined, back = false) => {
     if (!id) return null;
@@ -407,7 +410,7 @@ export function PaperDoll({
           <rect x="0" y="0" width="200" height="360" rx="18" fill={`url(#${gid})`} />
         </>
       ) : null}
-      {!only ? <ellipse cx="100" cy="344" rx="50" ry="7" fill="#000" opacity="0.2" filter={`url(#bl2-${uid})`} /> : null}
+      {!only && !noShadow ? <ellipse cx="100" cy="344" rx="50" ry="7" fill="#000" opacity="0.2" filter={`url(#bl2-${uid})`} /> : null}
 
       {faceOn && !back ? <BackHair base={base} uid={uid} /> : null}
       <g transform={bodyT}>

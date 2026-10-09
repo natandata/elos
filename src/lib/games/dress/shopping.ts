@@ -1,10 +1,11 @@
-// Madureira Shopping (client-safe): a planta do shopping, as lojas, os restaurantes e o cardápio.
+// Shopping Elos (client-safe): a planta do shopping, as lojas, os restaurantes e o cardápio.
 // A conta de verdade (preços das ofertas, bilhetes, doações) é feita no banco (migração 0192); aqui ficam só os números que a tela mostra
 // e a geometria que o jogo 3D e os testes usam.
-import { ITEMS, familiesBySlot, type DressItem, type FamilyGroup, type Slot } from "./items";
+import type { Beauty } from "./beauty";
+import { ITEMS, familiesBySlot, type DressItem, type FamilyGroup, type Look, type Slot } from "./items";
 import { priceOf, rarityOf } from "./rarity";
 
-export const MALL_NAME = "Madureira Shopping";
+export const MALL_NAME = "Shopping Elos";
 export const GIFT_DAILY_MAX = 30;
 
 // ------------------------------------------------------------------ planta
@@ -15,7 +16,7 @@ export const FLOOR_COUNT = 5;
 export const floorHalfZ = (f: number): number => (f === 4 ? 44 : 20);
 export const floorY = (f: number): number => f * FLOOR_H;
 export const FLOOR_INFO: { name: string; sub: string; color: number; tile: [string, string] }[] = [
-  { name: "Térreo", sub: "Praça Madureira", color: 0xf6e7cf, tile: ["#f4e6cc", "#e9d4b0"] },
+  { name: "Térreo", sub: "Praça Elos", color: 0xf6e7cf, tile: ["#f4e6cc", "#e9d4b0"] },
   { name: "1º andar", sub: "Moda e Coroas", color: 0xf3dcea, tile: ["#f6e0ee", "#ecc9de"] },
   { name: "2º andar", sub: "Calçados e Acessórios", color: 0xdfeaf7, tile: ["#e3edf8", "#cbdcf0"] },
   { name: "3º andar", sub: "Ateliês e Galeria", color: 0xe6f3e1, tile: ["#e8f4e3", "#d1e6c9"] },
@@ -152,31 +153,33 @@ export type StoreDef = {
   color: number;
   accent: number;
   attendant: string;
-  emoji: string;
+  /** nome do ícone (public/shopping/icones) */
+  icon: string;
 };
 export const STORE_W = 16;
 
 export const STORES: StoreDef[] = [
-  { id: "vestidos", name: "Vestidos Reais", floor: 0, side: -1, x: -18, slots: ["tunic"], color: 0xf3b3d1, accent: 0xb5307a, attendant: "Dona Raquel", emoji: "👗" },
-  { id: "mantos", name: "Mantos & Capas", floor: 0, side: 1, x: -18, slots: ["mantle"], color: 0xc9b6f0, accent: 0x5b3aa8, attendant: "Seu Davi", emoji: "🧣" },
-  { id: "coroas", name: "Coroas & Tiaras", floor: 1, side: -1, x: 0, slots: ["head"], color: 0xffe08a, accent: 0xc2870a, attendant: "Dona Ester", emoji: "👑" },
-  { id: "joalheria", name: "Joalheria Estrela", floor: 1, side: 1, x: 0, slots: ["ears", "neck", "wrist"], color: 0xb9e3f7, accent: 0x1f6f9c, attendant: "Dona Lídia", emoji: "💎" },
-  { id: "calcados", name: "Sapataria Passos", floor: 2, side: -1, x: 0, slots: ["shoes", "mantle"], color: 0xf7c9b0, accent: 0xb5532a, attendant: "Seu Tiago", emoji: "👠" },
-  { id: "acessorios", name: "Acessórios do Reino", floor: 2, side: 1, x: 0, slots: ["hand"], color: 0xb8e6c4, accent: 0x2a8a4a, attendant: "Dona Noemi", emoji: "🪄" },
-  { id: "ateliegala", name: "Ateliê de Gala", floor: 3, side: -1, x: 0, slots: ["tunic", "mantle"], color: 0xf6c4e0, accent: 0x9b2a82, attendant: "Dona Priscila", emoji: "✨" },
-  { id: "sonhos", name: "Galeria dos Sonhos", floor: 3, side: 1, x: 0, slots: ["head", "hand"], color: 0xd2c4f7, accent: 0x4a35a0, attendant: "Seu Mateus", emoji: "🌟" },
+  { id: "vestidos", name: "Canaã & Alegria Moda", floor: 0, side: -1, x: -18, slots: ["tunic"], color: 0xf3b3d1, accent: 0xb5307a, attendant: "Dona Raquel", icon: "vestido" },
+  { id: "mantos", name: "Zorobabel Mantos", floor: 0, side: 1, x: -18, slots: ["mantle"], color: 0xc9b6f0, accent: 0x5b3aa8, attendant: "Seu Davi", icon: "manto" },
+  { id: "coroas", name: "Clara Luz Coroas", floor: 1, side: -1, x: 0, slots: ["head"], color: 0xffe08a, accent: 0xc2870a, attendant: "Dona Ester", icon: "coroa" },
+  { id: "joalheria", name: "Vinha & Aliança Joias", floor: 1, side: 1, x: 0, slots: ["ears", "neck", "wrist"], color: 0xb9e3f7, accent: 0x1f6f9c, attendant: "Dona Lídia", icon: "anel" },
+  { id: "calcados", name: "Areópago Calçados", floor: 2, side: -1, x: 0, slots: ["shoes", "mantle"], color: 0xf7c9b0, accent: 0xb5532a, attendant: "Seu Tiago", icon: "sapato" },
+  { id: "acessorios", name: "Lojas Emaús", floor: 2, side: 1, x: 0, slots: ["hand"], color: 0xb8e6c4, accent: 0x2a8a4a, attendant: "Dona Noemi", icon: "varinha" },
+  { id: "ateliegala", name: "Renascer Ateliê de Gala", floor: 3, side: -1, x: 0, slots: ["tunic", "mantle"], color: 0xf6c4e0, accent: 0x9b2a82, attendant: "Dona Priscila", icon: "brilhos" },
+  { id: "sonhos", name: "Riacho de Jacó", floor: 3, side: 1, x: 0, slots: ["head", "hand"], color: 0xd2c4f7, accent: 0x4a35a0, attendant: "Seu Mateus", icon: "estrela" },
 ];
 
 /** Vitrines de enfeite (portas fechadas) para o shopping parecer cheio. */
 const CLOSED_NAMES: [string, string][] = [
-  ["Livraria Alfa e Ômega", "📚"],
-  ["Doces da Vovó", "🍬"],
-  ["Brinquedos Davi", "🧸"],
-  ["Ótica Visão", "👓"],
-  ["Perfumaria Nardo", "🧴"],
-  ["Papelaria Pena", "✏️"],
-  ["Relojoaria Tempo", "⏰"],
-  ["Floricultura Lírio", "💐"],
+  ["Livraria Alfa e Ômega", "livros"],
+  ["Cacau do Éden", "doce"],
+  ["Ri Davi Brinquedos", "ursinho"],
+  ["Óticas Visão de Jacó", "oculos"],
+  ["O Boticário Nardo", "gota"],
+  ["Kadosh Papelaria", "pergaminho"],
+  ["Relojoaria Tempo de Deus", "cronometro"],
+  ["Jardim do Éden Flores", "flor"],
+  ["Casas Belém", "casa"],
 ];
 export function closedStores(): StoreDef[] {
   const out: StoreDef[] = [];
@@ -185,8 +188,8 @@ export function closedStores(): StoreDef[] {
     for (const side of [-1, 1] as const) {
       for (const x of [-36, -18, 0, 18, 36]) {
         if (STORES.some((s) => s.floor === f && s.side === side && s.x === x)) continue;
-        const [name, emoji] = CLOSED_NAMES[k++ % CLOSED_NAMES.length];
-        out.push({ id: `c${f}${side > 0 ? "s" : "n"}${x}`, name, floor: f, side, x, slots: null, color: 0xe3dcd8, accent: 0x8a7f78, attendant: "", emoji });
+        const [name, icon] = CLOSED_NAMES[k++ % CLOSED_NAMES.length];
+        out.push({ id: `c${f}${side > 0 ? "s" : "n"}${x}`, name, floor: f, side, x, slots: null, color: 0xe3dcd8, accent: 0x8a7f78, attendant: "", icon });
       }
     }
   }
@@ -205,33 +208,33 @@ export const BOOTH = { floor: 0, x: 55, z: 0, front: { x: 52, z: 0 } };
 export const INFO_DESK = { floor: 0, x: 0, z: 13, front: { x: 0, z: 10.4 } };
 
 // ------------------------------------------------------------------ praça de alimentação
-export type Food = { key: string; place: string; name: string; emoji: string; price: number; seconds: number };
+export type Food = { key: string; place: string; name: string; icon: string; price: number; seconds: number };
 /** O mesmo cardápio da tabela mall_foods (o preço de verdade vem do banco). */
 export const FOODS: Food[] = [
-  { key: "pao_manteiga", place: "padaria", name: "Pão com manteiga", emoji: "🥖", price: 3, seconds: 5 },
-  { key: "pao_queijo", place: "padaria", name: "Pão de queijo", emoji: "🧀", price: 4, seconds: 5 },
-  { key: "bolo_milho", place: "padaria", name: "Bolo de milho", emoji: "🍰", price: 6, seconds: 6 },
-  { key: "suco_laranja", place: "padaria", name: "Suco de laranja", emoji: "🧃", price: 4, seconds: 5 },
-  { key: "pizza_fatia", place: "pizzaria", name: "Fatia de pizza", emoji: "🍕", price: 10, seconds: 6 },
-  { key: "calzone", place: "pizzaria", name: "Calzone", emoji: "🥟", price: 14, seconds: 7 },
-  { key: "pizza_inteira", place: "pizzaria", name: "Pizza inteira", emoji: "🍕", price: 30, seconds: 9 },
-  { key: "refri", place: "pizzaria", name: "Refrigerante", emoji: "🥤", price: 5, seconds: 5 },
-  { key: "espetinho", place: "churrasco", name: "Espetinho", emoji: "🍢", price: 8, seconds: 6 },
-  { key: "farofa", place: "churrasco", name: "Arroz, feijão e farofa", emoji: "🍛", price: 12, seconds: 7 },
-  { key: "picanha", place: "churrasco", name: "Prato de picanha", emoji: "🥩", price: 35, seconds: 9 },
-  { key: "guarana", place: "churrasco", name: "Guaraná", emoji: "🥤", price: 4, seconds: 5 },
-  { key: "sorvete", place: "sorveteria", name: "Casquinha de sorvete", emoji: "🍦", price: 6, seconds: 6 },
-  { key: "milkshake", place: "sorveteria", name: "Milkshake", emoji: "🥛", price: 10, seconds: 6 },
-  { key: "acai", place: "sorveteria", name: "Açaí na tigela", emoji: "🍇", price: 12, seconds: 7 },
-  { key: "picole", place: "sorveteria", name: "Picolé", emoji: "🍧", price: 5, seconds: 5 },
-  { key: "cafe", place: "cafeteria", name: "Café", emoji: "☕", price: 3, seconds: 5 },
-  { key: "cappuccino", place: "cafeteria", name: "Cappuccino", emoji: "☕", price: 6, seconds: 6 },
-  { key: "torta", place: "cafeteria", name: "Fatia de torta", emoji: "🥧", price: 9, seconds: 6 },
-  { key: "crepe", place: "cafeteria", name: "Crepe doce", emoji: "🥞", price: 12, seconds: 7 },
+  { key: "pao_manteiga", place: "padaria", name: "Pão com manteiga", icon: "pao", price: 3, seconds: 5 },
+  { key: "pao_queijo", place: "padaria", name: "Pão de queijo", icon: "paoqueijo", price: 4, seconds: 5 },
+  { key: "bolo_milho", place: "padaria", name: "Bolo de milho", icon: "bolomilho", price: 6, seconds: 6 },
+  { key: "suco_laranja", place: "padaria", name: "Suco de laranja", icon: "suco", price: 4, seconds: 5 },
+  { key: "pizza_fatia", place: "pizzaria", name: "Fatia de pizza", icon: "pizza", price: 10, seconds: 6 },
+  { key: "calzone", place: "pizzaria", name: "Calzone", icon: "calzone", price: 14, seconds: 7 },
+  { key: "pizza_inteira", place: "pizzaria", name: "Pizza inteira", icon: "pizza", price: 30, seconds: 9 },
+  { key: "refri", place: "pizzaria", name: "Refrigerante", icon: "refri", price: 5, seconds: 5 },
+  { key: "espetinho", place: "churrasco", name: "Espetinho", icon: "espetinho", price: 8, seconds: 6 },
+  { key: "farofa", place: "churrasco", name: "Arroz, feijão e farofa", icon: "prato", price: 12, seconds: 7 },
+  { key: "picanha", place: "churrasco", name: "Prato de picanha", icon: "picanha", price: 35, seconds: 9 },
+  { key: "guarana", place: "churrasco", name: "Guaraná", icon: "guarana", price: 4, seconds: 5 },
+  { key: "sorvete", place: "sorveteria", name: "Casquinha de sorvete", icon: "sorvete", price: 6, seconds: 6 },
+  { key: "milkshake", place: "sorveteria", name: "Milkshake", icon: "milkshake", price: 10, seconds: 6 },
+  { key: "acai", place: "sorveteria", name: "Açaí na tigela", icon: "acai", price: 12, seconds: 7 },
+  { key: "picole", place: "sorveteria", name: "Picolé", icon: "picole", price: 5, seconds: 5 },
+  { key: "cafe", place: "cafeteria", name: "Café", icon: "cafe", price: 3, seconds: 5 },
+  { key: "cappuccino", place: "cafeteria", name: "Cappuccino", icon: "cafe", price: 6, seconds: 6 },
+  { key: "torta", place: "cafeteria", name: "Fatia de torta", icon: "torta", price: 9, seconds: 6 },
+  { key: "crepe", place: "cafeteria", name: "Crepe doce", icon: "crepe", price: 12, seconds: 7 },
 ];
 export const FOOD_BY_KEY = new Map(FOODS.map((f) => [f.key, f]));
 
-export type Restaurant = { key: string; name: string; emoji: string; color: number; accent: number; zone: Rect; side: 1 | -1; cx: number; cook: string; line: string };
+export type Restaurant = { key: string; name: string; icon: string; color: number; accent: number; zone: Rect; side: 1 | -1; cx: number; cook: string; line: string };
 const ZX: [number, number][] = [
   [-58, -20],
   [-18, 18],
@@ -242,11 +245,11 @@ const band = (side: 1 | -1, i: number): { zone: Rect; cx: number } => {
   return { zone: { x0, x1, z0: side < 0 ? -44 : 9, z1: side < 0 ? -9 : 44 }, cx: (x0 + x1) / 2 };
 };
 export const RESTAURANTS: Restaurant[] = [
-  { key: "padaria", name: "Padaria Pão da Vida", emoji: "🥖", color: 0xf4c27a, accent: 0x9a5b17, side: -1, cook: "Dona Marta", line: "Pãozinho quentinho saindo agora!", ...band(-1, 0) },
-  { key: "pizzaria", name: "Pizzaria Cinco Pães", emoji: "🍕", color: 0xf08a6b, accent: 0xa3301a, side: -1, cook: "Seu Gino", line: "Nossa pizza é de multiplicar!", ...band(-1, 1) },
-  { key: "churrasco", name: "Churrascaria Caná", emoji: "🍖", color: 0xb9744f, accent: 0x5e2c14, side: -1, cook: "Seu Bento", line: "Hoje a picanha está no ponto!", ...band(-1, 2) },
-  { key: "sorveteria", name: "Sorveteria Maná", emoji: "🍦", color: 0xf7b6d8, accent: 0xb3367f, side: 1, cook: "Dona Lia", line: "Um sorvete gelado do céu?", ...band(1, 0) },
-  { key: "cafeteria", name: "Cafeteria Betânia", emoji: "☕", color: 0xd9b48c, accent: 0x6b4325, side: 1, cook: "Dona Sara", line: "Um cafezinho para começar bem!", ...band(1, 1) },
+  { key: "padaria", name: "Padaria Pão da Vida", icon: "pao", color: 0xf4c27a, accent: 0x9a5b17, side: -1, cook: "Dona Marta", line: "Pãozinho quentinho saindo agora!", ...band(-1, 0) },
+  { key: "pizzaria", name: "Pizzaria Cinco Pães", icon: "pizza", color: 0xf08a6b, accent: 0xa3301a, side: -1, cook: "Seu Gino", line: "Nossa pizza é de multiplicar!", ...band(-1, 1) },
+  { key: "churrasco", name: "Churrascaria Caná", icon: "espetinho", color: 0xb9744f, accent: 0x5e2c14, side: -1, cook: "Seu Bento", line: "Hoje a picanha está no ponto!", ...band(-1, 2) },
+  { key: "sorveteria", name: "Sorveteria Maná", icon: "sorvete", color: 0xf7b6d8, accent: 0xb3367f, side: 1, cook: "Dona Lia", line: "Um sorvete gelado do céu?", ...band(1, 0) },
+  { key: "cafeteria", name: "Cafeteria Betânia", icon: "cafe", color: 0xd9b48c, accent: 0x6b4325, side: 1, cook: "Dona Sara", line: "Um cafezinho para começar bem!", ...band(1, 1) },
 ];
 /** Praça de convivência (sem comida): sofás, palco e fonte. */
 export const LOUNGE_ZONE = band(1, 2);
@@ -273,12 +276,13 @@ export const STORE_HW = 15;
 export const STORE_HL = 29;
 export const SHELF_SPACING = 2.1;
 export const SHELF_TIERS = 4;
-const SLOT_LABEL: Record<Slot, string> = { tunic: "👗 Roupas", head: "👑 Cabeça", mantle: "🧣 Mantos", shoes: "👠 Calçados", hand: "🪄 Acessórios", ears: "💎 Brincos", neck: "📿 Colares", wrist: "⌚ Pulseiras" };
+export const SLOT_ICON: Record<Slot, string> = { tunic: "vestido", head: "coroa", mantle: "manto", shoes: "sapato", hand: "varinha", ears: "brinco", neck: "colar", wrist: "pulseira" };
+const SLOT_LABEL: Record<Slot, string> = { tunic: "Roupas", head: "Cabeça", mantle: "Mantos", shoes: "Calçados", hand: "Acessórios", ears: "Brincos", neck: "Colares", wrist: "Pulseiras" };
 
 export type ShelfItem = { slot: Slot; family: string; base: string; item: DressItem; price: number; rarity: "epic" | "legend" };
 export type ShelfUnit = { x: number; z: number; face: 1 | -1 };
-export type ShelfSign = { text: string; x: number; z: number; face: 1 | -1 };
-export type ShelfLayout = { placed: (ShelfItem & { x: number; y: number; z: number; face: 1 | -1 })[]; units: ShelfUnit[]; signs: ShelfSign[] };
+export type ShelfSign = { text: string; icon: string; x: number; z: number; face: 1 | -1 };
+export type ShelfLayout = { placed: (ShelfItem & { x: number; y: number; z: number; face: 1 | -1; board: number })[]; units: ShelfUnit[]; signs: ShelfSign[] };
 
 /** Famílias à venda (épicas e lendárias) de cada espaço. */
 export function sellableFamilies(slot: Slot): FamilyGroup[] {
@@ -321,10 +325,10 @@ export function storeShelves(slots: Slot[]): ShelfLayout {
         lastOf.set(slotKey, uz);
         const boardTop = 0.45 + t * 1.2;
         const hh = it.slot === "tunic" ? 1.05 : it.slot === "mantle" ? 1.0 : it.slot === "shoes" ? 0.55 : it.slot === "ears" || it.slot === "wrist" ? 0.5 : 0.85;
-        out.placed.push({ ...it, x: -w.face * (STORE_HW - 0.95), y: boardTop + hh / 2 + 0.04, z: uz, face: w.face });
+        out.placed.push({ ...it, x: -w.face * (STORE_HW - 0.95), y: boardTop + hh / 2 + 0.04, z: uz, face: w.face, board: boardTop });
       }
     }
-    for (const [slot, z0] of firstOf) out.signs.push({ text: SLOT_LABEL[slot], x: -w.face * (STORE_HW - 0.2), z: (z0 + (lastOf.get(slot) ?? z0)) / 2, face: w.face });
+    for (const [slot, z0] of firstOf) out.signs.push({ text: SLOT_LABEL[slot], icon: SLOT_ICON[slot], x: -w.face * (STORE_HW - 0.2), z: (z0 + (lastOf.get(slot) ?? z0)) / 2, face: w.face });
   }
   return out;
 }
@@ -388,3 +392,59 @@ export function routeBetween(fromFloor: number, toFloor: number, from: Pt, to: P
   go(to, f);
   return path;
 }
+
+// ------------------------------------------------------------------ personagens do shopping (atendentes, cozinheiras): desenhadas como as jogadoras
+export type NpcDef = { id: string; name: string; place: string; x: number; z: number; y: number; fx: 1 | -1; beauty: Partial<Beauty>; look: Look };
+const itemOf = (slot: Slot, family: string, n = 0): string | undefined => ITEMS.filter((i) => i.slot === slot && i.family === family)[n]?.id;
+const outfit = (parts: [Slot, string, number?][]): Look => {
+  const look: Look = {};
+  for (const [slot, fam, n] of parts) {
+    const id = itemOf(slot, fam, n ?? 0);
+    if (id) look[slot] = id;
+  }
+  return look;
+};
+const HAIRS: Partial<Beauty>[] = [
+  { hair: "bun", hairColor: "#24150c", skin: "#e8b98a" },
+  { hair: "bob", hairColor: "#a8321f", skin: "#f6d9bd" },
+  { hair: "braids", hairColor: "#1b1b2a", skin: "#8d5a36" },
+  { hair: "ponytail", hairColor: "#d9b25a", skin: "#fbe6d2" },
+  { hair: "curly", hairColor: "#3a2412", skin: "#b97b4b" },
+  { hair: "wavy", hairColor: "#7a4a22", skin: "#d9a66f" },
+  { hair: "short", hairColor: "#6f6f80", skin: "#f1c9a0" },
+  { hair: "afro", hairColor: "#1b1b2a", skin: "#6a4128" },
+];
+const STORE_LOOKS: Look[] = [
+  outfit([["tunic", "dress", 5], ["head", "ribbon", 2]]),
+  outfit([["tunic", "embroidered", 4], ["head", "veil", 3]]),
+  outfit([["tunic", "pleated", 2], ["mantle", "bolero", 1]]),
+  outfit([["tunic", "dress", 8], ["head", "scarf", 4]]),
+  outfit([["tunic", "twotone", 3], ["head", "flowers", 1]]),
+  outfit([["tunic", "dress", 3], ["mantle", "poncho", 2]]),
+  outfit([["tunic", "gown", 4], ["head", "tiara", 1]]),
+  outfit([["tunic", "dress", 10], ["head", "hood", 0]]),
+];
+const COOK_LOOK = (n: number): Look => outfit([["tunic", "dress", 1 + n], ["mantle", "apron", n], ["head", "cap", 4]]);
+
+export function npcsFor(place: string): NpcDef[] {
+  if (place === "mall") {
+    const out: NpcDef[] = [
+      { id: "info", name: "Dona Zélia", place, x: INFO_DESK.x, z: INFO_DESK.z + 1.5, y: 0, fx: 1, beauty: HAIRS[1], look: outfit([["tunic", "dress", 6], ["head", "ribbon", 0]]) },
+      { id: "teller", name: "Dona Abigail", place, x: BOOTH.x - 0.4, z: BOOTH.z, y: 0, fx: -1, beauty: HAIRS[3], look: outfit([["tunic", "pleated", 4], ["head", "veil", 1]]) },
+    ];
+    RESTAURANTS.forEach((r, i) => out.push({ id: `cook-${r.key}`, name: r.cook, place, x: r.cx + 2.4, z: r.side * 41.6, y: floorY(4), fx: 1, beauty: HAIRS[(i + 2) % HAIRS.length], look: COOK_LOOK(i) }));
+    return out;
+  }
+  const def = storeById(place.replace(/^s:/, ""));
+  if (!def?.slots) return [];
+  const i = STORES.indexOf(def);
+  return [{ id: `att-${def.id}`, name: def.attendant, place, x: -9, z: STORE_HL - 9.4, y: 0, fx: 1, beauty: HAIRS[i % HAIRS.length], look: STORE_LOOKS[i % STORE_LOOKS.length] }];
+}
+
+/** Todos os ícones que o shopping usa (para carregar antes de montar as cenas 3D). */
+export const MALL_ICONS: string[] = [
+  "vestido", "manto", "sapato", "varinha", "colar", "brinco", "pulseira", "bilhete", "cadeira", "talheres", "balao", "sacola", "escada", "doce", "ursinho", "oculos",
+  "pizza", "calzone", "espetinho", "picanha", "prato", "refri", "guarana", "sorvete", "milkshake", "acai", "picole", "torta", "crepe", "suco", "paoqueijo", "bolomilho",
+  "bussola", "porta", "coroa", "anel", "estrela", "brilhos", "fogo", "certo", "x", "livros", "gota", "pergaminho", "cronometro", "flor", "cafe", "pao", "casa", "interrogacao",
+  "alerta", "seta-cima", "seta-baixo", "dupla", "som", "mudo", "presente", "cadeado", "templo", "maca", "coracao",
+];

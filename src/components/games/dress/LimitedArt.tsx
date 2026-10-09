@@ -7,7 +7,7 @@ import { WRIST_ART } from "./JewelArt";
 import { MORE_SHOES, MORE_TUNIC } from "./MoreBodyArt";
 import { MORE_HAND } from "./MoreHandArt";
 
-// Edição limitada do Madureira Shopping: cada peça usa o desenho de uma família já existente, com cores próprias e um brilho de estrelinhas por cima.
+// Edição limitada do Shopping Elos: cada peça usa o desenho de uma família já existente, com cores próprias e um brilho de estrelinhas por cima.
 
 type Draw = (p: Params) => ReactElement;
 type Box = { x: number; y: number; w: number; h: number };

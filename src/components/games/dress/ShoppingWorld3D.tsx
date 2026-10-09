@@ -5,14 +5,16 @@ import * as THREE from "three";
 import { PaperDoll } from "./PaperDoll";
 import { useLandscape } from "./LandscapeShell";
 import { canvasTexture, svgToCanvas } from "./MallStore3D";
-import { buildConcourse, buildStore, emojiTexture, type Interact, type Place } from "./mallScene";
-import { baseFromBeauty, cleanBeauty } from "@/lib/games/dress/beauty";
+import { buildConcourse, buildStore, isInFountain, type Interact, type Place } from "./mallScene";
+import { iconTexture, preloadIcons } from "./mallIcons";
+import { SIcon, ST } from "./ShopIcons";
+import { DEFAULT_BEAUTY, baseFromBeauty, cleanBeauty } from "@/lib/games/dress/beauty";
 import type { DollBase } from "@/lib/games/dress/characters";
 import type { HallPos, HallRoster } from "@/lib/games/dress/hall";
 import type { Look } from "@/lib/games/dress/items";
 import { ITEM_BY_ID } from "@/lib/games/dress/items";
-import { ESC_X1, FLOOR_COUNT, FLOOR_INFO, RESTAURANTS, STORES, STORE_HL, STORES as ALL_STORES, BOOTH, INFO_DESK, counterFront, doorSpawn, floorAt, floorHalfZ, floorY, offerItem, routeBetween, storeById, storeShelves, type Pt, type RareOffer } from "@/lib/games/dress/shopping";
-import { ESC_SPEED, RUN, WALK, stepBody, type Body } from "@/lib/games/dress/mallPhysics";
+import { ESC_X1, HX, FLOOR_COUNT, FLOOR_INFO, MALL_ICONS, RESTAURANTS, STORES, STORE_HL, STORES as ALL_STORES, BOOTH, npcsFor, INFO_DESK, counterFront, doorSpawn, floorAt, floorHalfZ, floorY, offerItem, routeBetween, storeById, storeShelves, type Pt, type RareOffer } from "@/lib/games/dress/shopping";
+import { ESC_SPEED, RUN, WALK, groundOf, stepBody, type Body } from "@/lib/games/dress/mallPhysics";
 import { step as sfxStep } from "@/lib/games/dress/sfx";
 
 export type WorldPlace = { kind: "mall" } | { kind: "store"; id: string };
@@ -23,7 +25,7 @@ const AV_H = 2.2;
 const AV_W = (AV_H * 200) / 360;
 
 /**
- * O Madureira Shopping em 3D, em terceira pessoa: o corredor de 5 andares (escadas rolantes, praça de alimentação, cabine de bilhetes)
+ * O Shopping Elos em 3D, em terceira pessoa: o corredor de 5 andares (escadas rolantes, praça de alimentação, cabine de bilhetes)
  * e o interior de cada loja, todos no mesmo mundo online. A jogadora anda, pula, senta e come.
  */
 export function ShoppingWorld3D({
@@ -41,6 +43,7 @@ export function ShoppingWorld3D({
   onFloor,
   gotoRef,
   eatRef,
+  warpRef,
   leftSlot,
   leftBelow,
   say,
@@ -59,6 +62,8 @@ export function ShoppingWorld3D({
   onFloor?: (f: number) => void;
   gotoRef: React.MutableRefObject<((t: GotoTarget) => void) | null>;
   eatRef: React.MutableRefObject<((emoji: string, sec: number) => void) | null>;
+  /** leva a jogadora ao elevador do andar escolhido */
+  warpRef: React.MutableRefObject<((floor: number) => void) | null>;
   leftSlot?: React.ReactNode;
   leftBelow?: React.ReactNode;
   say?: (m: string) => void;
@@ -76,6 +81,8 @@ export function ShoppingWorld3D({
   const [canSit, setCanSit] = useState(false);
   const [sitting, setSitting] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [running, setRunning] = useState(false);
+  const runToggle = useRef<(() => void) | null>(null);
   const [floor, setFloor] = useState(0);
 
   const rotatedRef = useRef(rotated);
@@ -125,10 +132,14 @@ export function ShoppingWorld3D({
     return out;
   }, [place, offers]);
 
-  const rosterKey = JSON.stringify(roster.map((p) => [p.id, p.look, p.beauty]));
+  const placeKey = place.kind === "store" ? `s:${place.id}` : "mall";
+  // jogadoras de verdade + as atendentes do lugar (desenhadas igual às jogadoras)
+  const npcRoster = useMemo<HallRoster[]>(() => npcsFor(placeKey).map((n) => ({ id: `npc:${n.id}`, name: n.name, look: n.look, beauty: { ...DEFAULT_BEAUTY, ...n.beauty } })), [placeKey]);
+  const bankRoster = useMemo(() => [...roster.slice(0, 24), ...npcRoster], [roster, npcRoster]);
+  const rosterKey = JSON.stringify(bankRoster.map((p) => [p.id, p.look, p.beauty]));
   useEffect(() => {
     const t = setTimeout(() => {
-      for (const p of roster.slice(0, 24)) {
+      for (const p of bankRoster) {
         const el = peerBankRef.current?.querySelector(`[data-peer="${p.id}"]`);
         const svgs = el ? ([...el.querySelectorAll("svg")] as SVGSVGElement[]) : [];
         if (svgs.length) peerSet.current?.(p.id, p.name, svgs, JSON.stringify([p.look, p.beauty]));
@@ -201,7 +212,6 @@ export function ShoppingWorld3D({
     let avatarTries = 0;
     let avatarCanvas: HTMLCanvasElement | null = null;
     let sitOn = false;
-    let sitTex: { src: THREE.Texture; up: THREE.Texture; lo: THREE.Texture } | null = null;
     const setAvatar = (svgs: SVGSVGElement[]) => {
       if (avatarBusy) {
         avatarPending = svgs;
@@ -283,7 +293,8 @@ export function ShoppingWorld3D({
       sh.rotation.x = -Math.PI / 2;
       sh.visible = false;
       scene.add(sh);
-      const tag = nameTag(name.trim().split(/\s+/)[0] || "Jogadora");
+      const tag = nameTag(id.startsWith("npc:") ? name : name.trim().split(/\s+/)[0] || "Jogadora");
+      if (id.startsWith("npc:")) tag.scale.set(2.4, 0.6, 1);
       tag.visible = false;
       scene.add(tag);
       const fd = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthWrite: false }));
@@ -336,6 +347,7 @@ export function ShoppingWorld3D({
       floor: 0,
       posT: 0,
       stuck: 0,
+      run: false,
       prog: 0,
       px: 0,
       pz: 0,
@@ -399,7 +411,6 @@ export function ShoppingWorld3D({
       setPlace(p, p.kind === "mall" ? leaving : undefined);
       prevKind = p.kind;
     };
-    setPlaceRef.current = switchTo;
 
     // textura das peças das prateleiras (sob demanda)
     const scheduleLoads = () => {
@@ -560,6 +571,10 @@ export function ShoppingWorld3D({
       st.b.grounded = false;
       setSitting(false);
     };
+    runToggle.current = () => {
+      st.run = !st.run;
+      setRunning(st.run);
+    };
     jumpRef.current = () => {
       if (st.sit) return standUp();
       st.jump = true;
@@ -591,9 +606,18 @@ export function ShoppingWorld3D({
       const n = nearRef.current;
       if (n) onActRef.current(n);
     };
+    warpRef.current = (fl) => {
+      const f = Math.max(0, Math.min(FLOOR_COUNT - 1, fl));
+      Object.assign(st.b, { x: -(HX - 2.4) + 4.6, z: 0, y: floorY(f), vx: 0, vz: 0, vy: 0, grounded: true });
+      st.yaw = Math.PI / 2;
+      st.ey = floorY(f);
+      st.sit = null;
+      st.path = [];
+      setSitting(false);
+    };
     eatRef.current = (emoji, sec) => {
       st.eat = { emoji, t: 0, dur: sec };
-      foodMat.map = emojiTexture(emoji);
+      foodMat.map = iconTexture(emoji);
       foodMat.needsUpdate = true;
     };
     gotoRef.current = (t) => {
@@ -666,14 +690,19 @@ export function ShoppingWorld3D({
     resize();
     void vw;
     void vh;
-    switchTo(placeRef.current);
+    // os ícones carregam primeiro (as placas e vitrines são desenhadas com eles)
+    void preloadIcons(MALL_ICONS).then(() => {
+      if (disposed) return;
+      setPlaceRef.current = switchTo;
+      switchTo(placeRef.current);
+    });
 
     // os desenhos (sprites) ficam um pouco mais perto da câmera para não sumirem atrás de mesas e balcões baixos
     const nudge = (x: number, z: number): { x: number; z: number } => {
       const dx = x - camPos.x;
       const dz = z - camPos.z;
       const l = Math.hypot(dx, dz) || 1;
-      return { x: x - (dx / l) * 0.55, z: z - (dz / l) * 0.55 };
+      return { x: x - (dx / l) * 0.3, z: z - (dz / l) * 0.3 };
     };
     let raf = 0;
     const frame = (now: number) => {
@@ -683,7 +712,7 @@ export function ShoppingWorld3D({
       st.t += dt;
       const pl = current;
       if (!pl) return;
-      pl.update(st.t, dt);
+      pl.update(st.t, dt, { x: st.b.x, y: st.b.y, z: st.b.z, mv: Math.min(1, Math.hypot(st.b.vx, st.b.vz) / 3) });
       const cy = Math.cos(st.yaw);
       const sy = Math.sin(st.yaw);
       let ix = st.joyX;
@@ -738,7 +767,7 @@ export function ShoppingWorld3D({
             }
           }
         } else if (len > 0.05) {
-          const speed = (keys.has("shift") ? RUN : WALK) * Math.min(1, len);
+          const speed = (keys.has("shift") || st.run ? RUN : WALK) * Math.min(1, len);
           const px = ix * cy + iz * sy;
           const pz = -ix * sy + iz * cy;
           const dl = Math.hypot(px, pz) || 1;
@@ -769,7 +798,8 @@ export function ShoppingWorld3D({
       const bob = Math.abs(Math.sin(st.t * 9)) * 0.12 * mv;
       avatar.scale.set(AV_W * st.faceX * (1 + Math.sin(st.t * 9) * 0.01 * mv), AV_H * (1 - 0.02 * Math.abs(Math.cos(st.t * 9)) * mv), 1);
       const np = nudge(b.x, b.z);
-      avatar.position.set(np.x, b.y + bob, np.z);
+      const wading = pl.key === "mall" && isInFountain(b.x, b.y, b.z);
+      avatar.position.set(np.x, b.y + bob - (wading ? 0.16 : 0), np.z);
       avatarMat.rotation = Math.sin(st.t * 9) * 0.03 * mv - 0.03 * st.faceX * mv;
       const away = -(b.vx * sy + b.vz * cy);
       if (away > 1.1 && away > Math.abs(lateral) * 0.8) st.back = true;
@@ -780,7 +810,6 @@ export function ShoppingWorld3D({
       if (sitOn !== !!st.sit) {
         sitOn = !!st.sit;
         avatarShown = -1;
-        legs.visible = sitOn;
         if (!sitOn) {
           avatarMat.rotation = 0;
           legsMat.rotation = 0;
@@ -788,29 +817,12 @@ export function ShoppingWorld3D({
       }
       let eatLift = 0;
       if (st.sit && avatarFrames.length) {
-        const src = avatarFrames[avatarFrames.length >= 6 && st.back ? 3 : 0];
-        if (!sitTex || sitTex.src !== src) {
-          sitTex?.up.dispose();
-          sitTex?.lo.dispose();
-          const up = src.clone();
-          up.needsUpdate = true;
-          up.repeat.set(1, 0.5);
-          up.offset.set(0, 0.5);
-          const lo = src.clone();
-          lo.needsUpdate = true;
-          lo.repeat.set(1, 0.28);
-          lo.offset.set(0, 0);
-          sitTex = { src, up, lo };
-        }
-        const d = st.sit.dir;
-        avatarMat.map = sitTex.up;
-        avatar.scale.set(AV_W * st.faceX, AV_H * 0.5 * (1 + Math.sin(st.t * 2) * 0.012), 1);
-        avatar.position.set(np.x + d * 0.14, b.y + 0.02, np.z);
+        // sentada: o corpo inteiro (sem cortes), mais baixo e largo, com os pés no chão e o quadril no assento
+        avatarMat.map = avatarFrames[avatarFrames.length >= 6 && st.back ? 3 : 0];
+        const breathe = 1 + Math.sin(st.t * 2) * 0.012;
+        avatar.scale.set(AV_W * 0.86 * st.faceX, AV_H * 0.64 * breathe, 1);
+        avatar.position.set(np.x, b.y - 0.52, np.z);
         avatarMat.rotation = Math.sin(st.t * 1.4) * 0.015;
-        legsMat.map = sitTex.lo;
-        legs.scale.set(AV_W * 0.86 * st.faceX, AV_H * 0.28 * 0.86, 1);
-        legs.position.set(np.x + d * 0.6, b.y - 0.51, np.z);
-        legsMat.rotation = Math.sin(st.t * 2.2) * 0.1;
       } else if (avatarFrames.length >= 3) {
         const off = avatarFrames.length >= 6 && st.back ? 3 : 0;
         const walk = mv > 0.3;
@@ -822,8 +834,9 @@ export function ShoppingWorld3D({
         }
       }
       avatar.visible = avatarFrames.length > 0;
-      shadow.position.set(b.x, b.y + 0.03, b.z);
-      shadow.scale.setScalar(Math.max(0.4, 1 - bob * 1.2));
+      const gyS = st.sit ? b.y - 0.5 : groundOf(pl.world, b.x, b.z, b.y);
+      shadow.position.set(b.x, gyS + 0.03, b.z);
+      shadow.scale.setScalar(1.25 + Math.min(1.5, Math.max(0, b.y - gyS)) * 0.18 - bob * 0.6);
 
       // comendo: a comida sobe até a boca, dá uma mordida e desce
       if (st.eat) {
@@ -909,7 +922,8 @@ export function ShoppingWorld3D({
       }
 
       // outras jogadoras
-      const live = positionsRef.current.current;
+      const live: Record<string, HallPos> = { ...positionsRef.current.current };
+      for (const n of npcsFor(pl.key)) live[`npc:${n.id}`] = { x: n.x, z: n.z, y: n.y, fx: n.fx, mv: 0, t: Date.now(), s: 0, w: pl.key };
       const nowMs = Date.now();
       for (const [id, rm] of remotes) {
         const pos = live[id];
@@ -934,11 +948,11 @@ export function ShoppingWorld3D({
         rm.fx = pos.fx;
         rm.sprite.visible = rm.shadow.visible = rm.tag.visible = true;
         const sitR = pos.s === 1;
-        rm.sprite.scale.set(AV_W * rm.fx, AV_H * (sitR ? 0.78 : 1), 1);
+        rm.sprite.scale.set(AV_W * (sitR ? 0.86 : 1) * rm.fx, AV_H * (sitR ? 0.64 : 1), 1);
         const rp = nudge(rm.x, rm.z);
-        rm.sprite.position.set(rp.x, rm.y + (sitR ? 0.3 : 0) + bobR, rp.z);
+        rm.sprite.position.set(rp.x, rm.y - (sitR ? 0.52 : 0) + bobR, rp.z);
         rm.shadow.position.set(rm.x, rm.y + 0.03, rm.z);
-        rm.tag.position.set(rm.x, rm.y + (sitR ? 0.3 + AV_H * 0.78 : AV_H) + 0.45, rm.z);
+        rm.tag.position.set(rm.x, rm.y - (sitR ? 0.52 : 0) + AV_H * (sitR ? 0.64 : 1) + 0.45, rm.z);
         if (rm.frames.length === 3) {
           const want = movingR > 0.3 && !sitR ? [1, 0, 2, 0][Math.floor(rm.phase * 9) % 4] : 0;
           if (want !== rm.shown) {
@@ -948,7 +962,7 @@ export function ShoppingWorld3D({
         }
         if (pos.e) {
           rm.food.visible = true;
-          (rm.food.material as THREE.SpriteMaterial).map = emojiTexture(pos.e);
+          (rm.food.material as THREE.SpriteMaterial).map = iconTexture(pos.e);
           (rm.food.material as THREE.SpriteMaterial).needsUpdate = true;
           const ph = ((nowMs / 1000) % 1.5) / 1.5;
           const lift = ph < 0.5 ? ph / 0.5 : 1 - (ph - 0.5) / 0.5;
@@ -1013,14 +1027,13 @@ export function ShoppingWorld3D({
       sitRef.current = null;
       actRef.current = null;
       eatRef.current = null;
+      warpRef.current = null;
       gotoRef.current = null;
       offersApply.current = null;
       current?.dispose();
       if (mallPlace && mallPlace !== current) mallPlace.dispose();
       textures.forEach((t) => t.dispose?.());
       avatarFrames.forEach((t) => t.dispose());
-      sitTex?.up.dispose();
-      sitTex?.lo.dispose();
       remotes.forEach((rm) => rm.frames.forEach((t) => t.dispose()));
       own.forEach((d) => d.dispose());
       renderer.dispose();
@@ -1031,7 +1044,6 @@ export function ShoppingWorld3D({
   }, []);
 
   // troca de lugar (entrar/sair de loja)
-  const placeKey = place.kind === "store" ? `s:${place.id}` : "mall";
   useEffect(() => {
     setPlaceRef.current?.(place);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1041,19 +1053,19 @@ export function ShoppingWorld3D({
     return <div className="grid h-full place-items-center p-6 text-center text-sm font-bold text-amber-100">Seu aparelho não conseguiu abrir o shopping em 3D.</div>;
   }
 
-  const destinations: { label: string; t: GotoTarget }[] =
+  const destinations: { icon: string; label: string; t: GotoTarget }[] =
     place.kind === "mall"
       ? [
-          ...FLOOR_INFO.map((f, i) => ({ label: `${i === 4 ? "🍽" : "🛗"} ${f.name} · ${f.sub}`, t: { kind: "floor", floor: i } as GotoTarget })),
-          { label: "🎫 Cabine de bilhetes", t: { kind: "booth" } },
-          { label: "ℹ️ Informações (raras do dia)", t: { kind: "info" } },
-          ...ALL_STORES.map((s) => ({ label: `${s.emoji} ${s.name} (${s.floor === 0 ? "térreo" : `${s.floor}º`})`, t: { kind: "store", id: s.id } as GotoTarget })),
-          ...RESTAURANTS.map((r) => ({ label: `${r.emoji} ${r.name}`, t: { kind: "restaurant", key: r.key } as GotoTarget })),
-          { label: "🚪 Saída", t: { kind: "exit" } },
+          ...FLOOR_INFO.map((f, i) => ({ icon: i === 4 ? "talheres" : "escada", label: `${f.name} · ${f.sub}`, t: { kind: "floor", floor: i } as GotoTarget })),
+          { icon: "bilhete", label: "Cabine de bilhetes", t: { kind: "booth" } },
+          { icon: "interrogacao", label: "Informações (raras do dia)", t: { kind: "info" } },
+          ...ALL_STORES.map((s) => ({ icon: s.icon, label: `${s.name} (${s.floor === 0 ? "térreo" : `${s.floor}º`})`, t: { kind: "store", id: s.id } as GotoTarget })),
+          ...RESTAURANTS.map((r) => ({ icon: r.icon, label: r.name, t: { kind: "restaurant", key: r.key } as GotoTarget })),
+          { icon: "porta", label: "Saída", t: { kind: "exit" } },
         ]
       : [
-          { label: "🚪 Saída da loja", t: { kind: "exit" } },
-          ...offers.filter((o) => (storeById(place.id)?.slots ?? []).includes(offerItem(o.family)?.slot as never)).map((o) => ({ label: `🔥 ${offerItem(o.family)?.name ?? "Peça rara"}`, t: { kind: "rare", id: o.id } as GotoTarget })),
+          { icon: "porta", label: "Saída da loja", t: { kind: "exit" } },
+          ...offers.filter((o) => (storeById(place.id)?.slots ?? []).includes(offerItem(o.family)?.slot as never)).map((o) => ({ icon: "fogo", label: offerItem(o.family)?.name ?? "Peça rara", t: { kind: "rare", id: o.id } as GotoTarget })),
         ];
 
   void ESC_X1;
@@ -1073,25 +1085,25 @@ export function ShoppingWorld3D({
         ))}
       </div>
       <div ref={peerBankRef} aria-hidden style={{ position: "absolute", left: -9999, top: 0, width: 200, height: 360, pointerEvents: "none", overflow: "hidden" }}>
-        {roster.slice(0, 24).map((p) => {
+        {bankRoster.map((p) => {
           const pb = baseFromBeauty(cleanBeauty(p.beauty));
           const pl: Look = { ...p.look, tunic: p.look.tunic ?? "tunic_simple" };
           return (
             <div key={`${p.id}-${JSON.stringify([p.look, p.beauty])}`} data-peer={p.id}>
-              <PaperDoll base={pb} look={pl} />
-              <PaperDoll base={pb} look={pl} step={1} />
-              <PaperDoll base={pb} look={pl} step={-1} />
+              <PaperDoll noShadow base={pb} look={pl} />
+              <PaperDoll noShadow base={pb} look={pl} step={1} />
+              <PaperDoll noShadow base={pb} look={pl} step={-1} />
             </div>
           );
         })}
       </div>
       <div ref={avatarBankRef} aria-hidden style={{ position: "absolute", left: -9999, top: 0, width: 200, height: 360, pointerEvents: "none", overflow: "hidden" }}>
-        <PaperDoll base={base} look={look} />
-        <PaperDoll base={base} look={look} step={1} />
-        <PaperDoll base={base} look={look} step={-1} />
-        <PaperDoll base={base} look={look} back />
-        <PaperDoll base={base} look={look} step={1} back />
-        <PaperDoll base={base} look={look} step={-1} back />
+        <PaperDoll noShadow base={base} look={look} />
+        <PaperDoll noShadow base={base} look={look} step={1} />
+        <PaperDoll noShadow base={base} look={look} step={-1} />
+        <PaperDoll noShadow base={base} look={look} back />
+        <PaperDoll noShadow base={base} look={look} step={1} back />
+        <PaperDoll noShadow base={base} look={look} step={-1} back />
       </div>
 
       {!ready ? <p className="pointer-events-none absolute inset-x-0 top-1/2 text-center text-sm font-black text-purple-900">Abrindo o shopping…</p> : null}
@@ -1113,11 +1125,14 @@ export function ShoppingWorld3D({
       <div className={`absolute bottom-[5.2rem] left-[8.6rem] z-[4] flex flex-row items-end gap-2 [@media(hover:hover)]:bottom-[7.2rem] [@media(hover:hover)]:left-2 ${menu ? "invisible" : ""}`}>
         {canSit || sitting ? (
           <button type="button" className="vh-btn vh-btn-purple !w-auto !px-3 !py-2 !text-xs shadow-[0_0_18px_rgba(255,224,102,0.6)]" onClick={() => sitRef.current?.()}>
-            {sitting ? "🧍 Levantar" : "🪑 Sentar"}
+            <ST>{sitting ? "🧍 Levantar" : "🪑 Sentar"}</ST>
           </button>
         ) : null}
+        <button type="button" className="vh-iconbtn !h-11 !w-11 !text-lg" aria-label={running ? "Parar de correr" : "Correr"} aria-pressed={running} title="Correr (shift)" data-on={running} style={running ? { boxShadow: "0 0 0 3px #ffe066" } : undefined} onClick={() => runToggle.current?.()}>
+          <SIcon name="raio" size="1.3em" />
+        </button>
         <button type="button" className="vh-iconbtn !h-11 !w-11 !text-lg" aria-label="Pular" title="Pular (espaço)" onClick={() => jumpRef.current?.()}>
-          ⤒
+          <SIcon name="seta-cima" size="1.3em" />
         </button>
       </div>
 
@@ -1125,11 +1140,11 @@ export function ShoppingWorld3D({
       <div className="vh-slot absolute left-2 top-[3.9rem] z-[4] flex max-h-[calc(100%-9rem)] max-w-[calc(100%-1rem)] flex-col items-start gap-1.5 overflow-y-auto">
         <div className="flex flex-row items-start gap-2">
           <button type="button" className="vh-chip shrink-0 !px-3 !py-1.5 !text-xs" data-on={menu} onClick={() => setMenu((m) => !m)} aria-expanded={menu}>
-            🧭 Ir para…
+            <SIcon name="bussola" /> Ir para…
           </button>
           {place.kind === "mall" ? (
             <span className="vh-chip shrink-0 !px-3 !py-1.5 !text-xs" data-on>
-              {floor === 4 ? "🍽" : "🛍"} {FLOOR_INFO[floor]?.name}
+              <SIcon name={floor === 4 ? "talheres" : "sacola"} /> {FLOOR_INFO[floor]?.name}
             </span>
           ) : null}
           {leftSlot}
@@ -1146,7 +1161,7 @@ export function ShoppingWorld3D({
                   setMenu(false);
                 }}
               >
-                {d.label}
+                <SIcon name={d.icon} /> {d.label}
               </button>
             ))}
           </div>
@@ -1157,7 +1172,7 @@ export function ShoppingWorld3D({
       {near ? (
         <div className="pointer-events-none absolute bottom-16 right-3 z-[5] flex max-w-[52%] justify-end">
           <button type="button" className="vh-btn pointer-events-auto !w-auto !px-5 !py-3 !text-sm shadow-[0_0_24px_rgba(255,224,102,0.7)]" onClick={() => actRef.current?.()}>
-            {near.label}
+            <ST>{near.label}</ST>
           </button>
         </div>
       ) : null}

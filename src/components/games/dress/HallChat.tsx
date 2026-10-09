@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { SIcon } from "./ShopIcons";
 import type { ChatMsg } from "@/lib/games/dress/hall";
 
 type Line = ChatMsg & { k: number };
@@ -72,14 +73,14 @@ export function ChatToggle({ open, setOpen, unread, onSend }: { open: boolean; s
   return (
     <div className="vh-chat-box">
       <button type="button" className="vh-iconbtn" aria-label={open ? "Fechar o chat" : "Abrir o chat"} aria-expanded={open} onClick={() => setOpen(!open)}>
-        💬
+        <SIcon name="balao" size="1.35em" />
         {unread > 0 && !open ? <i className="vh-chat-badge">{unread > 9 ? "9+" : unread}</i> : null}
       </button>
       {open ? (
         <form onSubmit={submit} className="vh-chat-form">
           <input value={text} onChange={(e) => setText(e.target.value)} maxLength={120} placeholder="Diga algo…" aria-label="Mensagem" autoComplete="off" autoFocus />
           <button type="submit" aria-label="Enviar">
-            ➤
+            <SIcon name="play" size="1.1em" />
           </button>
         </form>
       ) : null}

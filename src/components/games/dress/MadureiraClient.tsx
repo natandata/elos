@@ -9,6 +9,7 @@ import { ITEM_BY_ID, type Look, type Slot } from "@/lib/games/dress/items";
 import { RARITY_ICON, rarityOf } from "@/lib/games/dress/rarity";
 import { FLOOR_INFO, FOODS, GIFT_DAILY_MAX, MALL_NAME, RESTAURANTS, offerItem, storeById, storesSelling, type RareOffer } from "@/lib/games/dress/shopping";
 import { createClient } from "@/lib/supabase/client";
+import { SIcon, ST } from "./ShopIcons";
 import { ChatFeed, ChatToggle, useHallChat } from "./HallChat";
 import type { Interact } from "./mallScene";
 import { PaperDoll } from "./PaperDoll";
@@ -45,11 +46,12 @@ type Dialog =
   | { kind: "rare"; offerId: number }
   | { kind: "food"; place: string }
   | { kind: "booth" }
+  | { kind: "elevator" }
   | { kind: "info" }
   | null;
 
 /**
- * Madureira Shopping: o mundo aberto online do Vista o Herói (5 andares, lojas, praça de alimentação e cabine de bilhetes).
+ * Shopping Elos: o mundo aberto online do Vista o Herói (5 andares, lojas, praça de alimentação e cabine de bilhetes).
  * Aqui só ficam a rede (posições e chat), as compras e as janelas; o 3D está em ShoppingWorld3D.
  */
 export function MadureiraClient({ meId, meName, tickets, owned: ownedInit }: { meId: string; meName: string; tickets: number; owned: string[] }) {
@@ -70,6 +72,7 @@ export function MadureiraClient({ meId, meName, tickets, owned: ownedInit }: { m
   const [floor, setFloor] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   const [sentToday, setSentToday] = useState(0);
+  const [loadingTo, setLoadingTo] = useState<{ title: string; icon: string; color: number } | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const say = useCallback((m: string) => {
     setToast(m);
@@ -207,17 +210,34 @@ export function MadureiraClient({ meId, meName, tickets, owned: ownedInit }: { m
 
   const gotoRef = useRef<((t: GotoTarget) => void) | null>(null);
   const eatRef = useRef<((emoji: string, sec: number) => void) | null>(null);
+  const warpRef = useRef<((floor: number) => void) | null>(null);
 
-  const enterStore = (id: string) => {
-    setPlace({ kind: "store", id });
-    setNonce((n) => n + 1);
+  // ao entrar ou sair de uma loja aparece uma tela de carregamento de 2 segundos
+  const withLoading = (title: string, icon: string, color: number, go: () => void) => {
+    setLoadingTo({ title, icon, color });
     setDialog(null);
-    void loadOffers();
+    setTimeout(go, 250);
+    setTimeout(() => setLoadingTo(null), 2000);
+  };
+  const rideElevator = (f: number) => {
+    setDialog(null);
+    setLoadingTo({ title: `Elevador · ${FLOOR_INFO[f]?.name}`, icon: "escada", color: 0x2a4a8a });
+    setTimeout(() => warpRef.current?.(f), 1000);
+    setTimeout(() => setLoadingTo(null), 2000);
+  };
+  const enterStore = (id: string) => {
+    const def = storeById(id);
+    withLoading(def?.name ?? "Loja", def?.icon ?? "sacola", def?.accent ?? 0x5b1f78, () => {
+      setPlace({ kind: "store", id });
+      setNonce((n) => n + 1);
+      void loadOffers();
+    });
   };
   const leaveStore = () => {
-    setPlace({ kind: "mall" });
-    setNonce((n) => n + 1);
-    setDialog(null);
+    withLoading(MALL_NAME, "sacola", 0x5b1f78, () => {
+      setPlace({ kind: "mall" });
+      setNonce((n) => n + 1);
+    });
   };
 
   const onAct = (i: Interact) => {
@@ -227,6 +247,7 @@ export function MadureiraClient({ meId, meName, tickets, owned: ownedInit }: { m
     else if (i.kind === "mallexit") router.push("/app/jogos/vestir");
     else if (i.kind === "closed") say("Essa loja ainda está em reforma. Volte em breve!");
     else if (i.kind === "counter") setDialog({ kind: "food", place: i.place });
+    else if (i.kind === "elevator") setDialog({ kind: "elevator" });
     else if (i.kind === "booth") {
       setDialog({ kind: "booth" });
     } else if (i.kind === "info") {
@@ -277,8 +298,8 @@ export function MadureiraClient({ meId, meName, tickets, owned: ownedInit }: { m
     const f = FOODS.find((x) => x.key === key);
     setDialog(null);
     if (f) {
-      eatRef.current?.(f.emoji, r.seconds ?? f.seconds);
-      say(`${f.emoji} Bom apetite! Sente numa mesa 🪑 para comer com calma.`);
+      eatRef.current?.(f.icon, r.seconds ?? f.seconds);
+      say("Bom apetite! Sente numa mesa 🪑 para comer com calma.");
     }
   }
 
@@ -298,15 +319,15 @@ export function MadureiraClient({ meId, meName, tickets, owned: ownedInit }: { m
             <PaperDoll base={base} look={{ [it.slot]: it.id }} only={it.slot as Slot} className="mx-auto h-24 w-full shrink-0" title={it.name} />
             <p className="vh-title mt-1 text-xl">{it.name}</p>
             <p className="text-sm text-purple-100">
-              Peça {rar === "legend" ? "lendária ⭐" : "épica 💜"}. {has ? "Você já tem essa peça: ela vale em todas as cores." : "Ao comprar, vale em todas as cores e fica para sempre no guarda-roupa."}
+              <ST>Peça {rar === "legend" ? "lendária ⭐" : "épica 💜"}. {has ? "Você já tem essa peça: ela vale em todas as cores." : "Ao comprar, vale em todas as cores e fica para sempre no guarda-roupa."}</ST>
             </p>
             <p className="mt-2 text-lg font-black text-amber-200">
-              {has ? "✔ Já é sua" : `${price} 🎫`} <span className="text-xs font-bold text-purple-200">· você tem {wallet}</span>
+              <ST>{has ? "✔ Já é sua" : `${price} 🎫`}</ST> <span className="text-xs font-bold text-purple-200">· você tem {wallet}</span>
             </p>
             {msg ? <p className="mt-1 text-sm font-bold text-rose-200">{msg}</p> : null}
             <div className="mt-3 grid grid-cols-2 gap-2">
               <button type="button" className="vh-btn vh-btn-dark" onClick={() => setLook((l) => ({ ...l, [it.slot]: wearing ? undefined : it.id }))}>
-                {wearing ? "👗 Tirar" : "👗 Provar"}
+                <ST>{wearing ? "👗 Tirar" : "👗 Provar"}</ST>
               </button>
               {has ? (
                 <button type="button" className="vh-btn" onClick={() => setDialog(null)}>
@@ -314,7 +335,7 @@ export function MadureiraClient({ meId, meName, tickets, owned: ownedInit }: { m
                 </button>
               ) : (
                 <button type="button" className="vh-btn" onClick={() => void buyFamily(it.family)} disabled={busy || wallet < price}>
-                  {busy ? "..." : wallet < price ? `Faltam ${price - wallet} 🎫` : "Comprar"}
+                  <ST>{busy ? "..." : wallet < price ? `Faltam ${price - wallet} 🎫` : "Comprar"}</ST>
                 </button>
               )}
             </div>
@@ -344,12 +365,12 @@ export function MadureiraClient({ meId, meName, tickets, owned: ownedInit }: { m
               {o.left > 0 ? `Restam ${o.left} de ${o.stock}` : "Esgotada"} · termina em {countdown(o.ends_at, now)}
             </p>
             <p className="mt-2 text-lg font-black text-amber-200">
-              {has ? "✔ Já é sua" : `${o.price} 🎫`} <span className="text-xs font-bold text-purple-200">· você tem {wallet}</span>
+              <ST>{has ? "✔ Já é sua" : `${o.price} 🎫`}</ST> <span className="text-xs font-bold text-purple-200">· você tem {wallet}</span>
             </p>
             {msg ? <p className="mt-1 text-sm font-bold text-rose-200">{msg}</p> : null}
             <div className="mt-3 grid grid-cols-2 gap-2">
               <button type="button" className="vh-btn vh-btn-dark" onClick={() => setLook((l) => ({ ...l, [it.slot]: wearing ? undefined : it.id }))}>
-                {wearing ? "👗 Tirar" : "👗 Provar"}
+                <ST>{wearing ? "👗 Tirar" : "👗 Provar"}</ST>
               </button>
               {has ? (
                 <button type="button" className="vh-btn" onClick={() => setDialog(null)}>
@@ -357,7 +378,7 @@ export function MadureiraClient({ meId, meName, tickets, owned: ownedInit }: { m
                 </button>
               ) : (
                 <button type="button" className="vh-btn" onClick={() => void buyRare(o)} disabled={busy || o.left <= 0 || over || wallet < o.price}>
-                  {busy ? "..." : o.left <= 0 ? "Esgotada" : over ? "Terminou" : wallet < o.price ? `Faltam ${o.price - wallet} 🎫` : "Comprar"}
+                  <ST>{busy ? "..." : o.left <= 0 ? "Esgotada" : over ? "Terminou" : wallet < o.price ? `Faltam ${o.price - wallet} 🎫` : "Comprar"}</ST>
                 </button>
               )}
             </div>
@@ -375,22 +396,20 @@ export function MadureiraClient({ meId, meName, tickets, owned: ownedInit }: { m
         <div className="fixed inset-0 z-[70] grid place-items-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-label={r.name}>
           <div className="vh-panel flex max-h-[92vh] w-full max-w-sm flex-col text-center">
             <p className="vh-title text-xl">
-              {r.emoji} {r.name}
+              <SIcon name={r.icon} size="1.5em" /> {r.name}
             </p>
             <p className="text-xs italic text-purple-100">{r.cook}: “{r.line}”</p>
             <p className="mt-1 text-sm font-black text-amber-200">
-              Você tem {wallet} 🎫
+              <ST>Você tem {wallet} 🎫</ST>
             </p>
             {msg ? <p className="mt-1 text-sm font-bold text-rose-200">{msg}</p> : null}
             <ul className="mt-2 min-h-0 flex-1 space-y-1.5 overflow-y-auto">
               {FOODS.filter((f) => f.place === r.key).map((f) => (
                 <li key={f.key} className="flex items-center gap-2 rounded-xl border border-amber-300/40 bg-white/5 px-2.5 py-1.5 text-left">
-                  <span className="text-2xl" aria-hidden>
-                    {f.emoji}
-                  </span>
+                  <SIcon name={f.icon} size="2.2rem" />
                   <span className="min-w-0 flex-1 truncate text-sm font-bold text-amber-50">{f.name}</span>
                   <button type="button" className="vh-btn !w-auto !px-3 !py-1.5 !text-xs" disabled={busy || wallet < f.price} onClick={() => void buyFood(f.key)}>
-                    {f.price} 🎫
+                    <ST>{f.price} 🎫</ST>
                   </button>
                 </li>
               ))}
@@ -406,7 +425,7 @@ export function MadureiraClient({ meId, meName, tickets, owned: ownedInit }: { m
       return (
         <div className="fixed inset-0 z-[70] grid place-items-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-label="Peças raras de hoje">
           <div className="vh-panel flex max-h-[92vh] w-full max-w-sm flex-col text-center">
-            <p className="vh-title text-xl">🔥 Peças raras de hoje</p>
+            <p className="vh-title text-xl"><ST>🔥 Peças raras de hoje</ST></p>
             <p className="text-xs text-purple-100">3 unidades de cada, por 24 horas. As atendentes das lojas também avisam!</p>
             <ul className="mt-2 min-h-0 flex-1 space-y-1.5 overflow-y-auto text-left">
               {offers.map((o) => {
@@ -415,10 +434,10 @@ export function MadureiraClient({ meId, meName, tickets, owned: ownedInit }: { m
                 return (
                   <li key={o.id} className="rounded-xl border border-amber-300/40 bg-white/5 px-2.5 py-2">
                     <p className="text-sm font-black text-amber-100">
-                      {it?.name ?? o.family} · {o.price} 🎫
+                      <ST>{it?.name ?? o.family} · {o.price} 🎫</ST>
                     </p>
                     <p className="text-[11px] font-bold text-purple-100">
-                      {o.mine || owned.has(o.family) ? "✔ Já é sua" : o.left > 0 ? `Restam ${o.left} de ${o.stock}` : "Esgotada"} · termina em {countdown(o.ends_at, now)}
+                      <ST>{o.mine || owned.has(o.family) ? "✔ Já é sua" : o.left > 0 ? `Restam ${o.left} de ${o.stock}` : "Esgotada"} · termina em {countdown(o.ends_at, now)}</ST>
                     </p>
                     {st ? (
                       <button
@@ -429,13 +448,37 @@ export function MadureiraClient({ meId, meName, tickets, owned: ownedInit }: { m
                           gotoRef.current?.({ kind: "store", id: st.id });
                         }}
                       >
-                        🧭 {st.name} ({st.floor === 0 ? "térreo" : `${st.floor}º andar`})
+                        <SIcon name="bussola" /> {st.name} ({st.floor === 0 ? "térreo" : `${st.floor}º andar`})
                       </button>
                     ) : null}
                   </li>
                 );
               })}
               {offers.length === 0 ? <li className="text-center text-sm text-purple-100">Carregando as ofertas…</li> : null}
+            </ul>
+            <button type="button" className="vh-btn vh-btn-dark mt-3" onClick={() => setDialog(null)}>
+              Fechar
+            </button>
+          </div>
+        </div>
+      );
+    }
+    if (dialog.kind === "elevator") {
+      return (
+        <div className="fixed inset-0 z-[70] grid place-items-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-label="Elevador">
+          <div className="vh-panel flex max-h-[92vh] w-full max-w-xs flex-col text-center">
+            <p className="vh-title text-xl">
+              <SIcon name="escada" size="1.4em" /> Elevador
+            </p>
+            <p className="text-xs text-purple-100">Para qual andar você quer ir?</p>
+            <ul className="mt-2 min-h-0 flex-1 space-y-1.5 overflow-y-auto">
+              {[...FLOOR_INFO].map((f, i) => ({ f, i })).reverse().map(({ f, i }) => (
+                <li key={f.name}>
+                  <button type="button" className="vh-btn !py-2 !text-sm" data-on={i === floor} disabled={i === floor} onClick={() => rideElevator(i)}>
+                    <SIcon name={i === 4 ? "talheres" : "sacola"} /> {f.name} · {f.sub}
+                  </button>
+                </li>
+              ))}
             </ul>
             <button type="button" className="vh-btn vh-btn-dark mt-3" onClick={() => setDialog(null)}>
               Fechar
@@ -484,10 +527,11 @@ export function MadureiraClient({ meId, meName, tickets, owned: ownedInit }: { m
           onFloor={setFloor}
           gotoRef={gotoRef}
           eatRef={eatRef}
+          warpRef={warpRef}
           say={say}
           leftSlot={
             <span className="vh-chip shrink-0 !px-3 !py-1.5 !text-xs" data-on>
-              👥 {roster.length + 1}
+              <SIcon name="dupla" /> {roster.length + 1}
             </span>
           }
           leftBelow={<ChatFeed recent={hc.recent} />}
@@ -495,21 +539,33 @@ export function MadureiraClient({ meId, meName, tickets, owned: ownedInit }: { m
       </div>
       <div className="vh-room-top">
         <button type="button" className="vh-iconbtn" aria-label={store ? "Sair da loja" : "Sair do shopping"} onClick={() => (store ? leaveStore() : router.push("/app/jogos/vestir"))}>
-          ✕
+          <SIcon name="x" />
         </button>
         <div className="vh-theme">
-          <small>{store ? `${MALL_NAME} · ${store.emoji}` : `${FLOOR_INFO[floor]?.name} · ${FLOOR_INFO[floor]?.sub}`}</small>
-          <b>{store ? store.name : `🛍 ${MALL_NAME}`}</b>
+          <small>{store ? MALL_NAME : `${FLOOR_INFO[floor]?.name} · ${FLOOR_INFO[floor]?.sub}`}</small>
+          <b>{store ? store.name : <ST>{`🛍 ${MALL_NAME}`}</ST>}</b>
         </div>
         <SoundToggle />
         <ChatToggle open={hc.open} setOpen={hc.setOpen} unread={hc.unread} onSend={sendChat} />
         <div className="vh-timer" role="status" aria-label="Seus bilhetes dourados">
-          🎫 {wallet}
+          <ST>🎫 {wallet}</ST>
         </div>
       </div>
+      {loadingTo ? (
+        <div className="absolute inset-0 z-[90] grid place-items-center bg-[#2a0f45] text-center" role="status" aria-live="polite" style={{ background: `radial-gradient(circle at 50% 40%, #${loadingTo.color.toString(16).padStart(6, "0")} 0%, #2a0f45 75%)` }}>
+          <div>
+            <SIcon name={loadingTo.icon} size="5rem" />
+            <p className="vh-title mt-2 text-2xl">{loadingTo.title}</p>
+            <p className="mt-1 text-sm font-bold text-purple-100">Carregando…</p>
+            <div className="mx-auto mt-3 h-2 w-48 overflow-hidden rounded-full bg-black/40">
+              <div className="h-full rounded-full bg-amber-300" style={{ animation: "mall-load 2s linear forwards" }} />
+            </div>
+          </div>
+        </div>
+      ) : null}
       {toast ? (
         <p className="pointer-events-none absolute right-2 top-[3.9rem] z-[8] max-w-[min(16rem,45%)] rounded-xl bg-purple-900/92 px-3 py-2 text-right text-xs font-bold text-white" role="status">
-          {toast}
+          <ST>{toast}</ST>
         </p>
       ) : null}
       {dlg}
@@ -578,9 +634,9 @@ function BoothDialog({
   return (
     <div className="fixed inset-0 z-[70] grid place-items-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-label="Cabine de bilhetes">
       <div className="vh-panel flex max-h-[92vh] w-full max-w-sm flex-col text-center">
-        <p className="vh-title text-xl">🎫 Cabine de Bilhetes</p>
+        <p className="vh-title text-xl"><ST>🎫 Cabine de Bilhetes</ST></p>
         <p className="text-xs text-purple-100">
-          Doe Bilhetes Dourados para uma amiga. Hoje você já doou <b className="text-amber-200">{sent}</b> de {GIFT_DAILY_MAX}. Você tem {wallet} 🎫.
+          Doe Bilhetes Dourados para uma amiga. Hoje você já doou <b className="text-amber-200">{sent}</b> de {GIFT_DAILY_MAX}. <ST>Você tem {wallet} 🎫.</ST>
         </p>
         <input className="mt-2 rounded-xl border border-amber-300/50 bg-white/10 px-3 py-2 text-sm font-bold text-amber-50 placeholder:text-purple-200" placeholder="Procurar jogadora…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Procurar jogadora" />
         <ul className="mt-2 min-h-[6rem] flex-1 space-y-1 overflow-y-auto text-left">
@@ -601,7 +657,7 @@ function BoothDialog({
             <button type="button" className="vh-iconbtn !h-9 !w-9" onClick={() => setAmount((a) => Math.max(1, a - 1))} aria-label="Menos">
               −
             </button>
-            <span className="min-w-[4.5rem] text-lg font-black tabular-nums text-amber-200">{amount} 🎫</span>
+            <span className="min-w-[4.5rem] text-lg font-black tabular-nums text-amber-200"><ST>{amount} 🎫</ST></span>
             <button type="button" className="vh-iconbtn !h-9 !w-9" onClick={() => setAmount((a) => Math.min(Math.max(1, max), a + 1))} aria-label="Mais">
               +
             </button>

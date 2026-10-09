@@ -1,5 +1,6 @@
-// Madureira Shopping: monta os lugares em 3D (o corredor de 5 andares e o interior de cada loja). Sem React: o ShoppingWorld3D cuida da jogadora, da câmera e dos controles.
+// Shopping Elos: monta os lugares em 3D (o corredor de 5 andares e o interior de cada loja). Sem React: o ShoppingWorld3D cuida da jogadora, da câmera e dos controles.
 import * as THREE from "three";
+import { iconImg, iconTexture } from "./mallIcons";
 import { concourseWorld, storeWorld, type Post, type Solid, type World } from "@/lib/games/dress/mallPhysics";
 import {
   ATRIUM,
@@ -52,11 +53,12 @@ export type Interact =
   | { kind: "mallexit"; label: string; x: number; z: number; y: number; rx: number; rz: number }
   | { kind: "counter"; place: string; label: string; x: number; z: number; y: number; rx: number; rz: number }
   | { kind: "booth"; label: string; x: number; z: number; y: number; rx: number; rz: number }
+  | { kind: "elevator"; label: string; x: number; z: number; y: number; rx: number; rz: number }
   | { kind: "info"; label: string; x: number; z: number; y: number; rx: number; rz: number }
   | { kind: "item"; itemId: string; slot: string; family: string; label: string; ay: number; x: number; z: number; y: number; rx: number; rz: number }
   | { kind: "rare"; offerId: number; label: string; x: number; z: number; y: number; rx: number; rz: number };
 
-export type ItemSprite = { key: string; itemId: string; slot: string; sprite: THREE.Sprite; w: number; h: number; x: number; y: number; z: number; face: number; loaded: boolean; loading: boolean; badge: THREE.Sprite | null; family: string; price: number };
+export type ItemSprite = { key: string; itemId: string; slot: string; sprite: THREE.Sprite; w: number; h: number; x: number; y: number; z: number; face: number; loaded: boolean; loading: boolean; badge: THREE.Mesh | null; family: string; price: number };
 
 export type Place = {
   key: string;
@@ -69,7 +71,7 @@ export type Place = {
   clear: number;
   fog: [number, number, number];
   /** chamado todo quadro */
-  update: (t: number, dt: number) => void;
+  update: (t: number, dt: number, me: { x: number; y: number; z: number; mv: number }) => void;
   setOwned: (owned: Set<string>) => void;
   setOffers: (offers: RareOffer[]) => void;
   setBubble: (lines: string[]) => void;
@@ -175,23 +177,18 @@ function stripeTex(): THREE.CanvasTexture {
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   return t;
 }
-const emojiCache = new Map<string, THREE.CanvasTexture>();
-/** Emoji desenhado numa textura (os NPCs, a comida e as vitrines usam isso). */
-export function emojiTexture(emoji: string): THREE.CanvasTexture {
-  let t = emojiCache.get(emoji);
-  if (!t) {
-    const [c, g] = canvasOf(128, 128);
-    g.font = "100px 'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif";
-    g.textAlign = "center";
-    g.textBaseline = "middle";
-    g.fillText(emoji, 64, 70);
-    t = asTex(c);
-    emojiCache.set(emoji, t);
-  }
-  return t;
-}
-function labelCanvas(text: string, w: number, h: number, fg: string, bg: string, border: string, font = 56): HTMLCanvasElement {
+const LEAD_ICON: Record<string, string> = { "🚪": "porta", "ℹ": "interrogacao", "🎫": "bilhete", "🎵": "nota", "🍽": "talheres", "🪞": "brilhos", "🔥": "fogo", "💜": "brilhos", "⭐": "estrela", "✔": "certo", "⬆": "seta-cima", "⬇": "seta-baixo" };
+function labelCanvas(text: string, w: number, h: number, fg: string, bg: string, border: string, font = 56, iconName?: string): HTMLCanvasElement {
   const [c, g] = canvasOf(w, h);
+  // um emoji no começo do texto vira o ícone correspondente
+  const lead = /^([^\p{L}\p{N}\s]️?)\s*/u.exec(text);
+  if (!iconName && lead) {
+    const ic = LEAD_ICON[lead[1].replace(/️/g, "")];
+    if (ic) {
+      iconName = ic;
+      text = text.slice(lead[0].length);
+    }
+  }
   g.fillStyle = bg;
   g.beginPath();
   g.roundRect(6, 6, w - 12, h - 12, h * 0.28);
@@ -200,28 +197,39 @@ function labelCanvas(text: string, w: number, h: number, fg: string, bg: string,
   g.lineWidth = 7;
   g.stroke();
   g.fillStyle = fg;
-  g.font = `900 ${font}px system-ui, sans-serif`;
-  g.textAlign = "center";
   g.textBaseline = "middle";
+  const im = iconName ? iconImg(iconName) : undefined;
+  const isz = im ? h * 0.66 : 0;
+  const gap = im ? h * 0.1 : 0;
   let size = font;
-  while (g.measureText(text).width > w - 50 && size > 18) {
+  g.font = `900 ${size}px system-ui, sans-serif`;
+  while (g.measureText(text).width + isz + gap > w - 50 && size > 18) {
     size -= 3;
     g.font = `900 ${size}px system-ui, sans-serif`;
   }
-  g.fillText(text, w / 2, h / 2 + 2);
+  const tw = g.measureText(text).width;
+  const x0 = (w - (tw + isz + gap)) / 2;
+  if (im) g.drawImage(im, x0, (h - isz) / 2, isz, isz);
+  g.textAlign = "left";
+  g.fillText(text, x0 + isz + gap, h / 2 + 2);
   return c;
 }
 
 /** Placa fixa (plano) com texto. */
-function signPlane(k: Kit, text: string, w: number, fg = "#5b1f78", bg = "rgba(255,255,255,0.95)", border = "#e9b84a", ratio = 4): THREE.Mesh {
-  const tex = k.track(asTex(labelCanvas(text, 512, Math.round(512 / ratio), fg, bg, border)));
+function signPlane(k: Kit, text: string, w: number, fg = "#5b1f78", bg = "rgba(255,255,255,0.95)", border = "#e9b84a", ratio = 4, icon?: string): THREE.Mesh {
+  const tex = k.track(asTex(labelCanvas(text, 512, Math.round(512 / ratio), fg, bg, border, 56, icon)));
   const m = new THREE.Mesh(k.geo(new THREE.PlaneGeometry(w, w / ratio)), k.track(new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide })));
   return m;
 }
-function spriteOf(k: Kit, tex: THREE.Texture, w: number, h: number, fog = true): THREE.Sprite {
-  const s = new THREE.Sprite(k.track(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, fog })));
-  s.scale.set(w, h, 1);
-  return s;
+/** Placa/ícone fixo (plano que não gira para a câmera, então nunca "corta" nem atravessa outra placa). */
+function planeMat(k: Kit, tex: THREE.Texture | null, opts: { opacity?: number } = {}): THREE.MeshBasicMaterial {
+  return k.track(new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.04, side: THREE.DoubleSide, opacity: opts.opacity ?? 1 }));
+}
+function spriteOf(k: Kit, tex: THREE.Texture, w: number, h: number, _fog = true, ry = 0): THREE.Mesh {
+  void _fog;
+  const m = new THREE.Mesh(k.geo(new THREE.PlaneGeometry(w, h)), planeMat(k, tex));
+  m.rotation.y = ry;
+  return m;
 }
 function starsTexture(): THREE.CanvasTexture {
   const [c, g] = canvasOf(64, 64);
@@ -258,6 +266,9 @@ const addPoints = (k: Kit, count: number, box: { x: number; y: number; z: number
 // ------------------------------------------------------------------ o corredor do shopping
 export type MallOpts = { offers: RareOffer[]; owned: Set<string> };
 
+/** A jogadora está dentro da água da fonte (em cima da borda, na altura da água)? */
+export const isInFountain = (x: number, y: number, z: number): boolean => Math.hypot(x, z) < 3.75 && y > 0.4 && y < 1.4;
+
 export function buildConcourse(): Place {
   const k = new Kit();
   const g = k.group;
@@ -265,7 +276,7 @@ export function buildConcourse(): Place {
   const seats: Seat[] = [];
   const solids: Solid[] = [];
   const posts: Post[] = [];
-  const animated: ((t: number, dt: number) => void)[] = [];
+  const animated: ((t: number, dt: number, me: { x: number; y: number; z: number; mv: number }) => void)[] = [];
   const stepTex = k.track(stripeTex());
 
   for (let f = 0; f < FLOOR_COUNT; f++) {
@@ -329,6 +340,33 @@ export function buildConcourse(): Place {
       const sn2 = signPlane(k, `${info.name} · ${info.sub}`, 9.5, "#ffffff", "rgba(91,31,120,0.92)", "#e9b84a", 5);
       sn2.position.set(0, fy + 4.2, ATRIUM.z0 - 0.6);
       g.add(sn2);
+    }
+    // elevador no fim do corredor (ponta oeste): a cabine de vidro em cada andar
+    {
+      const ex = -(HX - 2.4);
+      k.box(3.6, 0.3, 4.6, 0x8a8f9c, ex, fy + 0.15, 0);
+      k.box(3.6, 0.3, 4.6, 0x8a8f9c, ex, fy + 6.2, 0);
+      for (const zz of [-2.2, 2.2]) k.box(3.6, 6.2, 0.3, 0xdfe6f2, ex, fy + 3.1, zz, g, 0.55);
+      k.box(0.3, 6.2, 4.6, 0xb8bfcc, ex - 1.65, fy + 3.1, 0);
+      k.box(0.3, 6.0, 4.4, 0xffe3a8, ex - 1.5, fy + 3.1, 0);
+      k.box(3.2, 0.1, 4.2, 0xf4ead8, ex, fy + 0.35, 0);
+      for (const zz of [-0.95, 0.95]) {
+        k.box(0.12, 5.0, 1.8, 0xdff1ff, ex + 1.75, fy + 2.8, zz, g, 0.45);
+        k.box(0.2, 5.1, 0.12, 0xe9b84a, ex + 1.75, fy + 2.8, zz * 1.9);
+      }
+      k.box(0.3, 0.4, 4.6, 0xe9b84a, ex + 1.8, fy + 5.7, 0);
+      const es = signPlane(k, "ELEVADOR", 3.4, "#ffffff", "rgba(40,60,120,0.95)", "#ffd23f", 4, "seta-cima");
+      es.position.set(ex + 1.95, fy + 6.6, 0);
+      es.rotation.y = Math.PI / 2;
+      g.add(es);
+      const ed = signPlane(k, `Andar ${f}`, 1.8, "#ffd23f", "rgba(20,20,30,0.95)", "#8a8f9c", 4);
+      ed.position.set(ex + 1.95, fy + 5.2, 1.0 * 0);
+      ed.rotation.y = Math.PI / 2;
+      ed.position.z = -3.0;
+      g.add(ed);
+      for (const zz of [-2.2, 2.2]) posts.push({ x: ex, z: zz, r: 0.9, base: fy, height: 6.2 });
+      posts.push({ x: ex - 1.4, z: 0, r: 1.2, base: fy, height: 6.2 });
+      interacts.push({ kind: "elevator", label: "Elevador", x: ex + 4.6, z: 0, y: fy, rx: 3.0, rz: 2.6 });
     }
     // bancos (dá para sentar) e plantas
     const benchSpots: [number, number][] = f === 4 ? [] : [[-24, 12.5], [24, 12.5], [-24, -12.5], [24, -12.5]];
@@ -403,10 +441,66 @@ export function buildConcourse(): Place {
   animated.push((t) => {
     jets.rotation.y = t * 0.6;
   });
+  // animação da água quando a jogadora entra na fonte: ondas que se abrem a partir dos pés e gotas que pulam
+  const ripples: THREE.Mesh[] = [];
+  for (let i = 0; i < 3; i++) {
+    const r = new THREE.Mesh(k.geo(new THREE.RingGeometry(0.85, 1, 32)), k.track(new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false })));
+    r.rotation.x = -Math.PI / 2;
+    r.visible = false;
+    g.add(r);
+    ripples.push(r);
+  }
+  const DROPS = 28;
+  const dropPos = new Float32Array(DROPS * 3);
+  const dropVel = new Float32Array(DROPS * 3);
+  const dropLife = new Float32Array(DROPS);
+  const dropGeo = k.geo(new THREE.BufferGeometry());
+  dropGeo.setAttribute("position", new THREE.BufferAttribute(dropPos, 3));
+  const dropPts = new THREE.Points(dropGeo, k.track(new THREE.PointsMaterial({ size: 0.16, color: 0xd8f3ff, transparent: true, opacity: 0.95, depthWrite: false })));
+  dropPts.frustumCulled = false;
+  g.add(dropPts);
+  let rippleT = 0;
+  let dropT = 0;
+  animated.push((_t, dt, me) => {
+    const inWater = isInFountain(me.x, me.y, me.z);
+    rippleT += dt;
+    ripples.forEach((r, i) => {
+      const ph = ((rippleT * 0.9 + i / 3) % 1);
+      r.visible = inWater;
+      if (!inWater) return;
+      r.position.set(me.x, stage0 + 0.62, me.z);
+      r.scale.setScalar(0.4 + ph * (me.mv > 0.2 ? 2.4 : 1.6));
+      (r.material as THREE.MeshBasicMaterial).opacity = (1 - ph) * 0.8;
+    });
+    dropT += dt;
+    for (let i = 0; i < DROPS; i++) {
+      if (dropLife[i] > 0) {
+        dropLife[i] -= dt;
+        dropVel[i * 3 + 1] -= 9 * dt;
+        dropPos[i * 3] += dropVel[i * 3] * dt;
+        dropPos[i * 3 + 1] += dropVel[i * 3 + 1] * dt;
+        dropPos[i * 3 + 2] += dropVel[i * 3 + 2] * dt;
+        if (dropPos[i * 3 + 1] < stage0 + 0.6) dropLife[i] = 0;
+      } else {
+        dropPos[i * 3 + 1] = -50;
+        if (inWater && me.mv > 0.15 && dropT > 0.03) {
+          dropT = 0;
+          dropLife[i] = 0.7;
+          dropPos[i * 3] = me.x + (Math.random() - 0.5) * 0.6;
+          dropPos[i * 3 + 1] = stage0 + 0.7;
+          dropPos[i * 3 + 2] = me.z + (Math.random() - 0.5) * 0.6;
+          dropVel[i * 3] = (Math.random() - 0.5) * 2.2;
+          dropVel[i * 3 + 1] = 2.2 + Math.random() * 2.2;
+          dropVel[i * 3 + 2] = (Math.random() - 0.5) * 2.2;
+        }
+      }
+    }
+    dropGeo.attributes.position.needsUpdate = true;
+  });
   const bigSign = spriteOf(k, k.track(asTex(labelCanvas(MALL_NAME.toUpperCase(), 1024, 220, "#fff6c2", "rgba(91,31,120,0.95)", "#e9b84a", 120))), 18, 3.9, false);
   bigSign.position.set(0, stage0 + 6.8, -(floorHalfZ(0) - 0.8));
   g.add(bigSign);
-  const bigSign2 = spriteOf(k, k.track(asTex(labelCanvas(MALL_NAME.toUpperCase(), 1024, 220, "#fff6c2", "rgba(91,31,120,0.95)", "#e9b84a", 120))), 18, 3.9, false);
+  const bigSign2 = spriteOf(k, k.track(asTex(labelCanvas(MALL_NAME.toUpperCase(), 1024, 220, "#fff6c2", "rgba(91,31,120,0.95)", "#e9b84a", 120))), 18, 3.9, false, Math.PI);
   bigSign2.position.set(0, stage0 + 6.8, floorHalfZ(0) - 0.8);
   g.add(bigSign2);
   // entrada (porta de vidro no centro da parede sul)
@@ -420,10 +514,7 @@ export function buildConcourse(): Place {
   // balcão de informações
   k.box(6.4, 1.3, 1.6, 0xf1dbe8, INFO_DESK.x, 0.65, INFO_DESK.z);
   k.box(6.6, 0.15, 1.8, 0xe9b84a, INFO_DESK.x, 1.35, INFO_DESK.z);
-  posts.push({ x: INFO_DESK.x - 2.2, z: INFO_DESK.z, r: 1.3, base: 0, height: 1.3 }, { x: INFO_DESK.x + 2.2, z: INFO_DESK.z, r: 1.3, base: 0, height: 1.3 });
-  const clerk = spriteOf(k, k.track(emojiTexture("💁‍♀️")), 1.7, 1.7);
-  clerk.position.set(INFO_DESK.x, 2.0, INFO_DESK.z + 1.4);
-  g.add(clerk);
+  for (const dx of [-2.4, -0.8, 0.8, 2.4]) posts.push({ x: INFO_DESK.x + dx, z: INFO_DESK.z, r: 1.1, base: 0, height: 1.3 });
   const infoSign = signPlane(k, "ℹ️ INFORMAÇÕES", 4.6, "#1d4f91", "rgba(255,255,255,0.96)", "#3b82f6");
   infoSign.position.set(INFO_DESK.x, 3.9, INFO_DESK.z + 0.9);
   infoSign.rotation.y = Math.PI;
@@ -433,12 +524,9 @@ export function buildConcourse(): Place {
   k.box(4.4, 4.6, 7.4, 0xffe3a3, BOOTH.x + 0.4, 2.3, BOOTH.z);
   k.box(0.5, 2.0, 5.0, 0x5ec4f2, BOOTH.x - 1.85, 2.9, BOOTH.z, g, 0.7);
   k.box(1.0, 0.3, 5.6, 0xe9b84a, BOOTH.x - 2.0, 1.85, BOOTH.z);
-  const boothSign = spriteOf(k, k.track(asTex(labelCanvas("🎫 CABINE DE BILHETES", 1024, 200, "#fff6c2", "rgba(160,60,20,0.95)", "#ffd23f", 92))), 8.6, 1.7, false);
+  const boothSign = spriteOf(k, k.track(asTex(labelCanvas("🎫 CABINE DE BILHETES", 1024, 200, "#fff6c2", "rgba(160,60,20,0.95)", "#ffd23f", 92))), 8.6, 1.7, false, -Math.PI / 2);
   boothSign.position.set(BOOTH.x - 1.2, 5.8, BOOTH.z);
   g.add(boothSign);
-  const teller = spriteOf(k, k.track(emojiTexture("🧑‍💼")), 1.8, 1.8);
-  teller.position.set(BOOTH.x - 0.6, 2.2, BOOTH.z);
-  g.add(teller);
   posts.push({ x: BOOTH.x + 0.4, z: BOOTH.z - 2.4, r: 2.0, base: 0, height: 4.6 }, { x: BOOTH.x + 0.4, z: BOOTH.z + 2.4, r: 2.0, base: 0, height: 4.6 }, { x: BOOTH.x + 0.4, z: BOOTH.z, r: 2.0, base: 0, height: 4.6 });
   interacts.push({ kind: "booth", label: "🎫 Doar bilhetes", x: BOOTH.front.x, z: BOOTH.front.z, y: stage0, rx: 2.8, rz: 3.4 });
 
@@ -466,7 +554,7 @@ export function buildConcourse(): Place {
       win.position.set(wx, 2.6, face * 0.27);
       win.rotation.y = face > 0 ? 0 : Math.PI;
       gr.add(win);
-      const em = spriteOf(k, emojiTexture(s.emoji), 2.6, 2.6);
+      const em = spriteOf(k, iconTexture(s.icon), 2.6, 2.6, false, face > 0 ? 0 : Math.PI);
       em.position.set(wx, 2.7, face * 0.9);
       gr.add(em);
     }
@@ -475,7 +563,7 @@ export function buildConcourse(): Place {
     sign.rotation.y = face > 0 ? 0 : Math.PI;
     gr.add(sign);
     if (!open) {
-      const tape = spriteOf(k, emojiTexture("🚧"), 2.2, 2.2);
+      const tape = spriteOf(k, iconTexture("alerta"), 2.2, 2.2, false, face > 0 ? 0 : Math.PI);
       tape.position.set(0, 1.4, face * 1.0);
       gr.add(tape);
     }
@@ -501,14 +589,11 @@ export function buildConcourse(): Place {
       k.box(15.4, 0.18, 2.1, 0xf3d9a3, r.cx, fy + 1.48, cz);
       k.box(15, 6.5, 0.6, r.color, r.cx, fy + 3.25, r.side * 43.3);
       k.box(15, 0.4, 0.8, r.accent, r.cx, fy + 6.6, r.side * 43.2);
-      posts.push({ x: r.cx - 5, z: cz, r: 3.2, base: fy, height: 1.5 }, { x: r.cx, z: cz, r: 3.2, base: fy, height: 1.5 }, { x: r.cx + 5, z: cz, r: 3.2, base: fy, height: 1.5 });
-      const cook = spriteOf(k, emojiTexture("🧑‍🍳"), 2.2, 2.2);
-      cook.position.set(r.cx + 2.4, fy + 2.5, r.side * 41.6);
-      g.add(cook);
-      const mainEmoji = spriteOf(k, emojiTexture(r.emoji), 3.2, 3.2);
+      for (const dx of [-6, -3, 0, 3, 6]) posts.push({ x: r.cx + dx, z: cz, r: 2.2, base: fy, height: 1.5 });
+      const mainEmoji = spriteOf(k, iconTexture(r.icon), 3.2, 3.2, false, r.side < 0 ? 0 : Math.PI);
       mainEmoji.position.set(r.cx - 4, fy + 4.2, r.side * 42.6);
       g.add(mainEmoji);
-      const name = signPlane(k, `${r.emoji} ${r.name}`, 11, "#ffffff", hexAlpha(r.accent), "#ffe08a", 5);
+      const name = signPlane(k, r.name, 11, "#ffffff", hexAlpha(r.accent), "#ffe08a", 5, r.icon);
       name.position.set(r.cx, fy + 5.5, r.side * 42.8 - r.side * 0.5);
       name.rotation.y = r.side < 0 ? 0 : Math.PI;
       g.add(name);
@@ -582,8 +667,8 @@ export function buildConcourse(): Place {
     items: [],
     clear: 0xdcecff,
     fog: [0xdcecff, 40, 120],
-    update: (t, dt) => {
-      for (const a of animated) a(t, dt);
+    update: (t, dt, me) => {
+      for (const a of animated) a(t, dt, me);
     },
     setOwned: () => undefined,
     setOffers: () => undefined,
@@ -665,8 +750,8 @@ export function buildStore(def: StoreDef, opts: MallOpts): Place {
   }
 
   // letreiro grande na parede do fundo
-  const title = spriteOf(k, k.track(asTex(labelCanvas(`${def.emoji} ${def.name}`, 1024, 220, "#ffffff", hexAlpha(def.accent, 0.95), "#ffe08a", 110))), 16, 3.4, false);
-  title.position.set(0, 6.6, -HL + 0.6);
+  const title = spriteOf(k, k.track(asTex(labelCanvas(def.name, 1024, 220, "#ffffff", hexAlpha(def.accent, 0.95), "#ffe08a", 110, def.icon))), 13, 2.8, false);
+  title.position.set(0, 7.0, -HL + 0.6);
   g.add(title);
 
   // prateleiras
@@ -693,7 +778,7 @@ export function buildStore(def: StoreDef, opts: MallOpts): Place {
     g.add(grp);
   }
   for (const s of shelves.signs) {
-    const pl = signPlane(k, s.text, 4.6, "#5b1f78");
+    const pl = signPlane(k, s.text, 4.6, "#5b1f78", "rgba(255,255,255,0.95)", "#e9b84a", 4, s.icon);
     pl.position.set(-s.face * (HW - 0.12), 6.5, s.z);
     pl.rotation.y = s.face === 1 ? Math.PI / 2 : -Math.PI / 2;
     g.add(pl);
@@ -705,14 +790,13 @@ export function buildStore(def: StoreDef, opts: MallOpts): Place {
     owned: k.track(asTex(labelCanvas("✔ sua", 200, 90, "#ffffff", "rgba(42,157,74,0.95)", "#c8f5d4", 46))),
   };
   const badgeMat = {
-    epic: k.track(new THREE.SpriteMaterial({ map: badgeTex.epic, transparent: true, depthWrite: false })),
-    legend: k.track(new THREE.SpriteMaterial({ map: badgeTex.legend, transparent: true, depthWrite: false })),
-    owned: k.track(new THREE.SpriteMaterial({ map: badgeTex.owned, transparent: true, depthWrite: false })),
+    epic: planeMat(k, badgeTex.epic),
+    legend: planeMat(k, badgeTex.legend),
+    owned: planeMat(k, badgeTex.owned),
   };
   const placeholder = k.track(new THREE.SpriteMaterial({ color: 0xe8d4e0, transparent: true, opacity: 0.55, depthWrite: false }));
   const items: ItemSprite[] = [];
   const ownedNow = new Set(opts.owned);
-  const seenFam = new Set<string>();
   for (const p of shelves.placed) {
     const ratio = SLOT_VIEWBOX_RATIO[p.slot];
     const hh = itemHeight(p.slot);
@@ -722,14 +806,11 @@ export function buildStore(def: StoreDef, opts: MallOpts): Place {
     sp.scale.set(ww * 0.8, hFinal * 0.8, 1);
     sp.position.set(p.x, p.y - (hh - hFinal) / 2, p.z);
     g.add(sp);
-    let badge: THREE.Sprite | null = null;
-    if (!seenFam.has(`${p.slot}:${p.family}:${p.z.toFixed(1)}`)) {
-      badge = new THREE.Sprite(ownedNow.has(p.family) ? badgeMat.owned : badgeMat[p.rarity]);
-      badge.scale.set(0.72, 0.32, 1);
-      badge.position.set(p.x - p.face * 0.06, p.y + hFinal / 2 + 0.17, p.z);
-      g.add(badge);
-      seenFam.add(`${p.slot}:${p.family}:${p.z.toFixed(1)}`);
-    }
+    // etiqueta de preço na base da prateleira, embaixo de cada peça
+    const badge = new THREE.Mesh(k.geo(new THREE.PlaneGeometry(0.8, 0.36)), ownedNow.has(p.family) ? badgeMat.owned : badgeMat[p.rarity]);
+    badge.rotation.y = p.face * (Math.PI / 2);
+    badge.position.set(p.x + p.face * 0.55, p.board - 0.04, p.z);
+    g.add(badge);
     items.push({ key: `${p.slot}:${p.item.id}`, itemId: p.item.id, slot: p.slot, sprite: sp, w: ww, h: hFinal, x: p.x, y: p.y - (hh - hFinal) / 2, z: p.z, face: p.face, loaded: false, loading: false, badge, family: p.family, price: p.price });
     interacts.push({ kind: "item", itemId: p.item.id, slot: p.slot, family: p.family, label: p.item.name.split(" (")[0], ay: p.y, x: p.x + p.face * 1.6, y: 0, z: p.z, rx: 2.4, rz: SHELF_SPACING / 2 + 0.1 });
   }
@@ -787,9 +868,6 @@ export function buildStore(def: StoreDef, opts: MallOpts): Place {
   k.box(5.6, 1.3, 1.5, 0xfff0f6, -9, 0.65, HL - 8);
   k.box(5.8, 0.15, 1.7, 0xe9b84a, -9, 1.35, HL - 8);
   posts.push({ x: -10.4, z: HL - 8, r: 1.2, base: 0, height: 1.3 }, { x: -7.6, z: HL - 8, r: 1.2, base: 0, height: 1.3 });
-  const clerk = spriteOf(k, emojiTexture(def.slots?.length && def.slots[0] === "mantle" ? "🧑‍💼" : "💁‍♀️"), 1.8, 1.8);
-  clerk.position.set(-9, 2.0, HL - 9.3);
-  g.add(clerk);
   const nameTag = signPlane(k, `${def.attendant} · atendente`, 4.2, "#5b1f78", "rgba(255,255,255,0.95)", "#e9b84a", 5);
   nameTag.position.set(-9, 3.6, HL - 8);
   nameTag.rotation.y = Math.PI;
@@ -853,7 +931,7 @@ export function buildStore(def: StoreDef, opts: MallOpts): Place {
   // peças raras do dia (um pedestal para cada oferta cujo espaço esta loja vende)
   const rareGroup = new THREE.Group();
   g.add(rareGroup);
-  let rareSprites: { sp: THREE.Sprite; tag: THREE.Sprite; glow: THREE.Sprite; id: number }[] = [];
+  let rareSprites: { sp: THREE.Sprite; tag: THREE.Mesh; glow: THREE.Sprite; id: number }[] = [];
   const glowTex = k.track(
     (() => {
       const [c, gg] = canvasOf(128, 128);
@@ -909,12 +987,10 @@ export function buildStore(def: StoreDef, opts: MallOpts): Place {
       rareGroup.add(glow);
       const sold = o.left <= 0;
       const label = o.mine ? `✔ Você já tem` : sold ? "ESGOTADA" : `🔥 ${o.price} 🎫 · restam ${o.left}`;
-      const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: asTex(labelCanvas(label, 512, 120, "#ffffff", sold ? "rgba(90,90,100,0.95)" : "rgba(190,40,70,0.96)", "#ffe08a", 54)), transparent: true, depthWrite: false }));
-      tag.scale.set(3.8, 0.9, 1);
+      const tag = new THREE.Mesh(new THREE.PlaneGeometry(3.8, 0.9), new THREE.MeshBasicMaterial({ map: asTex(labelCanvas(label, 512, 120, "#ffffff", sold ? "rgba(90,90,100,0.95)" : "rgba(190,40,70,0.96)", "#ffe08a", 54)), transparent: true, alphaTest: 0.04, side: THREE.DoubleSide }));
       tag.position.set(px, 1.3 + hh + 0.75, pz);
       rareGroup.add(tag);
-      const title = new THREE.Sprite(new THREE.SpriteMaterial({ map: asTex(labelCanvas(it.name, 512, 100, "#5b1f78", "rgba(255,255,255,0.96)", "#e9b84a", 46)), transparent: true, depthWrite: false }));
-      title.scale.set(3.6, 0.7, 1);
+      const title = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 0.7), new THREE.MeshBasicMaterial({ map: asTex(labelCanvas(it.name, 512, 100, "#5b1f78", "rgba(255,255,255,0.96)", "#e9b84a", 46)), transparent: true, alphaTest: 0.04, side: THREE.DoubleSide }));
       title.position.set(px, 1.3 + hh + 1.5, pz);
       rareGroup.add(title);
       rareSprites.push({ sp, tag, glow, id: o.id });

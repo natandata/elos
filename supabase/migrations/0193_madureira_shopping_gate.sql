@@ -1,4 +1,4 @@
--- Madureira Shopping: as funções só valem para quem pode ver o jogo (admin, contas de teste, acesso antecipado ou visível para todos).
+-- Shopping Elos: as funções só valem para quem pode ver o jogo (admin, contas de teste, acesso antecipado ou visível para todos).
 -- Assim ninguém compra ofertas raras chamando a API direto enquanto o shopping está oculto.
 create or replace function public._mall_uid()
 returns uuid language plpgsql stable security definer set search_path = public as $fn$
@@ -8,7 +8,7 @@ begin
   if coalesce(v_vis, 'auto') = 'visible' then return v; end if;
   if exists (select 1 from public.profiles where id = v and (role = 'admin' or is_test_account)) then return v; end if;
   if exists (select 1 from public.game_early_access where user_id = v and game = 'madureira') then return v; end if;
-  raise exception 'O Madureira Shopping ainda não abriu.';
+  raise exception 'O Shopping Elos ainda não abriu.';
 end $fn$;
 revoke all on function public._mall_uid() from public, anon, authenticated;
 

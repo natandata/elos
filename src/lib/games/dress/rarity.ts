@@ -3,7 +3,7 @@
 
 export type Rarity = "common" | "epic" | "legend" | "limited";
 
-/** Edição limitada: só saem nas ofertas raras do Madureira Shopping (3 unidades por 24 horas) e não aparecem no armário até serem compradas. */
+/** Edição limitada: só saem nas ofertas raras do Shopping Elos (3 unidades por 24 horas) e não aparecem no armário até serem compradas. */
 export const LIMITED_FAMILIES = ["madcrown", "aurora", "galadress", "starmaid", "starcape", "crystal", "starwand", "comet", "constel", "auroracuff"] as const;
 const LIMITED = new Set<string>(LIMITED_FAMILIES);
 

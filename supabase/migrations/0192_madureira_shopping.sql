@@ -1,4 +1,4 @@
--- Madureira Shopping (Vista o Herói): ofertas raras (3 unidades por 24 h), praça de alimentação, doação de bilhetes dourados.
+-- Shopping Elos (Vista o Herói): ofertas raras (3 unidades por 24 h), praça de alimentação, doação de bilhetes dourados.
 -- O jogo fica oculto (só admin / acesso antecipado); aqui só a conta é feita no banco.
 
 -- ------------------------------------------------------------------ tabelas

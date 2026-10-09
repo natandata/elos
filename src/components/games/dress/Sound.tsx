@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { SIcon } from "./ShopIcons";
 import { applause, isMuted, onMuteChange, setMuted, startMusic, stopMusic } from "@/lib/games/dress/sfx";
 
 /** Liga e desliga os sons do jogo (a escolha fica guardada). */
@@ -16,7 +17,7 @@ export function SoundToggle({ className = "vh-iconbtn" }: { className?: string }
   }, []);
   return (
     <button type="button" className={className} aria-label={off ? "Ligar o som" : "Desligar o som"} aria-pressed={!off} onClick={() => setMuted(!off)}>
-      {off ? "🔇" : "🔊"}
+      <SIcon name={off ? "mudo" : "som"} size="1.35em" />
     </button>
   );
 }

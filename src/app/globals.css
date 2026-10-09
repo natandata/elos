@@ -1879,3 +1879,12 @@ input[type="datetime-local"] {
   .vh-shell[data-land="1"] .vh-podium-col[data-place="3"] .vh-podium-step { min-height: 40px; }
   .vh-shell[data-land="1"] .vh-podium + * , .vh-shell[data-land="1"] .vh-title.mb-1 { margin-top: 2px; }
 }
+
+@keyframes mall-load {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}

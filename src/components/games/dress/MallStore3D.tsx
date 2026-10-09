@@ -80,7 +80,7 @@ const FOCUS: Record<Slot, { y: number; dist: number }> = {
   tunic: { y: 1.25, dist: 3.7 },
   mantle: { y: 1.3, dist: 3.7 },
   hand: { y: 1.1, dist: 3.4 },
-  shoes: { y: 0.45, dist: 3.1 },
+  shoes: { y: 1.25, dist: 3.7 },
   ears: { y: 1.95, dist: 2.4 },
   neck: { y: 1.6, dist: 2.6 },
   wrist: { y: 1.05, dist: 2.6 },
@@ -188,13 +188,18 @@ export function textSprite(text: string, w = 4.6, color = "#6b2d6f"): THREE.Spri
   return sp;
 }
 
-/** Letreiro dourado do salão. */
-export function neonSprite(text: string, w: number): THREE.Sprite {
+/** Letreiro dourado do salão: placa fixa na parede (não gira para a câmera) e com o texto sempre inteiro. */
+export function neonSprite(text: string, w: number): THREE.Mesh {
   const c = document.createElement("canvas");
   c.width = 1024;
   c.height = 256;
   const g = c.getContext("2d")!;
-  g.font = "900 120px system-ui, sans-serif";
+  let size = 120;
+  g.font = `900 ${size}px system-ui, sans-serif`;
+  while (g.measureText(text).width > 940 && size > 30) {
+    size -= 4;
+    g.font = `900 ${size}px system-ui, sans-serif`;
+  }
   g.textAlign = "center";
   g.textBaseline = "middle";
   g.shadowColor = "#ff7ac0";
@@ -207,16 +212,21 @@ export function neonSprite(text: string, w: number): THREE.Sprite {
   g.strokeText(text, 512, 132);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
-  const sp = new THREE.Sprite(
-    new THREE.SpriteMaterial({
-      map: tex,
-      transparent: true,
-      depthWrite: false,
-      fog: false,
-    }),
+  return new THREE.Mesh(
+    new THREE.PlaneGeometry(w, w / 4),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false }),
   );
-  sp.scale.set(w, w / 4, 1);
-  return sp;
+}
+
+/** Placa fixa com texto (o mesmo desenho de textSprite, mas parada na parede). */
+function textPlane(text: string, w = 4.6): THREE.Mesh {
+  const tmp = textSprite(text, w);
+  const tex = (tmp.material as THREE.SpriteMaterial).map!;
+  tmp.material.dispose();
+  return new THREE.Mesh(
+    new THREE.PlaneGeometry(w, w / 4),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide }),
+  );
 }
 
 function glowTexture(inner: string, outer: string): THREE.CanvasTexture {
@@ -747,7 +757,7 @@ export function MallStore3D({
     const sign = neonSprite(lounge ? "MEGA DESFILE" : "VISTA O HERÓI", 9);
     sign.position.set(0, 8.6, -HL + 0.4);
     scene.add(sign);
-    track(sign.material);
+    track(sign.material as THREE.Material);
     // colunas (somem quando ficam entre a câmera e a jogadora)
     const colMat = mat(0xffffff);
     const colliders: { x: number; z: number; r: number }[] = [];
@@ -1386,10 +1396,11 @@ export function MallStore3D({
         0.45,
         HL - 1.3,
       );
-      const sp = textSprite(s.title, 4.2);
+      const sp = textPlane(s.title, 4.2);
       sp.position.set(s.x, 5.5, HL - 0.8);
+      sp.rotation.y = Math.PI;
       scene.add(sp);
-      track(sp.material);
+      track(sp.material as THREE.Material);
       spots.push({
         target: { kind: "station", cat: s.cat },
         x: s.x,
@@ -1506,21 +1517,7 @@ export function MallStore3D({
     avatar.scale.set(AV_W, AV_H, 1);
     avatar.center.set(0.5, 0);
     scene.add(avatar);
-    // pernas (só aparecem sentada)
-    const legsMat = track(
-      new THREE.SpriteMaterial({
-        transparent: true,
-        color: 0xffffff,
-        depthWrite: false,
-      }),
-    );
-    const legs = new THREE.Sprite(legsMat);
-    legs.center.set(0.5, 0);
-    legs.visible = false;
-    scene.add(legs);
     let sitOn = false;
-    let sitTex: { src: THREE.Texture; up: THREE.Texture; lo: THREE.Texture } | null =
-      null;
     const shadow = new THREE.Mesh(
       geo(new THREE.CircleGeometry(0.5, 20)),
       track(
@@ -2159,39 +2156,18 @@ export function MallStore3D({
       if (sitOn !== !!st.sit) {
         sitOn = !!st.sit;
         avatarShown = -1;
-        legs.visible = sitOn;
         if (!sitOn) {
           avatarMat.rotation = 0;
-          legsMat.rotation = 0;
         }
       }
       if (st.sit && avatarFrames.length) {
-        // sentada: tronco apoiado no banco e as pernas pendendo na beirada (o desenho é cortado na cintura e nas canelas)
-        const src =
+        // sentada: o corpo inteiro (sem cortes), mais baixo e largo, com os pés no chão e o quadril no assento
+        avatarMat.map =
           avatarFrames[avatarFrames.length >= 6 && st.back ? 3 : 0];
-        if (!sitTex || sitTex.src !== src) {
-          sitTex?.up.dispose();
-          sitTex?.lo.dispose();
-          const up = src.clone();
-          up.needsUpdate = true;
-          up.repeat.set(1, 0.5);
-          up.offset.set(0, 0.5);
-          const lo = src.clone();
-          lo.needsUpdate = true;
-          lo.repeat.set(1, 0.28);
-          lo.offset.set(0, 0);
-          sitTex = { src, up, lo };
-        }
-        const d = st.sit.dir;
         const breathe = 1 + Math.sin(st.t * 2) * 0.012;
-        avatarMat.map = sitTex.up;
-        avatar.scale.set(AV_W * st.faceX, AV_H * 0.5 * breathe, 1);
-        avatar.position.set(st.x + d * 0.14, st.y + 0.02, st.z);
+        avatar.scale.set(AV_W * 0.86 * st.faceX, AV_H * 0.64 * breathe, 1);
+        avatar.position.set(st.x, st.y - 0.52, st.z);
         avatarMat.rotation = Math.sin(st.t * 1.4) * 0.015;
-        legsMat.map = sitTex.lo;
-        legs.scale.set(AV_W * 0.86 * st.faceX, AV_H * 0.28 * 0.86, 1);
-        legs.position.set(st.x + d * 0.6, st.y - 0.51, st.z);
-        legsMat.rotation = Math.sin(st.t * 2.2) * 0.1;
       } else if (avatarFrames.length >= 3) {
         const off = avatarFrames.length >= 6 && (st.back || backHold) ? 3 : 0;
         const walk = mv > 0.3;
@@ -2204,9 +2180,8 @@ export function MallStore3D({
       }
       const gyS = groundAt(st.x, st.z);
       shadow.position.set(st.x, gyS + 0.03, st.z);
-      shadow.scale.setScalar(
-        Math.max(0.4, 1 - bob * 1.2 - Math.max(0, st.y - gyS) * 0.25),
-      );
+      // a sombra do chão é a única: cresce um pouco quando ela pula
+      shadow.scale.setScalar(1.25 + Math.min(1.5, Math.max(0, st.y - gyS)) * 0.18 - bob * 0.6);
 
       const spec = spectateRef.current;
       avatar.visible = !spec && avatarFrames.length > 0;
@@ -2275,8 +2250,8 @@ export function MallStore3D({
           rm.sprite.visible = true;
           rm.shadow.visible = true;
           rm.tag.visible = true;
-          const ry = pos.s === 1 ? 0.3 : (pos.y ?? 0);
-          const rsit = pos.s === 1 ? 0.78 : 1;
+          const ry = pos.s === 1 ? (pos.y ?? 0.53) - 0.52 : (pos.y ?? 0);
+          const rsit = pos.s === 1 ? 0.64 : 1;
           rm.sprite.scale.set(AV_W * rm.fx, AV_H * rsit, 1);
           rm.sprite.position.set(rm.x, ry + bobR, rm.z);
           rm.shadow.position.set(rm.x, 0.03, rm.z);
@@ -2518,8 +2493,6 @@ export function MallStore3D({
       turnRef.current = null;
       jumpRef.current = null;
       sitRef.current = null;
-      sitTex?.up.dispose();
-      sitTex?.lo.dispose();
       disposables.forEach((d) => d.dispose());
       renderer.dispose();
       renderer.forceContextLoss();
@@ -2637,9 +2610,9 @@ export function MallStore3D({
                 key={`${p.id}-${JSON.stringify([p.look, p.beauty])}`}
                 data-peer={p.id}
               >
-                <PaperDoll base={pb} look={pl} />
-                <PaperDoll base={pb} look={pl} step={1} />
-                <PaperDoll base={pb} look={pl} step={-1} />
+                <PaperDoll noShadow base={pb} look={pl} />
+                <PaperDoll noShadow base={pb} look={pl} step={1} />
+                <PaperDoll noShadow base={pb} look={pl} step={-1} />
               </div>
             );
           })}
@@ -2658,12 +2631,12 @@ export function MallStore3D({
           overflow: "hidden",
         }}
       >
-        <PaperDoll base={base} look={look} />
-        <PaperDoll base={base} look={look} step={1} />
-        <PaperDoll base={base} look={look} step={-1} />
-        <PaperDoll base={base} look={look} back />
-        <PaperDoll base={base} look={look} step={1} back />
-        <PaperDoll base={base} look={look} step={-1} back />
+        <PaperDoll noShadow base={base} look={look} />
+        <PaperDoll noShadow base={base} look={look} step={1} />
+        <PaperDoll noShadow base={base} look={look} step={-1} />
+        <PaperDoll noShadow base={base} look={look} back />
+        <PaperDoll noShadow base={base} look={look} step={1} back />
+        <PaperDoll noShadow base={base} look={look} step={-1} back />
       </div>
 
       {!ready ? (

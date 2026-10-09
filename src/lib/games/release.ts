@@ -15,7 +15,7 @@ export const GAME_RELEASES = {
   ultimatribo: "2099-01-01T00:00:00-03:00",
   /** Quem Desenha? (desenho e adivinhação bíblicos, multiplayer): em construção, sem data. Só admin e acesso antecipado. */
   quemdesenha: "2099-01-01T00:00:00-03:00",
-  /** Madureira Shopping (mundo aberto do Vista o Herói): oculto, sem data. Só admin e acesso antecipado até o admin deixar visível. */
+  /** Shopping Elos (mundo aberto do Vista o Herói): aparece como "Em breve" para todos, sem data até o admin marcar uma. Admin e acesso antecipado entram antes. */
   madureira: "2099-01-01T00:00:00-03:00",
 } as const;
 
