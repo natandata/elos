@@ -62,7 +62,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const theme = "neutral";
 
   return (
-    <html lang="pt-BR" data-theme={theme} className={jakarta.variable}>
+    <html lang="pt-BR" data-theme={theme} className={jakarta.variable} suppressHydrationWarning>
       <head>
         {/* Aplica claro/escuro antes da primeira pintura — sem isso, a tela
             pisca no tema errado por uma fração de segundo a cada carga. */}

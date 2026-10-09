@@ -438,7 +438,7 @@ export class MiniDirector {
     this.eng.hud({
       game: this.map.game,
       phase: this.phase === "wait" ? "countdown" : this.phase,
-      left: Math.max(0, this.deadline - this.now),
+      left: Math.max(0, Math.ceil(this.deadline - this.now)),
       alive: this.alive.size,
       total: this.players.length,
       spectating: this.spectating,

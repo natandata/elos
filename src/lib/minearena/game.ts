@@ -296,6 +296,8 @@ export class MineArena {
   private chestSalt = 0;
   private zoneMesh: THREE.Mesh | null = null;
   private miniFrozen = false;
+  /** minigame: votação e resultado pedem o mouse livre */
+  private miniModal = false;
   private storyTime: number | null = null;
   private storyMusic: StoryMusic | null = null;
   private rainbowObj: THREE.Group | null = null;
@@ -469,7 +471,7 @@ export class MineArena {
   }
   /** O cursor fica livre enquanto QUALQUER painel pedir; um painel fechando não pode liberar o mouse de outro ainda aberto. */
   private applyUi(): void {
-    const open = this.uiPanel || this.storyModal || this.storyHold;
+    const open = this.uiPanel || this.storyModal || this.storyHold || this.miniModal;
     const was = this.uiOpen;
     this.uiOpen = open;
     if (open) {
@@ -1625,6 +1627,11 @@ export class MineArena {
     this.story?.update(dt);
     this.mini?.update(dt);
     this.miniFrozen = !!this.mini?.frozen;
+    const mm = !!this.mini && (this.mini.phase === "judge" || this.mini.phase === "end");
+    if (mm !== this.miniModal) {
+      this.miniModal = mm;
+      this.applyUi();
+    }
     if (this.story) {
       // telas do Modo História que pedem o mouse (aprendizado, fim de capítulo, desafio, relíquia): solta o cursor
       const u = this.story.ui;

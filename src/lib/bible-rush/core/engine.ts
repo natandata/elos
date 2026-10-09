@@ -249,6 +249,7 @@ export class RushLevel {
     if (this.status !== "playing") return { ok: false, text: "", tone: "info" };
     this.rev++;
     const def = FEEDS[feed];
+    if (!def || !this.def.feeds.includes(feed)) return { ok: false, text: "", tone: "info" };
     if (def.station.kind === "direct") return this.toPlate(feed);
     const c = this.cells[feed]?.[idx];
     if (!c) return { ok: false, text: "", tone: "info" };

@@ -8,17 +8,23 @@ const nowMs = () => Date.now();
 
 function useLeft(game: ReleasedGame, at?: string) {
   const router = useRouter();
-  const [left, setLeft] = useState(() => Math.max(0, (at ? new Date(at).getTime() : releaseAt(game)) - nowMs()));
+  // começa em 0 no servidor e no primeiro quadro do navegador (senão o HTML não bate na hidratação) e atualiza logo depois
+  const [left, setLeft] = useState(0);
   useEffect(() => {
-    const t = setInterval(() => {
+    const tick = () => {
       const l = Math.max(0, (at ? new Date(at).getTime() : releaseAt(game)) - nowMs());
       setLeft(l);
       if (l === 0) {
         clearInterval(t);
         router.refresh();
       }
-    }, 1000);
-    return () => clearInterval(t);
+    };
+    const t = setInterval(tick, 1000);
+    const first = setTimeout(tick, 0);
+    return () => {
+      clearInterval(t);
+      clearTimeout(first);
+    };
   }, [game, at, router]);
   return left;
 }
