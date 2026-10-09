@@ -204,6 +204,17 @@ export function ArenaPlayfield({
   }, []);
   useEffect(() => stopLoop, [stopLoop]);
 
+  // telas grandes só saem da memória quando o navegador resolve limpar: celulares fracos estouram o limite na 2ª partida (campo verde/travado). Zerar o tamanho libera na hora.
+  const freeCanvases = useCallback(() => {
+    for (const c of [bgRef.current, ambRef.current?.tile ?? null]) {
+      if (c) {
+        c.width = 0;
+        c.height = 0;
+      }
+    }
+    bgRef.current = null;
+    ambRef.current = null;
+  }, []);
   const sizeKeyRef = useRef("");
   const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const triesRef = useRef(0);
@@ -238,6 +249,7 @@ export function ArenaPlayfield({
     layoutRef.current = l;
     dprRef.current = dpr;
     const build = () => {
+      freeCanvases();
       const theme = driverRef.current.campaign?.theme ?? ARENAS[driverRef.current.arena]?.theme ?? ARENAS[0].theme;
       const key2 = driverRef.current.campaign?.scenery ?? ARENAS[driverRef.current.arena]?.key;
       try {
@@ -269,9 +281,9 @@ export function ArenaPlayfield({
     build();
     // os sprites do campo (torres, árvores, ponte...) chegam depois: refaz o fundo quando prontos, sem piscar
     void loadCampo().then(() => {
-      if (layoutRef.current === l) build();
+      if (canvasRef.current && layoutRef.current === l) build();
     });
-  }, []);
+  }, [freeCanvases]);
 
   // ------------------------------------------------------------ desenho
   const draw = useCallback(
@@ -680,6 +692,7 @@ export function ArenaPlayfield({
     setHud({ mana: game.mana[me], tick: game.tick, mine: 0, theirs: 0, slots: [...game.slots[me]], next: game.queue[me][0] });
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    const mainCanvas = canvasRef.current;
     setupCanvas();
     const area = areaRef.current;
     let roPending = 0;
@@ -708,6 +721,12 @@ export function ArenaPlayfield({
       window.removeEventListener("unhandledrejection", onRej);
       vv?.removeEventListener("resize", onVv);
       if (retryRef.current !== null) clearTimeout(retryRef.current);
+      freeCanvases();
+      if (mainCanvas) {
+        const main = mainCanvas;
+        main.width = 0;
+        main.height = 0;
+      }
     };
     // o campo é montado uma vez por partida
     // eslint-disable-next-line react-hooks/exhaustive-deps
