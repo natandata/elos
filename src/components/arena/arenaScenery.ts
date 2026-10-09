@@ -210,6 +210,8 @@ type PersonOpts = { robe: string; trim?: string; skin?: string; hair?: string; h
 
 function person(e: Env, x: number, y: number, sc: number, o: PersonOpts) {
   sc *= K;
+  // Adão e Eva: sprites no mesmo estilo das torres e árvores (o desenho abaixo só aparece se a imagem não carregou)
+  if (o.leaf && spr(e, o.long ? "eva" : "adao", x, y + 0.1, 2.15 * sc)) return;
   const skin = o.skin ?? "#e0ac7e";
   shadow(e, x, y, 0.4 * sc);
   if (o.halo) glow(e, x, y - 1.35 * sc, 0.9 * sc, "rgba(255,245,170,0.85)");
@@ -247,6 +249,7 @@ function person(e: Env, x: number, y: number, sc: number, o: PersonOpts) {
 
 function lion(e: Env, x: number, y: number, sc: number) {
   sc *= K;
+  if (spr(e, "leao", x, y + 0.15, 1.7 * sc)) return;
   shadow(e, x, y, 0.8 * sc);
   curve(e, [[x - 0.7 * sc, y - 0.4 * sc], [x - 1.0 * sc, y - 0.5 * sc], [x - 1.05 * sc, y - 0.8 * sc]], "#c9913d", 0.07 * sc);
   circ(e, x - 1.05 * sc, y - 0.85 * sc, 0.1 * sc, "#8a4b14");
@@ -260,6 +263,7 @@ function lion(e: Env, x: number, y: number, sc: number) {
 
 function lamb(e: Env, x: number, y: number, sc: number) {
   sc *= K;
+  if (spr(e, "cordeiro", x, y + 0.1, 1.15 * sc)) return;
   shadow(e, x, y, 0.5 * sc);
   for (const lx of [-0.2, 0.15]) rect(e, x + lx * sc, y - 0.2 * sc, 0.07 * sc, 0.22 * sc, "#4a3a30");
   circ(e, x - 0.2 * sc, y - 0.4 * sc, 0.27 * sc, "#fff");
@@ -311,6 +315,7 @@ function dove(e: Env, x: number, y: number, sc: number, olive = false) {
 
 function snake(e: Env, x: number, y: number, sc: number) {
   sc *= K;
+  if (spr(e, "cobra", x, y + 0.25, 1.5 * sc)) return;
   const pts: [number, number][] = [];
   for (let i = 0; i <= 14; i++) {
     const t = i / 14;
@@ -339,6 +344,7 @@ function camel(e: Env, x: number, y: number, sc: number) {
 
 function deer(e: Env, x: number, y: number, sc: number) {
   sc *= K;
+  if (spr(e, "cervo", x, y + 0.1, 1.9 * sc)) return;
   shadow(e, x, y, 0.6 * sc);
   for (const lx of [-0.3, -0.1, 0.18, 0.34]) rect(e, x + lx * sc, y - 0.6 * sc, 0.07 * sc, 0.62 * sc, "#9b6a3a");
   ell(e, x, y - 0.75 * sc, 0.45 * sc, 0.24 * sc, "#b87c46", "#7e4f26", 0.03);
