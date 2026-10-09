@@ -579,14 +579,17 @@ let scratch: HTMLCanvasElement | null = null;
 function drawFlash(g: CanvasRenderingContext2D, img: HTMLImageElement, x: number, y: number, w: number, h: number, a: number) {
   if (typeof document === "undefined") return;
   scratch ??= document.createElement("canvas");
-  scratch.width = Math.max(1, Math.ceil(w));
-  scratch.height = Math.max(1, Math.ceil(h));
+  // a tela de apoio só cresce (redimensionar a cada clarão criava lixo de memória)
+  if (scratch.width < Math.ceil(w)) scratch.width = Math.ceil(w);
+  if (scratch.height < Math.ceil(h)) scratch.height = Math.ceil(h);
   const c = scratch.getContext("2d")!;
+  c.globalCompositeOperation = "source-over";
+  c.clearRect(0, 0, scratch.width, scratch.height);
   c.drawImage(img, 0, 0, w, h);
   c.globalCompositeOperation = "source-atop";
   c.fillStyle = `rgba(255,255,255,${a})`;
   c.fillRect(0, 0, w, h);
-  g.drawImage(scratch, x, y);
+  g.drawImage(scratch, 0, 0, Math.ceil(w), Math.ceil(h), x, y, Math.ceil(w), Math.ceil(h));
 }
 
 /** Fumaça escura subindo (torre machucada). */
@@ -895,14 +898,6 @@ export function drawAmbient(g: CanvasRenderingContext2D, a: Ambient, t: number) 
     const o1 = -((t * 0.55) % a.tw);
     g.globalAlpha = 0.55;
     for (let x = o1; x < a.cw; x += a.tw) g.drawImage(a.tile, x, a.ry);
-    // segunda camada correndo ao contrário, espelhada
-    g.globalAlpha = 0.35;
-    const o2 = -(a.tw - ((t * 0.32) % a.tw)) - a.tw;
-    g.save();
-    g.translate(0, a.ry + a.rh);
-    g.scale(1, -1);
-    for (let x = o2; x < a.cw; x += a.tw) g.drawImage(a.tile, x, 0);
-    g.restore();
     g.globalAlpha = 1;
     // espuma nas duas margens
     g.strokeStyle = a.foam;
@@ -911,7 +906,7 @@ export function drawAmbient(g: CanvasRenderingContext2D, a: Ambient, t: number) 
     for (const [yy, dir] of [[a.ry + a.rh * 0.07, 1], [a.ry + a.rh * 0.93, -1]] as const) {
       g.globalAlpha = 0.55 + Math.sin(t * 0.1 + dir) * 0.2;
       g.beginPath();
-      for (let x = 0; x <= a.cw; x += 6) {
+      for (let x = 0; x <= a.cw; x += 12) {
         const y = yy + Math.sin(x * 0.045 + t * 0.12 * dir) * a.rh * 0.035;
         if (x === 0) g.moveTo(x, y);
         else g.lineTo(x, y);
@@ -927,31 +922,8 @@ export function drawAmbient(g: CanvasRenderingContext2D, a: Ambient, t: number) 
   }
   for (const r of a.reeds) drawThing(g, r, t, false);
   for (const tr of a.trees) drawThing(g, tr, t, true);
-  // folhas e pétalas ao vento
-  for (const lf of a.leaves) {
-    const x = (lf.x + t * lf.v * 1.4) % (a.cw + 20) - 10;
-    const y = (lf.y + Math.sin(t * 0.03 + lf.ph) * 14 + t * lf.v * 0.35) % (a.ch + 20) - 10;
-    g.fillStyle = lf.color;
-    g.globalAlpha = 0.75;
-    g.save();
-    g.translate(x, y);
-    g.rotate(t * 0.04 + lf.ph);
-    g.beginPath();
-    g.ellipse(0, 0, lf.size * 1.6, lf.size * 0.8, 0, 0, Math.PI * 2);
-    g.fill();
-    g.restore();
-  }
+  // (sem folhas ao vento nem sombras de nuvens: quase não se viam e pesavam em celulares fracos)
   g.globalAlpha = 1;
-  // sombras de nuvens passando
-  for (let i = 0; i < 3; i++) {
-    const cx = ((t * (0.35 + i * 0.12) + i * a.cw * 0.45) % (a.cw + 400)) - 200;
-    const cy = a.ch * (0.2 + i * 0.3);
-    const cg = g.createRadialGradient(cx, cy, 0, cx, cy, a.cw * 0.28);
-    cg.addColorStop(0, "rgba(0,20,40,0.07)");
-    cg.addColorStop(1, "rgba(0,20,40,0)");
-    g.fillStyle = cg;
-    g.fillRect(cx - a.cw * 0.28, cy - a.cw * 0.28, a.cw * 0.56, a.cw * 0.56);
-  }
 }
 
 export { H, W };
