@@ -23,6 +23,9 @@ import { DeathScreen, HeroDialog, LoadingScreen, PauseMenu } from "./Overlays";
 import { TouchControls } from "./TouchControls";
 import { StoryMenu } from "./StoryMenu";
 import { StoryOverlay } from "./StoryOverlay";
+import { MiniMenu, type MiniLaunch } from "./MiniMenu";
+import { MiniOverlay } from "./MiniOverlay";
+import type { MiniGame, MiniPlayer } from "@/lib/minearena/mini/types";
 import { loadProgress, NEW_WORLD_CHAPTER } from "@/lib/minearena/story/progress";
 import { newSession } from "@/lib/minearena/story/director";
 import { CHAPTER_BY_ID } from "@/lib/minearena/story/data/chapters";
@@ -60,7 +63,9 @@ const subscribeCoarse = (fn: () => void) => {
   return () => m.removeEventListener("change", fn);
 };
 
-function Play({ save, rotated, settings, onSettings, onExit, onStoryNav, storyChapter, me, sb, net }: { save: WorldSave; rotated: boolean; settings: Settings; onSettings: (s: Settings) => void; onExit: (notice?: string) => void; onStoryNav?: (to: { chapter: string } | { menu: true }) => void; storyChapter?: string; me?: Peer; sb?: SupabaseClient; net?: RoomNet }) {
+type MiniPlay = { game: MiniGame; theme: number; players: MiniPlayer[]; net: RoomNet; role: "host" | "guest"; solo: boolean };
+
+function Play({ save, rotated, settings, onSettings, onExit, onStoryNav, storyChapter, me, sb, net, mini }: { save: WorldSave; rotated: boolean; settings: Settings; onSettings: (s: Settings) => void; onExit: (notice?: string) => void; onStoryNav?: (to: { chapter: string } | { menu: true }) => void; storyChapter?: string; me?: Peer; sb?: SupabaseClient; net?: RoomNet; mini?: MiniPlay }) {
   const mobile = useSyncExternalStore(subscribeCoarse, coarse, () => false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [game, setGame] = useState<MineArena | null>(null);
@@ -118,7 +123,7 @@ function Play({ save, rotated, settings, onSettings, onExit, onStoryNav, storyCh
             void (gameRef.current?.saveNow() ?? Promise.resolve()).then(() => onNavRef.current?.(to));
           },
         },
-        { mobile, settings: settingsRef.current, me, sb, net, story: storyChapter ? { chapterId: storyChapter } : undefined },
+        { mobile, settings: settingsRef.current, me, sb, net, story: storyChapter ? { chapterId: storyChapter } : undefined, mini },
       );
     } catch {
       pushMsg("Seu aparelho não conseguiu iniciar o gráfico 3D.", "warn");
@@ -195,6 +200,16 @@ function Play({ save, rotated, settings, onSettings, onExit, onStoryNav, storyCh
     };
   }, []);
 
+  // minigame: eliminado ou fim de partida fecham mochila/baú abertos
+  const miniOver = !!hud?.mini && (hud.mini.spectating || !!hud.mini.result);
+  useEffect(() => {
+    if (!miniOver) return;
+    const t = setTimeout(() => {
+      if (bag) closeBag();
+    }, 0);
+    return () => clearTimeout(t);
+  }, [miniOver, bag, closeBag]);
+
   const resume = () => {
     gameRef.current?.setPaused(false);
     setPaused(false);
@@ -205,6 +220,7 @@ function Play({ save, rotated, settings, onSettings, onExit, onStoryNav, storyCh
       <canvas ref={canvasRef} className="ma-canvas" />
       {game && hud && !hud.loading && !hud.cinematic && !paused && !options ? <Hud hud={hud} msgs={msgs} onSelect={(i) => game.inventory.select(i)} /> : null}
       {game && hud && !hud.loading && game.story ? <StoryOverlay game={game} ui={storyUi} hud={hud} /> : null}
+      {game && hud && !hud.loading && hud.mini ? <MiniOverlay hud={hud.mini} onVote={(n) => game.miniVote(n)} onLeave={() => onExitRef.current()} /> : null}
       {game && hud && !hud.loading && mobile && !bag && !extra && !dialog && !paused && hud.alive && !hud.cinematic && !storyUi?.dialogue && !storyUi?.learn && !storyUi?.chapterEnd ? (
         <TouchControls game={game} rotated={rotated} shield={!!hud.offhand} swap={settings.swapButtons} onInventory={() => openBag("bag")} onPause={() => {
           game.setPaused(true);
@@ -229,8 +245,8 @@ function Play({ save, rotated, settings, onSettings, onExit, onStoryNav, storyCh
       {paused && game && !options && hud?.alive !== false ? (
         <PauseMenu
           onResume={resume}
-          coop={hud?.coop ?? null}
-          canHost={!!me && !!sb}
+          coop={hud?.mini ? null : (hud?.coop ?? null)}
+          canHost={!!me && !!sb && !hud?.mini}
           onOpenRoom={() => {
             void gameRef.current?.openRoom().then((ok) => {
               if (ok) resume();
@@ -261,7 +277,7 @@ function Play({ save, rotated, settings, onSettings, onExit, onStoryNav, storyCh
         />
       ) : null}
       {options && game ? <OptionsMenu settings={settings} mobile={mobile} onChange={onSettings} onDone={() => setOptions(false)} /> : null}
-      {hud && !hud.alive && game ? <DeathScreen
+      {hud && !hud.alive && game && !hud.mini ? <DeathScreen
           story={!!storyChapter}
           onRespawn={() => {
             setPaused(false);
@@ -290,6 +306,9 @@ export function MineArenaGame({ me, free = false }: { me?: Peer; /** admin: o No
   const [joinError, setJoinError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [storyOpen, setStoryOpen] = useState(false);
+  const [miniOpen, setMiniOpen] = useState(false);
+  const [miniPlay, setMiniPlay] = useState<MiniPlay | null>(null);
+  const miniRoomRef = useRef<{ leave: () => void; net: RoomNet } | null>(null);
   const [storyProgress, setStoryProgress] = useState<StoryProgress>(loadProgress);
   const [storySaves, setStorySaves] = useState<Set<string>>(new Set());
   // música no menu (dentro do mundo quem toca é o jogo, com a mesma faixa)
@@ -387,6 +406,33 @@ export function MineArenaGame({ me, free = false }: { me?: Peer; /** admin: o No
     setActive(w);
   };
 
+  /** Minigame: a sala de espera já combinou tudo; monta o mundo da partida (não é salvo) e entra. */
+  const startMini = (l: MiniLaunch) => {
+    enterImmersive();
+    miniRoomRef.current = { leave: () => l.room.leave(), net: l.room.net };
+    const now = Date.now();
+    const w: WorldSave = {
+      id: `mini:${l.game}`,
+      name: "Minigame",
+      seed: l.seed,
+      createdAt: now,
+      updatedAt: now,
+      playedSeconds: 10,
+      time: 0.3,
+      player: { x: 256, y: 40, z: 256, yaw: 0, pitch: 0, health: 20, hunger: 20 },
+      spawn: { x: 256, y: 40, z: 256 },
+      inventory: { slots: [], armor: [null, null, null, null], selected: 0 },
+      mods: {},
+      mode: "survival",
+      discoveries: [],
+      heroesMet: [],
+      kills: 0,
+    };
+    setMiniPlay({ game: l.game, theme: l.theme, players: l.players, net: l.room.net, role: l.room.role, solo: l.solo });
+    setMiniOpen(false);
+    setActive(w);
+  };
+
   /** Convidado: conecta na sala, espera o aceite e monta um mundo local com a seed do anfitrião. */
   const join = async (r: RoomInfo) => {
     if (!me || !sb || joining) return;
@@ -442,6 +488,7 @@ export function MineArenaGame({ me, free = false }: { me?: Peer; /** admin: o No
         me={me}
         sb={sb ?? undefined}
         net={guestNet ?? undefined}
+        mini={miniPlay ?? undefined}
         rotated={rotated}
         settings={settings}
         onSettings={changeSettings}
@@ -449,12 +496,25 @@ export function MineArenaGame({ me, free = false }: { me?: Peer; /** admin: o No
           leaveImmersive();
           guestNet?.close();
           setGuestNet(null);
+          if (miniPlay) {
+            miniRoomRef.current?.net.close();
+            miniRoomRef.current = null;
+            setMiniPlay(null);
+            setMiniOpen(true);
+          }
           if (active.id.startsWith("story:")) setStoryOpen(true);
           setActive(null);
           if (why) setNotice(why);
           void refresh();
         }}
       />
+    );
+  }
+  if (miniOpen && me && sb) {
+    return (
+      <div className={rotated ? "ma-root ma-rot" : "ma-root"} onContextMenu={(e) => e.preventDefault()}>
+        <MiniMenu sb={sb} me={me} free={free} onStart={startMini} onBack={() => setMiniOpen(false)} />
+      </div>
     );
   }
   if (storyOpen) {
@@ -481,6 +541,7 @@ export function MineArenaGame({ me, free = false }: { me?: Peer; /** admin: o No
           void refresh();
           setStoryOpen(true);
         }}
+        onMini={me && sb ? () => setMiniOpen(true) : undefined}
         onPlay={(w) => {
           enterImmersive();
           setActive(w);

@@ -83,6 +83,8 @@ export interface ManagerHooks {
   damagePlayer(amount: number, fromX: number, fromZ: number, pid?: string): void;
   /** Um projétil do jogador acertou um personagem da história que pede um acerto (Golias). */
   storyHit?(e: Entity): void;
+  /** Minigames: um projétil do jogador acertou outro jogador? (devolve true se sim) */
+  pvpHit?(x: number, y: number, z: number, vx: number, vz: number, dmg: number): boolean;
   /** Co-op (convidado): avisa o anfitrião que acertou uma criatura. */
   netHit?(id: number, amount: number, kbx: number, kbz: number): void;
   /** Co-op (anfitrião): entrega o saque a quem deu o golpe final. */
@@ -453,6 +455,10 @@ export class EntityManager {
           }
         }
         if (Math.random() < 0.5) this.fx.burst(p.x, p.y, p.z, 0xff7a1a, 1, 0.5, 0.1, 0);
+        continue;
+      }
+      if (p.owner === "player" && this.hooks.pvpHit?.(p.x, p.y, p.z, p.vx, p.vz, p.dmg)) {
+        p.life = 0;
         continue;
       }
       for (const e of this.list) {

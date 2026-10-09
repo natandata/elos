@@ -35,6 +35,7 @@ export function MainMenu({
   coop,
   notice,
   onStory,
+  onMini,
   lockedBy,
 }: {
   worlds: WorldSave[] | null;
@@ -44,6 +45,8 @@ export function MainMenu({
   onOptions: () => void;
   /** Abre o Modo História (campanha do Antigo Testamento). */
   onStory?: () => void;
+  /** Abre os Minigames (Jogos Vorazes, Skywars, Batalha de Construção). */
+  onMini?: () => void;
   /** Co-op: entrar numa sala (precisa de quem sou e do cliente Supabase). */
   coop?: { sb: SupabaseClient; myId: string; busy: boolean; error: string | null; onJoin: (r: RoomInfo) => void };
   notice?: string | null;
@@ -77,6 +80,12 @@ export function MainMenu({
               <button type="button" className="ma-btn ma-btn-gold" onClick={onStory}>
                 📖 Modo História
                 <small>O Antigo Testamento, do Éden a Ester</small>
+              </button>
+            ) : null}
+            {onMini ? (
+              <button type="button" className="ma-btn ma-btn-gold" onClick={onMini}>
+                🎮 Minigames
+                <small>Jogos Vorazes, Skywars e Batalha de Construção</small>
               </button>
             ) : null}
             {lockedBy ? (

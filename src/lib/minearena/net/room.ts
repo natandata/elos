@@ -36,7 +36,7 @@ export function watchRooms(sb: SupabaseClient, myId: string, onChange: (rooms: R
 
 /** Anuncia a sua sala no lobby (devolve a função de atualizar e a de fechar). */
 export function announceRoom(sb: SupabaseClient, info: RoomInfo): { update: (info: RoomInfo) => void; close: () => void } {
-  const ch = sb.channel(LOBBY, { config: { presence: { key: `h-${info.hostId}` } } });
+  const ch = sb.channel(LOBBY, { config: { presence: { key: `h-${info.hostId}`, enabled: true } } });
   let ready = false;
   let current = info;
   ch.subscribe((status) => {
@@ -66,8 +66,9 @@ export class RoomNet {
     readonly me: Peer,
     readonly hostId: string,
     readonly role: "host" | "guest",
+    topic?: string,
   ) {
-    this.ch = sb.channel(roomTopic(hostId), { config: { broadcast: { self: false } } });
+    this.ch = sb.channel(topic ?? roomTopic(hostId), { config: { broadcast: { self: false } } });
     this.ch.on("broadcast", { event: "m" }, ({ payload }) => {
       const m = payload as NetMsg;
       if (!m || typeof m.t !== "string" || m.from === me.id) return;

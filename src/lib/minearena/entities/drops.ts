@@ -26,6 +26,8 @@ interface Drop {
   delay: number;
   ttl: number;
   sprite: THREE.Sprite;
+  /** Identificador de itens largados na partida (minigames): quem recolhe avisa os outros. */
+  tag?: string;
 }
 
 const MAX_DROPS = 160;
@@ -62,7 +64,7 @@ export class Drops {
     return this.list.length;
   }
 
-  spawn(stack: Item, x: number, y: number, z: number, vx?: number, vy?: number, vz?: number, delay = 0.35, ttl = TTL, age = 0): void {
+  spawn(stack: Item, x: number, y: number, z: number, vx?: number, vy?: number, vz?: number, delay = 0.35, ttl = TTL, age = 0, tag?: string): void {
     if (!itemDef(stack.item)) return;
     const body = newBody(x, y, z, 0.25, 0.25);
     body.vx = vx ?? (Math.random() - 0.5) * 2.4;
@@ -71,7 +73,7 @@ export class Drops {
     const sprite = new THREE.Sprite(materialFor(stack.item));
     sprite.scale.set(0.42, 0.42, 1);
     this.scene.add(sprite);
-    this.list.push({ stack: { ...stack }, body, age, delay, ttl, sprite });
+    this.list.push({ stack: { ...stack }, body, age, delay, ttl, sprite, tag });
     while (this.list.length > MAX_DROPS) this.remove(0);
   }
 
@@ -83,7 +85,7 @@ export class Drops {
   }
 
   /** `pickup` recebe o item e devolve quantos NÃO couberam na mochila. */
-  update(dt: number, px: number, py: number, pz: number, canPick: boolean, pickup: (s: Item) => number): void {
+  update(dt: number, px: number, py: number, pz: number, canPick: boolean, pickup: (s: Item, tag?: string) => number): void {
     this.clock += dt;
     for (let i = this.list.length - 1; i >= 0; i--) {
       const d = this.list[i];
@@ -115,7 +117,7 @@ export class Drops {
       }
       stepBody(this.world, b, dt);
       if (canPick && d.delay <= 0 && Math.hypot(px - b.x, pz - b.z) < 1.15 && Math.abs(py + 0.8 - b.y) < 1.7) {
-        const left = pickup(d.stack);
+        const left = pickup(d.stack, d.tag);
         if (left <= 0) {
           this.remove(i);
           continue;
@@ -125,6 +127,11 @@ export class Drops {
       }
       d.sprite.position.set(b.x, b.y + 0.24 + Math.sin(this.clock * 3 + i) * 0.05, b.z);
     }
+  }
+
+  /** Remove um item largado pela partida (alguém já o pegou). */
+  removeTag(tag: string): void {
+    for (let i = this.list.length - 1; i >= 0; i--) if (this.list[i].tag === tag) this.remove(i);
   }
 
   /** Quantos itens soltos (de um tipo) existem perto de um ponto, pra mostrar no mapa. */
