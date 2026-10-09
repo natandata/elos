@@ -2,6 +2,9 @@
 
 // Sala ao vivo do "Vista o Herói": mostra a fase que o banco diz e manda os pedidos da jogadora.
 // Nada de regra aqui: o tempo, a ordem do desfile, os votos e a pontuação vêm de dress_room_state.
+import { MegaLounge } from "./MegaLounge";
+import { InviteButton, PodiumPhoto, Reactions } from "./Social";
+import { ApplauseOnMount, RunwayAudio } from "./Sound";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Camarim, type LiveCamarim } from "./Camarim";
@@ -279,7 +282,7 @@ function LiveRoomInner({ code, meId, rpc, watch = false, onSpectators }: { code:
 
   // ------------------------------------------------------------------ camarim (tela cheia)
   if (st.phase === "dressing" && st.me.eligible && live) {
-    return <Camarim key={`live-${code}-${round}`} theme={theme} mode="live" msLeft={left * 1000} draftKey={`vh:live:${code}:${round}`} exitHref="/app/jogos/vestir/sala" live={live} hall={{ code, round, meId, name: byId.get(meId)?.name ?? "Jogadora" }} watching={(st.spectators ?? []).length > 0} />;
+    return <Camarim key={`live-${code}-${round}`} theme={theme} mode="live" msLeft={left * 1000} draftKey={`vh:live:${code}:${round}`} exitHref="/app/jogos/vestir/sala" live={live} hall={{ code, round, meId, name: byId.get(meId)?.name ?? "Jogadora", peers: !st.mega }} watching={(st.spectators ?? []).length > 0} />;
   }
 
   const header = (
@@ -301,6 +304,12 @@ function LiveRoomInner({ code, meId, rpc, watch = false, onSpectators }: { code:
     </div>
   );
 
+  // ------------------------------------------------------------------ Mega: salão de espera até o desfile começar
+  if (st.phase === "lobby" && st.mega && !st.spectator && st.left_ms != null && st.left_ms > 0) {
+    const me = byId.get(meId);
+    return <MegaLounge code={st.code} meId={meId} meName={me?.name ?? "Jogadora"} left={left} online={online.map((p) => ({ id: p.id, name: firstName(p.name).split(" ")[0] }))} onLeave={() => void leave()} />;
+  }
+
   // ------------------------------------------------------------------ lobby e intervalo
   if (st.phase === "lobby" || st.phase === "intermission") {
     const missing = Math.max(0, st.min_players - online.length);
@@ -314,7 +323,7 @@ function LiveRoomInner({ code, meId, rpc, watch = false, onSpectators }: { code:
             <div className="vh-panel mb-4 text-center">
               {st.mega ? (
                 <>
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-200">Todo domingo · 15h</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-200">Toda sexta · 19h</p>
                   <p className="vh-title text-4xl">🎆 Mega Desfile</p>
                 </>
               ) : (
@@ -337,6 +346,7 @@ function LiveRoomInner({ code, meId, rpc, watch = false, onSpectators }: { code:
                   {missing > 0 ? `Falta${missing > 1 ? "m" : ""} ${missing} jogadora${missing > 1 ? "s" : ""} para começar (mínimo ${st.min_players}). Passe o código para as amigas!` : "Começando…"}
                 </p>
               )}
+              {!st.mega && !st.spectator ? <InviteButton code={st.code} /> : null}
             </div>
 
             {tutorial ? (
@@ -471,6 +481,7 @@ function LiveRoomInner({ code, meId, rpc, watch = false, onSpectators }: { code:
     const pct = Math.max(0, Math.min(100, ((left * 1000) / total) * 100));
     return (
       <VhStage>
+        <RunwayAudio />
         {header}
         {offlineBar}
         <div className="vh-cols vh-cols-wide">
@@ -482,7 +493,7 @@ function LiveRoomInner({ code, meId, rpc, watch = false, onSpectators }: { code:
               <RunwayWalk key={`${round}-${cur.id}`} base={baseOf(cur.beauty)} look={lookOf(cur.look)} name={cur.name} scene={theme.scene} pose={cleanPose(cur.pose)} showMs={total}>
                 {st.me.eligible && !mine ? (
                   <div className="vh-starbar" data-done={iVoted(cur.id)}>
-                    <StarPicker value={voted[cur.id] ?? 0} onPick={(n) => void vote(cur.id, n)} disabled={voting || iVoted(cur.id)} />
+                    <StarPicker value={voted[cur.id] ?? 0} onPick={(n) => void vote(cur.id, n)} disabled={voting} />
                   </div>
                 ) : null}
                 <div className="absolute inset-x-0 top-0 z-[4] bg-gradient-to-b from-black/85 to-transparent px-3 pb-8 pt-2 text-center">
@@ -497,6 +508,7 @@ function LiveRoomInner({ code, meId, rpc, watch = false, onSpectators }: { code:
                 </div>
               </RunwayWalk>
             ) : null}
+            {st.me.eligible || st.spectator ? <Reactions code={st.code} round={st.round} meId={meId} /> : null}
             <div className="mx-auto mt-2 h-1.5 max-w-[400px] overflow-hidden rounded-full bg-white/15" aria-hidden>
               <div className="h-full rounded-full bg-amber-300 transition-[width] duration-300" style={{ width: `${pct}%` }} />
             </div>
@@ -512,7 +524,7 @@ function LiveRoomInner({ code, meId, rpc, watch = false, onSpectators }: { code:
                 </>
               ) : cur ? (
                 <p className="text-[12px] font-bold text-purple-100" role="status">
-                  {iVoted(cur.id) ? (voteMsg ?? "Nota registrada! ✨") : (voteMsg ?? "Toque numa estrela, lá embaixo da passarela. Não dá para trocar depois.")}
+                  {iVoted(cur.id) ? (voteMsg ?? "Nota registrada! ✨") : (voteMsg ?? "Toque numa estrela. Dá para mudar a nota até o fim da votação.")}
                 </p>
               ) : null}
             </div>
@@ -556,11 +568,8 @@ function LiveRoomInner({ code, meId, rpc, watch = false, onSpectators }: { code:
                 </div>
                 <div className="min-w-0 flex-1 text-center">
                   <p className="truncate text-sm font-black text-amber-50">{firstName(p.name)}</p>
-                  {iVoted(p.id) ? (
-                    <p className="mt-1 text-xs font-bold text-emerald-300">✓ Nota registrada</p>
-                  ) : (
-                    <StarPicker value={0} onPick={(n) => void vote(p.id, n)} disabled={voting} />
-                  )}
+                  {iVoted(p.id) ? <p className="text-[11px] font-bold text-emerald-300">✓ Nota registrada · toque para mudar</p> : null}
+                  <StarPicker value={voted[p.id] ?? 0} onPick={(n) => void vote(p.id, n)} disabled={voting} />
                 </div>
               </li>
             ))}
@@ -595,6 +604,7 @@ function LiveRoomInner({ code, meId, rpc, watch = false, onSpectators }: { code:
     const myRes = st.results.find((r) => r.id === meId);
     return (
       <VhStage>
+        <ApplauseOnMount />
         {header}
         {offlineBar}
         <p className="vh-title mb-1 text-center text-3xl">Pódio</p>
@@ -612,6 +622,7 @@ function LiveRoomInner({ code, meId, rpc, watch = false, onSpectators }: { code:
                 <div className="vh-podium-step">
                   <span className="text-2xl leading-none">{PLACE[r.place - 1]}</span>
                   <b className="block truncate text-xs">{firstName(p.name).split(" ")[0]}</b>
+                  {p.title ? <i className="block truncate text-[9px] font-bold not-italic text-amber-100">{p.title}</i> : null}
                   <span className="block text-[11px] font-black tabular-nums text-amber-200">{Number(r.score).toFixed(2)}</span>
                   <span className="block text-[10px] font-bold text-amber-100">+{r.tickets} 🎫</span>
                 </div>
@@ -624,6 +635,13 @@ function LiveRoomInner({ code, meId, rpc, watch = false, onSpectators }: { code:
             Você ficou em {myRes.place}º lugar{myRes.avg != null ? ` · média ${Number(myRes.avg).toFixed(1)} ★` : " · sem votos recebidos"}
           </p>
         ) : null}
+        <PodiumPhoto
+          theme={theme.name}
+          entries={top.flatMap((r) => {
+            const p = byId.get(r.id);
+            return p ? [{ id: r.id, name: firstName(p.name), place: r.place, base: baseOf(p.beauty), look: lookOf(p.look), score: Number(r.score) }] : [];
+          })}
+        />
       </VhStage>
     );
   }
@@ -655,7 +673,7 @@ function LiveRoomInner({ code, meId, rpc, watch = false, onSpectators }: { code:
       <Scoreboard st={st} byId={byId} meId={meId} title="Placar da rodada" />
       {st.mega ? (
         <p className="mt-3 text-center text-sm font-black text-amber-100" role="status">
-          O Mega Desfile desta semana terminou. Até domingo que vem! 🎆
+          O Mega Desfile desta semana terminou. Até a próxima sexta!  🎆
         </p>
       ) : (
         <p className="mt-3 text-center text-sm font-black text-amber-100" role="status">

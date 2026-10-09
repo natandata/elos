@@ -181,7 +181,7 @@ export function TutorialGame() {
             </section>
             <section className="vh-panel mb-3">
               <h2 className="vh-h2 mb-2">Missões e Mega Desfile 🎆</h2>
-              <p className="text-sm text-purple-100">Missões do dia e da semana pagam bilhetes (jogar 10 partidas = 30 🎫, por exemplo). Todo domingo às 15h tem o Mega Desfile, com muito mais jogadoras e prêmios em dobro: 🥇 {PLACE_TICKETS[0] * MEGA_MULTIPLIER} 🥈 {PLACE_TICKETS[1] * MEGA_MULTIPLIER} 🥉 {PLACE_TICKETS[2] * MEGA_MULTIPLIER}.</p>
+              <p className="text-sm text-purple-100">Missões do dia e da semana pagam bilhetes (jogar 10 partidas = 30 🎫, por exemplo). Toda sexta às 19h tem o Mega Desfile, com muito mais jogadoras e prêmios em dobro: 🥇 {PLACE_TICKETS[0] * MEGA_MULTIPLIER} 🥈 {PLACE_TICKETS[1] * MEGA_MULTIPLIER} 🥉 {PLACE_TICKETS[2] * MEGA_MULTIPLIER}.</p>
             </section>
           </div>
           {reward === null ? (

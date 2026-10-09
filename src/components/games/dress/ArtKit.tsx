@@ -25,7 +25,7 @@ export const F = (c: string) => `url(#${gid(c)})`;
 export function Grads({ colors }: { colors: string[] }): ReactElement {
   return (
     <defs>
-      {colors.map((c) => (
+      {[...new Set(colors)].map((c) => (
         <linearGradient key={c} id={gid(c)} x1="0.1" y1="0" x2="0.9" y2="1">
           <stop offset="0" stopColor={light(c)} />
           <stop offset="0.5" stopColor={c} />

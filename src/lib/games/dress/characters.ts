@@ -3,15 +3,19 @@
 
 export type DollBase = {
   skin: string;
-  hair: "short" | "long" | "braids" | "bald" | "bob" | "ponytail" | "bun" | "afro" | "bangs" | "pigtails";
+  hair: "short" | "long" | "braids" | "bald" | "bob" | "ponytail" | "bun" | "afro" | "bangs" | "pigtails" | "wavy" | "curly" | "twinbuns" | "sidebraid";
   hairColor: string;
   beard: "none" | "short" | "long";
   female?: boolean;
   /** cor do batom e da sombra (personalização da jogadora) */
   lip?: string;
   shadow?: string;
+  body?: "esguia" | "media" | "cheia";
+  nails?: string;
   /** maquiagem completa da jogadora; sem isto o rosto fica como sempre foi (personagens da história) */
   face?: {
+    faceShape?: "oval" | "round" | "heart" | "square";
+    eyeShape?: "amendoado" | "redondo" | "gatinho" | "caidos";
     lipStyle: "fosco" | "gloss" | "degrade";
     blush: string | null;
     eye: string;

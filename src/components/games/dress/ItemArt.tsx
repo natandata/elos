@@ -1,29 +1,41 @@
 import type { ReactElement } from "react";
-import { ITEMS } from "@/lib/games/dress/items";
+import { ITEM_BY_ID } from "@/lib/games/dress/items";
 import { BACK_FAMILY, BODY_FAMILY } from "./BodyArt";
 import { HAND_ART } from "./HandArt";
 import { HEAD_ART } from "./HeadArt";
+import { EARS_ART, NECK_ART, WRIST_ART } from "./JewelArt";
+import { MORE_BACK, MORE_MANTLE, MORE_SHOES, MORE_TUNIC } from "./MoreBodyArt";
+import { MORE_HAND } from "./MoreHandArt";
+import { MORE_HEAD } from "./MoreHeadArt";
+import type { Params } from "@/lib/games/dress/items";
 
-// Junta as famílias de desenho ao catálogo: cada peça (id) sabe desenhar a si mesma com as suas cores.
+// Junta as famílias de desenho ao catálogo: cada peça (id) sabe desenhar a si mesma com as suas cores e o seu tamanho.
 
-const family = (slot: string, fam: string) => {
-  if (slot === "head") return HEAD_ART[fam];
-  if (slot === "hand") return HAND_ART[fam];
-  return BODY_FAMILY[`${slot}:${fam}`];
+type Draw = (p: Params) => ReactElement;
+const MORE_BODY: Record<string, Draw> = {
+  ...Object.fromEntries(Object.entries(MORE_TUNIC).map(([k, v]) => [`tunic:${k}`, v])),
+  ...Object.fromEntries(Object.entries(MORE_MANTLE).map(([k, v]) => [`mantle:${k}`, v])),
+  ...Object.fromEntries(Object.entries(MORE_SHOES).map(([k, v]) => [`shoes:${k}`, v])),
 };
 
-const front: Record<string, () => ReactElement> = {};
-const back: Record<string, () => ReactElement> = {};
+const family = (slot: string, fam: string): Draw | undefined => {
+  if (slot === "head") return HEAD_ART[fam] ?? MORE_HEAD[fam];
+  if (slot === "hand") return HAND_ART[fam] ?? MORE_HAND[fam];
+  if (slot === "ears") return EARS_ART[fam];
+  if (slot === "neck") return NECK_ART[fam];
+  if (slot === "wrist") return WRIST_ART[fam];
+  return BODY_FAMILY[`${slot}:${fam}`] ?? MORE_BODY[`${slot}:${fam}`];
+};
 
-for (const it of ITEMS) {
+/** Desenha a peça (ou a parte dela que fica atrás do corpo, para capas e asas). */
+export function drawItem(id: string | undefined, back = false): ReactElement | null {
+  if (!id) return null;
+  const it = ITEM_BY_ID.get(id);
+  if (!it) return null;
+  if (back) {
+    const b = it.slot === "mantle" ? (BACK_FAMILY[it.family] ?? MORE_BACK[it.family]) : undefined;
+    return b ? b(it.p) : null;
+  }
   const draw = family(it.slot, it.family);
-  front[it.id] = () => (draw ? draw(it.p) : <g />);
-  const b = it.slot === "mantle" ? BACK_FAMILY[it.family] : undefined;
-  if (b) back[it.id] = () => b(it.p);
+  return draw ? draw(it.p) : <g />;
 }
-
-/** Todas as peças (frente). */
-export const ITEM_ART = front;
-
-/** Capas que ficam atrás do corpo. */
-export const ITEM_BACK = back;

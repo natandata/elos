@@ -1,7 +1,7 @@
 import type { DollBase } from "@/lib/games/dress/characters";
 import { ITEM_BY_ID, type Look, type Slot } from "@/lib/games/dress/items";
 import { DRESS, F, Grads, SLEEVE_L, SLEEVE_R, TORSO, dark, edge, light } from "./ArtKit";
-import { ITEM_ART, ITEM_BACK } from "./ItemArt";
+import { drawItem } from "./ItemArt";
 
 /** Área do boneco que cada espaço ocupa (pra mostrar só a peça em miniatura). */
 export const SLOT_VIEWBOX: Record<Slot, string> = {
@@ -10,9 +10,20 @@ export const SLOT_VIEWBOX: Record<Slot, string> = {
   mantle: "22 96 156 236",
   shoes: "56 296 88 56",
   hand: "88 80 112 200",
+  ears: "52 46 96 56",
+  neck: "64 82 72 92",
+  wrist: "30 172 140 52",
 };
 
 const FULL = "0 0 200 360";
+const FACE_PATH: Record<string, string> = {
+  oval: "M76 58 Q76 34 100 34 Q124 34 124 58 Q124 80 108 88 Q100 92 92 88 Q76 80 76 58 Z",
+  round: "M74 60 Q74 34 100 34 Q126 34 126 60 Q126 82 110 89 Q100 92 90 89 Q74 82 74 60 Z",
+  heart: "M75 56 Q75 34 100 34 Q125 34 125 56 Q124 76 108 90 Q100 94 92 90 Q76 76 75 56 Z",
+  square: "M77 58 Q77 34 100 34 Q123 34 123 58 L123 76 Q120 87 108 89 Q100 91 92 89 Q80 87 77 76 Z",
+};
+// formato dos olhos: [altura do arco de cima, altura do arco de baixo, quanto sobe o canto de fora]
+const EYE_SHAPE: Record<string, [number, number, number]> = { amendoado: [53.5, 68.5, 0], redondo: [51.5, 71, 0], gatinho: [54, 67.5, 2.2], caidos: [54, 69, -2] };
 
 // As peças de cabeça e de mão foram desenhadas numa escala maior: aqui elas encaixam na boneca esguia.
 const HEAD_T = "translate(100 60) scale(0.6) translate(-100 -98)";
@@ -153,7 +164,38 @@ function BackHair({ base, uid }: { base: DollBase; uid: string }) {
       </g>
     );
   }
-  if (base.hair !== "long" && base.hair !== "braids" && base.hair !== "bangs") return null;
+  if (base.hair === "curly") {
+    return (
+      <g {...strand}>
+        <path d="M100 8 Q122 6 130 22 Q150 26 148 50 Q158 68 146 88 Q152 112 132 120 L68 120 Q48 112 54 88 Q42 68 52 50 Q50 26 70 22 Q78 6 100 8 Z" />
+      </g>
+    );
+  }
+  if (base.hair === "twinbuns") {
+    return (
+      <g>
+        {[-1, 1].map((sx) => (
+          <g key={sx}>
+            <circle cx={100 + sx * 28} cy="22" r="13" {...strand} />
+            <path d={`M${100 + sx * 22} 18 Q${100 + sx * 28} 11 ${100 + sx * 34} 18`} fill="none" stroke={light(c, 0.4)} strokeWidth="1.3" opacity="0.7" />
+            <path d={`M${100 + sx * 18} 32 L${100 + sx * 36} 30`} stroke="#d9488f" strokeWidth="3" strokeLinecap="round" />
+          </g>
+        ))}
+        <path d="M72 50 Q70 28 100 26 Q130 28 128 50 Q132 76 124 94 L76 94 Q68 76 72 50 Z" {...strand} />
+      </g>
+    );
+  }
+  if (base.hair === "wavy") {
+    return (
+      <g>
+        <path d="M68 52 Q58 26 100 24 Q142 26 132 52 Q152 92 140 132 Q150 152 132 170 Q118 154 100 174 Q82 154 68 170 Q50 152 60 132 Q48 92 68 52 Z" {...strand} />
+        <g fill="none" strokeLinecap="round" stroke={light(c, 0.4)} strokeWidth="1.4" opacity="0.65">
+          <path d="M72 70 Q64 92 74 112 Q66 132 76 150 M128 70 Q136 92 126 112 Q134 132 124 150" />
+        </g>
+      </g>
+    );
+  }
+  if (base.hair !== "long" && base.hair !== "braids" && base.hair !== "bangs" && base.hair !== "sidebraid") return null;
   return (
     <g>
       <path d="M72 50 Q66 26 100 24 Q134 26 128 50 Q142 92 134 132 Q144 172 126 212 Q116 180 118 150 L82 150 Q84 180 74 212 Q56 172 66 132 Q58 92 72 50 Z" fill={F(c)} stroke={dark(c, 0.55)} strokeWidth="1.3" strokeLinejoin="round" />
@@ -171,7 +213,7 @@ function BackHair({ base, uid }: { base: DollBase; uid: string }) {
 function FrontHair({ base, uid }: { base: DollBase; uid: string }) {
   const c = base.hairColor;
   if (base.hair === "bald") return null;
-  const long = base.hair === "long" || base.hair === "braids" || base.hair === "bangs";
+  const long = base.hair === "long" || base.hair === "braids" || base.hair === "bangs" || base.hair === "wavy" || base.hair === "sidebraid";
   return (
     <g>
       <path d="M73 64 Q68 30 100 28 Q132 30 127 64 Q124 44 108 38 Q100 52 86 54 Q76 58 73 64 Z" fill={F(c)} stroke={dark(c, 0.55)} strokeWidth="1.2" strokeLinejoin="round" />
@@ -187,6 +229,19 @@ function FrontHair({ base, uid }: { base: DollBase; uid: string }) {
         <g>
           <path d="M73 64 Q64 90 68 112 Q82 108 82 92 Q80 80 81 72 Z" fill={F(c)} stroke={dark(c, 0.55)} strokeWidth="1.1" strokeLinejoin="round" />
           <path d="M127 64 Q136 90 132 112 Q118 108 118 92 Q120 80 119 72 Z" fill={F(c)} stroke={dark(c, 0.55)} strokeWidth="1.1" strokeLinejoin="round" />
+        </g>
+      ) : null}
+      {base.hair === "curly" ? (
+        <g fill="none" stroke={dark(c, 0.35)} strokeWidth="1.4" opacity="0.6" strokeLinecap="round">
+          <path d="M78 34 q4 -4 8 0 M98 28 q4 -4 8 0 M118 34 q4 -4 8 0 M64 52 q4 -4 8 0 M128 52 q4 -4 8 0 M58 80 q4 -4 8 0 M134 80 q4 -4 8 0 M64 104 q4 -4 8 0 M128 104 q4 -4 8 0" />
+        </g>
+      ) : null}
+      {base.hair === "sidebraid" ? (
+        <g>
+          <path d="M126 70 Q150 110 138 150 Q132 176 142 204" stroke={dark(c, 0.55)} strokeWidth="13" strokeLinecap="round" fill="none" />
+          <path d="M126 70 Q150 110 138 150 Q132 176 142 204" stroke={c} strokeWidth="10" strokeLinecap="round" fill="none" />
+          <path d="M126 70 Q150 110 138 150 Q132 176 142 204" stroke={light(c, 0.5)} strokeWidth="1.8" strokeDasharray="2 5" strokeLinecap="round" fill="none" />
+          <path d="M142 202 l0 9" stroke="#caa56a" strokeWidth="6" strokeLinecap="round" />
         </g>
       ) : null}
       {base.hair === "afro" ? (
@@ -255,6 +310,7 @@ export function PaperDoll({
   className = "",
   title,
   step = 0,
+  back = false,
 }: {
   base: DollBase;
   look?: Look;
@@ -264,28 +320,37 @@ export function PaperDoll({
   title?: string;
   /** passo de caminhada (-1 a 1): levanta e balança uma perna e depois a outra; 0 = parada */
   step?: number;
+  /** vista de costas (a modelo andando para longe da câmera) */
+  back?: boolean;
 }) {
   const wrap = (id: string | undefined, back = false) => {
     if (!id) return null;
-    const Art = (back ? ITEM_BACK : ITEM_ART)[id];
-    if (!Art) return null;
-    const kind = ITEM_BY_ID.get(id)?.slot;
+    const art = drawItem(id, back);
+    if (!art) return null;
+    const it = ITEM_BY_ID.get(id);
+    const kind = it?.slot;
+    const size = it?.p.size;
+    // cabelo volumoso (black power, cacheado, coques): a peça de cabeça cresce para cobrir o cabelo em vez de ficar "em cima"
+    const volume = kind === "head" && (base.hair === "afro" || base.hair === "curly") ? 1.22 : kind === "head" && base.hair === "twinbuns" ? 1.1 : 1;
+    const k = (size === "p" ? 0.8 : size === "g" ? 1.25 : 1) * volume;
+    let node = art;
+    // cabeça e mão: o tamanho muda a escala da peça em volta do ponto onde ela encaixa
+    if (kind === "head" && k !== 1) node = <g transform={`translate(100 98) scale(${k}) translate(-100 -98)`}>{art}</g>;
+    if (kind === "hand" && k !== 1) node = <g transform={`translate(160 232) scale(${k}) translate(-160 -232)`}>{art}</g>;
+    // roupa e manto: o comprimento corta a barra (curto / midi)
+    if ((kind === "tunic" || kind === "mantle") && (size === "c" || size === "m")) node = <g clipPath={`url(#len-${size}-${uid})`}>{art}</g>;
     const t = kind === "head" ? HEAD_T : kind === "hand" ? HAND_T : undefined;
-    return t ? (
-      <g transform={t}>
-        <Art />
-      </g>
-    ) : (
-      <Art />
-    );
+    return t ? <g transform={t}>{node}</g> : node;
   };
   const show = (slot: Slot) => !only || only === slot;
   const skin = base.skin;
   const shade = dark(skin, 0.42);
   const fc = base.face;
   const eyeC = fc?.eye ?? "#6a3f1c";
-  const uid = `${skin.slice(1)}${base.hairColor.slice(1)}${(base.lip ?? "").slice(1)}${eyeC.slice(1)}${only ?? "f"}${step ? (step > 0 ? "a" : "b") : ""}`;
+  const uid = `${skin.slice(1)}${base.hairColor.slice(1)}${(base.lip ?? "").slice(1)}${eyeC.slice(1)}${only ?? "f"}${back ? "k" : ""}${step ? (step > 0 ? "a" : "b") : ""}`;
   const walking = !only && step !== 0;
+  const bk = only ? 1 : base.body === "esguia" ? 0.93 : base.body === "cheia" ? 1.1 : 1;
+  const bodyT = bk === 1 ? undefined : `translate(100 0) scale(${bk} 1) translate(-100 0)`;
   const legT = (side: -1 | 1): string | undefined => {
     const sl = side === -1 ? step : -step;
     const lift = 8 * Math.max(0, sl);
@@ -308,6 +373,8 @@ export function PaperDoll({
       <Grads colors={[skin, base.hairColor]} />
       <SoftDefs uid={uid} />
       <defs>
+        <clipPath id={`len-c-${uid}`}><rect x="-20" y="-20" width="240" height="262" /></clipPath>
+        <clipPath id={`len-m-${uid}`}><rect x="-20" y="-20" width="240" height="284" /></clipPath>
         <radialGradient id={`face-${uid}`} cx="0.4" cy="0.34" r="0.8">
           <stop offset="0" stopColor={light(skin, 0.34)} />
           <stop offset="0.6" stopColor={skin} />
@@ -342,8 +409,9 @@ export function PaperDoll({
       ) : null}
       {!only ? <ellipse cx="100" cy="344" rx="50" ry="7" fill="#000" opacity="0.2" filter={`url(#bl2-${uid})`} /> : null}
 
-      {faceOn ? <BackHair base={base} uid={uid} /> : null}
-      {show("mantle") ? wrap(look.mantle, true) : null}
+      {faceOn && !back ? <BackHair base={base} uid={uid} /> : null}
+      <g transform={bodyT}>
+      {show("mantle") && !back ? wrap(look.mantle, true) : null}
 
       {/* pernas, pés e braços (as miniaturas de peça não desenham o corpo: só o item) */}
       {only ? null : (
@@ -401,20 +469,42 @@ export function PaperDoll({
           </g>
         </g>
       ) : null}
-      {show("mantle") ? wrap(look.mantle) : null}
+      {show("mantle") ? (back ? (drawItem(look.mantle, true) ? wrap(look.mantle, true) : wrap(look.mantle)) : wrap(look.mantle)) : null}
+      {show("neck") && !back ? wrap(look.neck) : null}
       {show("hand") ? wrap(look.hand) : null}
+      {show("wrist") ? wrap(look.wrist) : null}
 
       {/* mãos */}
       {only ? null : (
         <>
           <ellipse cx="55" cy="208" rx="6.5" ry="8" fill={F(skin)} stroke={shade} strokeWidth="1.3" />
           <ellipse cx="145" cy="208" rx="6.5" ry="8" fill={F(skin)} stroke={shade} strokeWidth="1.3" />
+          {base.nails ? (
+            <>
+              {[-3.4, -1.1, 1.1, 3.4].map((dx) => (
+                <g key={dx}>
+                  <ellipse cx={55 + dx} cy="214.6" rx="1.2" ry="1.7" fill={base.nails} />
+                  <ellipse cx={145 + dx} cy="214.6" rx="1.2" ry="1.7" fill={base.nails} />
+                </g>
+              ))}
+            </>
+          ) : null}
         </>
       )}
 
-      {faceOn ? (
+      </g>
+
+      {faceOn && back ? (
         <>
-      <path d="M76 58 Q76 34 100 34 Q124 34 124 58 Q124 80 108 88 Q100 92 92 88 Q76 80 76 58 Z" fill={`url(#face-${uid})`} stroke={shade} strokeWidth="1.3" strokeLinejoin="round" />
+          <path d="M78 60 Q78 36 100 36 Q122 36 122 60 Q122 82 108 90 Q100 93 92 90 Q78 82 78 60 Z" fill={skin} stroke={shade} strokeWidth="1.2" />
+          <path d="M73 62 Q68 28 100 27 Q132 28 127 62 Q128 82 112 92 Q100 96 88 92 Q72 82 73 62 Z" fill={base.hairColor} stroke={hairDark} strokeWidth="1.3" strokeLinejoin="round" />
+          <BackHair base={base} uid={uid} />
+          <path d="M86 40 Q100 34 114 40 M82 52 Q100 44 118 52" fill="none" stroke={light(base.hairColor, 0.35)} strokeWidth="1.6" strokeLinecap="round" opacity="0.6" />
+        </>
+      ) : null}
+      {faceOn && !back ? (
+        <>
+      <path d={FACE_PATH[fc?.faceShape ?? "oval"]} fill={`url(#face-${uid})`} stroke={shade} strokeWidth="1.3" strokeLinejoin="round" />
       <circle cx="75.5" cy="64" r="3.6" fill={skin} stroke={shade} strokeWidth="1" />
       <circle cx="124.5" cy="64" r="3.6" fill={skin} stroke={shade} strokeWidth="1" />
       <FrontHair base={base} uid={uid} />
@@ -431,7 +521,9 @@ export function PaperDoll({
       {/* olhos */}
       {[89, 111].map((x, i) => {
         const s = i === 0 ? -1 : 1; // lado de fora
-        const lid = `M${x - 9} 62.5 Q${x} 53.5 ${x + 9} 62.5 Q${x} 68.5 ${x - 9} 62.5 Z`;
+        const [eTop, eBot, eLift] = EYE_SHAPE[fc?.eyeShape ?? "amendoado"];
+        const yo = 62.5 - eLift; // canto de fora
+        const lid = `M${x - 9} ${s === -1 ? yo : 62.5} Q${x} ${eTop} ${x + 9} ${s === 1 ? yo : 62.5} Q${x} ${eBot} ${x - 9} ${s === -1 ? yo : 62.5} Z`;
         return (
           <g key={x}>
             <defs>
@@ -476,6 +568,7 @@ export function PaperDoll({
       ) : null}
 
       {/* peça de cabeça */}
+      {show("ears") && !back ? wrap(look.ears) : null}
       {show("head") ? wrap(look.head) : null}
     </svg>
   );

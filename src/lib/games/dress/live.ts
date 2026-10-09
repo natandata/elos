@@ -7,6 +7,8 @@ export type Phase = "lobby" | "intermission" | "theme" | "dressing" | "prep" | "
 export type RoomPlayer = {
   id: string;
   name: string;
+  /** título (troféu) que ela escolheu */
+  title?: string | null;
   /** está na rodada em andamento (quem entra no meio assiste e joga a próxima) */
   eligible: boolean;
   ready: boolean;
@@ -34,7 +36,7 @@ export type RoomState = {
   idx: number;
   min_players: number;
   max_players: number;
-  /** Mega Desfile (domingo 15h): uma rodada com muito mais jogadoras */
+  /** Mega Desfile (sexta 19h): uma rodada com muito mais jogadoras */
   mega?: boolean;
   event_at?: string | null;
   /** quem consulta está só assistindo (plateia) */

@@ -14,7 +14,7 @@ function parts(ms: number) {
 }
 const two = (n: number) => String(n).padStart(2, "0");
 
-/** Mega Desfile: todo domingo às 15h, com muito mais de 10 jogadoras. A sala abre 30 minutos antes. */
+/** Mega Desfile: toda sexta às 19h, com muito mais de 10 jogadoras. O salão de espera abre 30 minutos antes. */
 export function MegaCard() {
   const router = useRouter();
   const sb = useMemo(() => createClient(), []);
@@ -87,7 +87,7 @@ export function MegaCard() {
 
   return (
     <section className="vh-panel vh-mega mb-5">
-      <p className="text-[10px] font-black uppercase tracking-[0.25em] text-amber-200">Todo domingo · 15h</p>
+      <p className="text-[10px] font-black uppercase tracking-[0.25em] text-amber-200">Toda sexta · 19h</p>
       <h2 className="vh-title text-3xl">🎆 Mega Desfile</h2>
       <p className="mt-1 text-sm text-purple-100">Todas as jogadoras no mesmo desfile, com muito mais de 10 modelos! Prêmios em dobro para o pódio:</p>
       <p className="mt-2 text-center text-sm font-black text-amber-100">
@@ -96,7 +96,7 @@ export function MegaCard() {
       {isOpen ? (
         <>
           <p className="mt-3 text-center text-sm font-bold text-emerald-300">
-            {now < ev ? `A sala está aberta! Começa em ${two(left.m)}:${two(left.s)}` : "O desfile já começou — entre para assistir e votar!"}
+            {now < ev ? `O salão de espera está aberto! Começa em ${two(left.m)}:${two(left.s)}` : "O desfile já começou — entre para assistir e votar!"}
             {info.players > 0 ? ` · ${info.players} na sala` : ""}
           </p>
           <button type="button" className="vh-btn mt-3" disabled={busy} onClick={() => void join()}>
@@ -123,7 +123,7 @@ export function MegaCard() {
               </div>
             ))}
           </div>
-          <p className="mt-2 text-center text-[11px] font-bold text-purple-200">Próximo: {when}. A sala abre 30 minutos antes.</p>
+          <p className="mt-2 text-center text-[11px] font-bold text-purple-200">Próximo: {when}. O salão de espera abre 30 minutos antes.</p>
         </>
       )}
       {error ? (

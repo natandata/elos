@@ -62,11 +62,4 @@ export function SparkleBurst({ n = 12 }: { n?: number }) {
   );
 }
 
-/** Raridade da peça: lendária (ouro, joias, realeza), épica (metais e tecidos nobres) ou comum. */
-const LEGEND = new Set(["crown", "diadem", "tiara", "royal", "jeweled", "scepter", "embroidered"]);
-const EPIC = new Set(["helmet", "armor", "necklace", "cape", "caped", "metal", "laurel", "flowers", "harp", "trumpet", "alabaster", "lamp", "sword"]);
-export type Rarity = "common" | "epic" | "legend";
-export function rarityOf(family: string): Rarity {
-  return LEGEND.has(family) ? "legend" : EPIC.has(family) ? "epic" : "common";
-}
-export const RARITY_ICON: Record<Rarity, string> = { common: "", epic: "💜", legend: "⭐" };
+export { RARITY_ICON, priceOf, rarityOf, type Rarity } from "@/lib/games/dress/rarity";

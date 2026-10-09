@@ -1,7 +1,9 @@
 // Catálogo de peças do "Vista o Herói" (client-safe): famílias de desenhos com variações de cor e estilo.
 // O desenho de cada família está em components/games/dress (HeadArt, BodyArt, HandArt).
 
-export type Slot = "head" | "tunic" | "mantle" | "shoes" | "hand";
+export type Slot = "head" | "tunic" | "mantle" | "shoes" | "hand" | "ears" | "neck" | "wrist";
+/** Os 5 espaços originais (são os únicos que a nota do júri antigo conhece). */
+export type ScoredSlot = "head" | "tunic" | "mantle" | "shoes" | "hand";
 
 export const SLOTS: { key: Slot; label: string; emoji: string }[] = [
   { key: "head", label: "Cabeça", emoji: "👑" },
@@ -9,10 +11,14 @@ export const SLOTS: { key: Slot; label: string; emoji: string }[] = [
   { key: "mantle", label: "Manto e enfeites", emoji: "🧣" },
   { key: "shoes", label: "Calçado", emoji: "👡" },
   { key: "hand", label: "Na mão", emoji: "🪄" },
+  { key: "ears", label: "Brincos", emoji: "💎" },
+  { key: "neck", label: "Colares", emoji: "📿" },
+  { key: "wrist", label: "Pulseiras", emoji: "⌚" },
 ];
+export const SCORED_SLOTS: ScoredSlot[] = ["head", "tunic", "mantle", "shoes", "hand"];
 
 /** Parâmetros de cor de um desenho: c = principal, c2 = secundária (pedra, detalhe, borda), c3 = terceira. */
-export type Params = { c: string; c2?: string; c3?: string };
+export type Params = { c: string; c2?: string; c3?: string; /** tamanho: p/g (pequeno/grande) ou c/m (comprimento curto/midi) */ size?: string };
 
 export type DressItem = {
   id: string;
@@ -57,6 +63,47 @@ export const COLORS = {
   bronze: col("#b8832f", "bronze"),
   mostarda: col("#c9a227", "mostarda"),
   bordo: col("#6b1f2e", "bordô"),
+  pessego: col("#f6b79a", "pêssego"),
+  coral: col("#f0836a", "coral"),
+  salmao: col("#f4a08a", "salmão"),
+  fucsia: col("#d6336c", "fúcsia"),
+  magenta: col("#b5179e", "magenta"),
+  lavanda: col("#c7b8ea", "lavanda"),
+  malva: col("#b58fb0", "malva"),
+  indigo: col("#3f3d99", "índigo"),
+  cobalto: col("#1f56c4", "azul-cobalto"),
+  ceu: col("#a8d8f0", "azul-céu"),
+  ciano: col("#22b8cf", "ciano"),
+  aqua: col("#7fe0d4", "água-marinha"),
+  menta: col("#a7e8c9", "menta"),
+  limao: col("#d4e157", "limão"),
+  lima: col("#9acd32", "verde-lima"),
+  esmeralda: col("#12a05c", "esmeralda"),
+  jade: col("#2d9d78", "jade"),
+  floresta: col("#1f5c3a", "verde-floresta"),
+  champanhe: col("#ead7a7", "champanhe"),
+  nude: col("#e3bfa0", "nude"),
+  caramelo: col("#b9772f", "caramelo"),
+  chocolate: col("#4a2c18", "chocolate"),
+  vinho: col("#5a1230", "vinho"),
+  grafite: col("#3a3f48", "grafite"),
+  rose: col("#e0a18f", "ouro rosé"),
+  cobre: col("#b4602d", "cobre"),
+  perola: col("#f2eee6", "pérola"),
+  marfim: col("#fffdf4", "marfim"),
+  amarelo: col("#f4d35e", "amarelo"),
+  girassol: col("#f7b500", "girassol"),
+  abobora: col("#e8731a", "abóbora"),
+  ferrugem: col("#9c4a2a", "ferrugem"),
+  azulBebe: col("#bfe0ff", "azul-bebê"),
+  rosaBebe: col("#fbd1e0", "rosa-bebê"),
+  lilasBebe: col("#e1d3f5", "lilás-bebê"),
+  verdeAgua: col("#8fd3c0", "verde-água"),
+  ameixa: col("#6a2f5a", "ameixa"),
+  petroleo: col("#1d5a66", "azul-petróleo"),
+  goiaba: col("#e56b84", "goiaba"),
+  uva: col("#5e3a8c", "uva"),
+  oceano: col("#1c6ea4", "azul-oceano"),
 } as const;
 export type ColorKey = keyof typeof COLORS;
 
@@ -65,8 +112,11 @@ type Variant = { id?: string; label: string; p: Params };
 const items: DressItem[] = [];
 
 /** Uma família com uma peça por cor. `gender` concorda o nome da cor com o da peça. */
-function byColor(slot: Slot, family: string, base: string, gender: "m" | "f", keys: ColorKey[], opts: { ids?: Partial<Record<ColorKey, string>>; p2?: (k: ColorKey) => Partial<Params> } = {}) {
-  for (const k of keys) {
+const ALL_COLORS = Object.keys(COLORS) as ColorKey[];
+/** Uma família com uma peça por cor: as listadas primeiro (a ordem do armário) e, a menos que `only`, todas as outras do catálogo. */
+function byColor(slot: Slot, family: string, base: string, gender: "m" | "f", keys: ColorKey[], opts: { ids?: Partial<Record<ColorKey, string>>; p2?: (k: ColorKey) => Partial<Params>; only?: boolean } = {}) {
+  const list = opts.only ? keys : [...keys, ...ALL_COLORS.filter((k) => !keys.includes(k))];
+  for (const k of list) {
     const c = COLORS[k];
     const extra = opts.p2?.(k) ?? {};
     items.push({ id: opts.ids?.[k] ?? `${family}__${k}`, slot, name: `${base} ${gender === "f" ? c.f : c.m}`, base, family, p: { c: c.hex, ...extra } });
@@ -338,10 +388,185 @@ byColor("hand", "basket", "Cesta", "f", ["marrom", "areia", "ocre", "terracota"]
 byColor("hand", "bread", "Pães", "m", ["areia", "ocre"]);
 byColor("hand", "apple", "Maçã", "f", ["vermelho", "verde"]);
 
+
+// ============================================================ MUITO MAIS OPÇÕES
+const METALS: [string, string, string][] = [
+  ["ouro", "#f5c518", "de ouro"],
+  ["prata", "#c9ced6", "de prata"],
+  ["bronze", "#b8832f", "de bronze"],
+  ["rose", "#e0a18f", "de ouro rosé"],
+  ["cobre", "#b4602d", "de cobre"],
+];
+const GEMS: [string, string, string][] = [
+  ["rubi", "#e5484d", "rubi"],
+  ["safira", "#3b82f6", "safira"],
+  ["esmeralda", "#2fbf71", "esmeralda"],
+  ["ametista", "#a855f7", "ametista"],
+  ["topazio", "#f59e0b", "topázio"],
+  ["diamante", "#e8f4ff", "diamante"],
+  ["turquesa", "#2aa7a0", "turquesa"],
+  ["quartzo", "#f5a3c7", "quartzo-rosa"],
+  ["citrino", "#f4d35e", "citrino"],
+  ["opala", "#cfe0f5", "opala"],
+];
+/** Joias: toda combinação de metal e pedra (as combinações que já existiam ficam como estavam). */
+function jewels(slot: Slot, family: string, base: string, skip: string[] = []) {
+  for (const [mk, mc, ml] of METALS)
+    for (const [gk, gc, gl] of GEMS) {
+      if (skip.includes(`${mk}:${gk}`)) continue;
+      items.push({ id: `${family}__${mk}_${gk}`, slot, name: `${base} ${ml} com ${gl}`, base, family, p: { c: mc, c2: gc } });
+    }
+}
+const EXISTING = ["ouro:rubi", "ouro:safira", "ouro:esmeralda", "prata:rubi", "prata:safira", "bronze:esmeralda", "prata:ametista"];
+jewels("head", "crown", "Coroa", EXISTING);
+jewels("head", "diadem", "Diadema", [...EXISTING, "bronze:topazio"]);
+jewels("mantle", "necklace", "Colar", EXISTING);
+jewels("hand", "scepter", "Cetro", EXISTING);
+jewels("shoes", "jeweled", "Sandálias de joias", EXISTING);
+const METAL_ONLY: ColorKey[] = ["dourado", "prata", "bronze", "rose", "cobre", "perola"];
+
+type ByColorOpts = { ids?: Partial<Record<ColorKey, string>>; p2?: (k: ColorKey) => Partial<Params>; only?: boolean };
+const T = (family: string, base: string, g: "m" | "f", keys: ColorKey[], opts: ByColorOpts = {}) => byColor("tunic", family, base, g, keys, opts);
+const TOP12: ColorKey[] = ["rosa", "azul", "vermelho", "branco", "preto", "lilas", "verde", "creme", "turquesa", "carmim", "marinho", "rosaClaro"];
+// ---- roupas
+T("gown", "Vestido de baile", "m", ["vermelho", "rosa", "azul", "roxo", "branco", "preto", "dourado", "lilas", "turquesa", "verde", "carmim", "marinho"]);
+T("mermaid", "Vestido sereia", "m", ["turquesa", "preto", "vermelho", "dourado", "prata", "azul", "rosa", "roxo", "branco", "verde", "carmim", "marinho"]);
+T("mini", "Vestido curto", "m", TOP12);
+T("pencil", "Vestido justo", "m", ["preto", "vermelho", "marinho", "branco", "cinza", "carmim", "verde", "rosa", "creme", "lilas", "azul", "marrom"]);
+T("sleeveless", "Vestido sem manga", "m", TOP12);
+T("longsleeve", "Vestido manga longa", "m", ["creme", "branco", "vermelho", "azul", "verde", "marrom", "preto", "lilas", "rosa", "cinza", "marinho", "bordo"]);
+T("puff", "Vestido manga bufante", "m", ["rosaClaro", "branco", "lilas", "azulClaro", "creme", "rosa", "verde", "amarelo", "vermelho", "turquesa", "lavanda", "pessego"]);
+T("twopiece", "Conjunto de saia", "m", TOP12);
+T("pants", "Conjunto de calça", "m", ["branco", "preto", "creme", "azul", "rosa", "vermelho", "verde", "lilas", "marrom", "marinho", "turquesa", "cinza"]);
+T("jumpsuit", "Macacão", "m", ["preto", "branco", "vermelho", "azul", "rosa", "verde", "creme", "lilas", "marinho", "turquesa", "carmim", "marrom"]);
+T("toga", "Vestido de um ombro só", "m", ["branco", "creme", "dourado", "azul", "vermelho", "roxo", "rosa", "verde", "preto", "turquesa", "lilas", "carmim"]);
+T("kaftan", "Cafetã", "m", ["branco", "turquesa", "creme", "rosa", "azul", "vermelho", "verde", "roxo", "ocre", "lilas", "terracota", "marinho"]);
+T("ruffle", "Vestido de babados", "m", TOP12);
+T("wrap", "Vestido envelope", "m", ["vermelho", "verde", "azul", "rosa", "preto", "creme", "lilas", "turquesa", "carmim", "marinho", "branco", "terracota"]);
+T("flower", "Vestido florido", "m", ["branco", "creme", "azulClaro", "rosaClaro", "verde", "amarelo", "lilas", "azul", "vermelho", "preto", "turquesa", "pessego"]);
+T("polka", "Vestido de bolinhas", "m", ["vermelho", "azul", "preto", "rosa", "verde", "creme", "marinho", "lilas", "turquesa", "carmim", "amarelo", "branco"]);
+T("plaid", "Vestido xadrez", "m", ["vermelho", "azul", "verde", "preto", "marrom", "rosa", "marinho", "creme", "lilas", "carmim", "cinza", "turquesa"]);
+
+// ---- cabeça
+const Hd = (family: string, base: string, g: "m" | "f", keys: ColorKey[], opts: ByColorOpts = {}) => byColor("head", family, base, g, keys, opts);
+Hd("bow", "Laço grande", "m", ["rosa", "vermelho", "azul", "branco", "preto", "lilas", "verde", "dourado", "rosaClaro", "turquesa", "carmim", "marinho"]);
+Hd("headband", "Arco de cabelo", "m", ["rosa", "preto", "branco", "azul", "vermelho", "lilas", "dourado", "creme", "verde", "marrom", "marinho", "turquesa"]);
+Hd("hairclip", "Presilha de borboleta", "f", ["rosa", "azul", "lilas", "dourado", "turquesa", "vermelho", "laranja", "verde", "branco", "magenta", "ceu", "amarelo"]);
+Hd("sunhat", "Chapéu de palha", "m", ["rosa", "azul", "vermelho", "branco", "preto", "verde", "lilas", "amarelo", "turquesa", "creme", "laranja", "marinho"]);
+Hd("beret", "Boina", "f", ["vermelho", "preto", "rosa", "azul", "creme", "verde", "marrom", "lilas", "marinho", "bordo", "branco", "turquesa"]);
+Hd("stars", "Coroa de estrelas", "f", METAL_ONLY, { only: true });
+Hd("halo", "Auréola", "f", METAL_ONLY, { only: true });
+Hd("pearlband", "Faixa de pérolas", "f", ["branco", "rosaClaro", "creme", "lilas", "azulClaro", "dourado", "perola", "champanhe", "menta", "pessego", "marfim", "lavanda"], { only: true });
+Hd("feather", "Faixa com pluma", "f", ["rosa", "azul", "vermelho", "branco", "preto", "lilas", "verde", "dourado", "turquesa", "laranja", "creme", "carmim"]);
+Hd("fascinator", "Chapéu de festa", "m", ["rosa", "vermelho", "azul", "branco", "preto", "lilas", "verde", "dourado", "creme", "turquesa", "carmim", "marinho"]);
+
+// ---- manto e enfeites
+const Mn = (family: string, base: string, g: "m" | "f", keys: ColorKey[], opts: ByColorOpts = {}) => byColor("mantle", family, base, g, keys, opts);
+Mn("bolero", "Bolero", "m", ["branco", "rosa", "preto", "vermelho", "azul", "creme", "lilas", "verde", "marinho", "carmim", "turquesa", "cinza"]);
+Mn("cardigan", "Casaco longo", "m", ["creme", "cinza", "marrom", "preto", "azul", "rosa", "verde", "vermelho", "branco", "lilas", "marinho", "bordo"]);
+Mn("apron", "Avental", "m", ["branco", "creme", "rosa", "azul", "vermelho", "verde", "lilas", "amarelo", "preto", "turquesa", "marrom", "marinho"]);
+Mn("wings", "Asas", "f", ["branco", "rosaClaro", "lilas", "azulClaro", "dourado", "preto", "prata", "turquesa", "rosa", "verde", "lavanda", "pessego"]);
+Mn("scarfwrap", "Cachecol", "m", ["vermelho", "creme", "cinza", "azul", "rosa", "verde", "marrom", "preto", "lilas", "mostarda", "marinho", "branco"]);
+Mn("poncho", "Poncho", "m", ["terracota", "creme", "azul", "vermelho", "verde", "cinza", "mostarda", "rosa", "marrom", "lilas", "turquesa", "marinho"]);
+
+// ---- calçados
+const Sh = (family: string, base: string, g: "m" | "f", keys: ColorKey[], opts: ByColorOpts = {}) => byColor("shoes", family, base, g, keys, opts);
+Sh("mary", "Sapato boneca", "m", ["preto", "vermelho", "rosa", "branco", "azul", "marrom", "creme", "lilas", "verde", "bordo", "marinho", "dourado"]);
+Sh("peep", "Sapato peep toe", "m", ["vermelho", "preto", "rosa", "nude", "dourado", "prata", "azul", "branco", "lilas", "bordo", "verde", "turquesa"]);
+Sh("wedge", "Anabela", "f", ["creme", "preto", "branco", "rosa", "azul", "vermelho", "marrom", "dourado", "lilas", "verde", "turquesa", "terracota"]);
+Sh("bootie", "Botinha", "f", ["preto", "marrom", "creme", "cinza", "vermelho", "bordo", "azul", "branco", "rosa", "verde", "marinho", "caramelo"]);
+Sh("bowflat", "Sapatilha de laço", "f", ["rosa", "preto", "branco", "vermelho", "azul", "creme", "lilas", "dourado", "verde", "turquesa", "carmim", "marinho"]);
+Sh("kitten", "Sapato salto gatinho", "m", ["preto", "nude", "vermelho", "rosa", "branco", "azul", "dourado", "prata", "lilas", "bordo", "verde", "marrom"]);
+Sh("lace", "Sapatilha de fitas", "f", ["rosa", "branco", "creme", "preto", "lilas", "azulClaro", "vermelho", "dourado", "verde", "turquesa", "rosaClaro", "marinho"]);
+
+// ---- na mão
+const Hn = (family: string, base: string, g: "m" | "f", keys: ColorKey[], opts: ByColorOpts = {}) => byColor("hand", family, base, g, keys, opts);
+Hn("bag", "Bolsa", "f", ["preto", "vermelho", "rosa", "marrom", "branco", "azul", "creme", "lilas", "verde", "dourado", "turquesa", "caramelo"]);
+Hn("clutch", "Carteira de mão", "f", ["dourado", "prata", "preto", "vermelho", "rosa", "branco", "azul", "lilas", "verde", "bordo", "turquesa", "creme"]);
+Hn("fan", "Leque", "m", ["vermelho", "rosa", "azul", "branco", "preto", "dourado", "lilas", "verde", "turquesa", "creme", "carmim", "marinho"]);
+Hn("parasol", "Sombrinha", "f", ["rosa", "branco", "vermelho", "azul", "lilas", "creme", "verde", "amarelo", "turquesa", "preto", "pessego", "azulClaro"]);
+Hn("mirror", "Espelho de mão", "m", ["dourado", "prata", "rosa", "bronze", "branco", "lilas", "turquesa", "vermelho", "preto", "rose", "azul", "verde"]);
+Hn("candle", "Vela", "f", ["creme", "branco", "rosa", "vermelho", "azul", "lilas", "verde", "dourado", "marfim", "amarelo", "turquesa", "laranja"]);
+Hn("book", "Livro", "m", ["vermelho", "azul", "marrom", "preto", "verde", "roxo", "bordo", "dourado", "rosa", "marinho", "creme", "turquesa"]);
+Hn("balloon", "Balão de coração", "m", ["vermelho", "rosa", "azul", "lilas", "dourado", "verde", "turquesa", "laranja", "amarelo", "branco", "magenta", "ceu"]);
+Hn("wand", "Varinha", "f", ["dourado", "rosa", "prata", "lilas", "azul", "turquesa", "vermelho", "branco", "verde", "rose", "bronze", "preto"]);
+Hn("teacup", "Xícara de chá", "f", ["rosa", "azul", "vermelho", "verde", "lilas", "dourado", "preto", "turquesa", "amarelo", "marrom", "creme", "marinho"]);
+
+// ---- brincos, colares e pulseiras
+items.push({ id: "ears_none", slot: "ears", name: "Sem brincos", family: "none", p: { c: "#000" } });
+items.push({ id: "neck_none", slot: "neck", name: "Sem colar", family: "none", p: { c: "#000" } });
+items.push({ id: "wrist_none", slot: "wrist", name: "Sem pulseira", family: "none", p: { c: "#000" } });
+const METAL_KEYS = new Set<ColorKey>(["dourado", "prata", "bronze", "rose", "cobre"]);
+const J = (slot: Slot, family: string, base: string, g: "m" | "f", keys: ColorKey[], gem = false) => byColor(slot, family, base, g, keys, { only: true, p2: (k) => (gem && METAL_KEYS.has(k) ? { c2: "#e5484d" } : {}) });
+const MET: ColorKey[] = ["dourado", "prata", "bronze", "rose", "cobre", "perola", "branco", "preto", "rosa", "azul", "vermelho", "turquesa", "lilas", "verde", "ceu", "coral"];
+J("ears", "studs", "Brincos de bolinha", "m", MET);
+J("ears", "hoops", "Argolas", "f", MET);
+J("ears", "drops", "Brincos pendentes", "m", MET);
+J("ears", "chandelier", "Brincos de lustre", "m", MET);
+J("ears", "earflowers", "Brincos de flor", "m", ["rosa", "branco", "lilas", "vermelho", "azul", "amarelo", "coral", "turquesa", "lavanda", "pessego", "fucsia", "ceu"]);
+J("ears", "earstars", "Brincos de estrela", "m", MET);
+J("neck", "choker", "Gargantilha", "f", MET);
+J("neck", "pendant", "Pingente", "m", MET);
+J("neck", "pearls", "Colar de pérolas", "m", ["perola", "branco", "rosaClaro", "preto", "creme", "lavanda", "azulClaro", "champanhe", "menta", "pessego", "dourado", "prata"]);
+J("neck", "scarfneck", "Lenço no pescoço", "m", ["vermelho", "azul", "rosa", "branco", "preto", "verde", "amarelo", "lilas", "turquesa", "laranja", "creme", "marinho"]);
+J("neck", "bowtie", "Laço no pescoço", "m", ["vermelho", "preto", "rosa", "azul", "branco", "verde", "lilas", "dourado", "turquesa", "carmim", "marinho", "creme"]);
+J("neck", "medallion", "Medalhão", "m", METAL_ONLY, true);
+J("neck", "layered", "Colar em camadas", "m", METAL_ONLY, true);
+J("wrist", "bangle", "Pulseira rígida", "f", MET);
+J("wrist", "beads", "Pulseira de contas", "f", ["rosa", "azul", "vermelho", "turquesa", "lilas", "verde", "dourado", "branco", "preto", "coral", "amarelo", "ceu"]);
+J("wrist", "watch", "Relógio", "m", METAL_ONLY, true);
+J("wrist", "charm", "Pulseira de pingentes", "f", METAL_ONLY, true);
+J("wrist", "cuff", "Bracelete largo", "m", MET);
+J("wrist", "ribbonw", "Fita no pulso", "f", ["rosa", "vermelho", "azul", "branco", "preto", "lilas", "verde", "dourado", "turquesa", "creme", "coral", "amarelo"]);
+
 for (const i of items) i.base ??= i.name;
 
 export const ITEMS: DressItem[] = items;
-export const ITEM_BY_ID = new Map(ITEMS.map((i) => [i.id, i]));
+/** Peças com tamanho: o id da peça base + "~p"/"~g" (pequeno/grande) ou "~c"/"~m" (curto/midi). São criadas sob demanda. */
+class ItemMap extends Map<string, DressItem> {
+  override get(id: string): DressItem | undefined {
+    const hit = super.get(id);
+    if (hit || !id.includes("~")) return hit;
+    const [base, size] = id.split("~");
+    const it = super.get(base);
+    if (!it || !size || !sizeOptions(it.slot, it.family)?.some((o) => o.key === size)) return undefined;
+    const sized: DressItem = { ...it, id, name: `${it.name} (${SIZE_LABEL[size] ?? size})`, p: { ...it.p, size } };
+    super.set(id, sized);
+    return sized;
+  }
+  override has(id: string): boolean {
+    return this.get(id) !== undefined;
+  }
+}
+export const ITEM_BY_ID: Map<string, DressItem> = new ItemMap(ITEMS.map((i) => [i.id, i] as [string, DressItem]));
+
+const SIZE_LABEL: Record<string, string> = { p: "pequeno", g: "grande", c: "curto", m: "midi" };
+export type SizeOption = { key: string | null; label: string };
+const LENGTHS: SizeOption[] = [
+  { key: "c", label: "Curto" },
+  { key: "m", label: "Midi" },
+  { key: null, label: "Longo" },
+];
+const NO_LENGTH = new Set(["mini", "armor", "leaves", "hoodie"]);
+/** Tamanhos que a peça aceita (null = a peça não tem tamanho). `key: null` é o tamanho padrão. */
+export function sizeOptions(slot: Slot, family: string): SizeOption[] | null {
+  if (family === "none") return null;
+  if (slot === "tunic") return NO_LENGTH.has(family) ? null : LENGTHS;
+  if (slot === "mantle") return ["cape", "caped", "cardigan", "poncho"].includes(family) ? LENGTHS : null;
+  if (slot === "shoes") return null;
+  return [
+    { key: "p", label: "Pequeno" },
+    { key: null, label: "Médio" },
+    { key: "g", label: "Grande" },
+  ];
+}
+/** Id da mesma peça no tamanho pedido (null = padrão). */
+export const withSize = (id: string, size: string | null): string => {
+  const base = id.split("~")[0];
+  return size ? `${base}~${size}` : base;
+};
+/** Tamanho que o id carrega (ou null). */
+export const sizeOf = (id: string | undefined): string | null => (id && id.includes("~") ? id.split("~")[1] : null);
 export const ITEMS_BY_SLOT = (slot: Slot): DressItem[] => ITEMS.filter((i) => i.slot === slot);
 
 export type Look = Partial<Record<Slot, string>>;

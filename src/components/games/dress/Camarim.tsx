@@ -5,11 +5,14 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { PaperDoll } from "./PaperDoll";
 import { type MallEvent } from "./MallStore3D";
-import { RARITY_ICON, SparkleBurst, rarityOf } from "./Vh";
-import { BLUSHES, BROW_COLORS, BROW_STYLES, DEFAULT_BEAUTY, EYE_COLORS, HAIR_COLORS, HAIR_STYLES, LASH_STYLES, LINER_COLORS, LINER_STYLES, LIPS, LIP_STYLES, MARKS, SHADOWS, SKINS, baseFromBeauty, type Beauty, type Mark } from "@/lib/games/dress/beauty";
-import { ITEM_BY_ID, SLOTS, familiesBySlot, type Look, type Slot } from "@/lib/games/dress/items";
+import { SoundToggle } from "./Sound";
+import { coin, ding } from "@/lib/games/dress/sfx";
+import { RARITY_ICON, SparkleBurst, priceOf, rarityOf } from "./Vh";
+import { BLUSHES, BODY_SHAPES, BROW_COLORS, BROW_STYLES, DEFAULT_BEAUTY, EYE_COLORS, EYE_SHAPES, FACE_SHAPES, NAIL_COLORS, HAIR_COLORS, HAIR_STYLES, LASH_STYLES, LINER_COLORS, LINER_STYLES, LIPS, LIP_STYLES, MARKS, SHADOWS, SKINS, baseFromBeauty, type Beauty, type Mark } from "@/lib/games/dress/beauty";
+import { ITEM_BY_ID, SLOTS, familiesBySlot, sizeOf, sizeOptions, withSize, type Look, type Slot } from "@/lib/games/dress/items";
 import { DRESS_ITEM_LIMIT, POSES, cleanPose, countItems, type PoseKey } from "@/lib/games/dress/live";
-import { hallChannel, type HallMsg } from "@/lib/games/dress/hall";
+import { cleanChat, hallChannel, type ChatMsg, type HallMsg, type HallPos, type HallRoster } from "@/lib/games/dress/hall";
+import { HallChat } from "./HallChat";
 import { leaveImmersive } from "@/lib/games/dress/immersive";
 import { fmtClock } from "@/lib/games/dress/rules";
 import type { BibleTheme } from "@/lib/games/dress/themes";
@@ -37,6 +40,9 @@ const RAIL: { side: "l" | "r"; key: Cat; label: string; icon: string }[] = [
   { side: "r", key: "mantle", label: "Manto", icon: "🧣" },
   { side: "r", key: "hand", label: "Mãos", icon: "🪄" },
   { side: "r", key: "shoes", label: "Calçado", icon: "👠" },
+  { side: "l", key: "ears", label: "Brincos", icon: "💎" },
+  { side: "r", key: "neck", label: "Colar", icon: "📿" },
+  { side: "r", key: "wrist", label: "Pulseira", icon: "⌚" },
 ];
 
 function store<T>(key: string, fallback: T): T {
@@ -59,7 +65,7 @@ function save(key: string, v: unknown) {
  * Camarim em tela cheia: uma loja gigante em 3D (a jogadora anda e escolhe as peças nas prateleiras) com tema,
  * relógio, cores, make, cabelo e pose. `live`: valendo, numa sala com as amigas. `tutorial`: aprendendo, sem relógio.
  */
-export function Camarim({ theme, mode, msLeft, draftKey, exitHref, live, onEvent, onReady, coach, hall, watching = false }: { theme: BibleTheme; mode: "live" | "tutorial"; msLeft?: number; draftKey: string; exitHref: string; live?: LiveCamarim; onEvent?: (e: CamarimEvent) => void; onReady?: (look: Look, beauty: Beauty, pose: PoseKey) => void; coach?: ReactNode; hall?: { code: string; round: number; meId: string; name: string }; watching?: boolean }) {
+export function Camarim({ theme, mode, msLeft, draftKey, exitHref, live, onEvent, onReady, coach, hall, watching = false }: { theme: BibleTheme; mode: "live" | "tutorial"; msLeft?: number; draftKey: string; exitHref: string; live?: LiveCamarim; onEvent?: (e: CamarimEvent) => void; onReady?: (look: Look, beauty: Beauty, pose: PoseKey) => void; coach?: ReactNode; hall?: { code: string; round: number; meId: string; name: string; peers?: boolean }; watching?: boolean }) {
   const router = useRouter();
   const isLive = mode === "live" && !!live;
   const isTutorial = mode === "tutorial";
@@ -85,7 +91,17 @@ export function Camarim({ theme, mode, msLeft, draftKey, exitHref, live, onEvent
     }
   });
   const [closetOpen, setClosetOpen] = useState(false);
+  // peças raras: na sala valendo só vale o que foi comprado; no tutorial tudo é provador
+  const [owned, setOwned] = useState<Set<string>>(() => new Set());
+  const [wallet, setWallet] = useState<number | null>(null);
+  const [ownedReady, setOwnedReady] = useState(false);
+  const [buying, setBuying] = useState<{ slot: Slot; id: string; family: string; price: number; name: string } | null>(null);
+  const [buyMsg, setBuyMsg] = useState<string | null>(null);
   const mall = view === "mall";
+  const hasRare = (id: string | undefined) => {
+    const fam = id ? ITEM_BY_ID.get(id)?.family : undefined;
+    return !!fam && priceOf(fam) > 0 && !owned.has(fam);
+  };
   const changeView = (v: "mall" | "list") => {
     setView(v);
     setClosetOpen(false);
@@ -106,6 +122,28 @@ export function Camarim({ theme, mode, msLeft, draftKey, exitHref, live, onEvent
   const emit = (e: CamarimEvent) => onEvent?.(e);
 
   // plateia: enquanto alguém assiste, a posição e o look do momento vão por um canal (só visual; as jogadoras não veem umas às outras)
+  useEffect(() => {
+    if (!isLive) return;
+    let alive = true;
+    void createClient()
+      .rpc("dress_my_inventory")
+      .then(({ data }) => {
+        if (!alive) return;
+        const d = (data ?? {}) as { families?: string[]; tickets?: number };
+        setOwned(new Set(d.families ?? []));
+        setWallet(d.tickets ?? 0);
+        setOwnedReady(true);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [isLive]);
+
+  // a última aparência fica guardada para o salão de espera do Mega
+  useEffect(() => {
+    if (isLive) save("vh:last", { look, beauty });
+  }, [isLive, look, beauty]);
+
   const hallRef = useRef(hall);
   const watchRef = useRef(watching);
   const snapRef = useRef({ look, beauty, pose });
@@ -116,20 +154,61 @@ export function Camarim({ theme, mode, msLeft, draftKey, exitHref, live, onEvent
     snapRef.current = { look, beauty, pose };
   });
   const hallKey = hall && isLive ? hallChannel(hall.code, hall.round) : null;
+  // as outras jogadoras no mesmo salão (posição, aparência) e o chat
+  const peerPos = useRef<Record<string, HallPos>>({});
+  const peerMap = useRef<Map<string, HallRoster>>(new Map());
+  const [peers, setPeers] = useState<HallRoster[]>([]);
+  const [chat, setChat] = useState<ChatMsg[]>([]);
   useEffect(() => {
     if (!hallKey) return;
     const sb = createClient();
     const ch = sb.channel(hallKey, { config: { broadcast: { self: false } } });
+    const me = hallRef.current?.meId;
+    ch.on("broadcast", { event: "pos" }, ({ payload }) => {
+      const m = payload as HallMsg;
+      if (!m?.id || m.id === me) return;
+      peerPos.current[m.id] = { x: m.x, z: m.z, fx: m.fx === -1 ? -1 : 1, mv: m.mv, t: Date.now() };
+      const prev = peerMap.current.get(m.id);
+      if (!prev || prev.name !== m.name || JSON.stringify([prev.look, prev.beauty]) !== JSON.stringify([m.look, m.beauty])) {
+        peerMap.current.set(m.id, { id: m.id, name: m.name, look: m.look ?? {}, beauty: m.beauty });
+        setPeers([...peerMap.current.values()].slice(0, 16));
+      }
+    });
+    ch.on("broadcast", { event: "chat" }, ({ payload }) => {
+      const m = payload as ChatMsg;
+      if (!m?.id || m.id === me || typeof m.text !== "string") return;
+      setChat((c) => [...c.slice(-39), { id: m.id, name: String(m.name ?? "").slice(0, 30), text: cleanChat(m.text) }]);
+    });
     ch.subscribe();
     chRef.current = ch;
+    const sweep = setInterval(() => {
+      const now = Date.now();
+      let changed = false;
+      for (const [id, p] of Object.entries(peerPos.current)) {
+        if (now - p.t > 20000) {
+          delete peerPos.current[id];
+          peerMap.current.delete(id);
+          changed = true;
+        }
+      }
+      if (changed) setPeers([...peerMap.current.values()].slice(0, 16));
+    }, 5000);
     return () => {
+      clearInterval(sweep);
       chRef.current = null;
       void sb.removeChannel(ch);
     };
   }, [hallKey]);
+  const sendChat = (text: string) => {
+    const h = hallRef.current;
+    const t = cleanChat(text);
+    if (!h || !t) return;
+    setChat((c) => [...c.slice(-39), { id: h.meId, name: "Você", text: t }]);
+    void chRef.current?.send({ type: "broadcast", event: "chat", payload: { id: h.meId, name: h.name.split(" ")[0], text: t } satisfies ChatMsg });
+  };
   const sendPos = useCallback((p: { x: number; z: number; fx: 1 | -1; mv: number }) => {
     const h = hallRef.current;
-    if (!h || !watchRef.current || !chRef.current) return;
+    if (!h || !(watchRef.current || h.peers) || !chRef.current) return;
     const { look: l, beauty: b, pose: ps } = snapRef.current;
     const msg: HallMsg = { id: h.meId, name: h.name, x: p.x, z: p.z, fx: p.fx, mv: p.mv, look: l, beauty: b, pose: ps };
     void chRef.current.send({ type: "broadcast", event: "pos", payload: msg });
@@ -261,8 +340,44 @@ export function Camarim({ theme, mode, msLeft, draftKey, exitHref, live, onEvent
     save(draftKey, next);
     setBurst((b) => b + 1);
     touched();
+    ding();
   }
-  const equip = (slot: Slot, id: string | undefined) => change({ ...look, [slot]: id });
+  const equip = (slot: Slot, id: string | undefined) => {
+    if (id && isLive) {
+      const it = ITEM_BY_ID.get(id);
+      if (it && priceOf(it.family) > 0 && !owned.has(it.family)) {
+        setBuyMsg(null);
+        setBuying({ slot, id, family: it.family, price: priceOf(it.family), name: it.name.split(" (")[0] });
+        return;
+      }
+    }
+    change({ ...look, [slot]: id });
+  };
+  async function confirmBuy() {
+    if (!buying) return;
+    setBusy(true);
+    const { data, error: e } = await createClient().rpc("dress_buy_family", { p_family: buying.family });
+    setBusy(false);
+    const d = (data ?? {}) as { error?: string; ok?: boolean; tickets?: number };
+    if (e || d.error) return setBuyMsg(d.error ?? "Não deu para comprar agora. Tente de novo.");
+    setOwned((o) => new Set(o).add(buying.family));
+    if (typeof d.tickets === "number") setWallet(d.tickets);
+    const b = buying;
+    setBuying(null);
+    coin();
+    change({ ...look, [b.slot]: b.id });
+  }
+  // rascunho antigo com peça rara que a jogadora não tem: tira antes de salvar
+  useEffect(() => {
+    if (!isLive || !ownedReady) return;
+    const bad = SLOTS.filter((s) => hasRare(look[s.key]));
+    if (bad.length === 0) return;
+    const next = { ...look };
+    for (const s of bad) delete next[s.key];
+    const t = setTimeout(() => setLook(next), 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ownedReady, look, owned]);
   const tweak = (patch: Partial<Beauty>) => {
     remember();
     setBeauty((b) => ({ ...b, ...patch }));
@@ -331,6 +446,9 @@ export function Camarim({ theme, mode, msLeft, draftKey, exitHref, live, onEvent
     { key: "mantle", label: "Manto e enfeites", name: nameOf(look.mantle), go: "mantle", remove: nameOf(look.mantle) ? () => equip("mantle", undefined) : undefined },
     { key: "shoes", label: "Calçado", name: nameOf(look.shoes), go: "shoes", remove: nameOf(look.shoes) ? () => equip("shoes", undefined) : undefined },
     { key: "hand", label: "Na mão", name: nameOf(look.hand), go: "hand", remove: nameOf(look.hand) ? () => equip("hand", undefined) : undefined },
+    { key: "ears", label: "Brincos", name: nameOf(look.ears), go: "ears", remove: nameOf(look.ears) ? () => equip("ears", undefined) : undefined },
+    { key: "neck", label: "Colar", name: nameOf(look.neck), go: "neck", remove: nameOf(look.neck) ? () => equip("neck", undefined) : undefined },
+    { key: "wrist", label: "Pulseira", name: nameOf(look.wrist), go: "wrist", remove: nameOf(look.wrist) ? () => equip("wrist", undefined) : undefined },
   ];
   const wornCount = SLOTS.filter((s) => nameOf(look[s.key])).length;
   const missing = !look.tunic;
@@ -345,6 +463,7 @@ export function Camarim({ theme, mode, msLeft, draftKey, exitHref, live, onEvent
         <small>{isTutorial ? "Tutorial · toque pra ver a dica" : "Tema da rodada · toque pra ver a dica"}</small>
         <b>{theme.name}</b>
       </button>
+      <SoundToggle />
       {timed ? (
         <div className="vh-timer" data-low={left <= 30} role="timer" aria-label="Tempo restante">
           ⏱ {fmtClock(left)}
@@ -395,11 +514,30 @@ export function Camarim({ theme, mode, msLeft, draftKey, exitHref, live, onEvent
         </div>
       </div>
 
+      {slotCat && equippedId && equippedFam ? (
+        (() => {
+          const eq = ITEM_BY_ID.get(equippedId);
+          const opts = eq ? sizeOptions(slotCat, eq.family) : null;
+          if (!eq || !opts) return null;
+          const cur = sizeOf(equippedId);
+          return (
+            <div className="vh-swatches" aria-label="Tamanho">
+              <small>{slotCat === "tunic" || slotCat === "mantle" ? "Comprimento" : "Tamanho"}</small>
+              {opts.map((o) => (
+                <button key={o.key ?? "std"} type="button" className="vh-chip !px-3 !py-1 !text-[11px]" data-on={cur === o.key} onClick={() => equip(slotCat, withSize(equippedId, o.key))}>
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          );
+        })()
+      ) : null}
+
       {slotCat && famItems.length > 1 ? (
-        <div className="vh-swatches" aria-label="Cores e estilos">
+        <div className="vh-swatches" data-many={famItems.length > 14} aria-label="Cores e estilos">
           <small>Cor</small>
           {famItems.map((it) => (
-            <button key={it.id} type="button" className="vh-swatch" data-on={equippedId === it.id} aria-label={it.name} title={it.name} style={{ background: it.p.c }} onClick={() => equip(slotCat, it.id)}>
+            <button key={it.id} type="button" className="vh-swatch" data-on={equippedId?.split("~")[0] === it.id} aria-label={it.name} title={it.name} style={{ background: it.p.c }} onClick={() => equip(slotCat, withSize(it.id, sizeOf(equippedId)))}>
               {it.p.c2 ? <i style={{ background: it.p.c2 }} /> : null}
             </button>
           ))}
@@ -409,12 +547,12 @@ export function Camarim({ theme, mode, msLeft, draftKey, exitHref, live, onEvent
       {slotCat ? (
         <div className="vh-closet-grid">
           {fams.map((f) => {
-            const worn = f.items.find((i) => i.id === look[slotCat]);
+            const worn = f.items.find((i) => i.id === look[slotCat]?.split("~")[0]);
             const shown = worn ?? f.items[0];
             const rare = rarityOf(f.family);
             return (
               <button key={f.family} type="button" className="vh-tile" data-on={!!worn} data-rare={rare === "common" ? undefined : rare} onClick={() => equip(slotCat, worn ? undefined : shown.id)} aria-pressed={!!worn}>
-                {rare !== "common" ? <em className="vh-tile-x not-italic">{RARITY_ICON[rare]}</em> : null}
+                {rare !== "common" ? <em className="vh-tile-x not-italic">{isLive && !owned.has(f.family) ? `🔒${priceOf(f.family)}` : RARITY_ICON[rare]}</em> : null}
                 <PaperDoll base={base} look={{ [slotCat]: shown.id }} only={slotCat} className="h-14 w-full" title={f.base} />
                 <span>{f.base}</span>
               </button>
@@ -478,6 +616,8 @@ export function Camarim({ theme, mode, msLeft, draftKey, exitHref, live, onEvent
               <Chips label="Cílios" options={LASH_STYLES} value={beauty.lashes} onPick={(v) => tweak({ lashes: v })} />
               <Swatches label="Blush" colors={BLUSHES} value={beauty.blush} onPick={(c) => tweak({ blush: c })} />
               <Swatches label="Cor dos olhos" colors={EYE_COLORS} value={beauty.eye} onPick={(c) => c && tweak({ eye: c })} />
+              <Chips label="Formato dos olhos" options={EYE_SHAPES} value={beauty.eyeShape} onPick={(v) => tweak({ eyeShape: v })} />
+              <Swatches label="Esmalte das unhas" colors={NAIL_COLORS} value={beauty.nails} onPick={(c) => tweak({ nails: c })} />
               <Chips label="Sobrancelhas" options={BROW_STYLES} value={beauty.brows} onPick={(v) => tweak({ brows: v })} />
               <Swatches label="Cor das sobrancelhas (✕ = igual ao cabelo)" colors={BROW_COLORS} value={beauty.browColor} onPick={(c) => tweak({ browColor: c })} />
               <div>
@@ -492,7 +632,13 @@ export function Camarim({ theme, mode, msLeft, draftKey, exitHref, live, onEvent
               </div>
             </>
           ) : null}
-          {cat === "skin" ? <Swatches label="Tom de pele" colors={SKINS} value={beauty.skin} onPick={(c) => c && tweak({ skin: c })} /> : null}
+          {cat === "skin" ? (
+            <>
+              <Swatches label="Tom de pele" colors={SKINS} value={beauty.skin} onPick={(c) => c && tweak({ skin: c })} />
+              <Chips label="Formato do rosto" options={FACE_SHAPES} value={beauty.faceShape} onPick={(v) => tweak({ faceShape: v })} />
+              <Chips label="Corpo" options={BODY_SHAPES} value={beauty.body} onPick={(v) => tweak({ body: v })} />
+            </>
+          ) : null}
         </div>
       )}
 
@@ -521,12 +667,37 @@ export function Camarim({ theme, mode, msLeft, draftKey, exitHref, live, onEvent
 
       {mall ? (
         <div className="vh-room-3d">
-          <MallStore3D base={base} look={look} onEquip={equip} onStation={(c) => openPanel(c)} onEvent={emit} onPos={sendPos} quiet={closetOpen} face={closetOpen && (cat === "makeup" || cat === "hair" || cat === "skin")} />
+          <MallStore3D base={base} look={look} onEquip={equip} onStation={(c) => openPanel(c)} onEvent={emit} onPos={sendPos} peers={!!hall?.peers} roster={peers} positions={peerPos} quiet={closetOpen} face={closetOpen && (cat === "makeup" || cat === "hair" || cat === "skin")} />
         </div>
       ) : null}
 
       {topBar}
       {clueBox}
+      {hall?.peers ? <HallChat messages={chat} onSend={sendChat} /> : null}
+
+      {buying ? (
+        <div className="fixed inset-0 z-[70] grid place-items-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-label="Comprar peça rara">
+          <div className="vh-panel w-full max-w-sm text-center">
+            <PaperDoll base={base} look={{ [buying.slot]: buying.id }} only={buying.slot} className="mx-auto h-24 w-full" title={buying.name} />
+            <p className="vh-title mt-1 text-xl">{buying.name}</p>
+            <p className="text-sm text-purple-100">
+              Peça {rarityOf(buying.family) === "legend" ? "lendária ⭐" : "épica 💜"}. Ela fica no seu guarda-roupa para sempre.
+            </p>
+            <p className="mt-2 text-lg font-black text-amber-200">
+              {buying.price} 🎫 <span className="text-xs font-bold text-purple-200">· você tem {wallet ?? "…"}</span>
+            </p>
+            {buyMsg ? <p className="mt-1 text-sm font-bold text-rose-200">{buyMsg}</p> : null}
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button type="button" className="vh-btn vh-btn-dark" onClick={() => setBuying(null)} disabled={busy}>
+                Agora não
+              </button>
+              <button type="button" className="vh-btn" onClick={() => void confirmBuy()} disabled={busy || (wallet ?? 0) < buying.price}>
+                {busy ? "..." : "Comprar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {mall ? null : (
         <div className="vh-room-stage">
@@ -593,7 +764,7 @@ function Swatches({ label, colors, value, onPick }: { label: string; colors: (st
   return (
     <div>
       <p className="mb-1 text-[10px] font-black uppercase tracking-wide text-amber-200">{label}</p>
-      <div className="vh-swatches !p-1">
+      <div className="vh-swatches !p-1" data-many={colors.length > 12}>
         {colors.map((c) => (
           <button key={c ?? "none"} type="button" className="vh-swatch" data-on={value === c} aria-label={c ?? "Nenhuma"} style={{ background: c ?? "#f4efe2" }} onClick={() => onPick(c)}>
             {c === null ? <span className="grid h-full w-full place-items-center text-sm font-black text-rose-600">✕</span> : null}

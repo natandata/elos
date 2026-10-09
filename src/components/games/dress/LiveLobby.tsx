@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { LandscapeShell } from "./LandscapeShell";
 import { MegaCard } from "./MegaCard";
 import { VhStage } from "./Vh";
+import { notifyRoomOpened } from "@/lib/actions/dressLive";
 import { MAX_PLAYERS, MIN_PLAYERS } from "@/lib/games/dress/economy";
 import { enterImmersive, leaveImmersive } from "@/lib/games/dress/immersive";
 import { PHASE_LABEL, cleanCode, type RoomAd } from "@/lib/games/dress/live";
@@ -43,6 +44,7 @@ export function LiveLobby() {
       setBusy(false);
       return setError("Não foi possível criar a sala. Tente de novo.");
     }
+    if (isPublic) void notifyRoomOpened(data as string);
     router.push(`/app/jogos/vestir/sala/${data as string}`);
   }
 

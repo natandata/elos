@@ -7,32 +7,43 @@ import { useLandscape } from "./LandscapeShell";
 import { baseFromBeauty, cleanBeauty } from "@/lib/games/dress/beauty";
 import type { DollBase } from "@/lib/games/dress/characters";
 import type { HallPos, HallRoster } from "@/lib/games/dress/hall";
-import { ITEM_BY_ID, SLOTS, familiesBySlot, type FamilyGroup, type Look, type Slot } from "@/lib/games/dress/items";
+import { step as sfxStep } from "@/lib/games/dress/sfx";
+import { ITEM_BY_ID, SLOTS, familiesBySlot, sizeOf, sizeOptions, withSize, type FamilyGroup, type Look, type Slot } from "@/lib/games/dress/items";
 
 export type MallStation = "hair" | "makeup" | "skin";
-export type MallZone = Slot | MallStation;
+export type MallZone = Slot | MallStation | "fitting";
 export type MallEvent = { type: "move" | "equip" | "color" | "station" | "goto" | "near"; slot?: Slot; cat?: MallStation };
 
-type Target = { kind: "item"; slot: Slot; family: string } | { kind: "station"; cat: MallStation };
+type Target = { kind: "item"; slot: Slot; family: string } | { kind: "station"; cat: MallStation | "fitting" };
 type Spot = { target: Target; x: number; z: number; label: string };
 
 const HW = 15; // meia largura do salão
-const HL = 24; // meio comprimento
 const SPACING = 2.1;
-const TIERS = 3;
-const ZONE_LABEL: Record<Slot, string> = { tunic: "👗 Roupas", head: "👑 Cabeça", mantle: "🧣 Mantos", shoes: "👠 Calçados", hand: "🪄 Acessórios" };
+const TIERS = 4;
+const WALLS: { face: 1 | -1; slots: Slot[] }[] = [
+  { face: 1, slots: ["tunic", "head", "mantle"] },
+  { face: -1, slots: ["shoes", "hand", "ears", "neck", "wrist"] },
+];
+// o salão cresce com o catálogo: cabe a parede mais comprida + o corredor das estações
+const wallLength = (slots: Slot[]) => slots.reduce((n, sl) => n + Math.ceil(familiesBySlot(sl).length / TIERS) * SPACING + 1.6, 10);
+const HL = Math.max(24, Math.ceil(Math.max(...WALLS.map((w) => wallLength(w.slots))) / 2)); // meio comprimento
+const ZONE_LABEL: Record<Slot, string> = { tunic: "👗 Roupas", head: "👑 Cabeça", mantle: "🧣 Mantos", shoes: "👠 Calçados", hand: "🪄 Acessórios", ears: "💎 Brincos", neck: "📿 Colares", wrist: "⌚ Pulseiras" };
 const ZONES: { key: MallZone; icon: string; label: string }[] = [
   { key: "tunic", icon: "👗", label: "Roupas" },
   { key: "head", icon: "👑", label: "Cabeça" },
   { key: "mantle", icon: "🧣", label: "Mantos" },
   { key: "shoes", icon: "👠", label: "Calçados" },
   { key: "hand", icon: "🪄", label: "Acessórios" },
+  { key: "ears", icon: "💎", label: "Brincos" },
+  { key: "neck", icon: "📿", label: "Colares" },
+  { key: "wrist", icon: "⌚", label: "Pulseiras" },
   { key: "makeup", icon: "💄", label: "Make" },
   { key: "hair", icon: "💇‍♀️", label: "Cabelo" },
   { key: "skin", icon: "🎨", label: "Pele" },
+  { key: "fitting", icon: "🪞", label: "Provador" },
 ];
 /** Câmera de cada peça: perto da parte do corpo que está sendo escolhida. */
-const FOCUS: Record<Slot, { y: number; dist: number }> = { head: { y: 1.95, dist: 3.1 }, tunic: { y: 1.25, dist: 3.7 }, mantle: { y: 1.3, dist: 3.7 }, hand: { y: 1.1, dist: 3.4 }, shoes: { y: 0.45, dist: 3.1 } };
+const FOCUS: Record<Slot, { y: number; dist: number }> = { head: { y: 1.95, dist: 3.1 }, tunic: { y: 1.25, dist: 3.7 }, mantle: { y: 1.3, dist: 3.7 }, hand: { y: 1.1, dist: 3.4 }, shoes: { y: 0.45, dist: 3.1 }, ears: { y: 1.95, dist: 2.4 }, neck: { y: 1.6, dist: 2.6 }, wrist: { y: 1.05, dist: 2.6 } };
 
 type Placed = { slot: Slot; fam: FamilyGroup; x: number; y: number; z: number; face: 1 | -1; w: number; h: number };
 
@@ -41,11 +52,7 @@ function layoutShelves(): { placed: Placed[]; units: { x: number; z: number; fac
   const placed: Placed[] = [];
   const units: { x: number; z: number; face: 1 | -1 }[] = [];
   const signs: { text: string; x: number; z: number; face: 1 | -1 }[] = [];
-  const walls: { face: 1 | -1; slots: Slot[] }[] = [
-    { face: 1, slots: ["tunic", "head", "mantle"] },
-    { face: -1, slots: ["shoes", "hand"] },
-  ];
-  for (const wall of walls) {
+  for (const wall of WALLS) {
     let z = -HL + 5;
     for (const slot of wall.slots) {
       const fams = familiesBySlot(slot);
@@ -59,10 +66,10 @@ function layoutShelves(): { placed: Placed[]; units: { x: number; z: number; fac
           if (!f) continue;
           const vb = SLOT_VIEWBOX[slot].split(" ").map(Number);
           const ar = vb[2] / vb[3];
-          const hh = slot === "tunic" ? 1.15 : slot === "mantle" ? 1.1 : slot === "shoes" ? 0.6 : 0.95;
+          const hh = slot === "tunic" ? 1.05 : slot === "mantle" ? 1.0 : slot === "shoes" ? 0.55 : slot === "ears" || slot === "wrist" ? 0.5 : 0.85;
           const ww = Math.min(SPACING * 0.86, hh * ar);
           const hFinal = ww / ar;
-          const boardTop = 0.55 + t * 1.35;
+          const boardTop = 0.45 + t * 1.2;
           placed.push({ slot, fam: f, x: -wall.face * (HW - 0.95), y: boardTop + hFinal / 2 + 0.04, z: uz, face: wall.face, w: ww, h: hFinal });
         }
         z += SPACING;
@@ -276,11 +283,33 @@ const canvasTexture = (c: HTMLCanvasElement): THREE.CanvasTexture => {
   return tex;
 };
 
+type Season = "natal" | "pascoa" | "junina" | null;
+/** Páscoa (calendário gregoriano). */
+function easter(y: number): Date {
+  const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const mo = Math.floor((h + l - 7 * m + 114) / 31), da = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(y, mo - 1, da);
+}
+/** Decoração do salão pela época do ano. */
+export function seasonNow(now = new Date()): Season {
+  const y = now.getFullYear();
+  const t = new Date(y, now.getMonth(), now.getDate()).getTime();
+  const day = 86400000;
+  const ea = easter(y).getTime();
+  if (t >= ea - 14 * day && t <= ea + day) return "pascoa";
+  const m = now.getMonth();
+  if (m === 11 || (m === 0 && now.getDate() <= 6)) return "natal";
+  if (m === 5 || (m === 6 && now.getDate() <= 15)) return "junina";
+  return null;
+}
+type Mood = "day" | "night";
+
 /**
  * Loja gigante em 3D, em terceira pessoa, no jeito do Dress to Impress: a jogadora anda pelo salão (joystick),
  * chega nas prateleiras, toca numa peça para vestir e escolhe a cor no painel. Espelhos de maquiagem, salão de cabelo e provador no fundo.
  */
-export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = false, face = false, onPos, spectate = false, roster, positions, follow = null }: { base: DollBase; look: Look; onEquip: (slot: Slot, id: string | undefined) => void; onStation: (cat: MallStation) => void; onEvent?: (e: MallEvent) => void; quiet?: boolean; face?: boolean; onPos?: (p: { x: number; z: number; fx: 1 | -1; mv: number }) => void; spectate?: boolean; roster?: HallRoster[]; positions?: React.MutableRefObject<Record<string, HallPos>>; follow?: string | null }) {
+export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = false, face = false, onPos, spectate = false, roster, positions, follow = null, lounge = false, countdown = "", peers = false }: { peers?: boolean; lounge?: boolean; countdown?: string; base: DollBase; look: Look; onEquip: (slot: Slot, id: string | undefined) => void; onStation: (cat: MallStation) => void; onEvent?: (e: MallEvent) => void; quiet?: boolean; face?: boolean; onPos?: (p: { x: number; z: number; fx: 1 | -1; mv: number }) => void; spectate?: boolean; roster?: HallRoster[]; positions?: React.MutableRefObject<Record<string, HallPos>>; follow?: string | null }) {
   const { rotated, mobile, land } = useLandscape();
   const hostRef = useRef<HTMLDivElement>(null);
   const bankRef = useRef<HTMLDivElement>(null);
@@ -293,8 +322,17 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [fitting, setFitting] = useState(false);
+  const [mood, setMood] = useState<Mood>(() => {
+    try {
+      return localStorage.getItem("vh:mood") === "night" ? "night" : "day";
+    } catch {
+      return "day";
+    }
+  });
+  const fittingRef = useRef(false);
 
-  const layout = useMemo(() => layoutShelves(), []);
+  const layout = useMemo(() => (lounge ? { placed: [], units: [], signs: [] } as ReturnType<typeof layoutShelves> : layoutShelves()), [lounge]);
   const lookRef = useRef(look);
   const onEquipRef = useRef(onEquip);
   const onStationRef = useRef(onStation);
@@ -308,11 +346,17 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
   const faceRef = useRef(false);
   const onPosRef = useRef(onPos);
   const spectateRef = useRef(spectate);
+  const loungeRef = useRef(lounge);
+  const moodRef = useRef<Mood>(mood);
+  const applyMoodRef = useRef<((m: Mood) => void) | null>(null);
+  const drawFitRef = useRef<((c: HTMLCanvasElement | null) => void) | null>(null);
+  const drawScreenRef = useRef<((t: string) => void) | null>(null);
   const positionsRef = useRef(positions);
   const followRef = useRef(follow);
   const peerSet = useRef<((id: string, name: string, svgs: SVGSVGElement[], key: string) => void) | null>(null);
   const peerBankRef = useRef<HTMLDivElement>(null);
   const burstRef = useRef<(() => void) | null>(null);
+  const turnRef = useRef<(() => void) | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     lookRef.current = look;
@@ -323,15 +367,26 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
     landRef.current = land;
     onPosRef.current = onPos;
     spectateRef.current = spectate;
+    loungeRef.current = lounge || peers;
     positionsRef.current = positions;
     followRef.current = follow;
   });
   useEffect(() => {
-    focusRef.current = panel && !quiet ? FOCUS[panel.slot] : null;
-  }, [panel, quiet]);
+    drawScreenRef.current?.(countdown);
+  }, [countdown]);
+  useEffect(() => {
+    focusRef.current = fitting ? { y: 1.15, dist: 4.7 } : panel && !quiet ? FOCUS[panel.slot] : null;
+  }, [panel, quiet, fitting]);
   useEffect(() => {
     faceRef.current = face;
   }, [face]);
+  useEffect(() => {
+    fittingRef.current = fitting;
+  }, [fitting]);
+  useEffect(() => {
+    moodRef.current = mood;
+    applyMoodRef.current?.(mood);
+  }, [mood]);
 
   const say = (m: string) => {
     setToast(m);
@@ -356,7 +411,7 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
   // outras jogadoras (modo plateia): o SVG de cada uma vira textura sempre que o look dela muda
   const rosterKey = JSON.stringify((roster ?? []).slice(0, 16).map((p) => [p.id, p.name, p.look, p.beauty]));
   useEffect(() => {
-    if (!spectate) return;
+    if (!spectate && !lounge && !peers) return;
     const t = setTimeout(() => {
       for (const p of (roster ?? []).slice(0, 16)) {
         const el = peerBankRef.current?.querySelector(`[data-peer="${p.id}"]`);
@@ -366,7 +421,7 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
     }, 40);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rosterKey, spectate]);
+  }, [rosterKey, spectate, lounge, peers]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -386,7 +441,8 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
     const scene = new THREE.Scene();
     scene.fog = new THREE.Fog(0xf1dfe9, 22, 58);
     const camera = new THREE.PerspectiveCamera(58, 1, 0.1, 90);
-    scene.add(new THREE.HemisphereLight(0xffffff, 0xd9bfe0, 1.35));
+    const hemi = new THREE.HemisphereLight(0xffffff, 0xd9bfe0, 1.35);
+    scene.add(hemi);
     const sun = new THREE.DirectionalLight(0xfff3e0, 0.9);
     sun.position.set(6, 14, 8);
     scene.add(sun);
@@ -440,7 +496,7 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
     const winTex = track(windowTexture());
     const winMat = track(new THREE.MeshBasicMaterial({ map: winTex, transparent: true }));
     for (const x of [-9, -3, 3, 9]) add(new THREE.Mesh(geo(new THREE.PlaneGeometry(4, 8)), winMat), x, 5.6, -HL + 0.05);
-    const sign = neonSprite("VISTA O HERÓI", 9);
+    const sign = neonSprite(lounge ? "MEGA DESFILE" : "VISTA O HERÓI", 9);
     sign.position.set(0, 8.6, -HL + 0.4);
     scene.add(sign);
     track(sign.material);
@@ -484,6 +540,122 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
       colliders.push({ x: -5.2, z, r: 1.3 }, { x: 5.2, z, r: 1.3 });
     }
 
+    // ---- época do ano: enfeites do salão
+    const season = seasonNow();
+    if (season === "natal") {
+      for (const [tx, tz] of [[-12.5, 20], [12.5, 20], [-12.5, -20], [12.5, -20]] as const) {
+        for (let i = 0; i < 4; i++) add(new THREE.Mesh(geo(new THREE.ConeGeometry(1.5 - i * 0.28, 1.2, 12)), mat(0x1f7a3d)), tx, 0.9 + i * 0.85, tz);
+        add(new THREE.Mesh(geo(new THREE.SphereGeometry(0.22, 8, 6)), track(new THREE.MeshBasicMaterial({ color: 0xffd23f }))), tx, 4.3, tz);
+        for (let i = 0; i < 8; i++) {
+          const a = i * 2.4;
+          add(new THREE.Mesh(geo(new THREE.SphereGeometry(0.11, 6, 5)), mat(i % 2 ? 0xd62839 : 0xffd23f)), tx + Math.cos(a) * (0.9 - (i % 4) * 0.2), 1 + (i % 4) * 0.85, tz + Math.sin(a) * (0.9 - (i % 4) * 0.2));
+        }
+        colliders.push({ x: tx, z: tz, r: 1.1 });
+      }
+      for (let i = 0; i < 24; i++) add(new THREE.Mesh(geo(new THREE.SphereGeometry(0.16, 6, 5)), track(new THREE.MeshBasicMaterial({ color: i % 2 ? 0xd62839 : 0x2a9d4a }))), -HW + 1 + i * ((HW * 2 - 2) / 23), 7.2 + Math.sin(i * 0.9) * 0.3, -HL + 0.5);
+    } else if (season === "pascoa") {
+      const eggCols = [0xff9ec7, 0xffd23f, 0x9ad7ff, 0xb59cff, 0x9be8b0];
+      for (let i = 0; i < 26; i++) {
+        const ex = (i % 2 ? 1 : -1) * (4 + (i % 5) * 1.1);
+        const ez = -20 + i * 1.5;
+        const egg = add(new THREE.Mesh(geo(new THREE.SphereGeometry(0.28, 10, 8)), mat(eggCols[i % eggCols.length])), ex, 0.3, ez);
+        egg.scale.set(1, 1.3, 1);
+      }
+      for (let i = 0; i < 14; i++) {
+        const cx = -HW + 2 + i * 2.1;
+        add(new THREE.Mesh(geo(new THREE.CylinderGeometry(0.01, 0.01, 1.4, 4)), mat(0xffffff)), cx, 8.3, -HL + 1);
+        const egg = add(new THREE.Mesh(geo(new THREE.SphereGeometry(0.34, 10, 8)), mat(eggCols[i % eggCols.length])), cx, 7.5, -HL + 1);
+        egg.scale.set(1, 1.3, 1);
+      }
+    } else if (season === "junina") {
+      const flagCols = [0xe63946, 0xffd23f, 0x2a9d8f, 0x4361ee, 0xf4a261];
+      const tri = geo(new THREE.BufferGeometry());
+      tri.setAttribute("position", new THREE.BufferAttribute(new Float32Array([-0.35, 0, 0, 0.35, 0, 0, 0, -0.7, 0]), 3));
+      tri.computeVertexNormals();
+      for (const fz of [-14, -4, 6, 16]) {
+        for (let i = 0; i < 22; i++) {
+          const fm = track(new THREE.MeshBasicMaterial({ color: flagCols[i % flagCols.length], side: THREE.DoubleSide }));
+          const flag = new THREE.Mesh(tri, fm);
+          flag.position.set(-HW + 1 + i * ((HW * 2 - 2) / 21), H - 1.6 + Math.sin((i / 21) * Math.PI) * -0.9, fz);
+          scene.add(flag);
+        }
+      }
+      for (let i = 0; i < 9; i++) add(new THREE.Mesh(geo(new THREE.SphereGeometry(0.4, 10, 8)), track(new THREE.MeshBasicMaterial({ color: i % 2 ? 0xff5a36 : 0xffc43d }))), -10 + i * 2.5, H - 2.6, -HL + 2);
+    }
+
+    // ---- luz do dia / da noite
+    const nightLights = [0, 1].map((i) => {
+      const pl = new THREE.PointLight(0xffe2a8, 0, 20, 1.6);
+      pl.position.set(0, H - 2.4, i ? 4 : -12);
+      scene.add(pl);
+      return pl;
+    });
+    applyMoodRef.current = (m) => {
+      const night = m === "night";
+      renderer.setClearColor(night ? 0x1d1235 : 0xf1dfe9);
+      (scene.fog as THREE.Fog).color.set(night ? 0x1d1235 : 0xf1dfe9);
+      hemi.color.set(night ? 0x9aa6ff : 0xffffff);
+      hemi.groundColor.set(night ? 0x3a2a5a : 0xd9bfe0);
+      hemi.intensity = night ? 0.75 : 1.35;
+      sun.intensity = night ? 0.22 : 0.9;
+      sun.color.set(night ? 0x8ea2ff : 0xfff3e0);
+      winMat.color.set(night ? 0x3b3a66 : 0xffffff);
+      for (const pl of nightLights) pl.intensity = night ? 30 : 0;
+    };
+    applyMoodRef.current(moodRef.current);
+
+    // ---- salão de espera do Mega Desfile: passarela, telão com a contagem, sofás e balões
+    if (lounge) {
+      add(new THREE.Mesh(geo(new THREE.BoxGeometry(4.2, 0.04, 16)), mat(0xf8c7dc)), 0, 0.05, -3.5);
+      for (const sx of [-2.15, 2.15]) add(new THREE.Mesh(geo(new THREE.BoxGeometry(0.14, 0.08, 16)), mat(0xe9b84a)), sx, 0.06, -3.5);
+      for (let i = 0; i < 8; i++) {
+        const gz = -10.5 + i * 2;
+        for (const sx of [-2.3, 2.3]) add(new THREE.Mesh(geo(new THREE.SphereGeometry(0.1, 6, 5)), bulbMat), sx, 0.15, gz);
+      }
+      const screenCanvas = document.createElement("canvas");
+      screenCanvas.width = 1024;
+      screenCanvas.height = 512;
+      const screenTex = track(canvasTexture(screenCanvas));
+      const drawScreen = (t: string) => {
+        const g = screenCanvas.getContext("2d")!;
+        const grad = g.createLinearGradient(0, 0, 1024, 512);
+        grad.addColorStop(0, "#3a1260");
+        grad.addColorStop(1, "#8a2a8f");
+        g.fillStyle = grad;
+        g.fillRect(0, 0, 1024, 512);
+        g.strokeStyle = "#ffd23f";
+        g.lineWidth = 14;
+        g.strokeRect(12, 12, 1000, 488);
+        g.fillStyle = "#ffe9a8";
+        g.textAlign = "center";
+        g.font = "900 66px system-ui, sans-serif";
+        g.fillText("O desfile começa em", 512, 150);
+        g.fillStyle = "#ffffff";
+        g.font = "900 190px system-ui, sans-serif";
+        g.fillText(t || "…", 512, 340);
+        g.fillStyle = "#ffd98a";
+        g.font = "800 46px system-ui, sans-serif";
+        g.fillText("Passeie pelo salão e espere as amigas ✨", 512, 440);
+        screenTex.needsUpdate = true;
+      };
+      drawScreen(countdown);
+      drawScreenRef.current = drawScreen;
+      const screen = add(new THREE.Mesh(geo(new THREE.PlaneGeometry(10, 5)), track(new THREE.MeshBasicMaterial({ map: screenTex }))), 0, 5.2, -HL + 0.3);
+      screen.position.y = 4.4;
+      for (const [sx, sz] of [[-8, 8], [8, 8], [-8, -4], [8, -4]] as const) {
+        add(new THREE.Mesh(geo(new THREE.BoxGeometry(2.8, 0.55, 1.2)), mat(0xd96fa8)), sx, 0.3, sz);
+        add(new THREE.Mesh(geo(new THREE.BoxGeometry(2.8, 0.9, 0.3)), mat(0xd96fa8)), sx, 0.75, sz + (sx < 0 ? -0.5 : -0.5));
+        colliders.push({ x: sx, z: sz, r: 1.5 });
+      }
+      const balloonCols = [0xff7ac0, 0xffd23f, 0x8a6dff, 0x6fd6c8, 0xff9a6b];
+      for (let i = 0; i < 14; i++) {
+        const bx = (i % 2 ? 1 : -1) * (10 + (i % 3));
+        const bz = -20 + i * 2.6;
+        add(new THREE.Mesh(geo(new THREE.CylinderGeometry(0.02, 0.02, 3, 4)), mat(0xffffff)), bx, 1.5, bz);
+        add(new THREE.Mesh(geo(new THREE.SphereGeometry(0.55, 12, 10)), mat(balloonCols[i % balloonCols.length])), bx, 3.4, bz);
+      }
+    }
+
     // ---- prateleiras
     const shelfBack = mat(0xf3e6ee);
     const shelfBoard = mat(0xffffff);
@@ -491,27 +663,32 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
     for (const u of layout.units) {
       const g = new THREE.Group();
       g.position.set(u.x, 0, u.z);
-      const back = new THREE.Mesh(geo(new THREE.BoxGeometry(0.12, 4.5, SPACING - 0.08)), shelfBack);
-      back.position.set(-u.face * 0.42, 2.25, 0);
+      const back = new THREE.Mesh(geo(new THREE.BoxGeometry(0.12, 5.3, SPACING - 0.08)), shelfBack);
+      back.position.set(-u.face * 0.42, 2.65, 0);
       g.add(back);
       for (let t = 0; t < TIERS; t++) {
         const b = new THREE.Mesh(geo(new THREE.BoxGeometry(0.95, 0.09, SPACING - 0.08)), shelfBoard);
-        b.position.set(0, 0.5 + t * 1.35, 0);
+        b.position.set(0, 0.42 + t * 1.2, 0);
         g.add(b);
       }
       const top = new THREE.Mesh(geo(new THREE.BoxGeometry(1, 0.12, SPACING - 0.04)), shelfPink);
-      top.position.set(0, 4.5, 0);
+      top.position.set(0, 5.3, 0);
       g.add(top);
       const base0 = new THREE.Mesh(geo(new THREE.BoxGeometry(0.95, 0.4, SPACING - 0.08)), shelfPink);
       base0.position.set(0, 0.2, 0);
       g.add(base0);
       scene.add(g);
     }
+    // placas fixas na parede (não giram para a câmera, então não "cortam" ao andar)
     for (const s of layout.signs) {
-      const sp = textSprite(s.text);
-      sp.position.set(s.x + (s.face === 1 ? 0.4 : -0.4), 5.3, s.z);
-      scene.add(sp);
-      track(sp.material);
+      const tmp = textSprite(s.text);
+      const tex = (tmp.material as THREE.SpriteMaterial).map!;
+      tmp.material.dispose();
+      track(tex);
+      const plane = new THREE.Mesh(geo(new THREE.PlaneGeometry(4.6, 1.15)), track(new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide })));
+      plane.position.set(-s.face * (HW - 0.12), 6.5, s.z);
+      plane.rotation.y = s.face === 1 ? Math.PI / 2 : -Math.PI / 2;
+      scene.add(plane);
     }
 
     // ---- espelho (mostra a avatar de verdade) e estações
@@ -542,10 +719,39 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
     };
     drawMirror(null);
     const spots: Spot[] = [];
-    const stationDefs: { cat: MallStation; label: string; x: number; title: string; tint: number }[] = [
-      { cat: "makeup", label: "Maquiar", x: -7.5, title: "💄 Maquiagem", tint: 0xf5b7d0 },
-      { cat: "hair", label: "Cabelo", x: 0, title: "💇‍♀️ Salão de cabelo", tint: 0xd8c2f0 },
-      { cat: "skin", label: "Tom de pele", x: 7.5, title: "🎨 Pele", tint: 0xffd9a8 },
+    // espelho de corpo inteiro do provador
+    const fitCanvas = document.createElement("canvas");
+    fitCanvas.width = 256;
+    fitCanvas.height = 512;
+    const fitTex = track(canvasTexture(fitCanvas));
+    const fitMat = track(new THREE.MeshBasicMaterial({ map: fitTex }));
+    const drawFit = (src: HTMLCanvasElement | null) => {
+      const g = fitCanvas.getContext("2d")!;
+      const grad = g.createLinearGradient(0, 0, 256, 512);
+      grad.addColorStop(0, "#eaf4ff");
+      grad.addColorStop(1, "#e7d8f7");
+      g.fillStyle = grad;
+      g.fillRect(0, 0, 256, 512);
+      if (src) {
+        const dh = 340;
+        const dw = (dh * src.width) / src.height;
+        g.drawImage(src, (256 - dw) / 2, 512 - dh - 8, dw, dh);
+      }
+      g.fillStyle = "rgba(255,255,255,0.3)";
+      g.beginPath();
+      g.moveTo(0, 0);
+      g.lineTo(130, 0);
+      g.lineTo(0, 170);
+      g.fill();
+      fitTex.needsUpdate = true;
+    };
+    drawFit(null);
+    drawFitRef.current = drawFit;
+    const stationDefs: { cat: MallStation | "fitting"; label: string; x: number; title: string; tint: number }[] = [
+      { cat: "makeup", label: "Maquiar", x: -11.25, title: "💄 Maquiagem", tint: 0xf5b7d0 },
+      { cat: "hair", label: "Cabelo", x: -3.75, title: "💇‍♀️ Salão de cabelo", tint: 0xd8c2f0 },
+      { cat: "skin", label: "Tom de pele", x: 3.75, title: "🎨 Pele", tint: 0xffd9a8 },
+      { cat: "fitting", label: "Provador", x: 11.25, title: "🪞 Provador", tint: 0xcfe8ff },
     ];
     const anchors: Record<MallZone, { x: number; z: number; yaw: number }> = {
       tunic: { x: 0, z: 0, yaw: 0 },
@@ -553,13 +759,18 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
       mantle: { x: 0, z: 0, yaw: 0 },
       shoes: { x: 0, z: 0, yaw: 0 },
       hand: { x: 0, z: 0, yaw: 0 },
-      makeup: { x: -7.5, z: HL - 4.6, yaw: Math.PI },
-      hair: { x: 0, z: HL - 4.6, yaw: Math.PI },
-      skin: { x: 7.5, z: HL - 4.6, yaw: Math.PI },
+      ears: { x: 0, z: 0, yaw: 0 },
+      neck: { x: 0, z: 0, yaw: 0 },
+      wrist: { x: 0, z: 0, yaw: 0 },
+      makeup: { x: -11.25, z: HL - 4.6, yaw: Math.PI },
+      hair: { x: -3.75, z: HL - 4.6, yaw: Math.PI },
+      skin: { x: 3.75, z: HL - 4.6, yaw: Math.PI },
+      fitting: { x: 11.25, z: HL - 4.8, yaw: Math.PI },
     };
-    for (const s of stationDefs) {
+    for (const s of lounge ? [] : stationDefs) {
       add(new THREE.Mesh(geo(new THREE.BoxGeometry(4.6, 4.2, 0.3)), mat(0xffffff)), s.x, 2.4, HL - 0.5);
-      add(new THREE.Mesh(geo(new THREE.PlaneGeometry(3.7, 3.4)), mirrorMat), s.x, 2.4, HL - 0.66).rotation.y = Math.PI;
+      if (s.cat === "fitting") add(new THREE.Mesh(geo(new THREE.PlaneGeometry(2.3, 3.8)), fitMat), s.x, 2.4, HL - 0.66).rotation.y = Math.PI;
+      else add(new THREE.Mesh(geo(new THREE.PlaneGeometry(3.7, 3.4)), mirrorMat), s.x, 2.4, HL - 0.66).rotation.y = Math.PI;
       for (let i = -2; i <= 2; i++) add(new THREE.Mesh(geo(new THREE.SphereGeometry(0.16, 8, 6)), new THREE.MeshBasicMaterial({ color: 0xfff3b0 })), s.x + i * 0.9, 4.6, HL - 0.62);
       add(new THREE.Mesh(geo(new THREE.BoxGeometry(2.6, 0.9, 1)), mat(s.tint)), s.x, 0.45, HL - 1.3);
       const sp = textSprite(s.title, 4.2);
@@ -586,7 +797,7 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
       placedByKey.set(`${p.slot}:${p.fam.family}`, p);
       spots.push({ target: { kind: "item", slot: p.slot, family: p.fam.family }, x: p.x + p.face * 1.2, z: p.z, label: p.fam.base });
     }
-    for (const slot of ["tunic", "head", "mantle", "shoes", "hand"] as Slot[]) {
+    for (const slot of (lounge ? [] : ["tunic", "head", "mantle", "shoes", "hand", "ears", "neck", "wrist"]) as Slot[]) {
       const items = layout.placed.filter((p) => p.slot === slot);
       const zs = items.map((p) => p.z);
       const face = items[0]?.face ?? 1;
@@ -636,6 +847,7 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
     let avatarFrames: THREE.Texture[] = [];
     let avatarShown = -1;
     let avatarBusy = false;
+    let avatarTries = 0;
     let avatarPending: SVGSVGElement[] | null = null;
     const setAvatar = (svgs: SVGSVGElement[]) => {
       if (avatarBusy) {
@@ -645,9 +857,13 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
       avatarBusy = true;
       // 3 quadros: parada e os dois passos; no close do rosto só a parada, em alta resolução, para a make aparecer nítida
       const list = faceRef.current ? svgs.slice(0, 1) : svgs;
-      Promise.all(list.map((svg) => svgToCanvas(svg, faceRef.current ? 900 : 300)))
-        .then((cs) => {
+      Promise.allSettled(list.map((svg) => svgToCanvas(svg, faceRef.current ? 900 : 300)))
+        .then((res) => {
           if (disposed) return;
+          // o quadro parado é obrigatório; se um passo falhar, usa o quadro parado no lugar
+          const idle = res[0];
+          if (idle.status !== "fulfilled") throw new Error("avatar");
+          const cs = res.map((x) => (x.status === "fulfilled" ? x.value : idle.value));
           const texs = cs.map((c) => canvasTexture(c));
           avatarFrames.forEach((t) => t.dispose());
           avatarFrames = texs;
@@ -656,10 +872,15 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
           avatarMat.needsUpdate = true;
           avatarCanvas = cs[0];
           drawMirror(faceRef.current ? null : cs[0]);
+          drawFit(faceRef.current ? null : cs[0]);
           mirrorBlank = faceRef.current;
           setReady(true);
         })
-        .catch(() => undefined)
+        .catch((err) => {
+          // não deixa a avatar "em branco": tenta de novo (o SVG pode ainda não ter chegado ao DOM)
+          console.warn("avatar 3D", err);
+          if (!disposed && avatarFrames.length === 0 && avatarTries++ < 6) setTimeout(() => !disposed && setAvatar(svgs), 700);
+        })
         .finally(() => {
           avatarBusy = false;
           if (avatarPending) {
@@ -699,6 +920,11 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
     scene.add(burstPts);
     let burstT = 99;
     let twirl = 99;
+    let backHold = false;
+    turnRef.current = () => {
+      backHold = !backHold;
+      twirl = 0;
+    };
 
     // ---- outras jogadoras (plateia): sprites que andam até a posição que chega pelo canal
     type Remote = { sprite: THREE.Sprite; mat: THREE.SpriteMaterial; shadow: THREE.Mesh; tag: THREE.Sprite; frames: THREE.Texture[]; shown: number; x: number; z: number; fx: number; key: string; busy: boolean; phase: number; seen: number };
@@ -748,7 +974,7 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
 
     // ---- controles
     const keys = new Set<string>();
-    const st = { x: 0, z: HL - 9, yaw: 0, pitch: 0.32, vx: 0, vz: 0, joyX: 0, joyY: 0, t: 0, walked: 0, movedSent: false, dist: 5, camY: 1.3, pe: 0.32, vs: 0, auto: null as null | { x: number; z: number; yaw: number }, yawGoal: null as null | number, faceX: 1 };
+    const st = { x: 0, z: HL - 9, yaw: 0, pitch: 0.32, vx: 0, vz: 0, joyX: 0, joyY: 0, t: 0, walked: 0, movedSent: false, dist: 5, camY: 1.3, pe: 0.32, vs: 0, auto: null as null | { x: number; z: number; yaw: number }, yawGoal: null as null | number, faceX: 1, back: false as boolean };
     if (process.env.NODE_ENV !== "production") (window as unknown as { __mall?: unknown }).__mall = st;
     const onKey = (e: KeyboardEvent, down: boolean) => {
       const k = e.key.toLowerCase();
@@ -895,6 +1121,10 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
       if (keys.has("s") || keys.has("arrowdown")) iz += 1;
       const len = Math.hypot(ix, iz);
       if (len > 0.08 && st.auto) st.auto = null; // mexeu no controle: cancela o "ir até lá"
+      if (len > 0.3 && fittingRef.current) {
+        fittingRef.current = false;
+        setFitting(false);
+      }
       if (len > 1) {
         ix /= len;
         iz /= len;
@@ -958,18 +1188,26 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
       avatar.scale.set(AV_W * st.faceX * spin * (1 + Math.sin(st.t * 9) * 0.01 * mv), AV_H * (1 - 0.02 * Math.abs(Math.cos(st.t * 9)) * mv), 1);
       avatar.position.set(st.x, bob + (twirl < 0.55 ? Math.sin((twirl / 0.55) * Math.PI) * 0.35 : 0), st.z);
       avatarMat.rotation = Math.sin(st.t * 9) * 0.03 * mv - 0.03 * st.faceX * mv;
-      if (avatarFrames.length === 3) {
-        const want = mv > 0.3 ? [1, 0, 2, 0][Math.floor(st.t * 9) % 4] : 0;
+      if (moving > 0.5) backHold = false;
+      // andando para longe da câmera: mostra a avatar de costas
+      const away = -(st.vx * sy + st.vz * cy);
+      if (away > 1.1 && away > Math.abs(lateral) * 0.8) st.back = true;
+      else if (away < 0.3 || Math.abs(lateral) > away * 1.5) st.back = moving < 0.3 ? st.back : false;
+      if (avatarFrames.length >= 3) {
+        const off = avatarFrames.length >= 6 && (st.back || backHold) ? 3 : 0;
+        const walk = mv > 0.3;
+        const want = off + (walk ? [1, 0, 2, 0][Math.floor(st.t * 9) % 4] : 0);
         if (want !== avatarShown) {
           avatarShown = want;
           avatarMat.map = avatarFrames[want];
+          if (walk && want - off !== 0 && !spectateRef.current) sfxStep();
         }
       }
       shadow.position.set(st.x, 0.03, st.z);
       shadow.scale.setScalar(1 - bob * 1.2);
 
       const spec = spectateRef.current;
-      avatar.visible = !spec;
+      avatar.visible = !spec && avatarFrames.length > 0;
       shadow.visible = !spec;
       // plateia: a câmera segue a jogadora escolhida
       if (spec && followRef.current) {
@@ -982,12 +1220,12 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
       }
       // jogadora: avisa onde está (só chega alguém se houver plateia; ver Camarim)
       posT += dt;
-      if (!spec && posT > (mv > 0.2 ? 0.45 : 1.6)) {
+      if (!spec && posT > (loungeRef.current ? (mv > 0.2 ? 0.9 : 3) : mv > 0.2 ? 0.45 : 1.6)) {
         posT = 0;
         onPosRef.current?.({ x: st.x, z: st.z, fx: st.faceX as 1 | -1, mv });
       }
       // outras jogadoras andando no salão
-      if (spec) {
+      if (spec || loungeRef.current) {
         const live = positionsRef.current?.current ?? {};
         const nowMs = Date.now();
         for (const [id, rm] of remotes) {
@@ -1155,6 +1393,14 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
     };
     selectRef.current = (t) => {
       if (t.kind === "station") {
+        if (t.cat === "fitting") {
+          setFitting(true);
+          setPanel(null);
+          const a = anchors.fitting;
+          st.auto = { x: a.x, z: a.z, yaw: a.yaw };
+          st.yawGoal = a.yaw;
+          return;
+        }
         onEventRef.current?.({ type: "station", cat: t.cat });
         onStationRef.current(t.cat);
         return;
@@ -1189,14 +1435,19 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
       avatarFrames.forEach((t) => t.dispose());
       remotes.forEach((rm) => rm.frames.forEach((t) => t.dispose()));
       peerSet.current = null;
+      drawScreenRef.current = null;
+      drawFitRef.current = null;
+      applyMoodRef.current = null;
+      turnRef.current = null;
       disposables.forEach((d) => d.dispose());
       renderer.dispose();
       renderer.forceContextLoss();
       renderer.domElement.remove();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layout]);
 
-  const allFams = useMemo(() => SLOTS.flatMap((s) => familiesBySlot(s.key).map((f) => ({ slot: s.key, f }))), []);
+  const allFams = useMemo(() => (lounge ? [] : SLOTS.flatMap((s) => familiesBySlot(s.key).map((f) => ({ slot: s.key, f })))), [lounge]);
   const panelFams = useMemo(() => (panel ? familiesBySlot(panel.slot) : []), [panel]);
   const panelFam = panel ? panelFams.find((f) => f.family === panel.family) : undefined;
   const worn = panel ? look[panel.slot] : undefined;
@@ -1235,7 +1486,7 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
           </div>
         ))}
       </div>
-      {spectate ? (
+      {spectate || lounge || peers ? (
         <div ref={peerBankRef} aria-hidden style={{ position: "absolute", left: -9999, top: 0, width: 200, height: 360, pointerEvents: "none", overflow: "hidden" }}>
           {(roster ?? []).slice(0, 16).map((p) => {
             const pb = baseFromBeauty(cleanBeauty(p.beauty));
@@ -1254,6 +1505,9 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
         <PaperDoll base={base} look={look} />
         <PaperDoll base={base} look={look} step={1} />
         <PaperDoll base={base} look={look} step={-1} />
+        <PaperDoll base={base} look={look} back />
+        <PaperDoll base={base} look={look} step={1} back />
+        <PaperDoll base={base} look={look} step={-1} back />
       </div>
 
       {!ready ? <p className="pointer-events-none absolute inset-x-0 top-1/2 text-center text-sm font-black text-purple-900">Abrindo a loja…</p> : null}
@@ -1265,7 +1519,7 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
       <p className="pointer-events-none absolute bottom-16 left-2 hidden rounded-full bg-black/35 px-2.5 py-1 text-[10px] font-bold text-white [@media(hover:hover)]:block">WASD ou setas para andar · arraste para girar · toque na peça</p>
 
       {/* atalhos: ir até cada parte do salão */}
-      <div className="absolute left-2 top-14 z-[4]" hidden={spectate}>
+      <div className="absolute left-2 top-14 z-[4]" hidden={spectate || lounge}>
         <button type="button" className="vh-chip !px-3 !py-1.5 !text-xs" data-on={menu} onClick={() => setMenu((m) => !m)} aria-expanded={menu}>
           🧭 Ir para…
         </button>
@@ -1293,6 +1547,35 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
         ) : null}
       </div>
 
+      <button
+        type="button"
+        className="vh-iconbtn absolute z-[4] !h-10 !w-10"
+        style={{ left: 22, bottom: 184 }}
+        aria-label={mood === "night" ? "Salão de dia" : "Salão de noite"}
+        onClick={() => {
+          const next: Mood = mood === "night" ? "day" : "night";
+          setMood(next);
+          try {
+            localStorage.setItem("vh:mood", next);
+          } catch {
+            /* sem armazenamento */
+          }
+        }}
+      >
+        {mood === "night" ? "☀️" : "🌙"}
+      </button>
+
+      {fitting ? (
+        <div className="absolute left-2 top-14 z-[6] flex flex-col gap-1.5">
+          <button type="button" className="vh-btn !w-auto !px-4 !py-2 !text-sm" onClick={() => turnRef.current?.()}>
+            🔄 Girar a modelo
+          </button>
+          <button type="button" className="vh-btn vh-btn-dark !w-auto !px-4 !py-2 !text-xs" onClick={() => setFitting(false)}>
+            ✕ Sair do provador
+          </button>
+        </div>
+      ) : null}
+
       {toast ? <p className="pointer-events-none absolute inset-x-10 top-14 z-[6] mx-auto max-w-sm rounded-xl bg-purple-900/90 px-3 py-2 text-center text-xs font-bold text-white">{toast}</p> : null}
 
       {!quiet && near && !(panel && near.target.kind === "item" && panel.family === near.target.family) ? (
@@ -1314,7 +1597,16 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
               ✕
             </button>
           </div>
-          <div className="grid grid-cols-4 gap-1.5">
+          {worn && ITEM_BY_ID.get(worn)?.family === panel.family && sizeOptions(panel.slot, panel.family) ? (
+            <div className="mb-1.5 flex flex-wrap gap-1">
+              {sizeOptions(panel.slot, panel.family)!.map((o) => (
+                <button key={o.key ?? "std"} type="button" className="rounded-full px-2 py-0.5 text-[10px] font-black" style={{ background: sizeOf(worn) === o.key ? "#ffe066" : "rgba(255,255,255,0.85)", color: "#4a1d6b" }} onClick={() => onEquip(panel.slot, withSize(worn, o.key))}>
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <div className="grid max-h-[34vh] grid-cols-4 gap-1.5 overflow-y-auto p-0.5">
             {panelFam.items.map((it) => (
               <button
                 key={it.id}
@@ -1322,8 +1614,8 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
                 title={it.name}
                 aria-label={it.name}
                 className="relative aspect-square rounded-full border-2 shadow active:scale-90"
-                style={{ background: it.p.c, borderColor: worn === it.id ? "#ffe066" : "rgba(255,255,255,0.7)", transform: worn === it.id ? "scale(1.14)" : undefined }}
-                onClick={() => pickVariant(panel.slot, it.id)}
+                style={{ background: it.p.c, borderColor: worn?.split("~")[0] === it.id ? "#ffe066" : "rgba(255,255,255,0.7)", transform: worn?.split("~")[0] === it.id ? "scale(1.14)" : undefined }}
+                onClick={() => pickVariant(panel.slot, withSize(it.id, sizeOf(worn)))}
               >
                 {it.p.c2 ? <i className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border border-white/70" style={{ background: it.p.c2 }} /> : null}
               </button>
