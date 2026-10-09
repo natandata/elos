@@ -1667,7 +1667,7 @@ input[type="datetime-local"] {
 .vh-walker[data-still="true"] { animation: none; }
 .vh-walker svg { height: 100%; width: auto; transform-origin: 50% 100%; animation: vh-sway 0.55s ease-in-out 6 alternate both; }
 .vh-walker[data-still="true"] svg { animation: none; }
-.vh-flash { position: absolute; inset: 0; z-index: 3; pointer-events: none; background: #fff; opacity: 0; animation: vh-flash 0.5s ease-out 3.1s both; }
+.vh-flash { position: absolute; inset: 0; z-index: 3; pointer-events: none; background: #fff; opacity: 0; animation: vh-flash 0.5s ease-out 3.1s forwards; }
 @keyframes vh-walk {
   0% { transform: translateX(-50%) translateY(-46%) scale(0.26); opacity: 0; }
   12% { opacity: 1; }
@@ -1677,7 +1677,7 @@ input[type="datetime-local"] {
 @keyframes vh-flash { 0% { opacity: 0.85; } 100% { opacity: 0; } }
 
 /* Salas ao vivo: o desfile dura o tempo todo da votação (30 s): vai e volta pela passarela fazendo a pose */
-.vh-walker[data-live="true"] { animation: vh-catwalk var(--vh-show, 30s) ease-in-out both; }
+.vh-walker[data-live="true"] { bottom: 13%; height: 68%; animation: vh-catwalk var(--vh-show, 30s) ease-in-out both; }
 @keyframes vh-catwalk {
   0% { transform: translateX(-50%) translateY(-46%) scale(0.26); opacity: 0; }
   3% { opacity: 1; }
@@ -1688,8 +1688,7 @@ input[type="datetime-local"] {
   72% { transform: translateX(-50%) translateY(0) scale(1); }
   100% { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; }
 }
-.vh-flash[data-live="true"] { animation: vh-flash 0.5s ease-out 4.2s both; }
-.vh-flash2 { position: absolute; inset: 0; z-index: 3; pointer-events: none; background: #fff; opacity: 0; animation: vh-flash 0.5s ease-out 21.5s both; }
+.vh-flash2 { position: absolute; inset: 0; z-index: 3; pointer-events: none; background: #fff; opacity: 0; animation: vh-flash 0.5s ease-out 21.5s forwards; }
 /* Votação no estilo Dress to Impress: estrelas sobre a passarela, embaixo */
 .vh-starbar { position: absolute; left: 50%; bottom: 3.5%; z-index: 5; transform: translateX(-50%); padding: 0.35rem 0.9rem; border-radius: 999px; background: linear-gradient(#f9a8d4, #ec6fb0); border: 2px solid #fff; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5); }
 .vh-starbar .vh-starbtn { font-size: 2rem; color: #fff7; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35); }

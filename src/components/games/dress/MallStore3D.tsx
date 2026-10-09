@@ -176,7 +176,7 @@ function svgToTexture(svg: SVGSVGElement, maxW: number): Promise<{ tex: THREE.Ca
  * Loja gigante em 3D, em terceira pessoa, no jeito do Dress to Impress: a jogadora anda pelo salão, chega nas
  * prateleiras, toca numa peça para vestir e escolhe a cor no painel. Espelhos de maquiagem, salão de cabelo e provador no fundo.
  */
-export function MallStore3D({ base, look, onEquip, onStation }: { base: DollBase; look: Look; onEquip: (slot: Slot, id: string | undefined) => void; onStation: (cat: MallStation) => void }) {
+export function MallStore3D({ base, look, onEquip, onStation, quiet = false }: { base: DollBase; look: Look; onEquip: (slot: Slot, id: string | undefined) => void; onStation: (cat: MallStation) => void; quiet?: boolean }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const bankRef = useRef<HTMLDivElement>(null);
   const avatarBankRef = useRef<HTMLDivElement>(null);
@@ -478,7 +478,11 @@ export function MallStore3D({ base, look, onEquip, onStation }: { base: DollBase
     };
     const joyBase = joyRef.current;
     const onDown = (e: PointerEvent) => {
-      canvas.setPointerCapture(e.pointerId);
+      try {
+        canvas.setPointerCapture(e.pointerId);
+      } catch {
+        /* ponteiro sintético ou já solto: segue sem captura */
+      }
       const r = canvas.getBoundingClientRect();
       const left = e.clientX - r.left < r.width * 0.42 && e.pointerType === "touch";
       ptrs.set(e.pointerId, { x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, t0: performance.now(), role: left ? "joy" : "look" });
@@ -688,6 +692,7 @@ export function MallStore3D({ base, look, onEquip, onStation }: { base: DollBase
       avatarMat.dispose();
       disposables.forEach((d) => d.dispose());
       renderer.dispose();
+      renderer.forceContextLoss();
       renderer.domElement.remove();
     };
   }, [layout]);
@@ -729,7 +734,7 @@ export function MallStore3D({ base, look, onEquip, onStation }: { base: DollBase
 
       {toast ? <p className="pointer-events-none absolute inset-x-6 top-12 z-[6] rounded-xl bg-purple-900/90 px-3 py-2 text-center text-xs font-bold text-white">{toast}</p> : null}
 
-      {near && !(panel && near.target.kind === "item" && panel.family === near.target.family) ? (
+      {!quiet && near && !(panel && near.target.kind === "item" && panel.family === near.target.family) ? (
         <div className="pointer-events-none absolute inset-x-0 bottom-4 z-[5] flex justify-center">
           <button type="button" className="vh-btn pointer-events-auto !w-auto !px-5 !py-2.5 !text-sm" onClick={() => selectRef.current?.(near.target)}>
             {near.target.kind === "station" ? `✨ ${near.label}` : `🛍 Provar: ${near.label}`}
@@ -737,7 +742,7 @@ export function MallStore3D({ base, look, onEquip, onStation }: { base: DollBase
         </div>
       ) : null}
 
-      {panel && panelFam ? (
+      {!quiet && panel && panelFam ? (
         <div className="absolute right-2 top-12 z-[6] w-[168px] rounded-2xl border-2 border-white/80 bg-purple-600/95 p-2.5 shadow-xl">
           <div className="mb-1.5 flex items-start justify-between gap-1">
             <p className="text-xs font-black leading-tight text-white">

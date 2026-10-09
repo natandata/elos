@@ -401,7 +401,7 @@ export function Camarim({ theme, mode, msLeft, practiceN = 1, draftKey, exitHref
       <div className="vh-room-stage">
         {mall ? (
           <div className="absolute inset-0">
-            <MallStore3D base={base} look={look} onEquip={equip} onStation={(c) => openPanel(c)} />
+            <MallStore3D base={base} look={look} onEquip={equip} onStation={(c) => openPanel(c)} quiet={closetOpen} />
           </div>
         ) : null}
         {(mall ? [] : (["l", "r"] as const)).map((side) => (
