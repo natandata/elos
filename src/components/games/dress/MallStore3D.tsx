@@ -3,10 +3,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { PaperDoll, SLOT_VIEWBOX } from "./PaperDoll";
+import { useLandscape } from "./LandscapeShell";
 import type { DollBase } from "@/lib/games/dress/characters";
 import { ITEM_BY_ID, SLOTS, familiesBySlot, type FamilyGroup, type Look, type Slot } from "@/lib/games/dress/items";
 
 export type MallStation = "hair" | "makeup" | "skin";
+export type MallZone = Slot | MallStation;
+export type MallEvent = { type: "move" | "equip" | "color" | "station" | "goto" | "near"; slot?: Slot; cat?: MallStation };
 
 type Target = { kind: "item"; slot: Slot; family: string } | { kind: "station"; cat: MallStation };
 type Spot = { target: Target; x: number; z: number; label: string };
@@ -16,8 +19,20 @@ const HL = 24; // meio comprimento
 const SPACING = 2.1;
 const TIERS = 3;
 const ZONE_LABEL: Record<Slot, string> = { tunic: "👗 Roupas", head: "👑 Cabeça", mantle: "🧣 Mantos", shoes: "👠 Calçados", hand: "🪄 Acessórios" };
+const ZONES: { key: MallZone; icon: string; label: string }[] = [
+  { key: "tunic", icon: "👗", label: "Roupas" },
+  { key: "head", icon: "👑", label: "Cabeça" },
+  { key: "mantle", icon: "🧣", label: "Mantos" },
+  { key: "shoes", icon: "👠", label: "Calçados" },
+  { key: "hand", icon: "🪄", label: "Acessórios" },
+  { key: "makeup", icon: "💄", label: "Make" },
+  { key: "hair", icon: "💇‍♀️", label: "Cabelo" },
+  { key: "skin", icon: "🎨", label: "Pele" },
+];
+/** Câmera de cada peça: perto da parte do corpo que está sendo escolhida. */
+const FOCUS: Record<Slot, { y: number; dist: number }> = { head: { y: 1.95, dist: 3.1 }, tunic: { y: 1.25, dist: 3.7 }, mantle: { y: 1.3, dist: 3.7 }, hand: { y: 1.1, dist: 3.4 }, shoes: { y: 0.45, dist: 3.1 } };
 
-type Placed = { slot: Slot; fam: FamilyGroup; x: number; y: number; z: number; face: 1 | -1; w: number; h: number; sprite?: THREE.Sprite };
+type Placed = { slot: Slot; fam: FamilyGroup; x: number; y: number; z: number; face: 1 | -1; w: number; h: number };
 
 /** Uma peça de cada família, em cada prateleira: o salão é montado a partir do catálogo. */
 function layoutShelves(): { placed: Placed[]; units: { x: number; z: number; face: 1 | -1 }[]; signs: { text: string; x: number; z: number; face: 1 | -1 }[] } {
@@ -81,6 +96,65 @@ function textSprite(text: string, w = 4.6, color = "#6b2d6f"): THREE.Sprite {
   return sp;
 }
 
+/** Letreiro dourado do salão. */
+function neonSprite(text: string, w: number): THREE.Sprite {
+  const c = document.createElement("canvas");
+  c.width = 1024;
+  c.height = 256;
+  const g = c.getContext("2d")!;
+  g.font = "900 120px system-ui, sans-serif";
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  g.shadowColor = "#ff7ac0";
+  g.shadowBlur = 36;
+  g.fillStyle = "#fff6c2";
+  g.fillText(text, 512, 132);
+  g.shadowBlur = 0;
+  g.lineWidth = 6;
+  g.strokeStyle = "#e9b84a";
+  g.strokeText(text, 512, 132);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, fog: false }));
+  sp.scale.set(w, w / 4, 1);
+  return sp;
+}
+
+function glowTexture(inner: string, outer: string): THREE.CanvasTexture {
+  const c = document.createElement("canvas");
+  c.width = c.height = 128;
+  const g = c.getContext("2d")!;
+  const grad = g.createRadialGradient(64, 64, 4, 64, 64, 62);
+  grad.addColorStop(0, inner);
+  grad.addColorStop(1, outer);
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 128, 128);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+function starTexture(): THREE.CanvasTexture {
+  const c = document.createElement("canvas");
+  c.width = c.height = 64;
+  const g = c.getContext("2d")!;
+  g.translate(32, 32);
+  g.fillStyle = "#fff";
+  g.shadowColor = "#ffe9a0";
+  g.shadowBlur = 10;
+  g.beginPath();
+  for (let i = 0; i < 8; i++) {
+    const r = i % 2 === 0 ? 26 : 7;
+    const a = (i * Math.PI) / 4 - Math.PI / 2;
+    g.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+  }
+  g.closePath();
+  g.fill();
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
 function woodTexture(): THREE.CanvasTexture {
   const c = document.createElement("canvas");
   c.width = 256;
@@ -99,6 +173,31 @@ function woodTexture(): THREE.CanvasTexture {
   t.colorSpace = THREE.SRGBColorSpace;
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.repeat.set(HW / 2.5, HL / 2.5);
+  return t;
+}
+
+function rugTexture(): THREE.CanvasTexture {
+  const c = document.createElement("canvas");
+  c.width = 256;
+  c.height = 512;
+  const g = c.getContext("2d")!;
+  g.fillStyle = "#fde3ef";
+  g.fillRect(0, 0, 256, 512);
+  g.strokeStyle = "#e9b84a";
+  g.lineWidth = 10;
+  g.strokeRect(8, 8, 240, 496);
+  g.strokeStyle = "#f5a3c7";
+  g.lineWidth = 4;
+  g.strokeRect(22, 22, 212, 468);
+  g.fillStyle = "#f5a3c7";
+  for (let y = 60; y < 480; y += 60) {
+    g.beginPath();
+    g.arc(128, y, 14, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = y % 120 === 0 ? "#f5a3c7" : "#e9b84a";
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
 
@@ -140,7 +239,7 @@ function windowTexture(): THREE.CanvasTexture {
 }
 
 /** SVG do boneco/peça (já no DOM) vira textura: copia o <svg>, dá tamanho e desenha num canvas. */
-function svgToTexture(svg: SVGSVGElement, maxW: number): Promise<{ tex: THREE.CanvasTexture; ar: number }> {
+function svgToCanvas(svg: SVGSVGElement, maxW: number): Promise<HTMLCanvasElement> {
   return new Promise((resolve, reject) => {
     const vb = (svg.getAttribute("viewBox") ?? "0 0 200 360").split(/\s+/).map(Number);
     const ar = vb[2] / vb[3];
@@ -160,9 +259,7 @@ function svgToTexture(svg: SVGSVGElement, maxW: number): Promise<{ tex: THREE.Ca
       c.height = h;
       c.getContext("2d")!.drawImage(img, 0, 0, w, h);
       URL.revokeObjectURL(url);
-      const tex = new THREE.CanvasTexture(c);
-      tex.colorSpace = THREE.SRGBColorSpace;
-      resolve({ tex, ar });
+      resolve(c);
     };
     img.onerror = () => {
       URL.revokeObjectURL(url);
@@ -171,12 +268,18 @@ function svgToTexture(svg: SVGSVGElement, maxW: number): Promise<{ tex: THREE.Ca
     img.src = url;
   });
 }
+const canvasTexture = (c: HTMLCanvasElement): THREE.CanvasTexture => {
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+};
 
 /**
- * Loja gigante em 3D, em terceira pessoa, no jeito do Dress to Impress: a jogadora anda pelo salão, chega nas
- * prateleiras, toca numa peça para vestir e escolhe a cor no painel. Espelhos de maquiagem, salão de cabelo e provador no fundo.
+ * Loja gigante em 3D, em terceira pessoa, no jeito do Dress to Impress: a jogadora anda pelo salão (joystick),
+ * chega nas prateleiras, toca numa peça para vestir e escolhe a cor no painel. Espelhos de maquiagem, salão de cabelo e provador no fundo.
  */
-export function MallStore3D({ base, look, onEquip, onStation, quiet = false }: { base: DollBase; look: Look; onEquip: (slot: Slot, id: string | undefined) => void; onStation: (cat: MallStation) => void; quiet?: boolean }) {
+export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = false, face = false }: { base: DollBase; look: Look; onEquip: (slot: Slot, id: string | undefined) => void; onStation: (cat: MallStation) => void; onEvent?: (e: MallEvent) => void; quiet?: boolean; face?: boolean }) {
+  const { rotated, mobile } = useLandscape();
   const hostRef = useRef<HTMLDivElement>(null);
   const bankRef = useRef<HTMLDivElement>(null);
   const avatarBankRef = useRef<HTMLDivElement>(null);
@@ -187,24 +290,39 @@ export function MallStore3D({ base, look, onEquip, onStation, quiet = false }: {
   const [toast, setToast] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [menu, setMenu] = useState(false);
 
   const layout = useMemo(() => layoutShelves(), []);
   const lookRef = useRef(look);
   const onEquipRef = useRef(onEquip);
   const onStationRef = useRef(onStation);
+  const onEventRef = useRef(onEvent);
+  const rotatedRef = useRef(rotated);
   const avatarSet = useRef<((svg: SVGSVGElement) => void) | null>(null);
   const selectRef = useRef<((t: Target) => void) | null>(null);
+  const goToRef = useRef<((z: MallZone) => void) | null>(null);
+  const focusRef = useRef<{ y: number; dist: number } | null>(null);
+  const faceRef = useRef(false);
+  const burstRef = useRef<(() => void) | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     lookRef.current = look;
     onEquipRef.current = onEquip;
     onStationRef.current = onStation;
+    onEventRef.current = onEvent;
+    rotatedRef.current = rotated;
   });
+  useEffect(() => {
+    focusRef.current = panel && !quiet ? FOCUS[panel.slot] : null;
+  }, [panel, quiet]);
+  useEffect(() => {
+    faceRef.current = face;
+  }, [face]);
 
   const say = (m: string) => {
     setToast(m);
     if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(null), 2200);
+    toastTimer.current = setTimeout(() => setToast(null), 2400);
   };
   const sayRef = useRef(say);
   useEffect(() => {
@@ -219,7 +337,7 @@ export function MallStore3D({ base, look, onEquip, onStation, quiet = false }: {
       if (svg) avatarSet.current?.(svg as SVGSVGElement);
     }, 30);
     return () => clearTimeout(t);
-  }, [lookKey]);
+  }, [lookKey, face]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -254,6 +372,10 @@ export function MallStore3D({ base, look, onEquip, onStation, quiet = false }: {
       disposables.push(g);
       return g;
     };
+    const track = <T extends { dispose: () => void }>(o: T): T => {
+      disposables.push(o);
+      return o;
+    };
     const add = (m: THREE.Mesh, x: number, y: number, z: number) => {
       m.position.set(x, y, z);
       scene.add(m);
@@ -261,14 +383,13 @@ export function MallStore3D({ base, look, onEquip, onStation, quiet = false }: {
     };
 
     // ---- salão
-    const floorTex = woodTexture();
-    disposables.push(floorTex);
-    const floor = add(new THREE.Mesh(geo(new THREE.PlaneGeometry(HW * 2, HL * 2)), new THREE.MeshLambertMaterial({ map: floorTex })), 0, 0, 0);
+    const floorTex = track(woodTexture());
+    const floor = add(new THREE.Mesh(geo(new THREE.PlaneGeometry(HW * 2, HL * 2)), track(new THREE.MeshLambertMaterial({ map: floorTex }))), 0, 0, 0);
     floor.rotation.x = -Math.PI / 2;
     const wallMat = mat(0xf6e3ec);
     const trimMat = mat(0xffffff);
     const H = 10;
-    add(new THREE.Mesh(geo(new THREE.PlaneGeometry(HW * 2, H)), wallMat), 0, H / 2, -HL).rotation.y = 0;
+    add(new THREE.Mesh(geo(new THREE.PlaneGeometry(HW * 2, H)), wallMat), 0, H / 2, -HL);
     const front = add(new THREE.Mesh(geo(new THREE.PlaneGeometry(HW * 2, H)), wallMat), 0, H / 2, HL);
     front.rotation.y = Math.PI;
     const lw = add(new THREE.Mesh(geo(new THREE.PlaneGeometry(HL * 2, H)), wallMat), -HW, H / 2, 0);
@@ -277,7 +398,6 @@ export function MallStore3D({ base, look, onEquip, onStation, quiet = false }: {
     rw.rotation.y = -Math.PI / 2;
     const ceil = add(new THREE.Mesh(geo(new THREE.PlaneGeometry(HW * 2, HL * 2)), mat(0xfff7fb)), 0, H, 0);
     ceil.rotation.x = Math.PI / 2;
-    // rodapé e faixa dourada
     for (const [w, d, x, z] of [
       [HW * 2, 0.2, 0, -HL + 0.1],
       [HW * 2, 0.2, 0, HL - 0.1],
@@ -287,15 +407,15 @@ export function MallStore3D({ base, look, onEquip, onStation, quiet = false }: {
       add(new THREE.Mesh(geo(new THREE.BoxGeometry(w, 0.35, d)), trimMat), x, 0.18, z);
       add(new THREE.Mesh(geo(new THREE.BoxGeometry(w, 0.12, d)), mat(0xe9b84a)), x, 5.7, z);
     }
-    // janelas em arco no fundo
-    const winTex = windowTexture();
-    disposables.push(winTex);
-    const winMat = new THREE.MeshBasicMaterial({ map: winTex, transparent: true });
-    for (const x of [-9, -3, 3, 9]) {
-      const w = add(new THREE.Mesh(geo(new THREE.PlaneGeometry(4, 8)), winMat), x, 5.6, -HL + 0.05);
-      w.rotation.y = 0;
-    }
-    // colunas
+    // janelas em arco no fundo + letreiro
+    const winTex = track(windowTexture());
+    const winMat = track(new THREE.MeshBasicMaterial({ map: winTex, transparent: true }));
+    for (const x of [-9, -3, 3, 9]) add(new THREE.Mesh(geo(new THREE.PlaneGeometry(4, 8)), winMat), x, 5.6, -HL + 0.05);
+    const sign = neonSprite("VISTA O HERÓI", 9);
+    sign.position.set(0, 8.6, -HL + 0.4);
+    scene.add(sign);
+    track(sign.material);
+    // colunas (somem quando ficam entre a câmera e a jogadora)
     const colMat = mat(0xffffff);
     const colliders: { x: number; z: number; r: number }[] = [];
     const columns: { x: number; z: number; parts: THREE.Mesh[] }[] = [];
@@ -307,16 +427,32 @@ export function MallStore3D({ base, look, onEquip, onStation, quiet = false }: {
         colliders.push({ x, z, r: 1.15 });
       }
     }
-    // tapete e palco central
-    const rug = add(new THREE.Mesh(geo(new THREE.PlaneGeometry(10, 22)), mat(0xfde7f1)), 0, 0.02, 2);
+    // tapete, palco central e lustre
+    const rugTex = track(rugTexture());
+    const rug = add(new THREE.Mesh(geo(new THREE.PlaneGeometry(9, 20)), track(new THREE.MeshLambertMaterial({ map: rugTex }))), 0, 0.02, 3);
     rug.rotation.x = -Math.PI / 2;
     add(new THREE.Mesh(geo(new THREE.CylinderGeometry(3.6, 3.8, 0.6, 30)), mat(0xffffff)), 0, 0.3, -12);
     add(new THREE.Mesh(geo(new THREE.CylinderGeometry(2.8, 3, 0.4, 30)), mat(0xf8c7dc)), 0, 0.8, -12);
     colliders.push({ x: 0, z: -12, r: 3.9 });
-    // plantas
+    const bulbMat = track(new THREE.MeshBasicMaterial({ color: 0xfff3b0 }));
+    for (const [cx, cz] of [[0, -12], [0, 4]]) {
+      const ring = add(new THREE.Mesh(geo(new THREE.TorusGeometry(1.6, 0.08, 8, 28)), mat(0xe9b84a)), cx, H - 2.1, cz);
+      ring.rotation.x = Math.PI / 2;
+      add(new THREE.Mesh(geo(new THREE.CylinderGeometry(0.03, 0.03, 2.1, 6)), mat(0xe9b84a)), cx, H - 1.05, cz);
+      for (let i = 0; i < 10; i++) {
+        const a = (i / 10) * Math.PI * 2;
+        add(new THREE.Mesh(geo(new THREE.SphereGeometry(0.17, 8, 6)), bulbMat), cx + Math.cos(a) * 1.6, H - 2.1, cz + Math.sin(a) * 1.6);
+      }
+    }
+    // plantas e bancos
     for (const [x, z] of [[-13, 18], [13, 18], [-13, -21], [13, -21], [-6, 21], [6, 21]]) {
       add(new THREE.Mesh(geo(new THREE.CylinderGeometry(0.45, 0.35, 0.8, 10)), mat(0xf5f5f5)), x, 0.4, z);
       add(new THREE.Mesh(geo(new THREE.SphereGeometry(0.95, 10, 8)), mat(0x3f8f4f)), x, 1.5, z);
+    }
+    for (const z of [-2, 10]) {
+      add(new THREE.Mesh(geo(new THREE.BoxGeometry(0.9, 0.5, 2.6)), mat(0xf5b7d0)), -5.2, 0.28, z);
+      add(new THREE.Mesh(geo(new THREE.BoxGeometry(0.9, 0.5, 2.6)), mat(0xf5b7d0)), 5.2, 0.28, z);
+      colliders.push({ x: -5.2, z, r: 1.3 }, { x: 5.2, z, r: 1.3 });
     }
 
     // ---- prateleiras
@@ -346,35 +482,71 @@ export function MallStore3D({ base, look, onEquip, onStation, quiet = false }: {
       const sp = textSprite(s.text);
       sp.position.set(s.x + (s.face === 1 ? 0.4 : -0.4), 5.3, s.z);
       scene.add(sp);
-      disposables.push(sp.material);
+      track(sp.material);
     }
 
-    // ---- estações (fundo da frente do salão)
+    // ---- espelho (mostra a avatar de verdade) e estações
+    const mirrorCanvas = document.createElement("canvas");
+    mirrorCanvas.width = mirrorCanvas.height = 256;
+    const mirrorTex = track(canvasTexture(mirrorCanvas));
+    const mirrorMat = track(new THREE.MeshBasicMaterial({ map: mirrorTex }));
+    const drawMirror = (src: HTMLCanvasElement | null) => {
+      const g = mirrorCanvas.getContext("2d")!;
+      const grad = g.createLinearGradient(0, 0, 256, 256);
+      grad.addColorStop(0, "#fbeaf3");
+      grad.addColorStop(1, "#e7d8f7");
+      g.fillStyle = grad;
+      g.fillRect(0, 0, 256, 256);
+      if (src) {
+        const sh = src.height * 0.5;
+        const dw = 200;
+        const dh = (dw * sh) / src.width;
+        g.drawImage(src, 0, 0, src.width, sh, 28, 256 - dh + 6, dw, dh);
+      }
+      g.fillStyle = "rgba(255,255,255,0.28)";
+      g.beginPath();
+      g.moveTo(0, 0);
+      g.lineTo(110, 0);
+      g.lineTo(0, 110);
+      g.fill();
+      mirrorTex.needsUpdate = true;
+    };
+    drawMirror(null);
     const spots: Spot[] = [];
     const stationDefs: { cat: MallStation; label: string; x: number; title: string; tint: number }[] = [
       { cat: "makeup", label: "Maquiar", x: -7.5, title: "💄 Maquiagem", tint: 0xf5b7d0 },
       { cat: "hair", label: "Cabelo", x: 0, title: "💇‍♀️ Salão de cabelo", tint: 0xd8c2f0 },
       { cat: "skin", label: "Tom de pele", x: 7.5, title: "🎨 Pele", tint: 0xffd9a8 },
     ];
+    const anchors: Record<MallZone, { x: number; z: number; yaw: number }> = {
+      tunic: { x: 0, z: 0, yaw: 0 },
+      head: { x: 0, z: 0, yaw: 0 },
+      mantle: { x: 0, z: 0, yaw: 0 },
+      shoes: { x: 0, z: 0, yaw: 0 },
+      hand: { x: 0, z: 0, yaw: 0 },
+      makeup: { x: -7.5, z: HL - 4.6, yaw: Math.PI },
+      hair: { x: 0, z: HL - 4.6, yaw: Math.PI },
+      skin: { x: 7.5, z: HL - 4.6, yaw: Math.PI },
+    };
     for (const s of stationDefs) {
       add(new THREE.Mesh(geo(new THREE.BoxGeometry(4.6, 4.2, 0.3)), mat(0xffffff)), s.x, 2.4, HL - 0.5);
-      add(new THREE.Mesh(geo(new THREE.BoxGeometry(3.9, 3.5, 0.12)), new THREE.MeshLambertMaterial({ color: s.tint, emissive: s.tint, emissiveIntensity: 0.25 })), s.x, 2.4, HL - 0.68);
+      add(new THREE.Mesh(geo(new THREE.PlaneGeometry(3.7, 3.4)), mirrorMat), s.x, 2.4, HL - 0.66).rotation.y = Math.PI;
       for (let i = -2; i <= 2; i++) add(new THREE.Mesh(geo(new THREE.SphereGeometry(0.16, 8, 6)), new THREE.MeshBasicMaterial({ color: 0xfff3b0 })), s.x + i * 0.9, 4.6, HL - 0.62);
-      add(new THREE.Mesh(geo(new THREE.BoxGeometry(2.6, 0.9, 1)), mat(0xf5b7d0)), s.x, 0.45, HL - 1.3);
+      add(new THREE.Mesh(geo(new THREE.BoxGeometry(2.6, 0.9, 1)), mat(s.tint)), s.x, 0.45, HL - 1.3);
       const sp = textSprite(s.title, 4.2);
       sp.position.set(s.x, 5.5, HL - 0.8);
       scene.add(sp);
-      disposables.push(sp.material);
+      track(sp.material);
       spots.push({ target: { kind: "station", cat: s.cat }, x: s.x, z: HL - 2.6, label: s.label });
       colliders.push({ x: s.x, z: HL - 1.3, r: 1.5 });
     }
 
     // ---- peças nas prateleiras (texturas chegam sob demanda)
-    const placeholder = new THREE.SpriteMaterial({ color: 0xe8d4e0, transparent: true, opacity: 0.55, depthWrite: false });
-    disposables.push(placeholder);
+    const placeholder = track(new THREE.SpriteMaterial({ color: 0xe8d4e0, transparent: true, opacity: 0.55, depthWrite: false }));
     const itemSprites = new Map<Placed, THREE.Sprite>();
     const spriteToPlaced = new Map<THREE.Object3D, Placed>();
     const textures: THREE.Texture[] = [];
+    const placedByKey = new Map<string, Placed>();
     for (const p of layout.placed) {
       const sp = new THREE.Sprite(placeholder);
       sp.scale.set(p.w * 0.8, p.h * 0.8, 1);
@@ -382,8 +554,17 @@ export function MallStore3D({ base, look, onEquip, onStation, quiet = false }: {
       scene.add(sp);
       itemSprites.set(p, sp);
       spriteToPlaced.set(sp, p);
+      placedByKey.set(`${p.slot}:${p.fam.family}`, p);
       spots.push({ target: { kind: "item", slot: p.slot, family: p.fam.family }, x: p.x + p.face * 1.2, z: p.z, label: p.fam.base });
     }
+    for (const slot of ["tunic", "head", "mantle", "shoes", "hand"] as Slot[]) {
+      const items = layout.placed.filter((p) => p.slot === slot);
+      const zs = items.map((p) => p.z);
+      const face = items[0]?.face ?? 1;
+      anchors[slot] = { x: -face * (HW - 3.1), z: (Math.min(...zs) + Math.max(...zs)) / 2, yaw: face === 1 ? Math.PI / 2 - 0.42 : -Math.PI / 2 + 0.42 };
+    }
+    const glow = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: track(glowTexture("rgba(255,224,102,0.95)", "rgba(255,224,102,0)")), transparent: true, depthWrite: false, opacity: 0 })));
+    scene.add(glow);
     const loading = new Set<Placed>();
     const loaded = new Set<Placed>();
     const bank = bankRef.current;
@@ -392,8 +573,9 @@ export function MallStore3D({ base, look, onEquip, onStation, quiet = false }: {
       const el = bank.querySelector(`[data-k="${p.slot}:${p.fam.family}"] svg`) as SVGSVGElement | null;
       if (!el) return;
       loading.add(p);
-      svgToTexture(el, 160)
-        .then(({ tex }) => {
+      svgToCanvas(el, 160)
+        .then((c) => {
+          const tex = canvasTexture(c);
           textures.push(tex);
           const sp = itemSprites.get(p);
           if (!sp || disposed) {
@@ -409,13 +591,14 @@ export function MallStore3D({ base, look, onEquip, onStation, quiet = false }: {
     };
 
     // ---- avatar da jogadora
-    const avatarMat = new THREE.SpriteMaterial({ transparent: true, color: 0xffffff, depthWrite: false });
+    const avatarMat = track(new THREE.SpriteMaterial({ transparent: true, color: 0xffffff, depthWrite: false }));
     const avatar = new THREE.Sprite(avatarMat);
     const AV_H = 2.2;
-    avatar.scale.set((AV_H * 200) / 360, AV_H, 1);
+    const AV_W = (AV_H * 200) / 360;
+    avatar.scale.set(AV_W, AV_H, 1);
     avatar.center.set(0.5, 0);
     scene.add(avatar);
-    const shadow = new THREE.Mesh(geo(new THREE.CircleGeometry(0.5, 20)), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.28 }));
+    const shadow = new THREE.Mesh(geo(new THREE.CircleGeometry(0.5, 20)), track(new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.28 })));
     shadow.rotation.x = -Math.PI / 2;
     shadow.position.y = 0.03;
     scene.add(shadow);
@@ -428,13 +611,16 @@ export function MallStore3D({ base, look, onEquip, onStation, quiet = false }: {
         return;
       }
       avatarBusy = true;
-      svgToTexture(svg, 300)
-        .then(({ tex }) => {
-          if (disposed) return tex.dispose();
+      // no close do rosto a avatar é redesenhada em alta resolução, para a make e o cabelo aparecerem nítidos
+      svgToCanvas(svg, faceRef.current ? 900 : 300)
+        .then((c) => {
+          if (disposed) return;
+          const tex = canvasTexture(c);
           avatarTex?.dispose();
           avatarTex = tex;
           avatarMat.map = tex;
           avatarMat.needsUpdate = true;
+          drawMirror(c);
           setReady(true);
         })
         .catch(() => undefined)
@@ -453,9 +639,34 @@ export function MallStore3D({ base, look, onEquip, onStation, quiet = false }: {
       if (svg) setAvatar(svg as SVGSVGElement);
     }, 60);
 
+    // ---- brilhos: poeira de estrelas no salão e explosão ao vestir
+    const starTex = track(starTexture());
+    const DUST = 90;
+    const dustPos = new Float32Array(DUST * 3);
+    for (let i = 0; i < DUST; i++) {
+      dustPos[i * 3] = (Math.random() - 0.5) * (HW * 2 - 3);
+      dustPos[i * 3 + 1] = Math.random() * 8;
+      dustPos[i * 3 + 2] = (Math.random() - 0.5) * (HL * 2 - 3);
+    }
+    const dustGeo = geo(new THREE.BufferGeometry());
+    dustGeo.setAttribute("position", new THREE.BufferAttribute(dustPos, 3));
+    const dust = new THREE.Points(dustGeo, track(new THREE.PointsMaterial({ size: 0.22, map: starTex, transparent: true, depthWrite: false, color: 0xfff0b8, opacity: 0.8, blending: THREE.AdditiveBlending })));
+    scene.add(dust);
+    const BURST = 36;
+    const burstPos = new Float32Array(BURST * 3);
+    const burstVel = new Float32Array(BURST * 3);
+    const burstGeo = geo(new THREE.BufferGeometry());
+    burstGeo.setAttribute("position", new THREE.BufferAttribute(burstPos, 3));
+    const burstMat = track(new THREE.PointsMaterial({ size: 0.34, map: starTex, transparent: true, depthWrite: false, color: 0xffe066, opacity: 0, blending: THREE.AdditiveBlending }));
+    const burstPts = new THREE.Points(burstGeo, burstMat);
+    burstPts.frustumCulled = false;
+    scene.add(burstPts);
+    let burstT = 99;
+    let twirl = 99;
+
     // ---- controles
     const keys = new Set<string>();
-    const st = { x: 0, z: HL - 7, yaw: 0, pitch: 0.28, vx: 0, vz: 0, joyX: 0, joyY: 0, t: 0 };
+    const st = { x: 0, z: HL - 7, yaw: 0, pitch: 0.32, vx: 0, vz: 0, joyX: 0, joyY: 0, t: 0, walked: 0, movedSent: false, dist: 5, camY: 1.3, pe: 0.32, vs: 0, auto: null as null | { x: number; z: number; yaw: number }, yawGoal: null as null | number, faceX: 1 };
     if (process.env.NODE_ENV !== "production") (window as unknown as { __mall?: unknown }).__mall = st;
     const onKey = (e: KeyboardEvent, down: boolean) => {
       const k = e.key.toLowerCase();
@@ -471,65 +682,80 @@ export function MallStore3D({ base, look, onEquip, onStation, quiet = false }: {
     window.addEventListener("keyup", ku);
 
     const canvas = renderer.domElement;
-    const ptrs = new Map<number, { x0: number; y0: number; x: number; y: number; t0: number; role: "joy" | "look" }>();
+    type Ptr = { x0: number; y0: number; x: number; y: number; t0: number; role: "joy" | "look" };
+    const ptrs = new Map<number, Ptr>();
     const raycaster = new THREE.Raycaster();
     const setKnob = (dx: number, dy: number) => {
       if (knobRef.current) knobRef.current.style.transform = `translate(${dx}px, ${dy}px)`;
     };
     const joyBase = joyRef.current;
+    /** Posição do toque no referencial da tela do jogo (que pode estar girada 90° por CSS quando o celular está em pé). */
+    const local = (e: PointerEvent) => {
+      const r = canvas.getBoundingClientRect();
+      if (rotatedRef.current) return { x: e.clientY - r.top, y: r.right - e.clientX, w: r.height, h: r.width };
+      return { x: e.clientX - r.left, y: e.clientY - r.top, w: r.width, h: r.height };
+    };
     const onDown = (e: PointerEvent) => {
       try {
         canvas.setPointerCapture(e.pointerId);
       } catch {
         /* ponteiro sintético ou já solto: segue sem captura */
       }
-      const r = canvas.getBoundingClientRect();
-      const left = e.clientX - r.left < r.width * 0.42 && e.pointerType === "touch";
-      ptrs.set(e.pointerId, { x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, t0: performance.now(), role: left ? "joy" : "look" });
+      const p = local(e);
+      const left = p.x < p.w * 0.45 && e.pointerType === "touch";
+      ptrs.set(e.pointerId, { x0: p.x, y0: p.y, x: p.x, y: p.y, t0: performance.now(), role: left ? "joy" : "look" });
       if (left && joyBase) {
-        joyBase.style.left = `${e.clientX - r.left - 46}px`;
-        joyBase.style.top = `${e.clientY - r.top - 46}px`;
+        joyBase.style.left = `${p.x - 52}px`;
+        joyBase.style.top = `${p.y - 52}px`;
+        joyBase.style.bottom = "auto";
         joyBase.style.opacity = "1";
       }
     };
     const onMove = (e: PointerEvent) => {
-      const p = ptrs.get(e.pointerId);
-      if (!p) return;
-      const dx = e.clientX - p.x;
-      const dy = e.clientY - p.y;
-      p.x = e.clientX;
-      p.y = e.clientY;
-      if (p.role === "joy") {
-        const jx = Math.max(-1, Math.min(1, (p.x - p.x0) / 46));
-        const jy = Math.max(-1, Math.min(1, (p.y - p.y0) / 46));
+      const q = ptrs.get(e.pointerId);
+      if (!q) return;
+      const p = local(e);
+      const dx = p.x - q.x;
+      const dy = p.y - q.y;
+      q.x = p.x;
+      q.y = p.y;
+      if (q.role === "joy") {
+        const jx = Math.max(-1, Math.min(1, (q.x - q.x0) / 52));
+        const jy = Math.max(-1, Math.min(1, (q.y - q.y0) / 52));
         const len = Math.hypot(jx, jy);
         const k = len > 1 ? 1 / len : 1;
         st.joyX = jx * k;
         st.joyY = jy * k;
-        setKnob(st.joyX * 30, st.joyY * 30);
+        setKnob(st.joyX * 34, st.joyY * 34);
       } else {
         st.yaw -= dx * 0.0065;
         st.pitch = Math.max(0.05, Math.min(0.9, st.pitch + dy * 0.004));
+        st.yawGoal = null;
       }
     };
     const onUp = (e: PointerEvent) => {
-      const p = ptrs.get(e.pointerId);
+      const q = ptrs.get(e.pointerId);
       ptrs.delete(e.pointerId);
-      if (!p) return;
-      if (p.role === "joy") {
+      if (!q) return;
+      if (q.role === "joy") {
         st.joyX = st.joyY = 0;
         setKnob(0, 0);
-        if (joyBase) joyBase.style.opacity = "0.35";
+        if (joyBase) {
+          joyBase.style.opacity = "0.5";
+          joyBase.style.left = "";
+          joyBase.style.top = "";
+          joyBase.style.bottom = "";
+        }
         return;
       }
       // toque curto sem arrastar = tentar pegar a peça tocada
-      if (Math.hypot(p.x - p.x0, p.y - p.y0) < 8 && performance.now() - p.t0 < 380) {
-        const r = canvas.getBoundingClientRect();
-        raycaster.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -(((e.clientY - r.top) / r.height) * 2 - 1)), camera);
+      if (Math.hypot(q.x - q.x0, q.y - q.y0) < 8 && performance.now() - q.t0 < 380) {
+        const p = local(e);
+        raycaster.setFromCamera(new THREE.Vector2((p.x / p.w) * 2 - 1, -((p.y / p.h) * 2 - 1)), camera);
         const hits = raycaster.intersectObjects([...spriteToPlaced.keys()], false);
         const hit = hits[0] ? spriteToPlaced.get(hits[0].object) : undefined;
         if (hit) {
-          if (Math.hypot(hit.x - st.x, hit.z - st.z) > 7.5) sayRef.current("Chegue mais perto da prateleira para pegar a peça.");
+          if (Math.hypot(hit.x - st.x, hit.z - st.z) > 7.5) sayRef.current("Chegue mais perto da prateleira para pegar a peça. Dica: o botão 🧭 leva você até lá!");
           else selectRef.current?.({ kind: "item", slot: hit.slot, family: hit.fam.family });
         }
       }
@@ -539,12 +765,16 @@ export function MallStore3D({ base, look, onEquip, onStation, quiet = false }: {
     canvas.addEventListener("pointerup", onUp);
     canvas.addEventListener("pointercancel", onUp);
 
+    let vw = 300;
+    let vh = 400;
     const resize = () => {
       const w = host.clientWidth || 300;
       const h = host.clientHeight || 400;
+      vw = w;
+      vh = h;
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
-      camera.fov = w / h < 0.8 ? 66 : 58;
+      camera.fov = w / h < 0.8 ? 66 : w / h > 1.6 ? 62 : 54;
       camera.updateProjectionMatrix();
     };
     const ro = new ResizeObserver(resize);
@@ -558,13 +788,21 @@ export function MallStore3D({ base, look, onEquip, onStation, quiet = false }: {
     let nearKey = "";
     let nearT = 0;
     let loadT = 0;
-    const camPos = new THREE.Vector3(0, 3, HL - 3);
+    let glowItem: Placed | null = null;
+    const camPos = new THREE.Vector3(0, 6, HL - 3);
     const tmp = new THREE.Vector3();
+    const lerpAngle = (a: number, b: number, k: number) => {
+      let d = ((b - a + Math.PI) % (Math.PI * 2)) - Math.PI;
+      if (d < -Math.PI) d += Math.PI * 2;
+      return a + d * k;
+    };
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame);
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
       st.t += dt;
+      burstT += dt;
+      twirl += dt;
       // direção desejada (no referencial da câmera)
       let ix = st.joyX;
       let iz = st.joyY;
@@ -573,23 +811,44 @@ export function MallStore3D({ base, look, onEquip, onStation, quiet = false }: {
       if (keys.has("w") || keys.has("arrowup")) iz -= 1;
       if (keys.has("s") || keys.has("arrowdown")) iz += 1;
       const len = Math.hypot(ix, iz);
+      if (len > 0.08 && st.auto) st.auto = null; // mexeu no controle: cancela o "ir até lá"
       if (len > 1) {
         ix /= len;
         iz /= len;
       }
-      const speed = (keys.has("shift") ? 8.5 : 5.2) * Math.min(1, len);
       const sy = Math.sin(st.yaw);
       const cy = Math.cos(st.yaw);
-      const wx = ix * cy + iz * sy;
-      const wz = -ix * sy + iz * cy;
-      const dirLen = Math.hypot(wx, wz) || 1;
-      const tvx = len > 0.05 ? (wx / dirLen) * speed : 0;
-      const tvz = len > 0.05 ? (wz / dirLen) * speed : 0;
+      let tvx = 0;
+      let tvz = 0;
+      if (st.auto) {
+        const dx = st.auto.x - st.x;
+        const dz = st.auto.z - st.z;
+        const d = Math.hypot(dx, dz);
+        if (d < 0.35) {
+          if (st.yawGoal === null) st.yawGoal = st.auto.yaw;
+          st.auto = null;
+        } else {
+          tvx = (dx / d) * 7.5;
+          tvz = (dz / d) * 7.5;
+          st.yawGoal = st.auto.yaw;
+        }
+      } else if (len > 0.05) {
+        const speed = (keys.has("shift") ? 8.5 : 5.2) * Math.min(1, len);
+        const wx = ix * cy + iz * sy;
+        const wz = -ix * sy + iz * cy;
+        const dl = Math.hypot(wx, wz) || 1;
+        tvx = (wx / dl) * speed;
+        tvz = (wz / dl) * speed;
+      }
       st.vx += (tvx - st.vx) * Math.min(1, dt * 12);
       st.vz += (tvz - st.vz) * Math.min(1, dt * 12);
       st.x += st.vx * dt;
       st.z += st.vz * dt;
-      // limites do salão e colisões
+      st.walked += Math.hypot(st.vx, st.vz) * dt;
+      if (!st.movedSent && st.walked > 6) {
+        st.movedSent = true;
+        onEventRef.current?.({ type: "move" });
+      }
       st.x = Math.max(-HW + 1.9, Math.min(HW - 1.9, st.x));
       st.z = Math.max(-HL + 1.2, Math.min(HL - 1.2, st.z));
       for (const c of colliders) {
@@ -602,33 +861,57 @@ export function MallStore3D({ base, look, onEquip, onStation, quiet = false }: {
           st.z = c.z + dz * k;
         }
       }
+      if (st.yawGoal !== null) {
+        st.yaw = lerpAngle(st.yaw, st.yawGoal, Math.min(1, dt * 3.2));
+        if (Math.abs(((st.yawGoal - st.yaw + Math.PI) % (Math.PI * 2)) - Math.PI) < 0.02) st.yawGoal = null;
+      }
       const moving = Math.hypot(st.vx, st.vz);
-      const bob = Math.abs(Math.sin(st.t * 9)) * 0.1 * Math.min(1, moving / 3);
-      avatar.position.set(st.x, bob, st.z);
-      avatarMat.rotation = Math.sin(st.t * 9) * 0.05 * Math.min(1, moving / 3);
+      const mv = Math.min(1, moving / 3);
+      // para que lado a avatar anda na tela (vira o desenho) e passinhos
+      const lateral = st.vx * cy - st.vz * sy;
+      if (Math.abs(lateral) > 0.6) st.faceX = lateral > 0 ? 1 : -1;
+      const bob = Math.abs(Math.sin(st.t * 9)) * 0.12 * mv;
+      const spin = twirl < 0.55 ? Math.cos((twirl / 0.55) * Math.PI) : 1;
+      avatar.scale.set(AV_W * st.faceX * spin * (1 + Math.sin(st.t * 9) * 0.01 * mv), AV_H * (1 - 0.02 * Math.abs(Math.cos(st.t * 9)) * mv), 1);
+      avatar.position.set(st.x, bob + (twirl < 0.55 ? Math.sin((twirl / 0.55) * Math.PI) * 0.35 : 0), st.z);
+      avatarMat.rotation = Math.sin(st.t * 9) * 0.05 * mv - 0.05 * st.faceX * mv;
       shadow.position.set(st.x, 0.03, st.z);
-      // câmera em terceira pessoa atrás da jogadora
-      const dist = 5;
-      tmp.set(st.x + Math.sin(st.yaw) * dist * Math.cos(st.pitch), 1.5 + dist * Math.sin(st.pitch) + 0.6, st.z + Math.cos(st.yaw) * dist * Math.cos(st.pitch));
+      shadow.scale.setScalar(1 - bob * 1.2);
+
+      // câmera: entrada de cinema, depois atrás da jogadora (ou de perto da peça escolhida)
+      const intro = Math.max(0, 1 - st.t / 1.8);
+      const focus = focusRef.current;
+      const faceMode = faceRef.current;
+      const wantDist = faceMode ? 2.0 : (focus ? focus.dist : 5.8) + intro * 4;
+      const wantY = faceMode ? 1.84 : focus ? focus.y : 1.3;
+      st.dist += (wantDist - st.dist) * Math.min(1, dt * 4);
+      st.camY += (wantY - st.camY) * Math.min(1, dt * 4);
+      st.pe += ((faceMode ? 0.04 : st.pitch + intro * 0.5) - st.pe) * Math.min(1, dt * 4);
+      const pitch = st.pe;
+      // com o painel aberto no lado direito, o rosto aparece na metade livre da tela
+      const wantShift = faceMode && vw > vh * 1.2 ? 0.27 : 0;
+      st.vs += (wantShift - st.vs) * Math.min(1, dt * 5);
+      if (Math.abs(st.vs) > 0.002) camera.setViewOffset(vw, vh, st.vs * vw, 0, vw, vh);
+      else if (camera.view) camera.clearViewOffset();
+      tmp.set(st.x + Math.sin(st.yaw) * st.dist * Math.cos(pitch), st.camY + 0.3 + st.dist * Math.sin(pitch), st.z + Math.cos(st.yaw) * st.dist * Math.cos(pitch));
       tmp.x = Math.max(-HW + 0.6, Math.min(HW - 0.6, tmp.x));
       tmp.z = Math.max(-HL + 0.6, Math.min(HL - 0.6, tmp.z));
       camPos.lerp(tmp, Math.min(1, dt * 10));
       camera.position.copy(camPos);
-      camera.lookAt(st.x, 1.3, st.z);
-      // coluna entre a câmera e a jogadora some, para não tapar a vista
+      camera.lookAt(st.x, st.camY, st.z);
       const sx = st.x - camPos.x;
       const sz = st.z - camPos.z;
       const sl = sx * sx + sz * sz || 1;
       for (const c of columns) {
         const t = Math.max(0, Math.min(1, ((c.x - camPos.x) * sx + (c.z - camPos.z) * sz) / sl));
-        const hide = Math.hypot(camPos.x + sx * t - c.x, camPos.z + sz * t - c.z) < 1.5;
+        const hide = Math.hypot(camPos.x + sx * t - c.x, camPos.z + sz * t - c.z) < 1.5 || Math.hypot(camPos.x - c.x, camPos.z - c.z) < 2.6;
         for (const m of c.parts) m.visible = !hide;
       }
 
-      // peça/estação mais perto + carregamento das texturas por perto
+      // peça/estação mais perto + destaque dourado
       nearT += dt;
       loadT += dt;
-      if (nearT > 0.12) {
+      if (nearT > 0.1) {
         nearT = 0;
         let best: Spot | null = null;
         let bd = 2.8;
@@ -643,7 +926,23 @@ export function MallStore3D({ base, look, onEquip, onStation, quiet = false }: {
         if (k !== nearKey) {
           nearKey = k;
           setNear(best);
+          glowItem = best && best.target.kind === "item" ? (placedByKey.get(`${best.target.slot}:${best.target.family}`) ?? null) : null;
+          if (best && best.target.kind === "item") onEventRef.current?.({ type: "near", slot: best.target.slot });
         }
+      }
+      for (const [p, sp] of itemSprites) {
+        if (!loaded.has(p)) continue;
+        const target = glowItem === p ? 1.14 + Math.sin(st.t * 6) * 0.04 : 1;
+        const cur = sp.scale.x / p.w;
+        const nx = cur + (target - cur) * Math.min(1, dt * 10);
+        sp.scale.set(p.w * nx, p.h * nx, 1);
+      }
+      if (glowItem) {
+        glow.position.set(glowItem.x - glowItem.face * 0.05, glowItem.y, glowItem.z);
+        glow.scale.set(glowItem.w * 1.9, glowItem.h * 1.7, 1);
+        (glow.material as THREE.SpriteMaterial).opacity += (0.9 - (glow.material as THREE.SpriteMaterial).opacity) * Math.min(1, dt * 8);
+      } else {
+        (glow.material as THREE.SpriteMaterial).opacity += (0 - (glow.material as THREE.SpriteMaterial).opacity) * Math.min(1, dt * 8);
       }
       if (loadT > 0.15) {
         loadT = 0;
@@ -657,20 +956,62 @@ export function MallStore3D({ base, look, onEquip, onStation, quiet = false }: {
           }
         }
       }
+      // brilhos
+      const dp = dustGeo.getAttribute("position") as THREE.BufferAttribute;
+      for (let i = 0; i < DUST; i++) {
+        let y = dp.getY(i) + dt * (0.15 + (i % 5) * 0.04);
+        if (y > 8.5) y = 0.2;
+        dp.setY(i, y);
+        dp.setX(i, dp.getX(i) + Math.sin(st.t * 0.6 + i) * dt * 0.1);
+      }
+      dp.needsUpdate = true;
+      if (burstT < 1.1) {
+        const bp = burstGeo.getAttribute("position") as THREE.BufferAttribute;
+        for (let i = 0; i < BURST; i++) {
+          bp.setXYZ(i, bp.getX(i) + burstVel[i * 3] * dt, bp.getY(i) + burstVel[i * 3 + 1] * dt, bp.getZ(i) + burstVel[i * 3 + 2] * dt);
+          burstVel[i * 3 + 1] -= dt * 2.2;
+        }
+        bp.needsUpdate = true;
+        burstMat.opacity = Math.max(0, 1 - burstT / 1.1);
+      } else burstMat.opacity = 0;
       renderer.render(scene, camera);
     };
     raf = requestAnimationFrame(frame);
 
+    burstRef.current = () => {
+      burstT = 0;
+      twirl = 0;
+      for (let i = 0; i < BURST; i++) {
+        const a = (i / BURST) * Math.PI * 2;
+        const sp = 1.2 + Math.random() * 1.8;
+        burstPos[i * 3] = st.x;
+        burstPos[i * 3 + 1] = 1.2 + Math.random() * 0.8;
+        burstPos[i * 3 + 2] = st.z;
+        burstVel[i * 3] = Math.cos(a) * sp;
+        burstVel[i * 3 + 1] = 1.2 + Math.random() * 1.6;
+        burstVel[i * 3 + 2] = Math.sin(a) * sp;
+      }
+      (burstGeo.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true;
+    };
+    goToRef.current = (z) => {
+      const a = anchors[z];
+      st.auto = { x: a.x, z: a.z, yaw: a.yaw };
+      st.yawGoal = a.yaw;
+    };
     selectRef.current = (t) => {
       if (t.kind === "station") {
+        onEventRef.current?.({ type: "station", cat: t.cat });
         onStationRef.current(t.cat);
         return;
       }
-      const fams = familiesBySlot(t.slot);
-      const f = fams.find((x) => x.family === t.family);
+      const f = familiesBySlot(t.slot).find((x) => x.family === t.family);
       if (!f) return;
       const worn = lookRef.current[t.slot];
-      if (!worn || ITEM_BY_ID.get(worn)?.family !== t.family) onEquipRef.current(t.slot, f.items[0].id);
+      if (!worn || ITEM_BY_ID.get(worn)?.family !== t.family) {
+        onEquipRef.current(t.slot, f.items[0].id);
+        burstRef.current?.();
+        onEventRef.current?.({ type: "equip", slot: t.slot });
+      }
       setPanel({ slot: t.slot, family: t.family });
     };
 
@@ -687,9 +1028,10 @@ export function MallStore3D({ base, look, onEquip, onStation, quiet = false }: {
       canvas.removeEventListener("pointercancel", onUp);
       avatarSet.current = null;
       selectRef.current = null;
+      goToRef.current = null;
+      burstRef.current = null;
       textures.forEach((t) => t.dispose());
       avatarTex?.dispose();
-      avatarMat.dispose();
       disposables.forEach((d) => d.dispose());
       renderer.dispose();
       renderer.forceContextLoss();
@@ -698,8 +1040,24 @@ export function MallStore3D({ base, look, onEquip, onStation, quiet = false }: {
   }, [layout]);
 
   const allFams = useMemo(() => SLOTS.flatMap((s) => familiesBySlot(s.key).map((f) => ({ slot: s.key, f }))), []);
-  const panelFam = panel ? familiesBySlot(panel.slot).find((f) => f.family === panel.family) : undefined;
+  const panelFams = useMemo(() => (panel ? familiesBySlot(panel.slot) : []), [panel]);
+  const panelFam = panel ? panelFams.find((f) => f.family === panel.family) : undefined;
   const worn = panel ? look[panel.slot] : undefined;
+
+  function pickVariant(slot: Slot, id: string | undefined) {
+    const prev = look[slot];
+    onEquip(slot, id);
+    burstRef.current?.();
+    if (id && prev && ITEM_BY_ID.get(prev)?.family === ITEM_BY_ID.get(id)?.family && prev !== id) onEvent?.({ type: "color", slot });
+    else if (id) onEvent?.({ type: "equip", slot });
+  }
+  function browse(dir: 1 | -1) {
+    if (!panel || panelFams.length === 0) return;
+    const i = panelFams.findIndex((f) => f.family === panel.family);
+    const next = panelFams[(i + dir + panelFams.length) % panelFams.length];
+    setPanel({ slot: panel.slot, family: next.family });
+    pickVariant(panel.slot, next.items[0].id);
+  }
 
   if (failed) {
     return (
@@ -726,30 +1084,59 @@ export function MallStore3D({ base, look, onEquip, onStation, quiet = false }: {
 
       {!ready ? <p className="pointer-events-none absolute inset-x-0 top-1/2 text-center text-sm font-black text-purple-900">Abrindo a loja…</p> : null}
 
-      <div ref={joyRef} aria-hidden className="pointer-events-none absolute z-[3] h-[92px] w-[92px] rounded-full border-2 border-white/70 bg-white/20 [@media(hover:hover)]:hidden" style={{ left: 22, bottom: 22, opacity: 0.35 }}>
-        <div ref={knobRef} className="absolute left-1/2 top-1/2 -ml-[17px] -mt-[17px] h-[34px] w-[34px] rounded-full bg-white/80 shadow" />
+      {/* joystick */}
+      <div ref={joyRef} aria-hidden className={`pointer-events-none absolute z-[3] h-[104px] w-[104px] rounded-full border-2 border-white/70 bg-white/20 ${mobile ? "" : "[@media(hover:hover)]:hidden"}`} style={{ left: 22, bottom: 66, opacity: 0.5 }}>
+        <div ref={knobRef} className="absolute left-1/2 top-1/2 -ml-[20px] -mt-[20px] h-[40px] w-[40px] rounded-full bg-white/85 shadow" />
       </div>
-      <p className="pointer-events-none absolute left-2 top-2 hidden rounded-full bg-black/35 px-2.5 py-1 text-[10px] font-bold text-white [@media(hover:hover)]:block">WASD / setas para andar · arraste para girar · toque na peça</p>
-      <p className="pointer-events-none absolute left-2 top-2 rounded-full bg-black/35 px-2.5 py-1 text-[10px] font-bold text-white [@media(hover:hover)]:hidden">Arraste à esquerda para andar · à direita para girar</p>
+      <p className="pointer-events-none absolute bottom-16 left-2 hidden rounded-full bg-black/35 px-2.5 py-1 text-[10px] font-bold text-white [@media(hover:hover)]:block">WASD ou setas para andar · arraste para girar · toque na peça</p>
 
-      {toast ? <p className="pointer-events-none absolute inset-x-6 top-12 z-[6] rounded-xl bg-purple-900/90 px-3 py-2 text-center text-xs font-bold text-white">{toast}</p> : null}
+      {/* atalhos: ir até cada parte do salão */}
+      <div className="absolute left-2 top-14 z-[4]">
+        <button type="button" className="vh-chip !px-3 !py-1.5 !text-xs" data-on={menu} onClick={() => setMenu((m) => !m)} aria-expanded={menu}>
+          🧭 Ir para…
+        </button>
+        {menu ? (
+          <div className="vh-panel vh-pop mt-1.5 grid grid-cols-4 gap-1.5 !p-2">
+            {ZONES.map((z) => (
+              <button
+                key={z.key}
+                type="button"
+                className="flex w-14 flex-col items-center rounded-xl border border-amber-300/50 bg-white/10 px-1 py-1.5 text-[10px] font-black leading-tight text-amber-50 active:scale-95"
+                onClick={() => {
+                  goToRef.current?.(z.key);
+                  onEvent?.({ type: "goto" });
+                  setMenu(false);
+                  setPanel(null);
+                }}
+              >
+                <span className="text-xl" aria-hidden>
+                  {z.icon}
+                </span>
+                {z.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
+      {toast ? <p className="pointer-events-none absolute inset-x-10 top-14 z-[6] mx-auto max-w-sm rounded-xl bg-purple-900/90 px-3 py-2 text-center text-xs font-bold text-white">{toast}</p> : null}
 
       {!quiet && near && !(panel && near.target.kind === "item" && panel.family === near.target.family) ? (
-        <div className="pointer-events-none absolute inset-x-0 bottom-4 z-[5] flex justify-center">
-          <button type="button" className="vh-btn pointer-events-auto !w-auto !px-5 !py-2.5 !text-sm" onClick={() => selectRef.current?.(near.target)}>
-            {near.target.kind === "station" ? `✨ ${near.label}` : `🛍 Provar: ${near.label}`}
+        <div className="pointer-events-none absolute bottom-16 z-[5] flex max-w-[48%] justify-end" style={{ right: panel ? 204 : 12 }}>
+          <button type="button" className="vh-btn pointer-events-auto !w-auto !px-5 !py-3 !text-sm shadow-[0_0_24px_rgba(255,224,102,0.7)]" onClick={() => selectRef.current?.(near.target)}>
+            {near.target.kind === "station" ? `✨ ${near.label}` : `🛍 ${near.label}`}
           </button>
         </div>
       ) : null}
 
       {!quiet && panel && panelFam ? (
-        <div className="absolute right-2 top-12 z-[6] w-[168px] rounded-2xl border-2 border-white/80 bg-purple-600/95 p-2.5 shadow-xl">
+        <div className="absolute right-2 top-14 z-[6] w-[188px] rounded-2xl border-2 border-white/80 bg-purple-600/95 p-2.5 shadow-xl">
           <div className="mb-1.5 flex items-start justify-between gap-1">
             <p className="text-xs font-black leading-tight text-white">
               {panelFam.base}
-              <span className="block text-[10px] font-bold text-purple-100">Cor</span>
+              <span className="block text-[10px] font-bold text-purple-100">{worn ? ITEM_BY_ID.get(worn)?.name : "Escolha a cor"}</span>
             </p>
-            <button type="button" className="grid h-6 w-6 place-items-center rounded-full bg-rose-500 text-xs font-black text-white" aria-label="Fechar" onClick={() => setPanel(null)}>
+            <button type="button" className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-rose-500 text-xs font-black text-white" aria-label="Fechar" onClick={() => setPanel(null)}>
               ✕
             </button>
           </div>
@@ -760,19 +1147,38 @@ export function MallStore3D({ base, look, onEquip, onStation, quiet = false }: {
                 type="button"
                 title={it.name}
                 aria-label={it.name}
-                className="relative aspect-square rounded-full border-2 shadow"
-                style={{ background: it.p.c, borderColor: worn === it.id ? "#ffe066" : "rgba(255,255,255,0.7)", transform: worn === it.id ? "scale(1.12)" : undefined }}
-                onClick={() => onEquip(panel.slot, it.id)}
+                className="relative aspect-square rounded-full border-2 shadow active:scale-90"
+                style={{ background: it.p.c, borderColor: worn === it.id ? "#ffe066" : "rgba(255,255,255,0.7)", transform: worn === it.id ? "scale(1.14)" : undefined }}
+                onClick={() => pickVariant(panel.slot, it.id)}
               >
                 {it.p.c2 ? <i className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border border-white/70" style={{ background: it.p.c2 }} /> : null}
               </button>
             ))}
           </div>
-          {worn && ITEM_BY_ID.get(worn)?.family === panel.family ? (
-            <button type="button" className="mt-2 w-full rounded-full bg-white/90 px-2 py-1 text-[11px] font-black text-purple-900" onClick={() => { onEquip(panel.slot, undefined); setPanel(null); }}>
-              Tirar peça
+          <div className="mt-2 flex items-center gap-1.5">
+            <button type="button" className="grid h-8 w-8 place-items-center rounded-full bg-white/90 text-sm font-black text-purple-900 active:scale-90" aria-label="Peça anterior" onClick={() => browse(-1)}>
+              ◀
             </button>
-          ) : null}
+            {worn && ITEM_BY_ID.get(worn)?.family === panel.family ? (
+              <button
+                type="button"
+                className="min-w-0 flex-1 rounded-full bg-white/90 px-2 py-1 text-[11px] font-black text-purple-900"
+                onClick={() => {
+                  onEquip(panel.slot, undefined);
+                  setPanel(null);
+                }}
+              >
+                Tirar peça
+              </button>
+            ) : (
+              <span className="min-w-0 flex-1 text-center text-[10px] font-bold text-purple-100">
+                {panelFams.findIndex((f) => f.family === panel.family) + 1}/{panelFams.length}
+              </span>
+            )}
+            <button type="button" className="grid h-8 w-8 place-items-center rounded-full bg-white/90 text-sm font-black text-purple-900 active:scale-90" aria-label="Próxima peça" onClick={() => browse(1)}>
+              ▶
+            </button>
+          </div>
         </div>
       ) : null}
     </div>

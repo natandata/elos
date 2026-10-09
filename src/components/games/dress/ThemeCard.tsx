@@ -12,7 +12,7 @@ export function ThemeCard({ theme, label = "Tema de hoje", full = false }: { the
   return (
     <div className="relative mb-4 overflow-hidden rounded-3xl border-[3px] border-amber-300 shadow-[0_8px_24px_rgba(0,0,0,0.55)]">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={sceneUrl(theme.scene)} alt="" className={`block w-full object-cover ${full ? "h-[360px] object-[50%_30%]" : "h-[190px] object-[50%_35%]"}`} draggable={false} />
+      <img src={sceneUrl(theme.scene)} alt="" className={`vh-tc-img block w-full object-cover ${full ? "h-[360px] object-[50%_30%]" : "h-[190px] object-[50%_35%]"}`} draggable={false} />
       <div className="absolute inset-0 bg-gradient-to-t from-[#1c0b36] via-[#1c0b36]/55 to-transparent" />
       <div className="absolute inset-x-0 bottom-0 p-4 text-center">
         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-200">

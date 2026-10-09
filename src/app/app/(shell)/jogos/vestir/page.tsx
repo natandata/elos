@@ -1,17 +1,15 @@
 import Link from "next/link";
 import { Avatar } from "@/components/Avatar";
 import { DressCountdown } from "@/components/games/dress/DressTeaser";
-import { ThemeCard } from "@/components/games/dress/ThemeCard";
-import { StarsStatic } from "@/components/games/dress/Stars";
+import { DressExchange } from "@/components/games/dress/DressExchange";
+import { DressMissions } from "@/components/games/dress/DressMissions";
+import { ImmersiveLink } from "@/components/games/dress/ImmersiveLink";
+import { MegaCard } from "@/components/games/dress/MegaCard";
 import { VhStage } from "@/components/games/dress/Vh";
 import { requireRole } from "@/lib/auth";
-import { todayBR } from "@/lib/games/engine";
 import { gameOpenFor, getReleaseDates } from "@/lib/games/releaseServer";
-import { juryStars } from "@/lib/games/dress/engine";
+import { MAX_PLAYERS, MIN_PLAYERS, PLACE_TICKETS } from "@/lib/games/dress/economy";
 import { ticketTitle } from "@/lib/games/dress/ranks";
-import { runwayTheme } from "@/lib/games/dress/runway";
-import { DRESS_SECONDS, PUBLISH_TICKETS, RUNWAY_PRIZES } from "@/lib/games/dress/rules";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 /** Banner do jogo: a ilustração de capa com o título, num fecho dourado. */
@@ -47,14 +45,11 @@ export default async function VestirPage() {
   }
 
   const supabase = await createClient();
-  const admin = createAdminClient();
-  const today = todayBR();
-  const theme = runwayTheme(today);
-  const [statsRes, rankRes, eloRes, mineRes] = await Promise.all([
+  const [statsRes, rankRes, eloRes, tutRes] = await Promise.all([
     supabase.from("dress_stats").select("tickets, best, perfect_days").eq("user_id", profile.id).maybeSingle<{ tickets: number; best: number; perfect_days: number }>(),
     supabase.rpc("dress_ticket_ranking", { p_limit: 20 }),
     supabase.rpc("dress_elo_ranking"),
-    admin ? admin.from("dress_runway_looks").select("id, fidelity").eq("user_id", profile.id).eq("theme_date", today).maybeSingle<{ id: string; fidelity: number }>() : Promise.resolve({ data: null }),
+    supabase.from("dress_mission_claims").select("mission").eq("user_id", profile.id).eq("mission", "o_tutorial").maybeSingle<{ mission: string }>(),
   ]);
 
   const tickets = statsRes.data?.tickets ?? 0;
@@ -62,7 +57,7 @@ export default async function VestirPage() {
   const ranking = (rankRes.data ?? []) as { user_id: string; full_name: string; avatar_url: string | null; elo_name: string | null; tickets: number }[];
   const elos = (eloRes.data ?? []) as { elo_id: string; elo_name: string; tickets: number; players: number }[];
   const myPos = ranking.findIndex((r) => r.user_id === profile.id) + 1;
-  const mine = mineRes.data;
+  const tutorialDone = !!tutRes.data;
 
   return (
     <VhStage>
@@ -85,59 +80,28 @@ export default async function VestirPage() {
         </div>
       </section>
 
-      <ThemeCard theme={theme} label="Tema de hoje" />
-
       <section className="vh-panel mb-5">
-        <h2 className="vh-h2">Rodada de hoje</h2>
-        {mine ? (
-          <>
-            <p className="mt-1 text-sm text-purple-100">
-              Seu look de hoje já está na passarela! O júri bíblico deu <StarsStatic value={juryStars(mine.fidelity)} className="align-middle" />. Agora é avaliar os looks das outras jogadoras.
-            </p>
-            <Link href="/app/jogos/vestir/passarela" className="vh-btn mt-4">
-              📸 Ir para o desfile
-            </Link>
-          </>
-        ) : (
-          <>
-            <ol className="mt-2 space-y-1.5 text-sm text-purple-100">
-              <li>
-                <b className="text-amber-200">1.</b> Entre no camarim: você tem {Math.floor(DRESS_SECONDS / 60)} minutos.
-              </li>
-              <li>
-                <b className="text-amber-200">2.</b> Vista a sua avatar pro tema, escolhendo cabelo, roupa, cores e enfeites.
-              </li>
-              <li>
-                <b className="text-amber-200">3.</b> Desfile na passarela e receba estrelas das colegas.
-              </li>
-            </ol>
-            <p className="mt-2 text-xs text-purple-200">
-              🎫 {PUBLISH_TICKETS} por participar + até 5 pela fidelidade à história · pódio do dia: {RUNWAY_PRIZES.join(", ")} 🎫
-            </p>
-            <Link href="/app/jogos/vestir/tema" className="vh-btn mt-4">
-              👗 JOGAR · ver o tema de hoje
-            </Link>
-          </>
-        )}
-        <Link href="/app/jogos/vestir/sala" className="vh-btn mt-3">
-          🎭 Passarela ao vivo · com as amigas
-        </Link>
-        <Link href="/app/jogos/vestir/treino" className="vh-btn vh-btn-purple mt-3">
-          🏋️ Treino · outro tema, sem bilhetes
-        </Link>
+        <h2 className="vh-h2">Como jogar</h2>
+        <p className="mt-1 text-sm text-purple-100">
+          O Vista o Herói é jogado <b className="text-amber-200">com as amigas, online</b>: de {MIN_PLAYERS} a {MAX_PLAYERS} jogadoras por partida. Todas recebem o mesmo tema bíblico, vestem a sua modelo no salão, desfilam e dão estrelas umas às outras.
+        </p>
+        <p className="mt-2 rounded-xl bg-black/25 px-3 py-2 text-center text-sm font-black text-amber-100">
+          🥇 {PLACE_TICKETS[0]} · 🥈 {PLACE_TICKETS[1]} · 🥉 {PLACE_TICKETS[2]} 🎫 · 1ª vitória do dia = 1 XP
+        </p>
+        <ImmersiveLink href="/app/jogos/vestir/sala" className="vh-btn mt-4">
+          🎭 JOGAR COM AS AMIGAS
+        </ImmersiveLink>
+        <ImmersiveLink href="/app/jogos/vestir/tutorial" className={`vh-btn mt-3 ${tutorialDone ? "vh-btn-dark" : "vh-btn-purple"}`}>
+          {tutorialDone ? "🎓 Rever o tutorial" : "🎓 Aprender a jogar · +10 🎫"}
+        </ImmersiveLink>
+        <p className="mt-2 text-center text-[11px] text-purple-200">No celular, o jogo vira de lado sozinho. 📱↔️</p>
       </section>
 
-      {mine ? null : (
-        <Link href="/app/jogos/vestir/passarela" className="vh-btn vh-btn-dark mb-5 !justify-start !gap-3 !rounded-3xl !py-3 !text-left">
-          <span className="text-3xl" aria-hidden>
-            📸
-          </span>
-          <span className="min-w-0 normal-case">
-            <span className="block text-base leading-tight">Passarela</span>
-            <span className="block text-[11px] font-bold leading-tight opacity-90">Avalie os looks das colegas · 1 🎫 por nota (até 5)</span>
-          </span>
-        </Link>
-      )}
+      <MegaCard />
+
+      <DressMissions />
+
+      <DressExchange tickets={tickets} />
 
       <section className="vh-panel mb-5">
         <h2 className="vh-h2 mb-2">🏆 Ranking dos Bilhetes</h2>

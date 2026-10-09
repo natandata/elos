@@ -5,6 +5,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Camarim, type LiveCamarim } from "./Camarim";
+import { LandscapeShell } from "./LandscapeShell";
 import { PaperDoll } from "./PaperDoll";
 import { RunwayWalk } from "./RunwayWalk";
 import { StarPicker, StarsStatic } from "./Stars";
@@ -18,6 +19,7 @@ import { ticketTitle } from "@/lib/games/dress/ranks";
 import { fmtClock } from "@/lib/games/dress/rules";
 import { THEME_BY_ID, type BibleTheme } from "@/lib/games/dress/themes";
 import { createClient } from "@/lib/supabase/client";
+import { PLACE_TICKETS, TICKETS_PER_XP } from "@/lib/games/dress/economy";
 
 const FALLBACK_THEME: BibleTheme = {
   id: "livre",
@@ -45,7 +47,15 @@ const TUTORIAL_KEY = "vh:live:tutorial";
 /** Como a sala fala com o banco (dá para trocar por um simulador nos testes de tela). */
 export type RoomRpc = (fn: string, args: Record<string, unknown>) => PromiseLike<{ data: unknown; error: unknown }>;
 
-export function LiveRoom({ code, meId, rpc }: { code: string; meId: string; rpc?: RoomRpc }) {
+export function LiveRoom(props: { code: string; meId: string; rpc?: RoomRpc }) {
+  return (
+    <LandscapeShell>
+      <LiveRoomInner {...props} />
+    </LandscapeShell>
+  );
+}
+
+function LiveRoomInner({ code, meId, rpc }: { code: string; meId: string; rpc?: RoomRpc }) {
   const router = useRouter();
   const sb = useMemo(() => createClient(), []);
   const call = useCallback<RoomRpc>((fn, args) => (rpc ? rpc(fn, args) : sb.rpc(fn, args)), [rpc, sb]);
@@ -259,83 +269,96 @@ export function LiveRoom({ code, meId, rpc }: { code: string; meId: string; rpc?
       <VhStage>
         {header}
         {offlineBar}
-        <div className="vh-panel mb-4 text-center">
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-200">Código da sala</p>
-          <p className="vh-title text-5xl tracking-[0.18em]">{st.code}</p>
-          <p className="mt-1 text-xs text-purple-100">{st.public ? "Sala aberta: aparece na lista para qualquer jogadora." : "Sala fechada: só entra quem tiver o código."}</p>
-          {st.phase === "intermission" ? (
-            <p className="mt-3 text-lg font-black text-amber-100" role="status">
-              A rodada começa em <span className="tabular-nums">{Math.ceil(left)}</span> s
-            </p>
-          ) : (
-            <p className="mt-3 text-sm font-bold text-amber-100" role="status">
-              {missing > 0 ? `Falta${missing > 1 ? "m" : ""} ${missing} jogadora${missing > 1 ? "s" : ""} para começar. Passe o código para as amigas!` : "Começando…"}
-            </p>
-          )}
-        </div>
-
-        {tutorial ? (
-          <div className="vh-panel vh-pop mb-4 text-sm">
-            <p className="vh-h2 mb-1">Como funciona</p>
-            <ol className="space-y-1 text-purple-100">
-              <li>
-                <b className="text-amber-200">1.</b> Todas recebem o mesmo tema bíblico.
-              </li>
-              <li>
-                <b className="text-amber-200">2.</b> No camarim, vista a sua modelo: roupa, cabeça, manto, mãos e calçado.
-              </li>
-              <li>
-                <b className="text-amber-200">3.</b> Toque numa peça para vestir e escolha a cor na faixa de cores.
-              </li>
-              <li>
-                <b className="text-amber-200">4.</b> Fique de olho no relógio: quando zera, o look é registrado.
-              </li>
-              <li>
-                <b className="text-amber-200">5.</b> Cada modelo desfila na passarela, com a pose que você escolheu.
-              </li>
-              <li>
-                <b className="text-amber-200">6.</b> Dê de 1 a 5 estrelas para as outras (não dá para votar em você).
-              </li>
-              <li>
-                <b className="text-amber-200">7.</b> No fim sai o pódio, e todas ganham Bilhetes Dourados.
-              </li>
-            </ol>
-            <button type="button" className="vh-btn vh-btn-purple mt-3" onClick={closeTutorial}>
-              Entendi
-            </button>
-          </div>
-        ) : null}
-
-        <section className="vh-panel mb-4">
-          <h2 className="vh-h2 mb-2">
-            Na sala ({online.length}/{st.max_players})
-          </h2>
-          <ul className="grid grid-cols-4 gap-2">
-            {st.players.map((p) => (
-              <li key={p.id} className="text-center" data-me={p.id === meId}>
-                <div className={`mx-auto flex h-24 items-end justify-center ${p.online ? "" : "opacity-40"}`}>
-                  <Mini p={p} className="h-24" />
-                </div>
-                <p className="truncate text-[11px] font-black text-amber-50">
-                  {firstName(p.name).split(" ")[0]}
-                  {p.id === meId ? " (você)" : ""}
+        <div className="vh-cols">
+          <div>
+            <div className="vh-panel mb-4 text-center">
+              {st.mega ? (
+                <>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-200">Todo domingo · 15h</p>
+                  <p className="vh-title text-4xl">🎆 Mega Desfile</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-200">Código da sala</p>
+                  <p className="vh-title text-5xl tracking-[0.18em]">{st.code}</p>
+                  <p className="mt-1 text-xs text-purple-100">{st.public ? "Sala aberta: aparece na lista para qualquer jogadora." : "Sala fechada: só entra quem tiver o código."}</p>
+                </>
+              )}
+              {st.phase === "intermission" ? (
+                <p className="mt-3 text-lg font-black text-amber-100" role="status">
+                  A rodada começa em <span className="tabular-nums">{Math.ceil(left)}</span> s
                 </p>
-                <p className="text-[9px] font-bold text-purple-200">{p.online ? "na sala" : "ausente"}</p>
-              </li>
-            ))}
-          </ul>
-        </section>
+              ) : st.mega && st.left_ms != null && st.left_ms > 0 ? (
+                <p className="mt-3 text-lg font-black text-amber-100" role="status">
+                  O desfile começa em <span className="tabular-nums">{fmtClock(Math.ceil(left))}</span>
+                </p>
+              ) : (
+                <p className="mt-3 text-sm font-bold text-amber-100" role="status">
+                  {missing > 0 ? `Falta${missing > 1 ? "m" : ""} ${missing} jogadora${missing > 1 ? "s" : ""} para começar (mínimo ${st.min_players}). Passe o código para as amigas!` : "Começando…"}
+                </p>
+              )}
+            </div>
 
-        <section className="mb-4 grid grid-cols-2 gap-3">
-          <div className="vh-panel text-center">
-            <p className="vh-title text-3xl tabular-nums">{st.me.tickets}</p>
-            <p className="text-[10px] font-black uppercase tracking-wide text-amber-200">🎫 Bilhetes Dourados</p>
+            {tutorial ? (
+              <div className="vh-panel vh-pop mb-4 text-sm">
+                <p className="vh-h2 mb-1">Como funciona</p>
+                <ol className="space-y-1 text-purple-100">
+                  <li>
+                    <b className="text-amber-200">1.</b> Todas recebem o mesmo tema bíblico.
+                  </li>
+                  <li>
+                    <b className="text-amber-200">2.</b> Ande pelo salão, escolha as peças nas prateleiras e capriche na make e no cabelo.
+                  </li>
+                  <li>
+                    <b className="text-amber-200">3.</b> Quando o relógio zera, o look é registrado e cada modelo desfila.
+                  </li>
+                  <li>
+                    <b className="text-amber-200">4.</b> Dê de 1 a 5 estrelas para as outras (não dá para votar em você).
+                  </li>
+                  <li>
+                    <b className="text-amber-200">5.</b> 🥇 {PLACE_TICKETS[0]} · 🥈 {PLACE_TICKETS[1]} · 🥉 {PLACE_TICKETS[2]} 🎫. A 1ª vitória do dia vale 1 XP!
+                  </li>
+                </ol>
+                <button type="button" className="vh-btn vh-btn-purple mt-3" onClick={closeTutorial}>
+                  Entendi
+                </button>
+              </div>
+            ) : null}
+
+            <section className="mb-4 grid grid-cols-2 gap-3">
+              <div className="vh-panel text-center">
+                <p className="vh-title text-3xl tabular-nums">{st.me.tickets}</p>
+                <p className="text-[10px] font-black uppercase tracking-wide text-amber-200">🎫 Bilhetes Dourados</p>
+                <p className="mt-0.5 text-[9px] font-bold text-purple-200">{TICKETS_PER_XP} 🎫 = 1 XP</p>
+              </div>
+              <div className="vh-panel text-center">
+                <p className="text-base font-black leading-tight text-amber-100">{t.title}</p>
+                <p className="mt-1 text-[10px] font-bold text-purple-200">{t.next ? `${t.next.min - st.me.tickets} 🎫 para ${t.next.title}` : "Topo da passarela!"}</p>
+              </div>
+            </section>
           </div>
-          <div className="vh-panel text-center">
-            <p className="text-base font-black leading-tight text-amber-100">{t.title}</p>
-            <p className="mt-1 text-[10px] font-bold text-purple-200">{t.next ? `${t.next.min - st.me.tickets} 🎫 para ${t.next.title}` : "Topo da passarela!"}</p>
-          </div>
-        </section>
+
+          <section className="vh-panel mb-4">
+            <h2 className="vh-h2 mb-2">
+              Na sala ({online.length}/{st.max_players})
+            </h2>
+            <ul className="grid grid-cols-4 gap-2">
+              {st.players.slice(0, 16).map((p) => (
+                <li key={p.id} className="text-center" data-me={p.id === meId}>
+                  <div className={`mx-auto flex h-24 items-end justify-center ${p.online ? "" : "opacity-40"}`}>
+                    <Mini p={p} className="h-24" />
+                  </div>
+                  <p className="truncate text-[11px] font-black text-amber-50">
+                    {firstName(p.name).split(" ")[0]}
+                    {p.id === meId ? " (você)" : ""}
+                  </p>
+                  <p className="text-[9px] font-bold text-purple-200">{p.online ? "na sala" : "ausente"}</p>
+                </li>
+              ))}
+            </ul>
+            {st.players.length > 16 ? <p className="mt-2 text-center text-xs font-bold text-purple-200">e mais {st.players.length - 16} jogadoras…</p> : null}
+          </section>
+        </div>
 
         {st.results.length > 0 ? <Scoreboard st={st} byId={byId} meId={meId} title={`Rodada ${st.round}: resultado`} /> : null}
       </VhStage>
@@ -350,6 +373,7 @@ export function LiveRoom({ code, meId, rpc }: { code: string; meId: string; rpc?
         {offlineBar}
         <div className="vh-reveal">
           <p className="mb-2 text-center text-[11px] font-black uppercase tracking-[0.25em] text-amber-200">Todas recebem o mesmo desafio</p>
+          <div className="vh-cols">
           <ThemeCard theme={theme} label={`Rodada ${st.round}`} full />
           <div className="vh-panel vh-pop text-center">
             <p className="text-sm leading-snug text-amber-50">{theme.hint}</p>
@@ -358,6 +382,7 @@ export function LiveRoom({ code, meId, rpc }: { code: string; meId: string; rpc?
               {st.me.eligible ? "O camarim abre em " : "Você joga a próxima rodada · camarim em "}
               <span className="tabular-nums">{Math.ceil(left)}</span> s
             </p>
+          </div>
           </div>
         </div>
       </VhStage>
@@ -425,45 +450,63 @@ export function LiveRoom({ code, meId, rpc }: { code: string; meId: string; rpc?
       <VhStage>
         {header}
         {offlineBar}
-        <p className="mb-2 text-center text-xs font-black uppercase tracking-wide text-amber-200">
-          Modelo {st.idx} de {st.order.length} · tema {theme.name}
-        </p>
-        {cur ? (
-          <RunwayWalk key={`${round}-${cur.id}`} base={baseOf(cur.beauty)} look={lookOf(cur.look)} name={cur.name} scene={theme.scene} pose={cleanPose(cur.pose)} showMs={total}>
-            <div className="vh-flash2" aria-hidden />
-            {st.me.eligible && !mine ? (
-              <div className="vh-starbar" data-done={iVoted(cur.id)}>
-                <StarPicker value={voted[cur.id] ?? 0} onPick={(n) => void vote(cur.id, n)} disabled={voting || iVoted(cur.id)} />
-              </div>
-            ) : null}
-            <div className="absolute inset-x-0 top-0 z-[4] bg-gradient-to-b from-black/85 to-transparent px-3 pb-8 pt-2 text-center">
-              <p className="truncate text-base font-black text-amber-100 [text-shadow:0_2px_4px_#000]">
-                {firstName(cur.name)}
-                {mine ? " (você)" : ""}
-              </p>
-              <p className="text-[11px] font-bold text-purple-200">
-                {POSES.find((x) => x.key === cleanPose(cur.pose))?.icon} pose {POSES.find((x) => x.key === cleanPose(cur.pose))?.label.toLowerCase()}
-                {cur.online ? "" : " · saiu da sala"}
-              </p>
-            </div>
-          </RunwayWalk>
-        ) : null}
-        <div className="mx-auto mt-2 h-1.5 max-w-[400px] overflow-hidden rounded-full bg-white/15" aria-hidden>
-          <div className="h-full rounded-full bg-amber-300 transition-[width] duration-300" style={{ width: `${pct}%` }} />
-        </div>
-        <div className="vh-panel mx-auto mt-3 max-w-[400px] text-center">
-          {!st.me.eligible ? (
-            <p className="text-sm font-bold text-purple-100">Você está assistindo: joga e avalia a partir da próxima rodada.</p>
-          ) : mine ? (
-            <>
-              <p className="vh-h2">É o seu desfile! 🌟</p>
-              <p className="mt-1 text-sm text-purple-100">As outras estão dando a nota. Ninguém avalia o próprio look.</p>
-            </>
-          ) : cur ? (
-            <p className="text-[12px] font-bold text-purple-100" role="status">
-              {iVoted(cur.id) ? (voteMsg ?? "Nota registrada! ✨") : (voteMsg ?? "Toque numa estrela, lá embaixo da passarela. Não dá para trocar depois.")}
+        <div className="vh-cols vh-cols-wide">
+          <div>
+            <p className="mb-2 text-center text-xs font-black uppercase tracking-wide text-amber-200">
+              Modelo {st.idx} de {st.order.length} · tema {theme.name}
             </p>
-          ) : null}
+            {cur ? (
+              <RunwayWalk key={`${round}-${cur.id}`} base={baseOf(cur.beauty)} look={lookOf(cur.look)} name={cur.name} scene={theme.scene} pose={cleanPose(cur.pose)} showMs={total}>
+                {st.me.eligible && !mine ? (
+                  <div className="vh-starbar" data-done={iVoted(cur.id)}>
+                    <StarPicker value={voted[cur.id] ?? 0} onPick={(n) => void vote(cur.id, n)} disabled={voting || iVoted(cur.id)} />
+                  </div>
+                ) : null}
+                <div className="absolute inset-x-0 top-0 z-[4] bg-gradient-to-b from-black/85 to-transparent px-3 pb-8 pt-2 text-center">
+                  <p className="truncate text-base font-black text-amber-100 [text-shadow:0_2px_4px_#000]">
+                    {firstName(cur.name)}
+                    {mine ? " (você)" : ""}
+                  </p>
+                  <p className="text-[11px] font-bold text-purple-200">
+                    {POSES.find((x) => x.key === cleanPose(cur.pose))?.icon} pose {POSES.find((x) => x.key === cleanPose(cur.pose))?.label.toLowerCase()}
+                    {cur.online ? "" : " · saiu da sala"}
+                  </p>
+                </div>
+              </RunwayWalk>
+            ) : null}
+            <div className="mx-auto mt-2 h-1.5 max-w-[400px] overflow-hidden rounded-full bg-white/15" aria-hidden>
+              <div className="h-full rounded-full bg-amber-300 transition-[width] duration-300" style={{ width: `${pct}%` }} />
+            </div>
+          </div>
+          <div>
+            <div className="vh-panel mx-auto mt-3 max-w-[400px] text-center">
+              {!st.me.eligible ? (
+                <p className="text-sm font-bold text-purple-100">Você está assistindo: joga e avalia a partir da próxima rodada.</p>
+              ) : mine ? (
+                <>
+                  <p className="vh-h2">É o seu desfile! 🌟</p>
+                  <p className="mt-1 text-sm text-purple-100">As outras estão dando a nota. Ninguém avalia o próprio look.</p>
+                </>
+              ) : cur ? (
+                <p className="text-[12px] font-bold text-purple-100" role="status">
+                  {iVoted(cur.id) ? (voteMsg ?? "Nota registrada! ✨") : (voteMsg ?? "Toque numa estrela, lá embaixo da passarela. Não dá para trocar depois.")}
+                </p>
+              ) : null}
+            </div>
+            <ol className="vh-panel mx-auto mt-3 max-w-[400px] space-y-1 !p-2.5" aria-label="Ordem do desfile">
+              {st.order.slice(0, 12).map((id, i) => (
+                <li key={id} className="flex items-center gap-2 text-[12px] font-bold" data-now={i + 1 === st.idx} style={{ color: i + 1 === st.idx ? "#ffe066" : i + 1 < st.idx ? "#a7f3d0" : "#d8c9f5" }}>
+                  <span className="w-5 text-center">{i + 1 < st.idx ? "✓" : i + 1 === st.idx ? "▶" : i + 1}</span>
+                  <span className="min-w-0 flex-1 truncate">
+                    {firstName(byId.get(id)?.name ?? "Modelo")}
+                    {id === meId ? " (você)" : ""}
+                  </span>
+                  {id !== meId && st.me.eligible && i + 1 <= st.idx ? <span>{iVoted(id) ? "⭐" : "·"}</span> : null}
+                </li>
+              ))}
+              {st.order.length > 12 ? <li className="text-center text-[11px] text-purple-200">e mais {st.order.length - 12}…</li> : null}
+            </ol>
+          </div>
         </div>
       </VhStage>
     );
@@ -574,16 +617,28 @@ export function LiveRoom({ code, meId, rpc }: { code: string; meId: string; rpc?
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-200">Sua recompensa</p>
           <p className="vh-title text-5xl tabular-nums">+{mine.tickets} 🎫</p>
           <p className="mt-1 text-xs text-purple-100">
-            {mine.tickets > 0 ? "3 por participar, mais o bônus do pódio e 1 por avaliar todas as outras." : "Você já ganhou o máximo de rodadas premiadas por hoje, mas a posição conta!"}
+            {mine.tickets > 0
+              ? st.mega
+                ? "Prêmio em dobro do Mega Desfile para o pódio!"
+                : `🥇 ${PLACE_TICKETS[0]} · 🥈 ${PLACE_TICKETS[1]} · 🥉 ${PLACE_TICKETS[2]} 🎫. Só o pódio ganha bilhetes.`
+              : mine.place <= 3
+                ? "Você já ganhou o máximo de rodadas premiadas por hoje, mas a posição conta!"
+                : "Fora do pódio desta vez. Na próxima você chega lá! 💪"}
           </p>
         </div>
       ) : (
         <p className="vh-panel mb-4 text-center text-sm font-bold text-purple-100">Você assistiu a esta rodada. A próxima já vale para você!</p>
       )}
       <Scoreboard st={st} byId={byId} meId={meId} title="Placar da rodada" />
-      <p className="mt-3 text-center text-sm font-black text-amber-100" role="status">
-        Próxima rodada em <span className="tabular-nums">{Math.ceil(left)}</span> s
-      </p>
+      {st.mega ? (
+        <p className="mt-3 text-center text-sm font-black text-amber-100" role="status">
+          O Mega Desfile desta semana terminou. Até domingo que vem! 🎆
+        </p>
+      ) : (
+        <p className="mt-3 text-center text-sm font-black text-amber-100" role="status">
+          Próxima rodada em <span className="tabular-nums">{Math.ceil(left)}</span> s
+        </p>
+      )}
     </VhStage>
   );
 }

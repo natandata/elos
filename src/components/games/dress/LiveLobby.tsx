@@ -2,7 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { LandscapeShell } from "./LandscapeShell";
+import { MegaCard } from "./MegaCard";
 import { VhStage } from "./Vh";
+import { MAX_PLAYERS, MIN_PLAYERS } from "@/lib/games/dress/economy";
+import { enterImmersive, leaveImmersive } from "@/lib/games/dress/immersive";
 import { PHASE_LABEL, cleanCode, type RoomAd } from "@/lib/games/dress/live";
 import { createClient } from "@/lib/supabase/client";
 
@@ -31,6 +35,7 @@ export function LiveLobby() {
 
   async function create(isPublic: boolean) {
     if (busy) return;
+    enterImmersive();
     setBusy(true);
     setError(null);
     const { data, error: e } = await sb.rpc("dress_room_create", { p_public: isPublic });
@@ -45,6 +50,7 @@ export function LiveLobby() {
     const clean = cleanCode(c);
     if (clean.length !== 4) return setError("O código tem 4 letras ou números.");
     if (busy) return;
+    enterImmersive();
     setBusy(true);
     setError(null);
     const { data, error: e } = await sb.rpc("dress_room_join", { p_code: clean });
@@ -57,9 +63,12 @@ export function LiveLobby() {
   }
 
   return (
+    <LandscapeShell>
     <VhStage>
       <p className="vh-title mb-1 text-center text-3xl">Passarela ao vivo</p>
       <p className="mb-4 text-center text-sm text-purple-100">Todas recebem o mesmo tema, se vestem ao mesmo tempo, desfilam e dão estrelas umas às outras.</p>
+
+      <MegaCard />
 
       <section className="vh-panel mb-4">
         <h2 className="vh-h2 mb-2">Criar uma sala</h2>
@@ -71,7 +80,7 @@ export function LiveLobby() {
             🔒 Só com código
           </button>
         </div>
-        <p className="mt-2 text-[11px] text-purple-200">A rodada começa sozinha quando houver pelo menos 2 jogadoras (até 8).</p>
+        <p className="mt-2 text-[11px] text-purple-200">A rodada começa sozinha quando houver pelo menos {MIN_PLAYERS} jogadoras (até {MAX_PLAYERS}). Chame as amigas com o código!</p>
       </section>
 
       <section className="vh-panel mb-4">
@@ -131,9 +140,17 @@ export function LiveLobby() {
         )}
       </section>
 
-      <button type="button" className="vh-btn vh-btn-dark" onClick={() => router.push("/app/jogos/vestir")}>
+      <button
+        type="button"
+        className="vh-btn vh-btn-dark"
+        onClick={() => {
+          leaveImmersive();
+          router.push("/app/jogos/vestir");
+        }}
+      >
         ← Voltar
       </button>
     </VhStage>
+    </LandscapeShell>
   );
 }
