@@ -61,15 +61,6 @@ export function tinted(name: CampoName, color: string, amount: number): CanvasIm
   return c;
 }
 
-/** Solta as cópias coloridas dos sprites (cada uma é uma tela do tamanho do sprite): chamado quando a partida termina. */
-export function clearTints(): void {
-  for (const c of tintCache.values()) {
-    c.width = 0;
-    c.height = 0;
-  }
-  tintCache.clear();
-}
-
 /** "#rrggbb" escurecido (k < 1) ou clareado (k > 1). Cores em outro formato voltam como vieram. */
 export function shade(hex: string, k: number): string {
   const m = /^#([0-9a-f]{6})$/i.exec(hex);

@@ -7,7 +7,7 @@ import { CAMPAIGN_CARDS, CAMPAIGN_COMBOS, activeCombos, inCombo, type Combo } fr
 import { drawLimbs } from "./arenaLimbs";
 import { CardArt } from "./CardArt";
 import { TEAM, buildAmbient, buildBackground, drawAmbient, drawRubble, drawTower, layoutFor, type Ambient, type Layout } from "./arenaRender";
-import { clearTints, loadCampo } from "./arenaAssets";
+import { loadCampo } from "./arenaAssets";
 import { reportClientError } from "@/lib/clientErrors";
 import { applyEvent, drawFx, newAnim, type Anim, type Fx } from "./arenaFx";
 import { ArenaSound, readMuted } from "./arenaSound";
@@ -214,7 +214,6 @@ export function ArenaPlayfield({
     }
     bgRef.current = null;
     ambRef.current = null;
-    clearTints();
   }, []);
   const sizeKeyRef = useRef("");
   const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -237,7 +236,7 @@ export function ArenaPlayfield({
     const l = layoutFor(area.clientWidth, area.clientHeight);
     // menos pixels em aparelhos fracos: o campo é desenhado todo quadro, e memória de vídeo acabando faz a tela piscar
     const lowMem = ((navigator as unknown as { deviceMemory?: number }).deviceMemory ?? 8) <= 4;
-    const budget = Math.sqrt((lowMem ? 260_000 : 380_000) / Math.max(1, l.cw * l.ch));
+    const budget = Math.sqrt((lowMem ? 700_000 : 1_300_000) / Math.max(1, l.cw * l.ch));
     const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1, budget));
     const key = `${l.cw}x${l.ch}@${dpr}`;
     // mesmo tamanho de antes: não mexe no canvas (redimensionar apaga a tela e fazia o campo piscar)
@@ -557,7 +556,6 @@ export function ArenaPlayfield({
     let acc = 0;
     let stalledSince: number | null = null;
     let noBgFrames = 0;
-    let lastDraw = 0;
     const tick = (now: number): boolean => {
       const d = driverRef.current;
       const game = d.game;
@@ -589,7 +587,7 @@ export function ArenaPlayfield({
             const step = Math.floor((an.walk * 3.6) / Math.PI);
             if (step > an.steps) {
               an.steps = step;
-              if (!e.flying && e.type === "unit" && fxRef.current.length < 50) {
+              if (!e.flying && e.type === "unit" && fxRef.current.length < 120) {
                 fxRef.current.push({ k: "dust", x: vx(e.x), y: vy(e.y) + e.radius * 0.9, t0: game.tick, dur: 9, big: e.card === "nery" });
               }
             }
@@ -663,11 +661,7 @@ export function ArenaPlayfield({
       }
       // fundo ainda não pronto (ou perdido): tenta montar de novo a cada segundo, sem parar o jogo
       if (!bgRef.current && ++noBgFrames % 60 === 0) setupCanvas(true);
-      // desenha no máximo ~30 vezes por segundo (a lógica do jogo não muda): metade do trabalho de vídeo em qualquer celular
-      if (now - lastDraw >= 30 || game.over) {
-        lastDraw = now;
-        safeDraw(Math.min(1, acc / STEP_MS));
-      }
+      safeDraw(Math.min(1, acc / STEP_MS));
       if (game.over) {
         safeDraw(1);
         if (game.winner === d.mySide) soundRef.current?.win();
