@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PaperDoll } from "./PaperDoll";
@@ -12,6 +13,8 @@ import { ITEM_BY_ID, SLOTS, familiesBySlot, type Look, type Slot } from "@/lib/g
 import { DRESS_ITEM_LIMIT, POSES, cleanPose, countItems, type PoseKey } from "@/lib/games/dress/live";
 import { fmtClock } from "@/lib/games/dress/rules";
 import type { BibleTheme } from "@/lib/games/dress/themes";
+
+const MallStore3D = dynamic(() => import("./MallStore3D").then((m) => m.MallStore3D), { ssr: false, loading: () => <p className="grid h-full place-items-center text-sm font-black text-purple-900">Abrindo a loja…</p> });
 
 type Cat = "hair" | "makeup" | "skin" | "worn" | "pose" | Slot;
 
@@ -71,6 +74,29 @@ export function Camarim({ theme, mode, msLeft, practiceN = 1, draftKey, exitHref
   const [look, setLook] = useState<Look>({});
   const [beauty, setBeauty] = useState<Beauty>(DEFAULT_BEAUTY);
   const [cat, setCat] = useState<Cat>("tunic");
+  // "mall" = loja 3D andando pelo salão; "list" = armário em lista (aparelhos sem 3D, ou preferência)
+  const [view, setView] = useState<"mall" | "list">(() => {
+    try {
+      return localStorage.getItem("vh:view") === "list" ? "list" : "mall";
+    } catch {
+      return "mall";
+    }
+  });
+  const [closetOpen, setClosetOpen] = useState(false);
+  const mall = view === "mall";
+  const changeView = (v: "mall" | "list") => {
+    setView(v);
+    setClosetOpen(false);
+    try {
+      localStorage.setItem("vh:view", v);
+    } catch {
+      /* sem armazenamento */
+    }
+  };
+  const openPanel = (c: Cat) => {
+    setCat(c);
+    setClosetOpen(true);
+  };
   const [left, setLeft] = useState(timed ? Math.max(0, (msLeft ?? 0) / 1000) : 0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -366,7 +392,12 @@ export function Camarim({ theme, mode, msLeft, practiceN = 1, draftKey, exitHref
       ) : null}
 
       <div className="vh-room-stage">
-        {(["l", "r"] as const).map((side) => (
+        {mall ? (
+          <div className="absolute inset-0">
+            <MallStore3D base={base} look={look} onEquip={equip} onStation={(c) => openPanel(c)} />
+          </div>
+        ) : null}
+        {(mall ? [] : (["l", "r"] as const)).map((side) => (
           <div key={side} className="vh-rail" data-side={side}>
             {RAIL.filter((r) => r.side === side).map((r) => (
               <div key={r.key}>
@@ -378,11 +409,35 @@ export function Camarim({ theme, mode, msLeft, practiceN = 1, draftKey, exitHref
             ))}
           </div>
         ))}
-        <PaperDoll base={base} look={look} title="Sua avatar" className="vh-room-doll" />
-        {burst > 0 ? <SparkleBurst key={burst} n={10} /> : null}
+        {mall ? null : <PaperDoll base={base} look={look} title="Sua avatar" className="vh-room-doll" />}
+        {burst > 0 && !mall ? <SparkleBurst key={burst} n={10} /> : null}
       </div>
 
-      <div className="vh-closet">
+      {mall && !closetOpen ? (
+        <div className="vh-footer relative z-[4] px-2.5">
+          <button type="button" className="vh-btn vh-btn-dark !w-auto !px-3" onClick={undo} disabled={past.length === 0} aria-label="Desfazer">
+            ↩
+          </button>
+          <button type="button" className="vh-btn vh-btn-dark !w-auto !px-3 !text-sm" onClick={() => openPanel("worn")}>
+            🧥 {wornCount}/{DRESS_ITEM_LIMIT}
+          </button>
+          {isLive ? (
+            <button type="button" className="vh-btn vh-btn-dark !w-auto !px-3 !text-sm" onClick={() => openPanel("pose")}>
+              {POSES.find((x) => x.key === pose)?.icon}
+            </button>
+          ) : null}
+          <button type="button" className="vh-btn vh-btn-dark !w-auto !px-3 !text-sm" onClick={() => changeView("list")}>
+            📋
+          </button>
+          <button type="button" className="vh-btn vh-btn-purple" disabled={busy || (isLive && ready)} onClick={() => void finish(false)}>
+            {busy ? "..." : missing ? "👗 Escolha uma roupa" : isLive ? (ready ? "✓ PRONTA" : saved ? "ESTOU PRONTA" : "ESTOU PRONTA · salvando…") : daily ? "PRONTO · desfilar" : "PRONTO · ver a nota"}
+          </button>
+        </div>
+      ) : null}
+      {error && mall && !closetOpen ? <p className="absolute inset-x-3 bottom-16 z-[6] rounded-xl bg-rose-900/90 px-3 py-1.5 text-xs font-bold text-rose-100">{error}</p> : null}
+
+      {!mall || closetOpen ? (
+      <div className="vh-closet" data-over={mall ? "true" : undefined}>
         <div className="vh-closet-head">
           <p className="vh-h2">{catLabel}</p>
           <div className="flex items-center gap-2">
@@ -395,6 +450,15 @@ export function Camarim({ theme, mode, msLeft, practiceN = 1, draftKey, exitHref
             <button type="button" className="vh-chip !px-3 !py-1 !text-[11px]" data-on={cat === "worn"} onClick={() => setCat(cat === "worn" ? "tunic" : "worn")} aria-label={`Vestes: ${wornCount} de ${DRESS_ITEM_LIMIT} itens`}>
               🧥 Vestes ({wornCount}/{DRESS_ITEM_LIMIT})
             </button>
+            {mall ? (
+              <button type="button" className="vh-iconbtn !h-8 !w-8 !text-sm" aria-label="Voltar para a loja" onClick={() => setClosetOpen(false)}>
+                ✕
+              </button>
+            ) : (
+              <button type="button" className="vh-chip !px-3 !py-1 !text-[11px]" onClick={() => changeView("mall")}>
+                🏬 Loja 3D
+              </button>
+            )}
           </div>
         </div>
 
@@ -461,7 +525,7 @@ export function Camarim({ theme, mode, msLeft, practiceN = 1, draftKey, exitHref
           <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pb-2">
             {cat === "hair" ? (
               <>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   {HAIR_STYLES.map((h) => (
                     <button key={h.key} type="button" className="vh-chip" data-on={beauty.hair === h.key} onClick={() => tweak({ hair: h.key })}>
                       {h.emoji} {h.label}
@@ -515,6 +579,7 @@ export function Camarim({ theme, mode, msLeft, practiceN = 1, draftKey, exitHref
           </button>
         </div>
       </div>
+      ) : null}
     </div>
   );
 }

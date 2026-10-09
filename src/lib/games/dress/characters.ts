@@ -3,7 +3,7 @@
 
 export type DollBase = {
   skin: string;
-  hair: "short" | "long" | "braids" | "bald";
+  hair: "short" | "long" | "braids" | "bald" | "bob" | "ponytail" | "bun" | "afro" | "bangs" | "pigtails";
   hairColor: string;
   beard: "none" | "short" | "long";
   female?: boolean;

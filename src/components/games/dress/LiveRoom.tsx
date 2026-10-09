@@ -429,8 +429,14 @@ export function LiveRoom({ code, meId, rpc }: { code: string; meId: string; rpc?
           Modelo {st.idx} de {st.order.length} · tema {theme.name}
         </p>
         {cur ? (
-          <RunwayWalk key={`${round}-${cur.id}`} base={baseOf(cur.beauty)} look={lookOf(cur.look)} name={cur.name} scene={theme.scene} pose={cleanPose(cur.pose)}>
-            <div className="absolute inset-x-0 bottom-0 z-[4] bg-gradient-to-t from-black/85 to-transparent px-3 pb-2 pt-8 text-center">
+          <RunwayWalk key={`${round}-${cur.id}`} base={baseOf(cur.beauty)} look={lookOf(cur.look)} name={cur.name} scene={theme.scene} pose={cleanPose(cur.pose)} showMs={total}>
+            <div className="vh-flash2" aria-hidden />
+            {st.me.eligible && !mine ? (
+              <div className="vh-starbar" data-done={iVoted(cur.id)}>
+                <StarPicker value={voted[cur.id] ?? 0} onPick={(n) => void vote(cur.id, n)} disabled={voting || iVoted(cur.id)} />
+              </div>
+            ) : null}
+            <div className="absolute inset-x-0 top-0 z-[4] bg-gradient-to-b from-black/85 to-transparent px-3 pb-8 pt-2 text-center">
               <p className="truncate text-base font-black text-amber-100 [text-shadow:0_2px_4px_#000]">
                 {firstName(cur.name)}
                 {mine ? " (você)" : ""}
@@ -454,13 +460,9 @@ export function LiveRoom({ code, meId, rpc }: { code: string; meId: string; rpc?
               <p className="mt-1 text-sm text-purple-100">As outras estão dando a nota. Ninguém avalia o próprio look.</p>
             </>
           ) : cur ? (
-            <>
-              <p className="vh-h2 mb-1">Dê a sua nota</p>
-              <StarPicker value={voted[cur.id] ?? 0} onPick={(n) => void vote(cur.id, n)} disabled={voting || iVoted(cur.id)} />
-              <p className="mt-1 text-[11px] font-bold text-purple-200" role="status">
-                {iVoted(cur.id) ? (voteMsg ?? "Nota registrada! ✨") : (voteMsg ?? "Toque numa estrela. Não dá para trocar depois.")}
-              </p>
-            </>
+            <p className="text-[12px] font-bold text-purple-100" role="status">
+              {iVoted(cur.id) ? (voteMsg ?? "Nota registrada! ✨") : (voteMsg ?? "Toque numa estrela, lá embaixo da passarela. Não dá para trocar depois.")}
+            </p>
           ) : null}
         </div>
       </VhStage>

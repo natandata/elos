@@ -343,6 +343,62 @@ const SHOES: Record<string, R> = {
         <circle cx="112" cy="319" r="2" fill={light(c, 0.5)} />
       </g>
     ),
+  heels: ({ c }) => (
+    <g>
+      <Grads colors={[c]} />
+      <path d="M78 330 Q90 322 100 332 L98 344 L92 344 L90 338 L78 340 Z" fill={F(c)} {...edge(c, 1.3)} />
+      <path d="M100 332 Q110 322 122 330 L122 340 L110 338 L108 344 L102 344 Z" fill={F(c)} {...edge(c, 1.3)} />
+      <path d="M78 330 L96 322 M122 330 L104 322" stroke={dark(c, 0.5)} strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M82 336 Q88 332 94 336 M106 336 Q112 332 118 336" fill="none" stroke="#fff" strokeWidth="1.1" opacity="0.5" />
+    </g>
+  ),
+  platform: ({ c }) => (
+    <g>
+      <Grads colors={[c]} />
+      <path d="M74 324 Q88 316 100 326 L100 338 L74 338 Z" fill={F(c)} {...edge(c, 1.3)} />
+      <path d="M100 326 Q112 316 126 324 L126 338 L100 338 Z" fill={F(c)} {...edge(c, 1.3)} />
+      <rect x="72" y="338" width="30" height="8" rx="2" fill={F(dark(c, 0.35))} {...edge(c, 1.3)} />
+      <rect x="98" y="338" width="30" height="8" rx="2" fill={F(dark(c, 0.35))} {...edge(c, 1.3)} />
+      <path d="M80 330 Q88 326 96 330 M104 330 Q112 326 120 330" fill="none" stroke="#fff" strokeWidth="1.2" opacity="0.45" />
+    </g>
+  ),
+  loafer: ({ c }) => (
+    <g>
+      <Grads colors={[c]} />
+      <path d="M72 336 Q76 324 90 324 Q102 326 102 336 Q102 344 86 344 Q72 344 72 336 Z" fill={F(c)} {...edge(c, 1.3)} />
+      <path d="M98 336 Q98 326 110 324 Q124 324 128 336 Q128 344 114 344 Q98 344 98 336 Z" fill={F(c)} {...edge(c, 1.3)} />
+      <path d="M78 332 L96 332 M104 332 L122 332" stroke={dark(c, 0.45)} strokeWidth="1.4" />
+      <circle cx="87" cy="332" r="1.8" fill="#d9b25a" />
+      <circle cx="113" cy="332" r="1.8" fill="#d9b25a" />
+    </g>
+  ),
+  tallboots: ({ c }) => (
+    <g>
+      <Grads colors={[c]} />
+      <path d="M78 298 L98 298 L97 334 Q108 336 106 346 L70 346 Q70 338 80 334 Z" fill={F(c)} {...edge(c, 1.4)} />
+      <path d="M102 298 L122 298 L120 334 Q130 336 130 346 L94 346 Q94 338 103 334 Z" fill={F(c)} {...edge(c, 1.4)} />
+      <path d="M78 300 L98 300 M102 300 L122 300" stroke={dark(c, 0.5)} strokeWidth="2.6" />
+      <path d="M81 312 L96 312 M104 312 L119 312 M81 324 L96 324 M104 324 L119 324" stroke={light(c, 0.3)} strokeWidth="1" opacity="0.6" />
+    </g>
+  ),
+  hightop: ({ c }) => (
+    <g>
+      <Grads colors={["#ffffff", c]} />
+      <path d="M76 308 L98 308 L100 344 L74 344 Q74 332 76 326 Z" fill={F("#ffffff")} {...edge("#9ca3af", 1.4)} />
+      <path d="M102 308 L124 308 L126 344 L100 344 Z" fill={F("#ffffff")} {...edge("#9ca3af", 1.4)} />
+      <path d="M74 340 L100 340 M100 340 L126 340" stroke={c} strokeWidth="3.4" />
+      <path d="M78 314 L96 314 M104 314 L122 314" stroke={c} strokeWidth="2.4" />
+      <path d="M80 322 l12 4 M80 328 l12 4 M108 326 l12 -4 M108 332 l12 -4" stroke={c} strokeWidth="1.2" opacity="0.8" />
+    </g>
+  ),
+  flipflop: ({ c }) => (
+    <g>
+      <Grads colors={[c]} />
+      <ellipse cx="88" cy="340" rx="13" ry="5" fill={F(dark(c, 0.2))} {...edge(c, 1.3)} />
+      <ellipse cx="112" cy="340" rx="13" ry="5" fill={F(dark(c, 0.2))} {...edge(c, 1.3)} />
+      <path d="M88 338 L80 332 M88 338 L96 332 M112 338 L104 332 M112 338 L120 332" stroke={light(c, 0.3)} strokeWidth="2.6" strokeLinecap="round" />
+    </g>
+  ),
   anklet: ({ c }) => (
     <g>
       {[89, 111].map((x) => (

@@ -1,7 +1,7 @@
 // Personalização da avatar no "Vista o Herói" (client-safe): cabelo, pele e maquiagem, como no camarim do Dress to Impress.
 import type { DollBase } from "./characters";
 
-export type HairStyle = "long" | "braids" | "short";
+export type HairStyle = "long" | "braids" | "short" | "bob" | "ponytail" | "bun" | "afro" | "bangs" | "pigtails";
 export type LipStyle = "fosco" | "gloss" | "degrade";
 export type LinerStyle = "none" | "fino" | "gatinho" | "grosso";
 export type LashStyle = "none" | "natural" | "longos" | "dramaticos";
@@ -30,6 +30,12 @@ export const HAIR_STYLES: { key: HairStyle; label: string; emoji: string }[] = [
   { key: "long", label: "Solto", emoji: "💇‍♀️" },
   { key: "braids", label: "Tranças", emoji: "🪢" },
   { key: "short", label: "Curto", emoji: "✂️" },
+  { key: "bob", label: "Chanel", emoji: "💁‍♀️" },
+  { key: "ponytail", label: "Rabo de cavalo", emoji: "🐴" },
+  { key: "bun", label: "Coque", emoji: "🍩" },
+  { key: "afro", label: "Black power", emoji: "🌟" },
+  { key: "bangs", label: "Com franja", emoji: "🎀" },
+  { key: "pigtails", label: "Maria-chiquinha", emoji: "🎈" },
 ];
 
 export const HAIR_COLORS = ["#24150c", "#4a2c14", "#7a4a22", "#b07a42", "#d9b25a", "#ecd699", "#a8321f", "#d8d8e0", "#6f6f80", "#7c4dbd", "#2f6bd0", "#d9488f"];

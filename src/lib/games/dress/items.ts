@@ -232,6 +232,12 @@ custom("shoes", "metal", "Calçado", [
   { label: "de bronze de gala", p: P("#b8832f", "#2fbf71") },
   { label: "de ouro com esmeraldas", p: P("#f5c518", "#2fbf71") },
 ]);
+byColor("shoes", "heels", "Sapatos de salto", "m", ["preto", "vermelho", "rosa", "branco", "dourado", "prata", "azul", "bordo", "creme", "lilas", "verde", "marrom"]);
+byColor("shoes", "platform", "Sapatos plataforma", "m", ["preto", "branco", "rosa", "lilas", "azulClaro", "vermelho", "dourado", "prata", "marrom", "turquesa"]);
+byColor("shoes", "loafer", "Mocassins", "m", ["marrom", "preto", "bordo", "creme", "marinho", "areia", "cinza", "branco"]);
+byColor("shoes", "tallboots", "Botas de cano alto", "f", ["preto", "marrom", "bordo", "creme", "cinza", "vermelho", "marinho", "branco", "musgo", "rosa"]);
+byColor("shoes", "hightop", "Tênis de cano alto", "m", ["vermelho", "preto", "azul", "rosa", "verde", "laranja", "roxo", "dourado"]);
+byColor("shoes", "flipflop", "Chinelos", "m", ["azul", "preto", "vermelho", "rosa", "verde", "laranja", "branco", "turquesa"]);
 byColor("shoes", "anklet", "Tornozeleira", "f", ["dourado", "prata", "bronze", "rosa", "turquesa", "vermelho", "azul", "verde"]);
 custom("shoes", "jeweled", "Sandálias de joias", [
   { label: "com rubis", p: P("#f5c518", "#e5484d") },

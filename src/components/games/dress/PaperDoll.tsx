@@ -106,8 +106,54 @@ function Glitter() {
 
 /** Cabelo atrás do corpo: longo e ondulado, com volume, mechas e brilho. */
 function BackHair({ base, uid }: { base: DollBase; uid: string }) {
-  if (base.hair !== "long" && base.hair !== "braids") return null;
   const c = base.hairColor;
+  const strand = { fill: F(c), stroke: dark(c, 0.55), strokeWidth: 1.2, strokeLinejoin: "round" as const };
+  if (base.hair === "bob") {
+    return <path d="M70 52 Q64 26 100 24 Q136 26 130 52 Q142 84 134 112 Q124 118 116 108 L84 108 Q76 118 66 112 Q58 84 70 52 Z" {...strand} />;
+  }
+  if (base.hair === "ponytail") {
+    return (
+      <g>
+        <path d="M122 34 Q158 30 152 82 Q150 120 160 156 Q138 134 140 96 Q142 62 118 52 Z" {...strand} />
+        <path d="M140 40 Q148 70 142 110" fill="none" stroke={light(c, 0.4)} strokeWidth="1.5" opacity="0.7" />
+        <ellipse cx="127" cy="42" rx="5" ry="4" fill="#d9488f" stroke={dark("#d9488f", 0.5)} strokeWidth="1" />
+      </g>
+    );
+  }
+  if (base.hair === "bun") {
+    return (
+      <g>
+        <circle cx="100" cy="20" r="15" {...strand} />
+        <path d="M90 16 Q100 8 110 16 M92 24 Q100 18 108 24" fill="none" stroke={light(c, 0.4)} strokeWidth="1.3" opacity="0.7" />
+        <path d="M86 32 Q100 36 114 32" fill="none" stroke="#d9488f" strokeWidth="3" strokeLinecap="round" />
+      </g>
+    );
+  }
+  if (base.hair === "afro") {
+    return (
+      <g {...strand}>
+        <path d="M100 4 Q124 0 134 18 Q158 20 156 46 Q168 64 152 82 Q148 100 130 92 L70 92 Q52 100 48 82 Q32 64 44 46 Q42 20 66 18 Q76 0 100 4 Z" />
+      </g>
+    );
+  }
+  if (base.hair === "pigtails") {
+    return (
+      <g>
+        {[0, 1].map((i) => {
+          const sx = i ? 1 : -1;
+          const x = 100 + sx * 36;
+          return (
+            <g key={i}>
+              <path d={`M${x} 56 Q${x + sx * 24} 84 ${x + sx * 14} 132 Q${x + sx * 2} 108 ${x - sx * 4} 82 Z`} {...strand} />
+              <path d={`M${x + sx * 4} 70 Q${x + sx * 12} 96 ${x + sx * 10} 118`} fill="none" stroke={light(c, 0.4)} strokeWidth="1.3" opacity="0.7" />
+              <ellipse cx={x} cy="58" rx="5" ry="4.4" fill="#e8789a" stroke={dark("#e8789a", 0.5)} strokeWidth="1" />
+            </g>
+          );
+        })}
+      </g>
+    );
+  }
+  if (base.hair !== "long" && base.hair !== "braids" && base.hair !== "bangs") return null;
   return (
     <g>
       <path d="M72 50 Q66 26 100 24 Q134 26 128 50 Q142 92 134 132 Q144 172 126 212 Q116 180 118 150 L82 150 Q84 180 74 212 Q56 172 66 132 Q58 92 72 50 Z" fill={F(c)} stroke={dark(c, 0.55)} strokeWidth="1.3" strokeLinejoin="round" />
@@ -125,12 +171,29 @@ function BackHair({ base, uid }: { base: DollBase; uid: string }) {
 function FrontHair({ base, uid }: { base: DollBase; uid: string }) {
   const c = base.hairColor;
   if (base.hair === "bald") return null;
-  const long = base.hair === "long" || base.hair === "braids";
+  const long = base.hair === "long" || base.hair === "braids" || base.hair === "bangs";
   return (
     <g>
       <path d="M73 64 Q68 30 100 28 Q132 30 127 64 Q124 44 108 38 Q100 52 86 54 Q76 58 73 64 Z" fill={F(c)} stroke={dark(c, 0.55)} strokeWidth="1.2" strokeLinejoin="round" />
       <path d="M80 50 Q94 34 114 40" fill="none" stroke="#fff" strokeWidth="3.4" strokeLinecap="round" opacity="0.28" filter={`url(#bl1-${uid})`} />
       <path d="M82 50 Q94 38 112 42" fill="none" stroke={light(c, 0.5)} strokeWidth="1.4" strokeLinecap="round" opacity="0.8" />
+      {base.hair === "bangs" ? (
+        <g>
+          <path d="M74 62 Q72 34 100 32 Q128 34 126 62 Q118 50 100 56 Q82 50 74 62 Z" fill={F(c)} stroke={dark(c, 0.55)} strokeWidth="1.1" strokeLinejoin="round" />
+          <path d="M84 48 Q92 44 100 50 M100 50 Q108 44 116 48" fill="none" stroke={light(c, 0.45)} strokeWidth="1.2" opacity="0.7" strokeLinecap="round" />
+        </g>
+      ) : null}
+      {base.hair === "bob" ? (
+        <g>
+          <path d="M73 64 Q64 90 68 112 Q82 108 82 92 Q80 80 81 72 Z" fill={F(c)} stroke={dark(c, 0.55)} strokeWidth="1.1" strokeLinejoin="round" />
+          <path d="M127 64 Q136 90 132 112 Q118 108 118 92 Q120 80 119 72 Z" fill={F(c)} stroke={dark(c, 0.55)} strokeWidth="1.1" strokeLinejoin="round" />
+        </g>
+      ) : null}
+      {base.hair === "afro" ? (
+        <g fill="none" stroke={dark(c, 0.35)} strokeWidth="1.4" opacity="0.6" strokeLinecap="round">
+          <path d="M76 36 q4 -4 8 0 M96 28 q4 -4 8 0 M116 36 q4 -4 8 0 M62 56 q4 -4 8 0 M130 56 q4 -4 8 0" />
+        </g>
+      ) : null}
       {long ? (
         <g>
           <path d="M73 64 Q62 100 70 138 Q76 156 66 180 Q84 158 82 132 Q78 98 81 72 Z" fill={F(c)} stroke={dark(c, 0.55)} strokeWidth="1.1" strokeLinejoin="round" />
