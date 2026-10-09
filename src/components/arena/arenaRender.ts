@@ -885,7 +885,7 @@ function drawThing(g: CanvasRenderingContext2D, th: Thing, t: number, shadow: bo
 }
 
 /** Quadro do ambiente (por baixo das tropas e das torres). `t` em ticks. */
-export function drawAmbient(g: CanvasRenderingContext2D, a: Ambient, t: number) {
+export function drawAmbient(g: CanvasRenderingContext2D, a: Ambient, t: number, lite = false) {
   // água
   if (a.tile) {
     g.save();
@@ -895,14 +895,16 @@ export function drawAmbient(g: CanvasRenderingContext2D, a: Ambient, t: number) 
     const o1 = -((t * 0.55) % a.tw);
     g.globalAlpha = 0.55;
     for (let x = o1; x < a.cw; x += a.tw) g.drawImage(a.tile, x, a.ry);
-    // segunda camada correndo ao contrário, espelhada
-    g.globalAlpha = 0.35;
-    const o2 = -(a.tw - ((t * 0.32) % a.tw)) - a.tw;
-    g.save();
-    g.translate(0, a.ry + a.rh);
-    g.scale(1, -1);
-    for (let x = o2; x < a.cw; x += a.tw) g.drawImage(a.tile, x, 0);
-    g.restore();
+    // segunda camada correndo ao contrário, espelhada (aparelho fraco pula)
+    if (!lite) {
+      g.globalAlpha = 0.35;
+      const o2 = -(a.tw - ((t * 0.32) % a.tw)) - a.tw;
+      g.save();
+      g.translate(0, a.ry + a.rh);
+      g.scale(1, -1);
+      for (let x = o2; x < a.cw; x += a.tw) g.drawImage(a.tile, x, 0);
+      g.restore();
+    }
     g.globalAlpha = 1;
     // espuma nas duas margens
     g.strokeStyle = a.foam;
@@ -927,8 +929,8 @@ export function drawAmbient(g: CanvasRenderingContext2D, a: Ambient, t: number) 
   }
   for (const r of a.reeds) drawThing(g, r, t, false);
   for (const tr of a.trees) drawThing(g, tr, t, true);
-  // folhas e pétalas ao vento
-  for (const lf of a.leaves) {
+  // folhas e pétalas ao vento (aparelho fraco pula)
+  for (const lf of lite ? [] : a.leaves) {
     const x = (lf.x + t * lf.v * 1.4) % (a.cw + 20) - 10;
     const y = (lf.y + Math.sin(t * 0.03 + lf.ph) * 14 + t * lf.v * 0.35) % (a.ch + 20) - 10;
     g.fillStyle = lf.color;
@@ -942,8 +944,8 @@ export function drawAmbient(g: CanvasRenderingContext2D, a: Ambient, t: number) 
     g.restore();
   }
   g.globalAlpha = 1;
-  // sombras de nuvens passando
-  for (let i = 0; i < 3; i++) {
+  // sombras de nuvens passando (aparelho fraco pula)
+  for (let i = 0; i < (lite ? 0 : 3); i++) {
     const cx = ((t * (0.35 + i * 0.12) + i * a.cw * 0.45) % (a.cw + 400)) - 200;
     const cy = a.ch * (0.2 + i * 0.3);
     const cg = g.createRadialGradient(cx, cy, 0, cx, cy, a.cw * 0.28);
