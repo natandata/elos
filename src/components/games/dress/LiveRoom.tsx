@@ -508,12 +508,12 @@ function LiveRoomInner({ code, meId, rpc, watch = false, onSpectators }: { code:
                 </div>
               </RunwayWalk>
             ) : null}
-            {st.me.eligible || st.spectator ? <Reactions code={st.code} round={st.round} meId={meId} /> : null}
             <div className="mx-auto mt-2 h-1.5 max-w-[400px] overflow-hidden rounded-full bg-white/15" aria-hidden>
               <div className="h-full rounded-full bg-amber-300 transition-[width] duration-300" style={{ width: `${pct}%` }} />
             </div>
           </div>
           <div>
+            {st.me.eligible || st.spectator ? <Reactions code={st.code} round={st.round} meId={meId} /> : null}
             <div className="vh-panel mx-auto mt-3 max-w-[400px] text-center">
               {!st.me.eligible ? (
                 <p className="text-sm font-bold text-purple-100">Você está assistindo: joga e avalia a partir da próxima rodada.</p>

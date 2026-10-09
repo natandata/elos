@@ -12,7 +12,7 @@ import { BLUSHES, BODY_SHAPES, BROW_COLORS, BROW_STYLES, DEFAULT_BEAUTY, EYE_COL
 import { ITEM_BY_ID, SLOTS, familiesBySlot, sizeOf, sizeOptions, withSize, type Look, type Slot } from "@/lib/games/dress/items";
 import { DRESS_ITEM_LIMIT, POSES, cleanPose, countItems, type PoseKey } from "@/lib/games/dress/live";
 import { cleanChat, hallChannel, type ChatMsg, type HallMsg, type HallPos, type HallRoster } from "@/lib/games/dress/hall";
-import { HallChat } from "./HallChat";
+import { ChatFeed, ChatToggle, useHallChat } from "./HallChat";
 import { leaveImmersive } from "@/lib/games/dress/immersive";
 import { fmtClock } from "@/lib/games/dress/rules";
 import type { BibleTheme } from "@/lib/games/dress/themes";
@@ -116,6 +116,22 @@ export function Camarim({ theme, mode, msLeft, draftKey, exitHref, live, onEvent
   const [error, setError] = useState<string | null>(null);
   const [burst, setBurst] = useState(0);
   const [clue, setClue] = useState(true);
+  const [mood, setMood] = useState<"day" | "night">(() => {
+    try {
+      return localStorage.getItem("vh:mood") === "night" ? "night" : "day";
+    } catch {
+      return "day";
+    }
+  });
+  const toggleMood = () => {
+    const next = mood === "night" ? "day" : "night";
+    setMood(next);
+    try {
+      localStorage.setItem("vh:mood", next);
+    } catch {
+      /* sem armazenamento */
+    }
+  };
   const [past, setPast] = useState<Snap[]>([]);
   const [future, setFuture] = useState<Snap[]>([]);
   const deadline = useRef(0);
@@ -159,6 +175,7 @@ export function Camarim({ theme, mode, msLeft, draftKey, exitHref, live, onEvent
   const peerMap = useRef<Map<string, HallRoster>>(new Map());
   const [peers, setPeers] = useState<HallRoster[]>([]);
   const [chat, setChat] = useState<ChatMsg[]>([]);
+  const hc = useHallChat(chat);
   useEffect(() => {
     if (!hallKey) return;
     const sb = createClient();
@@ -464,6 +481,12 @@ export function Camarim({ theme, mode, msLeft, draftKey, exitHref, live, onEvent
         <b>{theme.name}</b>
       </button>
       <SoundToggle />
+      {hall?.peers ? <ChatToggle open={hc.open} setOpen={hc.setOpen} unread={hc.unread} onSend={sendChat} /> : null}
+      {mall ? (
+        <button type="button" className="vh-iconbtn" aria-label={mood === "night" ? "Salão de dia" : "Salão de noite"} onClick={toggleMood}>
+          {mood === "night" ? "☀️" : "🌙"}
+        </button>
+      ) : null}
       {timed ? (
         <div className="vh-timer" data-low={left <= 30} role="timer" aria-label="Tempo restante">
           ⏱ {fmtClock(left)}
@@ -562,7 +585,7 @@ export function Camarim({ theme, mode, msLeft, draftKey, exitHref, live, onEvent
       ) : cat === "pose" ? (
         <div className="min-h-0 flex-1 overflow-y-auto pb-2">
           <p className="mb-2 text-[11px] font-bold text-purple-200">Como a sua modelo para no fim da passarela.</p>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))] gap-2">
             {POSES.map((x) => (
               <button key={x.key} type="button" className="vh-chip !flex-col !gap-0.5 !py-2" data-on={pose === x.key} aria-pressed={pose === x.key} onClick={() => pickPose(x.key)}>
                 <span className="text-xl" aria-hidden>
@@ -667,13 +690,12 @@ export function Camarim({ theme, mode, msLeft, draftKey, exitHref, live, onEvent
 
       {mall ? (
         <div className="vh-room-3d">
-          <MallStore3D base={base} look={look} onEquip={equip} onStation={(c) => openPanel(c)} onEvent={emit} onPos={sendPos} peers={!!hall?.peers} roster={peers} positions={peerPos} quiet={closetOpen} face={closetOpen && (cat === "makeup" || cat === "hair" || cat === "skin")} />
+          <MallStore3D base={base} look={look} onEquip={equip} onStation={(c) => openPanel(c)} onEvent={emit} onPos={sendPos} leftSlot={coach || clueBox ? <>{coach}{clueBox}</> : null} leftBelow={hall?.peers ? <ChatFeed recent={hc.recent} /> : null} mood={mood} peers={!!hall?.peers} roster={peers} positions={peerPos} quiet={closetOpen} face={closetOpen && (cat === "makeup" || cat === "hair" || cat === "skin")} />
         </div>
       ) : null}
 
       {topBar}
-      {clueBox}
-      {hall?.peers ? <HallChat messages={chat} onSend={sendChat} /> : null}
+      {mall ? null : clueBox}
 
       {buying ? (
         <div className="fixed inset-0 z-[70] grid place-items-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-label="Comprar peça rara">
@@ -740,7 +762,7 @@ export function Camarim({ theme, mode, msLeft, draftKey, exitHref, live, onEvent
       ) : null}
 
       {!mall || closetOpen ? closet : null}
-      {coach}
+      {mall ? null : coach}
     </div>
   );
 }

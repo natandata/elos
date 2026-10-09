@@ -75,7 +75,7 @@ export function SpectatorHall({ code, round, theme, left, players, onExit }: { c
             {firstName(p.name).split(" ")[0]}
           </button>
         ))}
-        {roster.length === 0 ? <span className="px-2 text-[11px] font-bold text-purple-900">As modelos aparecem aqui assim que começarem a andar…</span> : null}
+        {roster.length === 0 ? <span className="rounded-full bg-black/45 px-2.5 py-1 text-[11px] font-bold text-amber-100">As modelos aparecem aqui assim que começarem a andar…</span> : null}
         <span className="ml-auto rounded-full bg-black/40 px-2.5 py-1 text-[11px] font-black text-amber-100">
           {done}/{total} prontas
         </span>

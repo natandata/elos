@@ -6,6 +6,8 @@ import { DEFAULT_BEAUTY, baseFromBeauty, cleanBeauty } from "@/lib/games/dress/b
 import { loungeChannel, type HallPos, type HallRoster } from "@/lib/games/dress/hall";
 import type { Look } from "@/lib/games/dress/items";
 import { fmtClock } from "@/lib/games/dress/rules";
+import { ChatFeed, ChatToggle, useHallChat } from "./HallChat";
+import { cleanChat, type ChatMsg } from "@/lib/games/dress/hall";
 import { createClient } from "@/lib/supabase/client";
 
 const MallStore3D = dynamic(() => import("./MallStore3D").then((m) => m.MallStore3D), { ssr: false, loading: () => <p className="grid h-full place-items-center text-sm font-black text-purple-900">Abrindo o salão…</p> });
@@ -39,6 +41,8 @@ export function MegaLounge({ code, meId, meName, left, online, onLeave }: { code
   const chRef = useRef<ReturnType<typeof sb.channel> | null>(null);
   const lastWho = useRef(0);
   const [list, setList] = useState(false);
+  const [chat, setChat] = useState<ChatMsg[]>([]);
+  const hc = useHallChat(chat);
 
   useEffect(() => {
     const ch = sb.channel(loungeChannel(code), { config: { broadcast: { self: false } } });
@@ -61,6 +65,11 @@ export function MegaLounge({ code, meId, meName, left, online, onLeave }: { code
       rosterMap.current.set(w.id, { id: w.id, name: w.name, look: w.look ?? {}, beauty: w.beauty });
       setRoster([...rosterMap.current.values()].slice(0, 16));
       if (Date.now() - lastWho.current > 2000) sendWho();
+    });
+    ch.on("broadcast", { event: "chat" }, ({ payload }) => {
+      const m = payload as ChatMsg;
+      if (!m?.id || m.id === meId || typeof m.text !== "string") return;
+      setChat((c) => [...c.slice(-39), { id: m.id, name: String(m.name ?? "").slice(0, 30), text: cleanChat(m.text) }]);
     });
     ch.subscribe((status) => {
       if (status === "SUBSCRIBED") sendWho();
@@ -93,6 +102,13 @@ export function MegaLounge({ code, meId, meName, left, online, onLeave }: { code
     void chRef.current?.send({ type: "broadcast", event: "pos", payload: { id: meId, x: +p.x.toFixed(2), z: +p.z.toFixed(2), fx: p.fx, mv: +p.mv.toFixed(2) } satisfies PosMsg });
   };
 
+  const sendChat = (text: string) => {
+    const t = cleanChat(text);
+    if (!t) return;
+    setChat((c) => [...c.slice(-39), { id: meId, name: "Você", text: t }]);
+    void chRef.current?.send({ type: "broadcast", event: "chat", payload: { id: meId, name: meName.split(" ")[0], text: t } satisfies ChatMsg });
+  };
+
   return (
     <div className="vh-room" data-mall="1">
       <div className="vh-room-3d">
@@ -106,6 +122,7 @@ export function MegaLounge({ code, meId, meName, left, online, onLeave }: { code
           <small>Toda sexta · 19h</small>
           <b>🎆 Salão de espera do Mega</b>
         </div>
+        <ChatToggle open={hc.open} setOpen={hc.setOpen} unread={hc.unread} onSend={sendChat} />
         <div className="vh-timer" role="timer" aria-label="Falta para o desfile">
           ⏱ {fmtClock(Math.ceil(left))}
         </div>
@@ -114,10 +131,13 @@ export function MegaLounge({ code, meId, meName, left, online, onLeave }: { code
         <button type="button" className="vh-chip !px-3 !py-1 !text-[11px]" data-on={list} onClick={() => setList((v) => !v)}>
           👥 {online.length} no salão
         </button>
-        <span className="px-2 text-[11px] font-bold text-purple-900">Quando o relógio zerar, você vai direto para o camarim!</span>
+        <span className="rounded-full bg-black/45 px-2.5 py-1 text-[11px] font-bold text-amber-100">Quando o relógio zerar, você vai direto para o camarim!</span>
+      </div>
+      <div className="absolute left-2 top-[3.9rem] z-[4]">
+        <ChatFeed recent={hc.recent} />
       </div>
       {list ? (
-        <ul className="vh-panel vh-pop absolute left-2 top-28 z-[6] max-h-60 w-52 space-y-1 overflow-y-auto !p-2 text-sm font-bold text-amber-50">
+        <ul className="vh-panel vh-pop absolute right-2 top-[4rem] z-[6] max-h-44 w-48 space-y-1 overflow-y-auto !p-2 text-sm font-bold text-amber-50">
           {online.map((p) => (
             <li key={p.id} className="truncate">
               {p.id === meId ? "⭐ Você" : p.name}
