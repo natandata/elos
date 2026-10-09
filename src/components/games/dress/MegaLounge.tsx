@@ -14,7 +14,7 @@ const MallStore3D = dynamic(() => import("./MallStore3D").then((m) => m.MallStor
 const noop = () => undefined;
 
 type Who = { id: string; name: string; look: Look; beauty: unknown };
-type PosMsg = { id: string; x: number; z: number; fx: 1 | -1; mv: number };
+type PosMsg = { id: string; x: number; z: number; fx: 1 | -1; mv: number; y?: number; s?: 0 | 1 };
 
 /** Última aparência que a jogadora montou num camarim (o salão de espera usa ela). */
 function lastLook(): { look: Look; beauty: unknown } {
@@ -53,7 +53,7 @@ export function MegaLounge({ code, meId, meName, left, online, onLeave }: { code
     ch.on("broadcast", { event: "pos" }, ({ payload }) => {
       const m = payload as PosMsg;
       if (!m?.id || m.id === meId) return;
-      positions.current[m.id] = { x: m.x, z: m.z, fx: m.fx === -1 ? -1 : 1, mv: m.mv, t: Date.now() };
+      positions.current[m.id] = { x: m.x, z: m.z, fx: m.fx === -1 ? -1 : 1, mv: m.mv, t: Date.now(), y: m.y, s: m.s };
       // alguém que eu ainda não conheço: me apresento (no máximo 1 vez a cada 2 s)
       if (!rosterMap.current.has(m.id) && Date.now() - lastWho.current > 2000) sendWho();
     });
@@ -98,8 +98,8 @@ export function MegaLounge({ code, meId, meName, left, online, onLeave }: { code
     };
   }, [sb, code, meId, meName, mine]);
 
-  const sendPos = (p: { x: number; z: number; fx: 1 | -1; mv: number }) => {
-    void chRef.current?.send({ type: "broadcast", event: "pos", payload: { id: meId, x: +p.x.toFixed(2), z: +p.z.toFixed(2), fx: p.fx, mv: +p.mv.toFixed(2) } satisfies PosMsg });
+  const sendPos = (p: { x: number; z: number; fx: 1 | -1; mv: number; y?: number; s?: 0 | 1 }) => {
+    void chRef.current?.send({ type: "broadcast", event: "pos", payload: { id: meId, x: +p.x.toFixed(2), z: +p.z.toFixed(2), fx: p.fx, mv: +p.mv.toFixed(2), y: p.y, s: p.s } satisfies PosMsg });
   };
 
   const sendChat = (text: string) => {

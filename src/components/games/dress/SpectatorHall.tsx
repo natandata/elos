@@ -30,7 +30,7 @@ export function SpectatorHall({ code, round, theme, left, players, onExit }: { c
     ch.on("broadcast", { event: "pos" }, ({ payload }) => {
       const m = payload as HallMsg;
       if (!m?.id) return;
-      positions.current[m.id] = { x: m.x, z: m.z, fx: m.fx === -1 ? -1 : 1, mv: m.mv, t: Date.now() };
+      positions.current[m.id] = { x: m.x, z: m.z, fx: m.fx === -1 ? -1 : 1, mv: m.mv, t: Date.now(), y: m.y, s: m.s };
       const prev = rosterMap.current.get(m.id);
       const same = prev && prev.name === m.name && JSON.stringify(prev.look) === JSON.stringify(m.look) && JSON.stringify(prev.beauty) === JSON.stringify(m.beauty);
       if (!same) {

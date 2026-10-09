@@ -158,7 +158,7 @@ function layoutShelves(): {
   return { placed, units, signs };
 }
 
-function textSprite(text: string, w = 4.6, color = "#6b2d6f"): THREE.Sprite {
+export function textSprite(text: string, w = 4.6, color = "#6b2d6f"): THREE.Sprite {
   const c = document.createElement("canvas");
   c.width = 512;
   c.height = 128;
@@ -189,7 +189,7 @@ function textSprite(text: string, w = 4.6, color = "#6b2d6f"): THREE.Sprite {
 }
 
 /** Letreiro dourado do salão. */
-function neonSprite(text: string, w: number): THREE.Sprite {
+export function neonSprite(text: string, w: number): THREE.Sprite {
   const c = document.createElement("canvas");
   c.width = 1024;
   c.height = 256;
@@ -339,7 +339,7 @@ function windowTexture(): THREE.CanvasTexture {
 }
 
 /** SVG do boneco/peça (já no DOM) vira textura: copia o <svg>, dá tamanho e desenha num canvas. */
-function svgToCanvas(
+export function svgToCanvas(
   svg: SVGSVGElement,
   maxW: number,
 ): Promise<HTMLCanvasElement> {
@@ -375,7 +375,7 @@ function svgToCanvas(
     img.src = url;
   });
 }
-const canvasTexture = (c: HTMLCanvasElement): THREE.CanvasTexture => {
+export const canvasTexture = (c: HTMLCanvasElement): THREE.CanvasTexture => {
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
@@ -451,7 +451,7 @@ export function MallStore3D({
   onEvent?: (e: MallEvent) => void;
   quiet?: boolean;
   face?: boolean;
-  onPos?: (p: { x: number; z: number; fx: 1 | -1; mv: number }) => void;
+  onPos?: (p: { x: number; z: number; fx: 1 | -1; mv: number; y?: number; s?: 0 | 1 }) => void;
   spectate?: boolean;
   roster?: HallRoster[];
   positions?: React.MutableRefObject<Record<string, HallPos>>;
@@ -472,6 +472,8 @@ export function MallStore3D({
   const [failed, setFailed] = useState(false);
   const [menu, setMenu] = useState(false);
   const [fitting, setFitting] = useState(false);
+  const [canSit, setCanSit] = useState(false);
+  const [sitting, setSitting] = useState(false);
   const [moodOwn, setMood] = useState<Mood>(() => {
     try {
       return localStorage.getItem("vh:mood") === "night" ? "night" : "day";
@@ -520,6 +522,8 @@ export function MallStore3D({
   const peerBankRef = useRef<HTMLDivElement>(null);
   const burstRef = useRef<(() => void) | null>(null);
   const turnRef = useRef<(() => void) | null>(null);
+  const jumpRef = useRef<(() => void) | null>(null);
+  const sitRef = useRef<(() => void) | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     lookRef.current = look;
@@ -742,6 +746,9 @@ export function MallStore3D({
     // colunas (somem quando ficam entre a câmera e a jogadora)
     const colMat = mat(0xffffff);
     const colliders: { x: number; z: number; r: number }[] = [];
+    type Solid = { x: number; z: number; top: number; r?: number; hw?: number; hd?: number };
+    const solids: Solid[] = [];
+    const seats: { x: number; z: number; y: number; dir: 1 | -1 }[] = [];
     const columns: { x: number; z: number; parts: THREE.Mesh[] }[] = [];
     for (const z of [-14, -4, 6, 16]) {
       for (const x of [-9, 9]) {
@@ -797,7 +804,11 @@ export function MallStore3D({
       0.8,
       -12,
     );
-    colliders.push({ x: 0, z: -12, r: 3.9 });
+    // sólidos pisáveis: o palanque tem dois degraus (a jogadora sobe pulando) e os bancos servem de assento
+    solids.push(
+      { x: 0, z: -12, r: 3.8, top: 0.6 },
+      { x: 0, z: -12, r: 2.95, top: 1.0 },
+    );
     const bulbMat = track(new THREE.MeshBasicMaterial({ color: 0xfff3b0 }));
     for (const [cx, cz] of [
       [0, -12],
@@ -879,7 +890,14 @@ export function MallStore3D({
         0.28,
         z,
       );
-      colliders.push({ x: -5.2, z, r: 1.3 }, { x: 5.2, z, r: 1.3 });
+      solids.push(
+        { x: -5.2, z, top: 0.53, hw: 0.45, hd: 1.3 },
+        { x: 5.2, z, top: 0.53, hw: 0.45, hd: 1.3 },
+      );
+      for (const dz of [-0.62, 0.62]) {
+        seats.push({ x: -5.2, z: z + dz, y: 0.53, dir: 1 });
+        seats.push({ x: 5.2, z: z + dz, y: 0.53, dir: -1 });
+      }
     }
 
     // ---- época do ano: enfeites do salão
@@ -1483,6 +1501,21 @@ export function MallStore3D({
     avatar.scale.set(AV_W, AV_H, 1);
     avatar.center.set(0.5, 0);
     scene.add(avatar);
+    // pernas (só aparecem sentada)
+    const legsMat = track(
+      new THREE.SpriteMaterial({
+        transparent: true,
+        color: 0xffffff,
+        depthWrite: false,
+      }),
+    );
+    const legs = new THREE.Sprite(legsMat);
+    legs.center.set(0.5, 0);
+    legs.visible = false;
+    scene.add(legs);
+    let sitOn = false;
+    let sitTex: { src: THREE.Texture; up: THREE.Texture; lo: THREE.Texture } | null =
+      null;
     const shadow = new THREE.Mesh(
       geo(new THREE.CircleGeometry(0.5, 20)),
       track(
@@ -1724,9 +1757,60 @@ export function MallStore3D({
       yawGoal: null as null | number,
       faceX: 1,
       back: false as boolean,
+      y: 0,
+      vy: 0,
+      ey: 0,
+      sit: null as null | { x: number; z: number; y: number; dir: 1 | -1 },
     };
     if (process.env.NODE_ENV !== "production")
       (window as unknown as { __mall?: unknown }).__mall = st;
+    const groundAt = (x: number, z: number) => {
+      let g = 0;
+      for (const o of solids) {
+        const inside =
+          o.r !== undefined
+            ? Math.hypot(x - o.x, z - o.z) < o.r
+            : Math.abs(x - o.x) < (o.hw ?? 0) && Math.abs(z - o.z) < (o.hd ?? 0);
+        if (inside && o.top > g) g = o.top;
+      }
+      return g;
+    };
+    const standUp = () => {
+      st.sit = null;
+      st.vy = 3.2;
+      setSitting(false);
+    };
+    jumpRef.current = () => {
+      if (spectateRef.current || fittingRef.current) return;
+      if (st.sit) return standUp();
+      if (st.y <= groundAt(st.x, st.z) + 0.02 && st.vy <= 0.01) {
+        st.vy = 6.4;
+        sfxStep();
+      }
+    };
+    sitRef.current = () => {
+      if (spectateRef.current || fittingRef.current) return;
+      if (st.sit) return standUp();
+      let best: (typeof seats)[number] | null = null;
+      let bd = 2.4;
+      for (const s of seats) {
+        const d = Math.hypot(s.x - st.x, s.z - st.z);
+        if (d < bd) {
+          bd = d;
+          best = s;
+        }
+      }
+      if (!best) {
+        sayRef.current("Chegue perto de um banco para sentar.");
+        return;
+      }
+      st.sit = best;
+      st.auto = null;
+      st.vx = st.vz = 0;
+      st.vy = 0;
+      setSitting(true);
+      setCanSit(false);
+    };
     const onKey = (e: KeyboardEvent, down: boolean) => {
       const k = e.key.toLowerCase();
       if (
@@ -1745,6 +1829,13 @@ export function MallStore3D({
         if (down) keys.add(k);
         else keys.delete(k);
         e.preventDefault();
+      } else if (down && !e.repeat) {
+        const tag = (e.target as HTMLElement | null)?.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA") return;
+        if (k === " " || k === "spacebar") {
+          jumpRef.current?.();
+          e.preventDefault();
+        } else if (k === "e" || k === "f") sitRef.current?.();
       }
     };
     const kd = (e: KeyboardEvent) => onKey(e, true);
@@ -1901,6 +1992,7 @@ export function MallStore3D({
     let last = performance.now();
     let nearKey = "";
     let nearT = 0;
+    let canSitNow = false;
     let loadT = 0;
     let posT = 0;
     let glowItem: Placed | null = null;
@@ -1959,6 +2051,16 @@ export function MallStore3D({
         tvx = (wx / dl) * speed;
         tvz = (wz / dl) * speed;
       }
+      if (st.sit && len > 0.3) standUp();
+      if (st.sit) {
+        // sentada: desliza até o assento e fica parada
+        const k = Math.min(1, dt * 9);
+        st.x += (st.sit.x - st.x) * k;
+        st.z += (st.sit.z - st.z) * k;
+        st.y += (st.sit.y - st.y) * k;
+        st.vx = st.vz = st.vy = 0;
+        st.faceX = st.sit.dir === 1 ? -1 : 1;
+      } else {
       st.vx += (tvx - st.vx) * Math.min(1, dt * 12);
       st.vz += (tvz - st.vz) * Math.min(1, dt * 12);
       st.x += st.vx * dt;
@@ -1979,6 +2081,39 @@ export function MallStore3D({
           st.x = c.x + dx * k;
           st.z = c.z + dz * k;
         }
+      }
+      // degraus e bancos: só passa por cima quem está mais alta que eles (pulando)
+      for (const o of solids) {
+        if (st.y >= o.top - 0.1) continue;
+        if (o.r !== undefined) {
+          const dx = st.x - o.x;
+          const dz = st.z - o.z;
+          const d = Math.hypot(dx, dz);
+          if (d < o.r + 0.3) {
+            const k = (o.r + 0.3) / (d || 0.001);
+            st.x = o.x + dx * k;
+            st.z = o.z + dz * k;
+          }
+        } else {
+          const hw = (o.hw ?? 0) + 0.3;
+          const hd = (o.hd ?? 0) + 0.3;
+          const dx = st.x - o.x;
+          const dz = st.z - o.z;
+          if (Math.abs(dx) < hw && Math.abs(dz) < hd) {
+            if (hw - Math.abs(dx) < hd - Math.abs(dz))
+              st.x = o.x + (dx >= 0 ? hw : -hw);
+            else st.z = o.z + (dz >= 0 ? hd : -hd);
+          }
+        }
+      }
+      // pulo e gravidade
+      const gyNow = groundAt(st.x, st.z);
+      st.vy -= 16 * dt;
+      st.y += st.vy * dt;
+      if (st.y <= gyNow) {
+        st.y = gyNow;
+        st.vy = 0;
+      }
       }
       if (st.yawGoal !== null) {
         st.yaw = lerpAngle(st.yaw, st.yawGoal, Math.min(1, dt * 3.2));
@@ -2003,7 +2138,9 @@ export function MallStore3D({
       );
       avatar.position.set(
         st.x,
-        bob + (twirl < 0.55 ? Math.sin((twirl / 0.55) * Math.PI) * 0.35 : 0),
+        st.y +
+          bob +
+          (twirl < 0.55 ? Math.sin((twirl / 0.55) * Math.PI) * 0.35 : 0),
         st.z,
       );
       avatarMat.rotation =
@@ -2014,7 +2151,43 @@ export function MallStore3D({
       if (away > 1.1 && away > Math.abs(lateral) * 0.8) st.back = true;
       else if (away < 0.3 || Math.abs(lateral) > away * 1.5)
         st.back = moving < 0.3 ? st.back : false;
-      if (avatarFrames.length >= 3) {
+      if (sitOn !== !!st.sit) {
+        sitOn = !!st.sit;
+        avatarShown = -1;
+        legs.visible = sitOn;
+        if (!sitOn) {
+          avatarMat.rotation = 0;
+          legsMat.rotation = 0;
+        }
+      }
+      if (st.sit && avatarFrames.length) {
+        // sentada: tronco apoiado no banco e as pernas pendendo na beirada (o desenho é cortado na cintura e nas canelas)
+        const src =
+          avatarFrames[avatarFrames.length >= 6 && st.back ? 3 : 0];
+        if (!sitTex || sitTex.src !== src) {
+          sitTex?.up.dispose();
+          sitTex?.lo.dispose();
+          const up = src.clone();
+          up.needsUpdate = true;
+          up.repeat.set(1, 0.5);
+          up.offset.set(0, 0.5);
+          const lo = src.clone();
+          lo.needsUpdate = true;
+          lo.repeat.set(1, 0.28);
+          lo.offset.set(0, 0);
+          sitTex = { src, up, lo };
+        }
+        const d = st.sit.dir;
+        const breathe = 1 + Math.sin(st.t * 2) * 0.012;
+        avatarMat.map = sitTex.up;
+        avatar.scale.set(AV_W * st.faceX, AV_H * 0.5 * breathe, 1);
+        avatar.position.set(st.x + d * 0.14, st.y + 0.02, st.z);
+        avatarMat.rotation = Math.sin(st.t * 1.4) * 0.015;
+        legsMat.map = sitTex.lo;
+        legs.scale.set(AV_W * 0.86 * st.faceX, AV_H * 0.28 * 0.86, 1);
+        legs.position.set(st.x + d * 0.6, st.y - 0.51, st.z);
+        legsMat.rotation = Math.sin(st.t * 2.2) * 0.1;
+      } else if (avatarFrames.length >= 3) {
         const off = avatarFrames.length >= 6 && (st.back || backHold) ? 3 : 0;
         const walk = mv > 0.3;
         const want = off + (walk ? [1, 0, 2, 0][Math.floor(st.t * 9) % 4] : 0);
@@ -2024,8 +2197,11 @@ export function MallStore3D({
           if (walk && want - off !== 0 && !spectateRef.current) sfxStep();
         }
       }
-      shadow.position.set(st.x, 0.03, st.z);
-      shadow.scale.setScalar(1 - bob * 1.2);
+      const gyS = groundAt(st.x, st.z);
+      shadow.position.set(st.x, gyS + 0.03, st.z);
+      shadow.scale.setScalar(
+        Math.max(0.4, 1 - bob * 1.2 - Math.max(0, st.y - gyS) * 0.25),
+      );
 
       const spec = spectateRef.current;
       avatar.visible = !spec && avatarFrames.length > 0;
@@ -2044,10 +2220,27 @@ export function MallStore3D({
       if (
         !spec &&
         posT >
-          (loungeRef.current ? (mv > 0.2 ? 0.9 : 3) : mv > 0.2 ? 0.45 : 1.6)
+          (loungeRef.current
+            ? st.y > gyS + 0.05
+              ? 0.3
+              : mv > 0.2
+                ? 0.9
+                : 3
+            : st.y > gyS + 0.05
+              ? 0.25
+              : mv > 0.2
+                ? 0.45
+                : 1.6)
       ) {
         posT = 0;
-        onPosRef.current?.({ x: st.x, z: st.z, fx: st.faceX as 1 | -1, mv });
+        onPosRef.current?.({
+          x: st.x,
+          z: st.z,
+          fx: st.faceX as 1 | -1,
+          mv,
+          y: +st.y.toFixed(2),
+          s: st.sit ? 1 : 0,
+        });
       }
       // outras jogadoras andando no salão
       if (spec || loungeRef.current) {
@@ -2077,10 +2270,12 @@ export function MallStore3D({
           rm.sprite.visible = true;
           rm.shadow.visible = true;
           rm.tag.visible = true;
-          rm.sprite.scale.set(AV_W * rm.fx, AV_H, 1);
-          rm.sprite.position.set(rm.x, bobR, rm.z);
+          const ry = pos.s === 1 ? 0.3 : (pos.y ?? 0);
+          const rsit = pos.s === 1 ? 0.78 : 1;
+          rm.sprite.scale.set(AV_W * rm.fx, AV_H * rsit, 1);
+          rm.sprite.position.set(rm.x, ry + bobR, rm.z);
           rm.shadow.position.set(rm.x, 0.03, rm.z);
-          rm.tag.position.set(rm.x, AV_H + 0.45, rm.z);
+          rm.tag.position.set(rm.x, ry + AV_H * rsit + 0.45, rm.z);
           if (rm.frames.length === 3) {
             const want =
               moving > 0.3 ? [1, 0, 2, 0][Math.floor(rm.phase * 9) % 4] : 0;
@@ -2116,35 +2311,50 @@ export function MallStore3D({
       if (Math.abs(st.vs) > 0.002)
         camera.setViewOffset(vw, vh, st.vs * vw, 0, vw, vh);
       else if (camera.view) camera.clearViewOffset();
+      st.ey += (st.y - st.ey) * Math.min(1, dt * 6);
       tmp.set(
         st.x + Math.sin(st.yaw) * st.dist * Math.cos(pitch),
-        st.camY + 0.3 + st.dist * Math.sin(pitch),
+        st.camY + st.ey + 0.3 + st.dist * Math.sin(pitch),
         st.z + Math.cos(st.yaw) * st.dist * Math.cos(pitch),
       );
       tmp.x = Math.max(-HW + 0.6, Math.min(HW - 0.6, tmp.x));
       tmp.z = Math.max(-HL + 0.6, Math.min(HL - 1.9, tmp.z));
+      // as colunas ficam sempre inteiras: se uma estiver entre a câmera e a jogadora, a câmera chega mais perto em vez de atravessar
+      for (const c of columns) {
+        const dx = tmp.x - st.x;
+        const dz = tmp.z - st.z;
+        const l2 = dx * dx + dz * dz || 1;
+        const t = ((c.x - st.x) * dx + (c.z - st.z) * dz) / l2;
+        if (t <= 0 || t > 1.3) continue;
+        const px = st.x + dx * t - c.x;
+        const pz = st.z + dz * t - c.z;
+        if (Math.hypot(px, pz) > 1.0) continue;
+        // ponto onde a linha entra na coluna (raio 1.0 de folga)
+        const back = Math.sqrt(Math.max(0, 1 - px * px - pz * pz)) / Math.sqrt(l2);
+        const tIn = Math.max(0.3, t - back - 0.06);
+        if (tIn < 1) {
+          tmp.x = st.x + dx * tIn;
+          tmp.z = st.z + dz * tIn;
+          tmp.y = st.camY + st.ey + 0.3 + (tmp.y - st.camY - st.ey - 0.3) * tIn;
+        }
+      }
       camPos.lerp(tmp, Math.min(1, dt * 10));
       camera.position.copy(camPos);
-      camera.lookAt(st.x, st.camY, st.z);
-      const sx = st.x - camPos.x;
-      const sz = st.z - camPos.z;
-      const sl = sx * sx + sz * sz || 1;
-      for (const c of columns) {
-        const t = Math.max(
-          0,
-          Math.min(1, ((c.x - camPos.x) * sx + (c.z - camPos.z) * sz) / sl),
-        );
-        const hide =
-          Math.hypot(camPos.x + sx * t - c.x, camPos.z + sz * t - c.z) < 1.5 ||
-          Math.hypot(camPos.x - c.x, camPos.z - c.z) < 2.6;
-        for (const m of c.parts) m.visible = !hide;
-      }
+      camera.lookAt(st.x, st.camY + st.ey, st.z);
 
       // peça/estação mais perto + destaque dourado
       nearT += dt;
       loadT += dt;
       if (nearT > 0.1 && !spec) {
         nearT = 0;
+        const sitNear =
+          !st.sit &&
+          st.y < 0.08 &&
+          seats.some((q) => Math.hypot(q.x - st.x, q.z - st.z) < 2.4);
+        if (sitNear !== canSitNow) {
+          canSitNow = sitNear;
+          setCanSit(sitNear);
+        }
         let best: Spot | null = null;
         let bd = 2.8;
         for (const s of spots) {
@@ -2301,6 +2511,10 @@ export function MallStore3D({
       drawFitRef.current = null;
       applyMoodRef.current = null;
       turnRef.current = null;
+      jumpRef.current = null;
+      sitRef.current = null;
+      sitTex?.up.dispose();
+      sitTex?.lo.dispose();
       disposables.forEach((d) => d.dispose());
       renderer.dispose();
       renderer.forceContextLoss();
@@ -2460,8 +2674,32 @@ export function MallStore3D({
         />
       </div>
       <p className="pointer-events-none absolute bottom-[4.9rem] left-2 hidden rounded-full bg-black/35 px-2.5 py-1 text-[10px] font-bold text-white [@media(hover:hover)]:block">
-        WASD ou setas para andar · arraste para girar · toque na peça
+        WASD/setas andam · espaço pula · E senta · arraste para girar · toque na peça
       </p>
+
+      {/* pular e sentar: perto do polegar, ao lado do joystick */}
+      {!spectate ? (
+        <div className="absolute bottom-[5.2rem] left-[8.6rem] z-[4] flex flex-row items-end gap-2 [@media(hover:hover)]:bottom-[7.2rem] [@media(hover:hover)]:left-2">
+          {canSit || sitting ? (
+            <button
+              type="button"
+              className="vh-btn vh-btn-purple !w-auto !px-3 !py-2 !text-xs shadow-[0_0_18px_rgba(255,224,102,0.6)]"
+              onClick={() => sitRef.current?.()}
+            >
+              {sitting ? "🧍 Levantar" : "🪑 Sentar"}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="vh-iconbtn !h-11 !w-11 !text-lg"
+            aria-label="Pular"
+            title="Pular (espaço)"
+            onClick={() => jumpRef.current?.()}
+          >
+            ⤒
+          </button>
+        </div>
+      ) : null}
 
       {/* atalhos: ir até cada parte do salão */}
       <div className="vh-slot absolute left-2 top-[3.9rem] z-[4] flex max-h-[calc(100%-9rem)] max-w-[calc(100%-1rem)] flex-col items-start gap-1.5 overflow-y-auto">

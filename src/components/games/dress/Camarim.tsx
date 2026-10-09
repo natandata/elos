@@ -184,7 +184,7 @@ export function Camarim({ theme, mode, msLeft, draftKey, exitHref, live, onEvent
     ch.on("broadcast", { event: "pos" }, ({ payload }) => {
       const m = payload as HallMsg;
       if (!m?.id || m.id === me) return;
-      peerPos.current[m.id] = { x: m.x, z: m.z, fx: m.fx === -1 ? -1 : 1, mv: m.mv, t: Date.now() };
+      peerPos.current[m.id] = { x: m.x, z: m.z, fx: m.fx === -1 ? -1 : 1, mv: m.mv, t: Date.now(), y: m.y, s: m.s };
       const prev = peerMap.current.get(m.id);
       if (!prev || prev.name !== m.name || JSON.stringify([prev.look, prev.beauty]) !== JSON.stringify([m.look, m.beauty])) {
         peerMap.current.set(m.id, { id: m.id, name: m.name, look: m.look ?? {}, beauty: m.beauty });
@@ -223,11 +223,11 @@ export function Camarim({ theme, mode, msLeft, draftKey, exitHref, live, onEvent
     setChat((c) => [...c.slice(-39), { id: h.meId, name: "Você", text: t }]);
     void chRef.current?.send({ type: "broadcast", event: "chat", payload: { id: h.meId, name: h.name.split(" ")[0], text: t } satisfies ChatMsg });
   };
-  const sendPos = useCallback((p: { x: number; z: number; fx: 1 | -1; mv: number }) => {
+  const sendPos = useCallback((p: { x: number; z: number; fx: 1 | -1; mv: number; y?: number; s?: 0 | 1 }) => {
     const h = hallRef.current;
     if (!h || !(watchRef.current || h.peers) || !chRef.current) return;
     const { look: l, beauty: b, pose: ps } = snapRef.current;
-    const msg: HallMsg = { id: h.meId, name: h.name, x: p.x, z: p.z, fx: p.fx, mv: p.mv, look: l, beauty: b, pose: ps };
+    const msg: HallMsg = { id: h.meId, name: h.name, x: p.x, z: p.z, fx: p.fx, mv: p.mv, y: p.y, s: p.s, look: l, beauty: b, pose: ps };
     void chRef.current.send({ type: "broadcast", event: "pos", payload: msg });
   }, []);
 
