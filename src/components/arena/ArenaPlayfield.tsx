@@ -8,6 +8,7 @@ import { drawLimbs } from "./arenaLimbs";
 import { CardArt } from "./CardArt";
 import { TEAM, buildAmbient, buildBackground, drawAmbient, drawRubble, drawTower, layoutFor, type Ambient, type Layout } from "./arenaRender";
 import { loadCampo } from "./arenaAssets";
+import { reportClientError } from "@/lib/clientErrors";
 import { applyEvent, drawFx, newAnim, type Anim, type Fx } from "./arenaFx";
 import { ArenaSound, readMuted } from "./arenaSound";
 import { suspendMusic } from "./arenaMusicEngine";
@@ -203,25 +204,47 @@ export function ArenaPlayfield({
   }, []);
   useEffect(() => stopLoop, [stopLoop]);
 
-  const setupCanvas = useCallback(() => {
+  const sizeKeyRef = useRef("");
+  const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const triesRef = useRef(0);
+  const setupCanvas = useCallback((force = false) => {
     const area = areaRef.current;
     const canvas = canvasRef.current;
-    if (!area || !canvas || area.clientWidth === 0) return;
+    if (!area || !canvas) return;
+    // área ainda sem tamanho (a tela está montando ou o navegador está trocando a barra): tenta de novo logo em vez de desistir
+    if (area.clientWidth < 8 || area.clientHeight < 8) {
+      if (triesRef.current++ < 60 && retryRef.current === null) {
+        retryRef.current = setTimeout(() => {
+          retryRef.current = null;
+          setupCanvas(force);
+        }, 120);
+      }
+      return;
+    }
+    triesRef.current = 0;
     const l = layoutFor(area.clientWidth, area.clientHeight);
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    // menos pixels em aparelhos fracos: o campo é desenhado todo quadro, e memória de vídeo acabando faz a tela piscar
+    const lowMem = ((navigator as unknown as { deviceMemory?: number }).deviceMemory ?? 8) <= 4;
+    const budget = Math.sqrt((lowMem ? 1_100_000 : 2_000_000) / Math.max(1, l.cw * l.ch));
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1, budget));
+    const key = `${l.cw}x${l.ch}@${dpr}`;
+    // mesmo tamanho de antes: não mexe no canvas (redimensionar apaga a tela e fazia o campo piscar)
+    if (!force && key === sizeKeyRef.current && bgRef.current) return;
+    sizeKeyRef.current = key;
     canvas.style.width = `${l.cw}px`;
     canvas.style.height = `${l.ch}px`;
-    canvas.width = Math.round(l.cw * dpr);
-    canvas.height = Math.round(l.ch * dpr);
+    canvas.width = Math.max(1, Math.round(l.cw * dpr));
+    canvas.height = Math.max(1, Math.round(l.ch * dpr));
     layoutRef.current = l;
     dprRef.current = dpr;
     const build = () => {
       const theme = driverRef.current.campaign?.theme ?? ARENAS[driverRef.current.arena]?.theme ?? ARENAS[0].theme;
-      const key = driverRef.current.campaign?.scenery ?? ARENAS[driverRef.current.arena]?.key;
+      const key2 = driverRef.current.campaign?.scenery ?? ARENAS[driverRef.current.arena]?.key;
       try {
-        bgRef.current = buildBackground(l, dpr, theme, key);
+        bgRef.current = buildBackground(l, dpr, theme, key2);
       } catch (err) {
         console.error("arena background", err);
+        reportClientError("arena-bg", err, { cw: l.cw, ch: l.ch, dpr, key: key2 });
         // aparelho sem memória/contexto: tenta de novo em resolução baixa; sem fundo a tela ficaria só verde
         try {
           if (dpr > 1) {
@@ -229,9 +252,11 @@ export function ArenaPlayfield({
             canvas.height = l.ch;
             dprRef.current = 1;
           }
-          bgRef.current = buildBackground(l, 1, theme, key);
+          bgRef.current = buildBackground(l, 1, theme, key2);
         } catch (err2) {
           console.error("arena background (fallback)", err2);
+          reportClientError("arena-bg-fallback", err2, { cw: l.cw, ch: l.ch });
+          bgRef.current = null;
         }
       }
       try {
@@ -255,16 +280,21 @@ export function ArenaPlayfield({
       const game = driverRef.current.game;
       const l = layoutRef.current;
       const bg = bgRef.current;
-      if (!canvas || !l || !bg) return;
+      if (!canvas || !l) return;
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
       const s = l.s;
       const mySide = driverRef.current.mySide;
       const tickF = game.tick + alpha;
-      const canFilter = "filter" in ctx;
       ctx.setTransform(dprRef.current, 0, 0, dprRef.current, 0, 0);
       ctx.clearRect(0, 0, l.cw, l.ch);
-      ctx.drawImage(bg, 0, 0, l.cw, l.ch);
+      if (bg && bg.width > 0 && bg.height > 0) ctx.drawImage(bg, 0, 0, l.cw, l.ch);
+      else {
+        // sem o fundo pronto o campo ainda aparece (grama lisa) e o jogo continua
+        const th = driverRef.current.campaign?.theme ?? ARENAS[driverRef.current.arena]?.theme ?? ARENAS[0].theme;
+        ctx.fillStyle = th.grass;
+        ctx.fillRect(0, 0, l.cw, l.ch);
+      }
       if (ambRef.current) drawAmbient(ctx, ambRef.current, tickF);
       if (game.jericho) drawJericho(ctx, l.cw, l.ch, s, tickF);
       ctx.save();
@@ -405,7 +435,7 @@ export function ArenaPlayfield({
           // vira de lado suavemente
           an.fs += (an.face - an.fs) * 0.3;
         }
-        const flash = canFilter && an !== undefined && tickF - an.hit < 3;
+        const flash = an !== undefined && tickF - an.hit < 3;
 
         const lowFactor = 1 - Math.min(0.3, Math.abs(bob) / (s * 1.2));
         ctx.fillStyle = "rgba(0,0,0,0.28)";
@@ -422,7 +452,6 @@ export function ArenaPlayfield({
         ctx.translate(x + thrustX, footBase - lift - bob + dropY + thrustY);
         ctx.rotate(sway);
         ctx.scale((an?.fs ?? 1) * sx * popScale, sy * popScale);
-        if (flash) ctx.filter = "brightness(2.2) saturate(0.7)";
         let topLocal = -r;
         if (hasArt && img) {
           const h = e.radius * 4.4 * s;
@@ -439,13 +468,20 @@ export function ArenaPlayfield({
             ctx.beginPath();
             ctx.ellipse(0, -h * 0.5, h * 0.7, h * 0.85, 0, 0, Math.PI * 2);
             ctx.fill();
-            if (canFilter && !flash) ctx.filter = `brightness(${1.18 + pulse * 0.15}) saturate(1.15)`;
           }
           if (!e.flying && e.variant === 0) {
             const atkT = an ? (tickF - an.atk) / 9 : -1;
             drawLimbs(ctx, img, -w / 2, -h * 0.97, w, h, gait, moving, atkT >= 0 && atkT < 1 ? atkT : -1, 1, tickF * 0.16 + e.id);
           } else {
             ctx.drawImage(img, -w / 2, -h * 0.97, w, h);
+          }
+          // levou dano: o personagem clareia por um instante (soma de luz, sem ctx.filter, que pisca e pesa em muitos celulares)
+          if (flash) {
+            ctx.globalCompositeOperation = "lighter";
+            ctx.globalAlpha = 0.5;
+            ctx.drawImage(img, -w / 2, -h * 0.97, w, h);
+            ctx.globalAlpha = 1;
+            ctx.globalCompositeOperation = "source-over";
           }
           topLocal = -h - 2;
         } else {
@@ -501,12 +537,14 @@ export function ArenaPlayfield({
         draw(alpha);
       } catch (err) {
         console.error("arena draw", err);
+        reportClientError("arena-draw", err);
       }
     };
     let last = performance.now();
     let acc = 0;
     let stalledSince: number | null = null;
-    const frame = (now: number) => {
+    let noBgFrames = 0;
+    const tick = (now: number): boolean => {
       const d = driverRef.current;
       const game = d.game;
       acc += Math.min(250, now - last);
@@ -547,7 +585,13 @@ export function ArenaPlayfield({
           if (e.t === "blind" && e.side === d.mySide) setBlindKey((k) => k + 1);
           const m: GameEvent = flip ? mapEvent(e, vs) : e;
           applyEvent(m, game.tick, animsRef.current, fxRef.current, shakeRef.current);
-          soundRef.current?.onEvent(m);
+          try {
+            soundRef.current?.onEvent(m);
+          } catch (err) {
+            // o som nunca pode derrubar a partida (aparelhos sem Web Audio completo)
+            reportClientError("arena-sound", err);
+            soundRef.current = null;
+          }
         }
         fxRef.current = fxRef.current.filter((f) => game.tick - f.t0 < f.dur);
         if (game.tick % 5 === 0) {
@@ -603,18 +647,32 @@ export function ArenaPlayfield({
         stalledSince = null;
         setWaiting(false);
       }
+      // fundo ainda não pronto (ou perdido): tenta montar de novo a cada segundo, sem parar o jogo
+      if (!bgRef.current && ++noBgFrames % 60 === 0) setupCanvas(true);
       safeDraw(Math.min(1, acc / STEP_MS));
       if (game.over) {
         safeDraw(1);
         if (game.winner === d.mySide) soundRef.current?.win();
         else if (game.winner !== null) soundRef.current?.lose();
         onOverRef.current();
-        return;
+        return true;
       }
-      rafRef.current = requestAnimationFrame(frame);
+      return false;
+    };
+    // um erro num quadro não pode matar o laço (a tela ficava congelada ou em branco): registra e segue no próximo
+    const frame = (now: number) => {
+      let over = false;
+      try {
+        over = tick(now);
+      } catch (err) {
+        console.error("arena loop", err);
+        reportClientError("arena-loop", err);
+        last = now;
+      }
+      if (!over) rafRef.current = requestAnimationFrame(frame);
     };
     rafRef.current = requestAnimationFrame(frame);
-  }, [draw, flip, vs, vx, vy]);
+  }, [draw, flip, vs, vx, vy, setupCanvas]);
 
   useEffect(() => {
     const game = driver.game;
@@ -624,13 +682,32 @@ export function ArenaPlayfield({
     document.body.style.overflow = "hidden";
     setupCanvas();
     const area = areaRef.current;
-    const ro = area ? new ResizeObserver(() => setupCanvas()) : null;
+    let roPending = 0;
+    const ro = area
+      ? new ResizeObserver(() => {
+          // vários avisos de tamanho no mesmo quadro viram um só
+          cancelAnimationFrame(roPending);
+          roPending = requestAnimationFrame(() => setupCanvas());
+        })
+      : null;
     if (area && ro) ro.observe(area);
     startLoop();
+    const onErr = (e: ErrorEvent) => reportClientError("arena-window", e.error ?? e.message);
+    const onRej = (e: PromiseRejectionEvent) => reportClientError("arena-promise", e.reason);
+    window.addEventListener("error", onErr);
+    window.addEventListener("unhandledrejection", onRej);
+    // a barra do navegador do celular aparece e some: reajusta o campo no tamanho novo
+    const vv = window.visualViewport;
+    const onVv = () => setupCanvas();
+    vv?.addEventListener("resize", onVv);
     return () => {
       document.body.style.overflow = prev;
       ro?.disconnect();
       stopLoop();
+      window.removeEventListener("error", onErr);
+      window.removeEventListener("unhandledrejection", onRej);
+      vv?.removeEventListener("resize", onVv);
+      if (retryRef.current !== null) clearTimeout(retryRef.current);
     };
     // o campo é montado uma vez por partida
     // eslint-disable-next-line react-hooks/exhaustive-deps
