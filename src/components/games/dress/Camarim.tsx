@@ -9,9 +9,11 @@ import { RARITY_ICON, SparkleBurst, rarityOf } from "./Vh";
 import { BLUSHES, BROW_COLORS, BROW_STYLES, DEFAULT_BEAUTY, EYE_COLORS, HAIR_COLORS, HAIR_STYLES, LASH_STYLES, LINER_COLORS, LINER_STYLES, LIPS, LIP_STYLES, MARKS, SHADOWS, SKINS, baseFromBeauty, type Beauty, type Mark } from "@/lib/games/dress/beauty";
 import { ITEM_BY_ID, SLOTS, familiesBySlot, type Look, type Slot } from "@/lib/games/dress/items";
 import { DRESS_ITEM_LIMIT, POSES, cleanPose, countItems, type PoseKey } from "@/lib/games/dress/live";
+import { hallChannel, type HallMsg } from "@/lib/games/dress/hall";
 import { leaveImmersive } from "@/lib/games/dress/immersive";
 import { fmtClock } from "@/lib/games/dress/rules";
 import type { BibleTheme } from "@/lib/games/dress/themes";
+import { createClient } from "@/lib/supabase/client";
 
 const MallStore3D = dynamic(() => import("./MallStore3D").then((m) => m.MallStore3D), { ssr: false, loading: () => <p className="grid h-full place-items-center text-sm font-black text-purple-900">Abrindo a loja…</p> });
 
@@ -57,7 +59,7 @@ function save(key: string, v: unknown) {
  * Camarim em tela cheia: uma loja gigante em 3D (a jogadora anda e escolhe as peças nas prateleiras) com tema,
  * relógio, cores, make, cabelo e pose. `live`: valendo, numa sala com as amigas. `tutorial`: aprendendo, sem relógio.
  */
-export function Camarim({ theme, mode, msLeft, draftKey, exitHref, live, onEvent, onReady, coach }: { theme: BibleTheme; mode: "live" | "tutorial"; msLeft?: number; draftKey: string; exitHref: string; live?: LiveCamarim; onEvent?: (e: CamarimEvent) => void; onReady?: (look: Look, beauty: Beauty, pose: PoseKey) => void; coach?: ReactNode }) {
+export function Camarim({ theme, mode, msLeft, draftKey, exitHref, live, onEvent, onReady, coach, hall, watching = false }: { theme: BibleTheme; mode: "live" | "tutorial"; msLeft?: number; draftKey: string; exitHref: string; live?: LiveCamarim; onEvent?: (e: CamarimEvent) => void; onReady?: (look: Look, beauty: Beauty, pose: PoseKey) => void; coach?: ReactNode; hall?: { code: string; round: number; meId: string; name: string }; watching?: boolean }) {
   const router = useRouter();
   const isLive = mode === "live" && !!live;
   const isTutorial = mode === "tutorial";
@@ -102,6 +104,36 @@ export function Camarim({ theme, mode, msLeft, draftKey, exitHref, live, onEvent
   const [future, setFuture] = useState<Snap[]>([]);
   const deadline = useRef(0);
   const emit = (e: CamarimEvent) => onEvent?.(e);
+
+  // plateia: enquanto alguém assiste, a posição e o look do momento vão por um canal (só visual; as jogadoras não veem umas às outras)
+  const hallRef = useRef(hall);
+  const watchRef = useRef(watching);
+  const snapRef = useRef({ look, beauty, pose });
+  const chRef = useRef<ReturnType<ReturnType<typeof createClient>["channel"]> | null>(null);
+  useEffect(() => {
+    hallRef.current = hall;
+    watchRef.current = watching;
+    snapRef.current = { look, beauty, pose };
+  });
+  const hallKey = hall && isLive ? hallChannel(hall.code, hall.round) : null;
+  useEffect(() => {
+    if (!hallKey) return;
+    const sb = createClient();
+    const ch = sb.channel(hallKey, { config: { broadcast: { self: false } } });
+    ch.subscribe();
+    chRef.current = ch;
+    return () => {
+      chRef.current = null;
+      void sb.removeChannel(ch);
+    };
+  }, [hallKey]);
+  const sendPos = useCallback((p: { x: number; z: number; fx: 1 | -1; mv: number }) => {
+    const h = hallRef.current;
+    if (!h || !watchRef.current || !chRef.current) return;
+    const { look: l, beauty: b, pose: ps } = snapRef.current;
+    const msg: HallMsg = { id: h.meId, name: h.name, x: p.x, z: p.z, fx: p.fx, mv: p.mv, look: l, beauty: b, pose: ps };
+    void chRef.current.send({ type: "broadcast", event: "pos", payload: msg });
+  }, []);
 
   const openPanel = (c: Cat) => {
     setCat(c);
@@ -489,7 +521,7 @@ export function Camarim({ theme, mode, msLeft, draftKey, exitHref, live, onEvent
 
       {mall ? (
         <div className="vh-room-3d">
-          <MallStore3D base={base} look={look} onEquip={equip} onStation={(c) => openPanel(c)} onEvent={emit} quiet={closetOpen} face={closetOpen && (cat === "makeup" || cat === "hair" || cat === "skin")} />
+          <MallStore3D base={base} look={look} onEquip={equip} onStation={(c) => openPanel(c)} onEvent={emit} onPos={sendPos} quiet={closetOpen} face={closetOpen && (cat === "makeup" || cat === "hair" || cat === "skin")} />
         </div>
       ) : null}
 

@@ -62,6 +62,22 @@ export function LiveLobby() {
     router.push(`/app/jogos/vestir/sala/${clean}`);
   }
 
+  async function watch(c: string) {
+    const clean = cleanCode(c);
+    if (clean.length !== 4) return setError("O código tem 4 letras ou números.");
+    if (busy) return;
+    enterImmersive();
+    setBusy(true);
+    setError(null);
+    const { data, error: e } = await sb.rpc("dress_room_watch", { p_code: clean });
+    const r = (data ?? {}) as { error?: string };
+    if (e || r.error) {
+      setBusy(false);
+      return setError(r.error ?? "Não foi possível entrar na plateia. Confira a conexão.");
+    }
+    router.push(`/app/jogos/vestir/sala/${clean}?assistir=1`);
+  }
+
   return (
     <LandscapeShell>
     <VhStage>
@@ -105,6 +121,9 @@ export function LiveLobby() {
           <button type="submit" className="vh-btn !w-auto !px-5" disabled={busy || code.length !== 4}>
             Entrar
           </button>
+          <button type="button" className="vh-btn vh-btn-dark !w-auto !px-4" disabled={busy || code.length !== 4} onClick={() => void watch(code)}>
+            👀 Assistir
+          </button>
         </form>
         {error ? (
           <p className="mt-2 rounded-xl bg-rose-900/80 px-3 py-2 text-sm font-bold text-rose-100" role="alert">
@@ -133,6 +152,9 @@ export function LiveLobby() {
                 </span>
                 <button type="button" className="vh-chip !px-3 !py-1 !text-xs" disabled={busy} onClick={() => void join(r.code)}>
                   Entrar
+                </button>
+                <button type="button" className="vh-chip !px-3 !py-1 !text-xs" disabled={busy} onClick={() => void watch(r.code)} aria-label={`Assistir à sala ${r.code}`}>
+                  👀
                 </button>
               </li>
             ))}

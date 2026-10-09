@@ -63,6 +63,20 @@ export function MegaCard() {
     router.push(`/app/jogos/vestir/sala/${r.code}`);
   }
 
+  async function watch() {
+    if (busy) return;
+    enterImmersive();
+    setBusy(true);
+    setError(null);
+    const { data, error: e } = await sb.rpc("dress_mega_watch");
+    const r = (data ?? {}) as { error?: string; code?: string };
+    if (e || r.error || !r.code) {
+      setBusy(false);
+      return setError(r.error ?? "Não foi possível entrar na plateia. Tente de novo.");
+    }
+    router.push(`/app/jogos/vestir/sala/${r.code}?assistir=1`);
+  }
+
   if (!info || now === 0) return null;
   const ev = new Date(info.event_at).getTime();
   const opens = new Date(info.enter_from).getTime();
@@ -87,6 +101,9 @@ export function MegaCard() {
           </p>
           <button type="button" className="vh-btn mt-3" disabled={busy} onClick={() => void join()}>
             🎆 Entrar no Mega Desfile
+          </button>
+          <button type="button" className="vh-btn vh-btn-dark mt-2" disabled={busy} onClick={() => void watch()}>
+            👀 Só assistir
           </button>
         </>
       ) : (

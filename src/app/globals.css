@@ -1807,3 +1807,7 @@ input[type="datetime-local"] {
 .vh-room[data-mall] .vh-room-top { gap: 0.4rem; }
 .vh-room[data-mall] .vh-room-top .vh-timer { margin-left: auto; }
 .vh-shell[data-land="1"] .vh-tc-img { height: min(46cqh, 240px) !important; }
+.vh-spec-bar { position: absolute; left: 0; right: 0; bottom: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; padding: 14px max(10px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) 10px; background: linear-gradient(0deg, rgba(20, 6, 40, 0.6), transparent); }
+.vh-spec-notice { position: fixed; left: 10px; bottom: 76px; z-index: 90; max-width: min(70%, 320px); padding: 6px 12px; border-radius: 999px; background: rgba(28, 11, 54, 0.82); color: #fff3c4; font-size: 12px; font-weight: 800; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4); pointer-events: none; animation: vh-spec-in 0.35s ease-out both, vh-spec-out 0.5s ease-in 4.2s forwards; }
+@keyframes vh-spec-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes vh-spec-out { to { opacity: 0; transform: translateY(6px); } }

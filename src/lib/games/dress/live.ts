@@ -37,6 +37,9 @@ export type RoomState = {
   /** Mega Desfile (domingo 15h): uma rodada com muito mais jogadoras */
   mega?: boolean;
   event_at?: string | null;
+  /** quem consulta está só assistindo (plateia) */
+  spectator?: boolean;
+  spectators?: { id: string; name: string }[];
   players: RoomPlayer[];
   results: RoomResult[];
   me: { id: string; eligible: boolean; ready: boolean; look: Look; beauty: unknown; pose: string; tickets: number; voted: string[] };

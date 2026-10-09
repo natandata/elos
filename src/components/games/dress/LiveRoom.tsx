@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Camarim, type LiveCamarim } from "./Camarim";
 import { LandscapeShell } from "./LandscapeShell";
 import { PaperDoll } from "./PaperDoll";
+import { SpectatorHall } from "./SpectatorHall";
 import { RunwayWalk } from "./RunwayWalk";
 import { StarPicker, StarsStatic } from "./Stars";
 import { ThemeCard } from "./ThemeCard";
@@ -47,15 +48,50 @@ const TUTORIAL_KEY = "vh:live:tutorial";
 /** Como a sala fala com o banco (dá para trocar por um simulador nos testes de tela). */
 export type RoomRpc = (fn: string, args: Record<string, unknown>) => PromiseLike<{ data: unknown; error: unknown }>;
 
-export function LiveRoom(props: { code: string; meId: string; rpc?: RoomRpc }) {
+export function LiveRoom(props: { code: string; meId: string; rpc?: RoomRpc; watch?: boolean }) {
+  const [spec, setSpec] = useState<{ list: { id: string; name: string }[]; imSpectator: boolean }>({ list: [], imSpectator: false });
   return (
     <LandscapeShell>
-      <LiveRoomInner {...props} />
+      <LiveRoomInner {...props} onSpectators={(list, imSpectator) => setSpec({ list, imSpectator })} />
+      {!spec.imSpectator ? <SpectatorNotice list={spec.list} /> : null}
     </LandscapeShell>
   );
 }
 
-function LiveRoomInner({ code, meId, rpc }: { code: string; meId: string; rpc?: RoomRpc }) {
+/** Aviso discreto para as jogadoras: "Fulana está assistindo a partida" (a espectadora nunca aparece na sala). */
+function SpectatorNotice({ list }: { list: { id: string; name: string }[] }) {
+  const seen = useRef<Set<string> | null>(null);
+  const [notes, setNotes] = useState<{ key: number; name: string }[]>([]);
+  const counter = useRef(0);
+  useEffect(() => {
+    if (seen.current === null) {
+      // o que já estava na plateia quando eu entrei não vira aviso
+      seen.current = new Set(list.map((p) => p.id));
+      return;
+    }
+    const fresh = list.filter((p) => !seen.current!.has(p.id));
+    if (fresh.length === 0) return;
+    for (const p of fresh) seen.current.add(p.id);
+    const add = fresh.map((p) => ({ key: ++counter.current, name: firstName(p.name).split(" ")[0] }));
+    const t1 = setTimeout(() => setNotes((n) => [...n, ...add]), 0);
+    const t2 = setTimeout(() => setNotes((n) => n.filter((x) => !add.some((a) => a.key === x.key))), 5000);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [list]);
+  return (
+    <>
+      {notes.map((n) => (
+        <p key={n.key} className="vh-spec-notice" role="status">
+          👀 {n.name} está assistindo a partida
+        </p>
+      ))}
+    </>
+  );
+}
+
+function LiveRoomInner({ code, meId, rpc, watch = false, onSpectators }: { code: string; meId: string; rpc?: RoomRpc; watch?: boolean; onSpectators?: (list: { id: string; name: string }[], imSpectator: boolean) => void }) {
   const router = useRouter();
   const sb = useMemo(() => createClient(), []);
   const call = useCallback<RoomRpc>((fn, args) => (rpc ? rpc(fn, args) : sb.rpc(fn, args)), [rpc, sb]);
@@ -71,6 +107,10 @@ function LiveRoomInner({ code, meId, rpc }: { code: string; meId: string; rpc?: 
   const deadline = useRef(0);
   const initialKey = useRef("");
   const fails = useRef(0);
+  const onSpecRef = useRef(onSpectators);
+  useEffect(() => {
+    onSpecRef.current = onSpectators;
+  });
 
   const poll = useCallback(async (): Promise<number> => {
     const { data, error } = await call("dress_room_state", { p_code: code });
@@ -87,6 +127,7 @@ function LiveRoomInner({ code, meId, rpc }: { code: string; meId: string; rpc?: 
       return 60_000;
     }
     setSt(s);
+    onSpecRef.current?.(s.spectators ?? [], !!s.spectator);
     deadline.current = performance.now() + (s.left_ms ?? 0);
     setLeft((s.left_ms ?? 0) / 1000);
     // o estado inicial do camarim é o do começo da fase (depois o camarim cuida do próprio look)
@@ -110,7 +151,7 @@ function LiveRoomInner({ code, meId, rpc }: { code: string; meId: string; rpc?: 
       if (!stop) timer = setTimeout(loop, wait);
     };
     void (async () => {
-      const { data, error } = await call("dress_room_join", { p_code: code });
+      const { data, error } = await call(watch ? "dress_room_watch" : "dress_room_join", { p_code: code });
       if (stop) return;
       if (error) return setFatal("Não foi possível entrar na sala. Confira a conexão.");
       const r = (data ?? {}) as { error?: string };
@@ -121,7 +162,7 @@ function LiveRoomInner({ code, meId, rpc }: { code: string; meId: string; rpc?: 
       stop = true;
       if (timer) clearTimeout(timer);
     };
-  }, [call, code, poll]);
+  }, [call, code, poll, watch]);
 
   // relógio da tela (anda sozinho entre uma consulta e outra)
   useEffect(() => {
@@ -228,7 +269,6 @@ function LiveRoomInner({ code, meId, rpc }: { code: string; meId: string; rpc?: 
   const theme = (st.theme && THEME_BY_ID.get(st.theme)) || FALLBACK_THEME;
   const byId = new Map(st.players.map((p) => [p.id, p]));
   const online = st.players.filter((p) => p.online);
-  const inRound = st.players.filter((p) => p.eligible);
   const iVoted = (id: string) => st.me.voted.includes(id) || voted[id] !== undefined;
   const clock = st.left_ms == null ? null : fmtClock(Math.ceil(left));
   const offlineBar = offline ? (
@@ -239,7 +279,7 @@ function LiveRoomInner({ code, meId, rpc }: { code: string; meId: string; rpc?: 
 
   // ------------------------------------------------------------------ camarim (tela cheia)
   if (st.phase === "dressing" && st.me.eligible && live) {
-    return <Camarim key={`live-${code}-${round}`} theme={theme} mode="live" msLeft={left * 1000} draftKey={`vh:live:${code}:${round}`} exitHref="/app/jogos/vestir/sala" live={live} />;
+    return <Camarim key={`live-${code}-${round}`} theme={theme} mode="live" msLeft={left * 1000} draftKey={`vh:live:${code}:${round}`} exitHref="/app/jogos/vestir/sala" live={live} hall={{ code, round, meId, name: byId.get(meId)?.name ?? "Jogadora" }} watching={(st.spectators ?? []).length > 0} />;
   }
 
   const header = (
@@ -248,7 +288,7 @@ function LiveRoomInner({ code, meId, rpc }: { code: string; meId: string; rpc?: 
         ← Sair
       </button>
       <p className="text-center text-[11px] font-black uppercase tracking-[0.18em] text-amber-200">
-        Sala {st.code} · {PHASE_LABEL[st.phase]}
+        {st.spectator ? "👀 " : ""}Sala {st.code} · {PHASE_LABEL[st.phase]}
         {st.round > 0 ? ` · rodada ${st.round}` : ""}
       </p>
       {clock ? (
@@ -389,26 +429,9 @@ function LiveRoomInner({ code, meId, rpc }: { code: string; meId: string; rpc?: 
     );
   }
 
-  // ------------------------------------------------------------------ espectadora no camarim
+  // ------------------------------------------------------------------ plateia no camarim: vê as modelos andando no salão
   if (st.phase === "dressing") {
-    const done = inRound.filter((p) => p.ready).length;
-    return (
-      <VhStage>
-        {header}
-        {offlineBar}
-        <ThemeCard theme={theme} label={`Rodada ${st.round}`} />
-        <div className="vh-panel text-center">
-          <p className="text-4xl" aria-hidden>
-            👗
-          </p>
-          <p className="vh-title mt-1 text-2xl">As modelos estão no camarim</p>
-          <p className="mt-2 text-sm text-purple-100">Você entrou com a rodada em andamento: assiste ao desfile desta e joga a próxima.</p>
-          <p className="mt-3 text-sm font-bold text-amber-100">
-            {done} de {inRound.length} prontas
-          </p>
-        </div>
-      </VhStage>
-    );
+    return <SpectatorHall key={`spec-${code}-${round}`} code={code} round={round} theme={theme} left={left} players={st.players} onExit={() => void leave()} />;
   }
 
   // ------------------------------------------------------------------ preparando a passarela

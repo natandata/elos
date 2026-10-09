@@ -4,7 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { PaperDoll, SLOT_VIEWBOX } from "./PaperDoll";
 import { useLandscape } from "./LandscapeShell";
+import { baseFromBeauty, cleanBeauty } from "@/lib/games/dress/beauty";
 import type { DollBase } from "@/lib/games/dress/characters";
+import type { HallPos, HallRoster } from "@/lib/games/dress/hall";
 import { ITEM_BY_ID, SLOTS, familiesBySlot, type FamilyGroup, type Look, type Slot } from "@/lib/games/dress/items";
 
 export type MallStation = "hair" | "makeup" | "skin";
@@ -278,8 +280,8 @@ const canvasTexture = (c: HTMLCanvasElement): THREE.CanvasTexture => {
  * Loja gigante em 3D, em terceira pessoa, no jeito do Dress to Impress: a jogadora anda pelo salão (joystick),
  * chega nas prateleiras, toca numa peça para vestir e escolhe a cor no painel. Espelhos de maquiagem, salão de cabelo e provador no fundo.
  */
-export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = false, face = false }: { base: DollBase; look: Look; onEquip: (slot: Slot, id: string | undefined) => void; onStation: (cat: MallStation) => void; onEvent?: (e: MallEvent) => void; quiet?: boolean; face?: boolean }) {
-  const { rotated, mobile } = useLandscape();
+export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = false, face = false, onPos, spectate = false, roster, positions, follow = null }: { base: DollBase; look: Look; onEquip: (slot: Slot, id: string | undefined) => void; onStation: (cat: MallStation) => void; onEvent?: (e: MallEvent) => void; quiet?: boolean; face?: boolean; onPos?: (p: { x: number; z: number; fx: 1 | -1; mv: number }) => void; spectate?: boolean; roster?: HallRoster[]; positions?: React.MutableRefObject<Record<string, HallPos>>; follow?: string | null }) {
+  const { rotated, mobile, land } = useLandscape();
   const hostRef = useRef<HTMLDivElement>(null);
   const bankRef = useRef<HTMLDivElement>(null);
   const avatarBankRef = useRef<HTMLDivElement>(null);
@@ -298,11 +300,18 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
   const onStationRef = useRef(onStation);
   const onEventRef = useRef(onEvent);
   const rotatedRef = useRef(rotated);
-  const avatarSet = useRef<((svg: SVGSVGElement) => void) | null>(null);
+  const landRef = useRef(land);
+  const avatarSet = useRef<((svgs: SVGSVGElement[]) => void) | null>(null);
   const selectRef = useRef<((t: Target) => void) | null>(null);
   const goToRef = useRef<((z: MallZone) => void) | null>(null);
   const focusRef = useRef<{ y: number; dist: number } | null>(null);
   const faceRef = useRef(false);
+  const onPosRef = useRef(onPos);
+  const spectateRef = useRef(spectate);
+  const positionsRef = useRef(positions);
+  const followRef = useRef(follow);
+  const peerSet = useRef<((id: string, name: string, svgs: SVGSVGElement[], key: string) => void) | null>(null);
+  const peerBankRef = useRef<HTMLDivElement>(null);
   const burstRef = useRef<(() => void) | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
@@ -311,6 +320,11 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
     onStationRef.current = onStation;
     onEventRef.current = onEvent;
     rotatedRef.current = rotated;
+    landRef.current = land;
+    onPosRef.current = onPos;
+    spectateRef.current = spectate;
+    positionsRef.current = positions;
+    followRef.current = follow;
   });
   useEffect(() => {
     focusRef.current = panel && !quiet ? FOCUS[panel.slot] : null;
@@ -333,11 +347,26 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
   const lookKey = JSON.stringify([base, look]);
   useEffect(() => {
     const t = setTimeout(() => {
-      const svg = avatarBankRef.current?.querySelector("svg");
-      if (svg) avatarSet.current?.(svg as SVGSVGElement);
+      const svgs = [...(avatarBankRef.current?.querySelectorAll("svg") ?? [])] as SVGSVGElement[];
+      if (svgs.length) avatarSet.current?.(svgs);
     }, 30);
     return () => clearTimeout(t);
   }, [lookKey, face]);
+
+  // outras jogadoras (modo plateia): o SVG de cada uma vira textura sempre que o look dela muda
+  const rosterKey = JSON.stringify((roster ?? []).slice(0, 16).map((p) => [p.id, p.name, p.look, p.beauty]));
+  useEffect(() => {
+    if (!spectate) return;
+    const t = setTimeout(() => {
+      for (const p of (roster ?? []).slice(0, 16)) {
+        const el = peerBankRef.current?.querySelector(`[data-peer="${p.id}"]`);
+        const svgs = el ? ([...el.querySelectorAll("svg")] as SVGSVGElement[]) : [];
+        if (svgs.length) peerSet.current?.(p.id, p.name, svgs, JSON.stringify([p.look, p.beauty]));
+      }
+    }, 40);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rosterKey, spectate]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -602,25 +631,32 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
     shadow.rotation.x = -Math.PI / 2;
     shadow.position.y = 0.03;
     scene.add(shadow);
-    let avatarTex: THREE.Texture | null = null;
+    let avatarCanvas: HTMLCanvasElement | null = null;
+    let mirrorBlank = false;
+    let avatarFrames: THREE.Texture[] = [];
+    let avatarShown = -1;
     let avatarBusy = false;
-    let avatarPending: SVGSVGElement | null = null;
-    const setAvatar = (svg: SVGSVGElement) => {
+    let avatarPending: SVGSVGElement[] | null = null;
+    const setAvatar = (svgs: SVGSVGElement[]) => {
       if (avatarBusy) {
-        avatarPending = svg;
+        avatarPending = svgs;
         return;
       }
       avatarBusy = true;
-      // no close do rosto a avatar é redesenhada em alta resolução, para a make e o cabelo aparecerem nítidos
-      svgToCanvas(svg, faceRef.current ? 900 : 300)
-        .then((c) => {
+      // 3 quadros: parada e os dois passos; no close do rosto só a parada, em alta resolução, para a make aparecer nítida
+      const list = faceRef.current ? svgs.slice(0, 1) : svgs;
+      Promise.all(list.map((svg) => svgToCanvas(svg, faceRef.current ? 900 : 300)))
+        .then((cs) => {
           if (disposed) return;
-          const tex = canvasTexture(c);
-          avatarTex?.dispose();
-          avatarTex = tex;
-          avatarMat.map = tex;
+          const texs = cs.map((c) => canvasTexture(c));
+          avatarFrames.forEach((t) => t.dispose());
+          avatarFrames = texs;
+          avatarShown = 0;
+          avatarMat.map = texs[0];
           avatarMat.needsUpdate = true;
-          drawMirror(c);
+          avatarCanvas = cs[0];
+          drawMirror(faceRef.current ? null : cs[0]);
+          mirrorBlank = faceRef.current;
           setReady(true);
         })
         .catch(() => undefined)
@@ -635,8 +671,8 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
     };
     avatarSet.current = setAvatar;
     const firstAvatar = setTimeout(() => {
-      const svg = avatarBankRef.current?.querySelector("svg");
-      if (svg) setAvatar(svg as SVGSVGElement);
+      const svgs = [...(avatarBankRef.current?.querySelectorAll("svg") ?? [])] as SVGSVGElement[];
+      if (svgs.length) setAvatar(svgs);
     }, 60);
 
     // ---- brilhos: poeira de estrelas no salão e explosão ao vestir
@@ -664,9 +700,55 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
     let burstT = 99;
     let twirl = 99;
 
+    // ---- outras jogadoras (plateia): sprites que andam até a posição que chega pelo canal
+    type Remote = { sprite: THREE.Sprite; mat: THREE.SpriteMaterial; shadow: THREE.Mesh; tag: THREE.Sprite; frames: THREE.Texture[]; shown: number; x: number; z: number; fx: number; key: string; busy: boolean; phase: number; seen: number };
+    const remotes = new Map<string, Remote>();
+    const ensureRemote = (id: string, name: string): Remote => {
+      let rm = remotes.get(id);
+      if (rm) return rm;
+      const mat = new THREE.SpriteMaterial({ transparent: true, color: 0xffffff, depthWrite: false, opacity: 0 });
+      const sprite = new THREE.Sprite(mat);
+      sprite.scale.set(AV_W, AV_H, 1);
+      sprite.center.set(0.5, 0);
+      sprite.visible = false;
+      scene.add(sprite);
+      const sh = new THREE.Mesh(geo(new THREE.CircleGeometry(0.5, 16)), track(new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.25 })));
+      sh.rotation.x = -Math.PI / 2;
+      sh.visible = false;
+      scene.add(sh);
+      const tag = textSprite(name.trim().split(/\s+/)[0] || "Jogadora", 1.5, "#5b1f78");
+      tag.visible = false;
+      scene.add(tag);
+      track(tag.material);
+      rm = { sprite, mat, shadow: sh, tag, frames: [], shown: -1, x: 0, z: 0, fx: 1, key: "", busy: false, phase: Math.random() * 3, seen: 0 };
+      remotes.set(id, rm);
+      return rm;
+    };
+    peerSet.current = (id, name, svgs, key) => {
+      const rm = ensureRemote(id, name);
+      if (rm.key === key || rm.busy) return;
+      rm.busy = true;
+      Promise.all(svgs.map((svg) => svgToCanvas(svg, 240)))
+        .then((cs) => {
+          if (disposed) return;
+          const texs = cs.map((c) => canvasTexture(c));
+          rm.frames.forEach((t) => t.dispose());
+          rm.frames = texs;
+          rm.key = key;
+          rm.shown = 0;
+          rm.mat.map = texs[0];
+          rm.mat.opacity = 1;
+          rm.mat.needsUpdate = true;
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          rm.busy = false;
+        });
+    };
+
     // ---- controles
     const keys = new Set<string>();
-    const st = { x: 0, z: HL - 7, yaw: 0, pitch: 0.32, vx: 0, vz: 0, joyX: 0, joyY: 0, t: 0, walked: 0, movedSent: false, dist: 5, camY: 1.3, pe: 0.32, vs: 0, auto: null as null | { x: number; z: number; yaw: number }, yawGoal: null as null | number, faceX: 1 };
+    const st = { x: 0, z: HL - 9, yaw: 0, pitch: 0.32, vx: 0, vz: 0, joyX: 0, joyY: 0, t: 0, walked: 0, movedSent: false, dist: 5, camY: 1.3, pe: 0.32, vs: 0, auto: null as null | { x: number; z: number; yaw: number }, yawGoal: null as null | number, faceX: 1 };
     if (process.env.NODE_ENV !== "production") (window as unknown as { __mall?: unknown }).__mall = st;
     const onKey = (e: KeyboardEvent, down: boolean) => {
       const k = e.key.toLowerCase();
@@ -788,6 +870,7 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
     let nearKey = "";
     let nearT = 0;
     let loadT = 0;
+    let posT = 0;
     let glowItem: Placed | null = null;
     const camPos = new THREE.Vector3(0, 6, HL - 3);
     const tmp = new THREE.Vector3();
@@ -874,14 +957,86 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
       const spin = twirl < 0.55 ? Math.cos((twirl / 0.55) * Math.PI) : 1;
       avatar.scale.set(AV_W * st.faceX * spin * (1 + Math.sin(st.t * 9) * 0.01 * mv), AV_H * (1 - 0.02 * Math.abs(Math.cos(st.t * 9)) * mv), 1);
       avatar.position.set(st.x, bob + (twirl < 0.55 ? Math.sin((twirl / 0.55) * Math.PI) * 0.35 : 0), st.z);
-      avatarMat.rotation = Math.sin(st.t * 9) * 0.05 * mv - 0.05 * st.faceX * mv;
+      avatarMat.rotation = Math.sin(st.t * 9) * 0.03 * mv - 0.03 * st.faceX * mv;
+      if (avatarFrames.length === 3) {
+        const want = mv > 0.3 ? [1, 0, 2, 0][Math.floor(st.t * 9) % 4] : 0;
+        if (want !== avatarShown) {
+          avatarShown = want;
+          avatarMat.map = avatarFrames[want];
+        }
+      }
       shadow.position.set(st.x, 0.03, st.z);
       shadow.scale.setScalar(1 - bob * 1.2);
+
+      const spec = spectateRef.current;
+      avatar.visible = !spec;
+      shadow.visible = !spec;
+      // plateia: a câmera segue a jogadora escolhida
+      if (spec && followRef.current) {
+        const fp = positionsRef.current?.current[followRef.current];
+        if (fp) {
+          st.x += (fp.x - st.x) * Math.min(1, dt * 4);
+          st.z += (fp.z - st.z) * Math.min(1, dt * 4);
+          st.auto = null;
+        }
+      }
+      // jogadora: avisa onde está (só chega alguém se houver plateia; ver Camarim)
+      posT += dt;
+      if (!spec && posT > (mv > 0.2 ? 0.45 : 1.6)) {
+        posT = 0;
+        onPosRef.current?.({ x: st.x, z: st.z, fx: st.faceX as 1 | -1, mv });
+      }
+      // outras jogadoras andando no salão
+      if (spec) {
+        const live = positionsRef.current?.current ?? {};
+        const nowMs = Date.now();
+        for (const [id, rm] of remotes) {
+          if (!live[id]) {
+            rm.sprite.visible = false;
+            rm.shadow.visible = false;
+            rm.tag.visible = false;
+          }
+        }
+        for (const [id, pos] of Object.entries(live)) {
+          const rm = remotes.get(id);
+          if (!rm || !rm.frames.length) continue;
+          if (!rm.seen) {
+            rm.x = pos.x;
+            rm.z = pos.z;
+          }
+          rm.seen = nowMs;
+          rm.x += (pos.x - rm.x) * Math.min(1, dt * 6);
+          rm.z += (pos.z - rm.z) * Math.min(1, dt * 6);
+          const moving = nowMs - pos.t < 1800 ? pos.mv : 0;
+          rm.phase += dt;
+          const bobR = Math.abs(Math.sin(rm.phase * 9)) * 0.12 * moving;
+          rm.fx = pos.fx;
+          rm.sprite.visible = true;
+          rm.shadow.visible = true;
+          rm.tag.visible = true;
+          rm.sprite.scale.set(AV_W * rm.fx, AV_H, 1);
+          rm.sprite.position.set(rm.x, bobR, rm.z);
+          rm.shadow.position.set(rm.x, 0.03, rm.z);
+          rm.tag.position.set(rm.x, AV_H + 0.45, rm.z);
+          if (rm.frames.length === 3) {
+            const want = moving > 0.3 ? [1, 0, 2, 0][Math.floor(rm.phase * 9) % 4] : 0;
+            if (want !== rm.shown) {
+              rm.shown = want;
+              rm.mat.map = rm.frames[want];
+            }
+          }
+        }
+      }
 
       // câmera: entrada de cinema, depois atrás da jogadora (ou de perto da peça escolhida)
       const intro = Math.max(0, 1 - st.t / 1.8);
       const focus = focusRef.current;
       const faceMode = faceRef.current;
+      // no close do rosto o espelho fica vazio (senão aparece um segundo rosto atrás dela)
+      if (faceMode !== mirrorBlank && avatarCanvas) {
+        mirrorBlank = faceMode;
+        drawMirror(faceMode ? null : avatarCanvas);
+      }
       const wantDist = faceMode ? 2.0 : (focus ? focus.dist : 5.8) + intro * 4;
       const wantY = faceMode ? 1.84 : focus ? focus.y : 1.3;
       st.dist += (wantDist - st.dist) * Math.min(1, dt * 4);
@@ -889,13 +1044,13 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
       st.pe += ((faceMode ? 0.04 : st.pitch + intro * 0.5) - st.pe) * Math.min(1, dt * 4);
       const pitch = st.pe;
       // com o painel aberto no lado direito, o rosto aparece na metade livre da tela
-      const wantShift = faceMode && vw > vh * 1.2 ? 0.27 : 0;
+      const wantShift = faceMode && landRef.current ? Math.min(0.54, 460 / vw) / 2 + 0.02 : 0;
       st.vs += (wantShift - st.vs) * Math.min(1, dt * 5);
       if (Math.abs(st.vs) > 0.002) camera.setViewOffset(vw, vh, st.vs * vw, 0, vw, vh);
       else if (camera.view) camera.clearViewOffset();
       tmp.set(st.x + Math.sin(st.yaw) * st.dist * Math.cos(pitch), st.camY + 0.3 + st.dist * Math.sin(pitch), st.z + Math.cos(st.yaw) * st.dist * Math.cos(pitch));
       tmp.x = Math.max(-HW + 0.6, Math.min(HW - 0.6, tmp.x));
-      tmp.z = Math.max(-HL + 0.6, Math.min(HL - 0.6, tmp.z));
+      tmp.z = Math.max(-HL + 0.6, Math.min(HL - 1.9, tmp.z));
       camPos.lerp(tmp, Math.min(1, dt * 10));
       camera.position.copy(camPos);
       camera.lookAt(st.x, st.camY, st.z);
@@ -911,7 +1066,7 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
       // peça/estação mais perto + destaque dourado
       nearT += dt;
       loadT += dt;
-      if (nearT > 0.1) {
+      if (nearT > 0.1 && !spec) {
         nearT = 0;
         let best: Spot | null = null;
         let bd = 2.8;
@@ -1031,7 +1186,9 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
       goToRef.current = null;
       burstRef.current = null;
       textures.forEach((t) => t.dispose());
-      avatarTex?.dispose();
+      avatarFrames.forEach((t) => t.dispose());
+      remotes.forEach((rm) => rm.frames.forEach((t) => t.dispose()));
+      peerSet.current = null;
       disposables.forEach((d) => d.dispose());
       renderer.dispose();
       renderer.forceContextLoss();
@@ -1078,8 +1235,25 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
           </div>
         ))}
       </div>
+      {spectate ? (
+        <div ref={peerBankRef} aria-hidden style={{ position: "absolute", left: -9999, top: 0, width: 200, height: 360, pointerEvents: "none", overflow: "hidden" }}>
+          {(roster ?? []).slice(0, 16).map((p) => {
+            const pb = baseFromBeauty(cleanBeauty(p.beauty));
+            const pl: Look = { ...p.look, tunic: p.look.tunic ?? "tunic_simple" };
+            return (
+              <div key={`${p.id}-${JSON.stringify([p.look, p.beauty])}`} data-peer={p.id}>
+                <PaperDoll base={pb} look={pl} />
+                <PaperDoll base={pb} look={pl} step={1} />
+                <PaperDoll base={pb} look={pl} step={-1} />
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
       <div ref={avatarBankRef} aria-hidden style={{ position: "absolute", left: -9999, top: 0, width: 200, height: 360, pointerEvents: "none", overflow: "hidden" }}>
         <PaperDoll base={base} look={look} />
+        <PaperDoll base={base} look={look} step={1} />
+        <PaperDoll base={base} look={look} step={-1} />
       </div>
 
       {!ready ? <p className="pointer-events-none absolute inset-x-0 top-1/2 text-center text-sm font-black text-purple-900">Abrindo a loja…</p> : null}
@@ -1091,7 +1265,7 @@ export function MallStore3D({ base, look, onEquip, onStation, onEvent, quiet = f
       <p className="pointer-events-none absolute bottom-16 left-2 hidden rounded-full bg-black/35 px-2.5 py-1 text-[10px] font-bold text-white [@media(hover:hover)]:block">WASD ou setas para andar · arraste para girar · toque na peça</p>
 
       {/* atalhos: ir até cada parte do salão */}
-      <div className="absolute left-2 top-14 z-[4]">
+      <div className="absolute left-2 top-14 z-[4]" hidden={spectate}>
         <button type="button" className="vh-chip !px-3 !py-1.5 !text-xs" data-on={menu} onClick={() => setMenu((m) => !m)} aria-expanded={menu}>
           🧭 Ir para…
         </button>

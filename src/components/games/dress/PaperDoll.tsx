@@ -254,6 +254,7 @@ export function PaperDoll({
   only,
   className = "",
   title,
+  step = 0,
 }: {
   base: DollBase;
   look?: Look;
@@ -261,6 +262,8 @@ export function PaperDoll({
   only?: Slot;
   className?: string;
   title?: string;
+  /** passo de caminhada (-1 a 1): levanta e balança uma perna e depois a outra; 0 = parada */
+  step?: number;
 }) {
   const wrap = (id: string | undefined, back = false) => {
     if (!id) return null;
@@ -281,11 +284,18 @@ export function PaperDoll({
   const shade = dark(skin, 0.42);
   const fc = base.face;
   const eyeC = fc?.eye ?? "#6a3f1c";
-  const uid = `${skin.slice(1)}${base.hairColor.slice(1)}${(base.lip ?? "").slice(1)}${eyeC.slice(1)}${only ?? "f"}`;
+  const uid = `${skin.slice(1)}${base.hairColor.slice(1)}${(base.lip ?? "").slice(1)}${eyeC.slice(1)}${only ?? "f"}${step ? (step > 0 ? "a" : "b") : ""}`;
+  const walking = !only && step !== 0;
+  const legT = (side: -1 | 1): string | undefined => {
+    const sl = side === -1 ? step : -step;
+    const lift = 8 * Math.max(0, sl);
+    const ang = side === -1 ? -sl * 6.5 : sl * 6.5;
+    return `translate(0 ${-lift.toFixed(2)}) rotate(${ang.toFixed(2)} ${side === -1 ? 91 : 109} 196)`;
+  };
   const gid = `bg-${uid}-${bg ? bg[0].slice(1) + bg[1].slice(1) : "x"}`;
   const noTunic = !look.tunic;
   // miniaturas de roupa/calçado/mão não precisam do rosto (deixa a lista de 75 peças leve)
-  const faceOn = !only || only === "head";
+  const faceOn = !only;
   const dressed = !!look.tunic && show("tunic") && look.tunic !== "tunic_leaves" && look.tunic !== "tunic_armor";
   const hairDark = dark(base.hairColor, 0.25);
   const lipTop = base.lip ?? "#d9606d";
@@ -335,21 +345,50 @@ export function PaperDoll({
       {faceOn ? <BackHair base={base} uid={uid} /> : null}
       {show("mantle") ? wrap(look.mantle, true) : null}
 
-      {/* pernas, pés e braços */}
-      {limb("M91 196 L89 330", 15, skin)}
-      {limb("M109 196 L111 330", 15, skin)}
-      <ellipse cx="88" cy="336" rx="12" ry="5" fill={skin} stroke={shade} strokeWidth="1.3" />
-      <ellipse cx="112" cy="336" rx="12" ry="5" fill={skin} stroke={shade} strokeWidth="1.3" />
-      {limb("M70 114 Q58 150 56 204", 11, skin)}
-      {limb("M130 114 Q142 150 144 204", 11, skin)}
+      {/* pernas, pés e braços (as miniaturas de peça não desenham o corpo: só o item) */}
+      {only ? null : (
+        <>
+          <g transform={walking ? legT(-1) : undefined}>
+            {limb("M91 196 L89 330", 15, skin)}
+            <ellipse cx="88" cy="336" rx="12" ry="5" fill={skin} stroke={shade} strokeWidth="1.3" />
+          </g>
+          <g transform={walking ? legT(1) : undefined}>
+            {limb("M109 196 L111 330", 15, skin)}
+            <ellipse cx="112" cy="336" rx="12" ry="5" fill={skin} stroke={shade} strokeWidth="1.3" />
+          </g>
+          {limb("M70 114 Q58 150 56 204", 11, skin)}
+          {limb("M130 114 Q142 150 144 204", 11, skin)}
 
-      {/* tronco e pescoço (com sombra do queixo) */}
-      <path d="M92 84 L92 108 L108 108 L108 84 Z" fill={F(skin)} stroke={shade} strokeWidth="1.2" strokeLinejoin="round" />
-      <ellipse cx="100" cy="93" rx="9" ry="5" fill="#000" opacity="0.22" filter={`url(#bl2-${uid})`} />
-      <path d={TORSO} fill={F(skin)} stroke={shade} strokeWidth="1.2" strokeLinejoin="round" />
+          {/* tronco e pescoço (com sombra do queixo) */}
+          <path d="M92 84 L92 108 L108 108 L108 84 Z" fill={F(skin)} stroke={shade} strokeWidth="1.2" strokeLinejoin="round" />
+          <ellipse cx="100" cy="93" rx="9" ry="5" fill="#000" opacity="0.22" filter={`url(#bl2-${uid})`} />
+          <path d={TORSO} fill={F(skin)} stroke={shade} strokeWidth="1.2" strokeLinejoin="round" />
+        </>
+      )}
 
       {/* roupas e calçado */}
-      {show("shoes") ? wrap(look.shoes) : null}
+      {show("shoes") ? (
+        walking && look.shoes ? (
+          <>
+            <defs>
+              <clipPath id={`lclip-${uid}`}>
+                <rect x="0" y="280" width="101" height="80" />
+              </clipPath>
+              <clipPath id={`rclip-${uid}`}>
+                <rect x="99" y="280" width="101" height="80" />
+              </clipPath>
+            </defs>
+            <g clipPath={`url(#lclip-${uid})`}>
+              <g transform={legT(-1)}>{wrap(look.shoes)}</g>
+            </g>
+            <g clipPath={`url(#rclip-${uid})`}>
+              <g transform={legT(1)}>{wrap(look.shoes)}</g>
+            </g>
+          </>
+        ) : (
+          wrap(look.shoes)
+        )
+      ) : null}
       {noTunic && !only ? <Slip /> : null}
       {show("tunic") ? wrap(look.tunic) : null}
       {dressed ? (
@@ -366,8 +405,12 @@ export function PaperDoll({
       {show("hand") ? wrap(look.hand) : null}
 
       {/* mãos */}
-      <ellipse cx="55" cy="208" rx="6.5" ry="8" fill={F(skin)} stroke={shade} strokeWidth="1.3" />
-      <ellipse cx="145" cy="208" rx="6.5" ry="8" fill={F(skin)} stroke={shade} strokeWidth="1.3" />
+      {only ? null : (
+        <>
+          <ellipse cx="55" cy="208" rx="6.5" ry="8" fill={F(skin)} stroke={shade} strokeWidth="1.3" />
+          <ellipse cx="145" cy="208" rx="6.5" ry="8" fill={F(skin)} stroke={shade} strokeWidth="1.3" />
+        </>
+      )}
 
       {faceOn ? (
         <>
