@@ -225,7 +225,7 @@ export function ArenaPlayfield({
     const l = layoutFor(area.clientWidth, area.clientHeight);
     // menos pixels em aparelhos fracos: o campo é desenhado todo quadro, e memória de vídeo acabando faz a tela piscar
     const lowMem = ((navigator as unknown as { deviceMemory?: number }).deviceMemory ?? 8) <= 4;
-    const budget = Math.sqrt((lowMem ? 1_100_000 : 2_000_000) / Math.max(1, l.cw * l.ch));
+    const budget = Math.sqrt((lowMem ? 700_000 : 1_300_000) / Math.max(1, l.cw * l.ch));
     const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1, budget));
     const key = `${l.cw}x${l.ch}@${dpr}`;
     // mesmo tamanho de antes: não mexe no canvas (redimensionar apaga a tela e fazia o campo piscar)

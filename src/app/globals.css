@@ -493,8 +493,8 @@ input[type="datetime-local"] {
   from { transform: scale(1); }
   to { transform: scale(1.14); }
 }
-.arena-load-zoom { animation: arena-load-zoom 5s ease-out forwards; }
-@media (prefers-reduced-motion: reduce) { .arena-load-zoom { animation: none; } }
+/* sem zoom: a imagem em tela cheia animada ficava numa camada de GPU que celulares fracos descartavam (tela verde piscando) */
+.arena-load-zoom { animation: none; }
 
 /* ======================================================================
    Vista o Herói: visual de jogo mobile premium de fantasia
