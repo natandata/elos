@@ -381,6 +381,8 @@ export const canvasTexture = (c: HTMLCanvasElement): THREE.CanvasTexture => {
   return tex;
 };
 
+const NO_EXTRA: { slot: Slot; f: FamilyGroup }[] = [];
+
 type Season = "natal" | "pascoa" | "junina" | null;
 /** Páscoa (calendário gregoriano). */
 function easter(y: number): Date {
@@ -437,7 +439,10 @@ export function MallStore3D({
   leftSlot,
   leftBelow,
   mood: moodProp,
+  extra = NO_EXTRA,
 }: {
+  /** Peças de edição limitada que a jogadora já comprou (ficam numa vitrine à parte). */
+  extra?: { slot: Slot; f: FamilyGroup }[];
   leftBelow?: React.ReactNode;
   mood?: Mood;
   leftSlot?: React.ReactNode;
@@ -2533,8 +2538,14 @@ export function MallStore3D({
     [lounge],
   );
   const panelFams = useMemo(
-    () => (panel ? familiesBySlot(panel.slot) : []),
-    [panel],
+    () =>
+      panel
+        ? [
+            ...familiesBySlot(panel.slot),
+            ...extra.filter((e) => e.slot === panel.slot).map((e) => e.f),
+          ]
+        : [],
+    [panel, extra],
   );
   const panelFam = panel
     ? panelFams.find((f) => f.family === panel.family)
@@ -2755,6 +2766,29 @@ export function MallStore3D({
                 {z.label}
               </button>
             ))}
+          </div>
+        ) : null}
+        {menu && !quiet && !spectate && !lounge && extra.length ? (
+          <div className="vh-panel vh-pop flex max-w-[16rem] flex-col gap-1 !p-2">
+            <p className="text-[10px] font-black uppercase tracking-wide text-amber-200">
+              🔥 Minhas peças raras
+            </p>
+            <div className="flex flex-wrap gap-1">
+              {extra.map((e) => (
+                <button
+                  key={e.f.family}
+                  type="button"
+                  className="vh-chip !px-2 !py-1 !text-[10px]"
+                  onClick={() => {
+                    setMenu(false);
+                    setPanel({ slot: e.slot, family: e.f.family });
+                    pickVariant(e.slot, e.f.items[0].id);
+                  }}
+                >
+                  {e.f.base}
+                </button>
+              ))}
+            </div>
           </div>
         ) : null}
         {leftBelow}

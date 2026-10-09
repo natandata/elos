@@ -15,10 +15,12 @@ export const GAME_RELEASES = {
   ultimatribo: "2099-01-01T00:00:00-03:00",
   /** Quem Desenha? (desenho e adivinhação bíblicos, multiplayer): em construção, sem data. Só admin e acesso antecipado. */
   quemdesenha: "2099-01-01T00:00:00-03:00",
+  /** Madureira Shopping (mundo aberto do Vista o Herói): oculto, sem data. Só admin e acesso antecipado até o admin deixar visível. */
+  madureira: "2099-01-01T00:00:00-03:00",
 } as const;
 
 /** Antes da data, aparece um cartão "em breve" para os jogadores? O Bible Rush fica invisível até abrir. */
-export const GAME_TEASER: Record<keyof typeof GAME_RELEASES, boolean> = { dress: true, minearena: true, biblerush: false, arenasoccer: false, arenacampanha: false, ultimatribo: false, quemdesenha: false };
+export const GAME_TEASER: Record<keyof typeof GAME_RELEASES, boolean> = { dress: true, minearena: true, biblerush: false, arenasoccer: false, arenacampanha: false, ultimatribo: false, quemdesenha: false, madureira: false };
 
 export type ReleasedGame = keyof typeof GAME_RELEASES;
 

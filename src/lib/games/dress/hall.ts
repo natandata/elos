@@ -8,13 +8,13 @@ export const loungeChannel = (code: string): string => `dress-lounge:${code}`;
 export const hallChannel = (code: string, round: number): string => `dress-hall:${code}:${round}`;
 
 /** Mensagem de posição de uma jogadora. */
-export type HallMsg = { id: string; name: string; x: number; z: number; fx: 1 | -1; mv: number; y?: number; s?: 0 | 1; look: Look; beauty: unknown; pose: string };
+export type HallMsg = { id: string; name: string; x: number; z: number; fx: 1 | -1; mv: number; y?: number; s?: 0 | 1; w?: string; e?: string; look: Look; beauty: unknown; pose: string };
 
 /** Quem aparece no salão (muda só quando o look muda). */
 export type HallRoster = { id: string; name: string; look: Look; beauty: unknown };
 
 /** Onde cada jogadora está agora (atualizado direto, sem renderizar a tela). */
-export type HallPos = { x: number; z: number; fx: 1 | -1; mv: number; t: number; y?: number; s?: 0 | 1 };
+export type HallPos = { x: number; z: number; fx: 1 | -1; mv: number; t: number; y?: number; s?: 0 | 1; w?: string; e?: string };
 
 /** Mensagem do chat do salão. */
 export type ChatMsg = { id: string; name: string; text: string };

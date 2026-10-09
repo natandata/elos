@@ -1,5 +1,6 @@
 // Catálogo de peças do "Vista o Herói" (client-safe): famílias de desenhos com variações de cor e estilo.
 // O desenho de cada família está em components/games/dress (HeadArt, BodyArt, HandArt).
+import { isLimited } from "./rarity";
 
 export type Slot = "head" | "tunic" | "mantle" | "shoes" | "hand" | "ears" | "neck" | "wrist";
 /** Os 5 espaços originais (são os únicos que a nota do júri antigo conhece). */
@@ -519,6 +520,18 @@ J("wrist", "charm", "Pulseira de pingentes", "f", METAL_ONLY, true);
 J("wrist", "cuff", "Bracelete largo", "m", MET);
 J("wrist", "ribbonw", "Fita no pulso", "f", ["rosa", "vermelho", "azul", "branco", "preto", "lilas", "verde", "dourado", "turquesa", "creme", "coral", "amarelo"]);
 
+// ============================================================ EDIÇÃO LIMITADA (só nas ofertas raras do Madureira Shopping)
+custom("head", "madcrown", "Coroa Madureira", [{ id: "head_madcrown", label: "", p: P("#ffd34d", "#ff4fa3", "#7cf0ff") }]);
+custom("head", "aurora", "Tiara Aurora", [{ id: "head_aurora", label: "", p: P("#f3e6ff", "#7cf0ff", "#ff9ad5") }]);
+custom("tunic", "galadress", "Vestido Gala Madureira", [{ id: "tunic_galadress", label: "", p: P("#ffc4de", "#ffd34d", "#fff2a8") }]);
+custom("tunic", "starmaid", "Sereia Estelar", [{ id: "tunic_starmaid", label: "", p: P("#4fd6ff", "#a78bfa", "#ffd34d") }]);
+custom("mantle", "starcape", "Capa Estrelada", [{ id: "mantle_starcape", label: "", p: P("#3a1d6e", "#ffd34d", "#7cf0ff") }]);
+custom("shoes", "crystal", "Sapatos de Cristal", [{ id: "shoes_crystal", label: "", p: P("#cfeaff", "#7cf0ff", "#ffffff") }]);
+custom("hand", "starwand", "Varinha Cometa", [{ id: "hand_starwand", label: "", p: P("#ffd34d", "#ff4fa3", "#7cf0ff") }]);
+custom("ears", "comet", "Brincos Cometa", [{ id: "ears_comet", label: "", p: P("#ffd34d", "#7cf0ff", "#ffffff") }]);
+custom("neck", "constel", "Colar Constelação", [{ id: "neck_constel", label: "", p: P("#ffd34d", "#a78bfa", "#7cf0ff") }]);
+custom("wrist", "auroracuff", "Bracelete Aurora", [{ id: "wrist_auroracuff", label: "", p: P("#f3e6ff", "#ff9ad5", "#7cf0ff") }]);
+
 for (const i of items) i.base ??= i.name;
 
 export const ITEMS: DressItem[] = items;
@@ -583,12 +596,24 @@ export function familiesBySlot(slot: Slot): FamilyGroup[] {
   if (cached) return cached;
   const out: FamilyGroup[] = [];
   for (const i of ITEMS_BY_SLOT(slot)) {
-    if (i.family === "none" || MODERN_FAMILIES.has(i.family)) continue;
+    if (i.family === "none" || MODERN_FAMILIES.has(i.family) || isLimited(i.family)) continue;
     let g = out.find((x) => x.family === i.family);
     if (!g) out.push((g = { family: i.family, base: i.base ?? i.name, items: [] }));
     g.items.push(i);
   }
   GROUPS.set(slot, out);
+  return out;
+}
+
+/** Famílias de edição limitada do espaço (fora do armário normal). */
+export function limitedBySlot(slot: Slot): FamilyGroup[] {
+  const out: FamilyGroup[] = [];
+  for (const i of ITEMS_BY_SLOT(slot)) {
+    if (!isLimited(i.family)) continue;
+    let g = out.find((x) => x.family === i.family);
+    if (!g) out.push((g = { family: i.family, base: i.base ?? i.name, items: [] }));
+    g.items.push(i);
+  }
   return out;
 }
 

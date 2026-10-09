@@ -96,6 +96,7 @@ export default async function VestirPage() {
   }[];
   const myPos = ranking.findIndex((r) => r.user_id === profile.id) + 1;
   const tutorialDone = !!tutRes.data;
+  const shoppingOpen = await gameOpenFor("madureira", profile.id);
 
   return (
     <LandscapeShell>
@@ -155,6 +156,20 @@ export default async function VestirPage() {
             No celular, o jogo vira de lado sozinho. 📱↔️
           </p>
         </section>
+
+        {shoppingOpen ? (
+          <section className="vh-panel mb-5">
+            <h2 className="vh-h2">🛍 Madureira Shopping</h2>
+            <p className="mt-1 text-sm text-purple-100">
+              Um shopping de 5 andares onde as amigas andam juntas: lojas, escadas
+              rolantes, praça de alimentação e a cabine de bilhetes. Use os seus 🎫
+              para comprar peças raras. (Em construção: só você vê.)
+            </p>
+            <ImmersiveLink href="/app/jogos/vestir/shopping" className="vh-btn vh-btn-purple mt-3">
+              🛍 ENTRAR NO SHOPPING
+            </ImmersiveLink>
+          </section>
+        ) : null}
 
         <MegaCard />
 

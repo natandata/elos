@@ -2,14 +2,14 @@
 
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { PaperDoll } from "./PaperDoll";
 import { type MallEvent } from "./MallStore3D";
 import { SoundToggle } from "./Sound";
 import { coin, ding } from "@/lib/games/dress/sfx";
 import { RARITY_ICON, SparkleBurst, priceOf, rarityOf } from "./Vh";
 import { BLUSHES, BODY_SHAPES, BROW_COLORS, BROW_STYLES, DEFAULT_BEAUTY, EYE_COLORS, EYE_SHAPES, FACE_SHAPES, NAIL_COLORS, HAIR_COLORS, HAIR_STYLES, LASH_STYLES, LINER_COLORS, LINER_STYLES, LIPS, LIP_STYLES, MARKS, SHADOWS, SKINS, baseFromBeauty, type Beauty, type Mark } from "@/lib/games/dress/beauty";
-import { ITEM_BY_ID, SLOTS, familiesBySlot, sizeOf, sizeOptions, withSize, type Look, type Slot } from "@/lib/games/dress/items";
+import { ITEM_BY_ID, SLOTS, familiesBySlot, limitedBySlot, sizeOf, sizeOptions, withSize, type Look, type Slot } from "@/lib/games/dress/items";
 import { DRESS_ITEM_LIMIT, POSES, cleanPose, countItems, type PoseKey } from "@/lib/games/dress/live";
 import { cleanChat, hallChannel, type ChatMsg, type HallMsg, type HallPos, type HallRoster } from "@/lib/games/dress/hall";
 import { ChatFeed, ChatToggle, useHallChat } from "./HallChat";
@@ -98,6 +98,7 @@ export function Camarim({ theme, mode, msLeft, draftKey, exitHref, live, onEvent
   const [buying, setBuying] = useState<{ slot: Slot; id: string; family: string; price: number; name: string } | null>(null);
   const [buyMsg, setBuyMsg] = useState<string | null>(null);
   const mall = view === "mall";
+  const ownedLimited = useMemo(() => SLOTS.flatMap((s) => limitedBySlot(s.key).filter((f) => owned.has(f.family)).map((f) => ({ slot: s.key, f }))), [owned]);
   const hasRare = (id: string | undefined) => {
     const fam = id ? ITEM_BY_ID.get(id)?.family : undefined;
     return !!fam && priceOf(fam) > 0 && !owned.has(fam);
@@ -437,7 +438,7 @@ export function Camarim({ theme, mode, msLeft, draftKey, exitHref, live, onEvent
 
   // ---------------------------------------------------------------- camarim
   const slotCat = SLOTS.find((s) => s.key === cat)?.key;
-  const fams = slotCat ? familiesBySlot(slotCat) : [];
+  const fams = slotCat ? [...familiesBySlot(slotCat), ...limitedBySlot(slotCat).filter((f) => owned.has(f.family))] : [];
   const equippedId = slotCat ? look[slotCat] : undefined;
   const equippedFam = equippedId ? ITEM_BY_ID.get(equippedId)?.family : undefined;
   const famItems = equippedFam && slotCat ? (fams.find((f) => f.family === equippedFam)?.items ?? []) : [];
@@ -690,7 +691,7 @@ export function Camarim({ theme, mode, msLeft, draftKey, exitHref, live, onEvent
 
       {mall ? (
         <div className="vh-room-3d">
-          <MallStore3D base={base} look={look} onEquip={equip} onStation={(c) => openPanel(c)} onEvent={emit} onPos={sendPos} leftSlot={coach || clueBox ? <>{coach}{clueBox}</> : null} leftBelow={hall?.peers ? <ChatFeed recent={hc.recent} /> : null} mood={mood} peers={!!hall?.peers} roster={peers} positions={peerPos} quiet={closetOpen} face={closetOpen && (cat === "makeup" || cat === "hair" || cat === "skin")} />
+          <MallStore3D extra={ownedLimited} base={base} look={look} onEquip={equip} onStation={(c) => openPanel(c)} onEvent={emit} onPos={sendPos} leftSlot={coach || clueBox ? <>{coach}{clueBox}</> : null} leftBelow={hall?.peers ? <ChatFeed recent={hc.recent} /> : null} mood={mood} peers={!!hall?.peers} roster={peers} positions={peerPos} quiet={closetOpen} face={closetOpen && (cat === "makeup" || cat === "hair" || cat === "skin")} />
         </div>
       ) : null}
 

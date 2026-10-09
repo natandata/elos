@@ -7,6 +7,7 @@ import { EARS_ART, NECK_ART, WRIST_ART } from "./JewelArt";
 import { MORE_BACK, MORE_MANTLE, MORE_SHOES, MORE_TUNIC } from "./MoreBodyArt";
 import { MORE_HAND } from "./MoreHandArt";
 import { MORE_HEAD } from "./MoreHeadArt";
+import { LIMITED_ART, LIMITED_BACK } from "./LimitedArt";
 import type { Params } from "@/lib/games/dress/items";
 
 // Junta as famílias de desenho ao catálogo: cada peça (id) sabe desenhar a si mesma com as suas cores e o seu tamanho.
@@ -19,6 +20,7 @@ const MORE_BODY: Record<string, Draw> = {
 };
 
 const family = (slot: string, fam: string): Draw | undefined => {
+  if (LIMITED_ART[`${slot}:${fam}`]) return LIMITED_ART[`${slot}:${fam}`];
   if (slot === "head") return HEAD_ART[fam] ?? MORE_HEAD[fam];
   if (slot === "hand") return HAND_ART[fam] ?? MORE_HAND[fam];
   if (slot === "ears") return EARS_ART[fam];
@@ -33,7 +35,7 @@ export function drawItem(id: string | undefined, back = false): ReactElement | n
   const it = ITEM_BY_ID.get(id);
   if (!it) return null;
   if (back) {
-    const b = it.slot === "mantle" ? (BACK_FAMILY[it.family] ?? MORE_BACK[it.family]) : undefined;
+    const b = it.slot === "mantle" ? (BACK_FAMILY[it.family] ?? MORE_BACK[it.family] ?? LIMITED_BACK[it.family]) : undefined;
     return b ? b(it.p) : null;
   }
   const draw = family(it.slot, it.family);
