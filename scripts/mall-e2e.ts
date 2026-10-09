@@ -2,12 +2,15 @@
 // pelo mesmo movimento do jogo), portas das lojas, mesas da praça de alimentação e prateleiras.
 // Rodar: npx tsx scripts/mall-e2e.ts
 import { concourseWorld, stepBody, type Body } from "../src/lib/games/dress/mallPhysics";
+import { Crowd } from "../src/lib/games/dress/npcSim";
 import {
   BOOTH,
   CLOSED,
   ESCALATORS,
   FLOOR_COUNT,
   FLOOR_H,
+  FOOD_FLOOR,
+  CONSTRUCTION,
   FOODS,
   HX,
   INFO_DESK,
@@ -17,6 +20,7 @@ import {
   STORE_HW,
   WALLS,
   doorSpawn,
+  floorAt,
   floorHalfZ,
   floorY,
   holesOf,
@@ -69,7 +73,7 @@ function walk(b: Body, path: Pt[], tag: string): number {
 const body = (x: number, z: number, y: number): Body => ({ x, z, y, vx: 0, vz: 0, vy: 0, grounded: true });
 for (let to = 1; to < FLOOR_COUNT; to++) {
   const b = body(0, 14, 0);
-  const goal: Pt = { x: 0, z: to === 4 ? 30 : 14 };
+  const goal: Pt = { x: 0, z: to === FOOD_FLOOR ? 30 : 14 };
   const path = routeBetween(0, to, { x: 0, z: 14 }, goal);
   const t = walk(b, path, `subir 0->${to}`);
   if (Math.abs(b.y - floorY(to)) > 0.15) bad(`subir 0->${to}: terminou em y=${b.y.toFixed(2)} (esperado ${floorY(to)})`);
@@ -121,6 +125,17 @@ for (const s of STORES) {
   console.log(`loja ${s.id}: ${sh.placed.length} peças em ${sh.units.length} colunas`);
 }
 
+// ---- obras: de fora não dá para entrar andando nem pulando
+{
+  const b = body((CONSTRUCTION.x0 + CONSTRUCTION.x1) / 2 - 8, 14, floorY(FOOD_FLOOR));
+  for (let i = 0; i < 900; i++) stepBody(world, b, { x: 3, z: -5 }, 1 / 30, i % 20 === 0);
+  const inside = b.x > CONSTRUCTION.x0 && b.x < CONSTRUCTION.x1 && Math.abs(b.z) < CONSTRUCTION.z1;
+  if (inside) bad(`entrou na obra (${b.x.toFixed(1)}, ${b.z.toFixed(1)})`);
+  const c = body(CONSTRUCTION.x0 - 3, 0, floorY(FOOD_FLOOR));
+  for (let i = 0; i < 600; i++) stepBody(world, c, { x: 6, z: 0 }, 1 / 30, i % 15 === 0);
+  if (c.x > CONSTRUCTION.x0 - 0.2) bad(`passou pela cerca da obra (${c.x.toFixed(1)})`);
+}
+
 // ---- cabine, balcão, praça de alimentação
 if (surfaceY(BOOTH.front.x, BOOTH.front.z, 0) !== 0) bad("cabine de bilhetes sem piso");
 if (surfaceY(INFO_DESK.front.x, INFO_DESK.front.z, 0) !== 0) bad("balcão de informações sem piso");
@@ -133,13 +148,54 @@ for (const r of RESTAURANTS) {
     const k = `${s.x},${s.z}`;
     if (seen.has(k)) bad(`${r.key}: cadeira repetida ${k}`);
     seen.add(k);
-    if (surfaceY(s.x, s.z, floorY(4)) !== floorY(4)) bad(`${r.key}: cadeira sem piso`);
+    if (surfaceY(s.x, s.z, floorY(FOOD_FLOOR)) !== floorY(FOOD_FLOOR)) bad(`${r.key}: cadeira sem piso`);
   }
   const foods = FOODS.filter((f) => f.place === r.key);
   if (foods.length !== 4) bad(`${r.key}: ${foods.length} itens no cardápio`);
 }
-if (ESCALATORS.length !== 8) bad("escadas rolantes");
+if (ESCALATORS.length !== 4) bad("escadas rolantes");
 if (FLOOR_H !== 9) bad("altura do andar");
+
+// ---- multidão: 30 por andar durante 10 minutos de simulação, sem cair, sem travar, com conversas e gente sentada
+{
+  const seats = RESTAURANTS.flatMap((r) => seatsOf(r)).map((s) => ({ ...s, y: floorY(FOOD_FLOOR) + 0.5 }));
+  const crowd = new Crowd(concourseWorld(), seats);
+  let talking = 0;
+  let sitting = 0;
+  let rides = 0;
+  let worst = 0;
+  const lines = new Set<string>();
+  const wasRide = new Set<number>();
+  for (let i = 0; i < 30 * 600; i++) {
+    crowd.update(1 / 30, i % 900 < 450 ? 0 : FOOD_FLOOR);
+    if (i % 30 !== 0) continue;
+    for (const n of crowd.npcs) {
+      if (n.mode === "talk") talking++;
+      if (n.mode === "sit") sitting++;
+      if (n.mode === "ride" && !wasRide.has(n.id)) {
+        wasRide.add(n.id);
+        rides++;
+      }
+      if (n.mode !== "ride" && n.mode !== "sit" && n.b.y < floorY(floorAt(n.b.y)) - 0.4) bad(`multidão: ${n.id} caiu (y=${n.b.y.toFixed(1)})`);
+      if (n.mode !== "ride") wasRide.delete(n.id);
+      const say = crowd.speaking(n);
+      if (say) lines.add(say);
+    }
+    for (let f = 0; f < FLOOR_COUNT; f++) {
+      const c = crowd.countOnFloor(f);
+      worst = Math.max(worst, Math.abs(c - 30));
+    }
+  }
+  for (let f = 0; f < FLOOR_COUNT; f++) {
+    const idle = crowd.npcs.filter((n) => n.home === f);
+    if (Math.abs(idle.length - 30) > 2) bad(`multidão: andar ${f} terminou com ${idle.length} personagens`);
+  }
+  if (worst > 4) bad(`multidão: andar ficou com diferença de ${worst} personagens`);
+  if (talking < 200) bad(`multidão: quase ninguém conversou (${talking})`);
+  if (sitting < 200) bad(`multidão: quase ninguém sentou (${sitting})`);
+  if (rides < 10) bad(`multidão: quase ninguém usou a escada rolante (${rides})`);
+  console.log(`multidão: ${talking} conversas, ${sitting} sentadas, ${rides} subidas/descidas, ${lines.size} falas diferentes, pior desvio ${worst}`);
+}
 
 if (problems.length === 0) console.log("NENHUM PROBLEMA");
 else {

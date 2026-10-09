@@ -31,7 +31,7 @@ export type MallEvent = {
 type Target =
   | { kind: "item"; slot: Slot; family: string }
   | { kind: "station"; cat: MallStation | "fitting" };
-type Spot = { target: Target; x: number; z: number; label: string };
+type Spot = { target: Target; x: number; z: number; label: string; placed?: Placed };
 
 const HW = 15; // meia largura do salão
 const SPACING = 2.1;
@@ -95,6 +95,8 @@ type Placed = {
   face: 1 | -1;
   w: number;
   h: number;
+  /** qual cor/estilo da família aparece (0 = o primeiro; as prateleiras nunca ficam com vaga) */
+  vi: number;
 };
 
 /** Uma peça de cada família, em cada prateleira: o salão é montado a partir do catálogo. */
@@ -111,13 +113,17 @@ function layoutShelves(): {
     for (const slot of wall.slots) {
       const fams = familiesBySlot(slot);
       const cols = Math.ceil(fams.length / TIERS);
+      // completa as vagas da última coluna com outras cores das mesmas famílias
+      const list = fams.map((f) => ({ f, vi: 0 }));
+      for (let r = 0; list.length < cols * TIERS; r++) list.push({ f: fams[r % fams.length], vi: 1 + Math.floor(r / fams.length) });
       const startZ = z;
       for (let c = 0; c < cols; c++) {
         const uz = z + SPACING / 2;
         units.push({ x: -wall.face * (HW - 0.45), z: uz, face: wall.face });
         for (let t = 0; t < TIERS; t++) {
-          const f = fams[c * TIERS + t];
-          if (!f) continue;
+          const entry = list[c * TIERS + t];
+          if (!entry) continue;
+          const f = entry.f;
           const vb = SLOT_VIEWBOX[slot].split(" ").map(Number);
           const ar = vb[2] / vb[3];
           const hh =
@@ -142,6 +148,7 @@ function layoutShelves(): {
             face: wall.face,
             w: ww,
             h: hFinal,
+            vi: entry.vi,
           });
         }
         z += SPACING;
@@ -1430,12 +1437,13 @@ export function MallStore3D({
       scene.add(sp);
       itemSprites.set(p, sp);
       spriteToPlaced.set(sp, p);
-      placedByKey.set(`${p.slot}:${p.fam.family}`, p);
+      if (!p.vi) placedByKey.set(`${p.slot}:${p.fam.family}`, p);
       spots.push({
         target: { kind: "item", slot: p.slot, family: p.fam.family },
         x: p.x + p.face * 1.2,
         z: p.z,
         label: p.fam.base,
+        placed: p,
       });
     }
     for (const slot of (lounge
@@ -1478,7 +1486,7 @@ export function MallStore3D({
     const loadItem = (p: Placed) => {
       if (loading.has(p) || loaded.has(p) || !bank) return;
       const el = bank.querySelector(
-        `[data-k="${p.slot}:${p.fam.family}"] svg`,
+        `[data-k="${p.slot}:${p.fam.family}${p.vi ? `:${p.vi}` : ""}"] svg`,
       ) as SVGSVGElement | null;
       if (!el) return;
       loading.add(p);
@@ -2354,7 +2362,8 @@ export function MallStore3D({
           setNear(best);
           glowItem =
             best && best.target.kind === "item"
-              ? (placedByKey.get(`${best.target.slot}:${best.target.family}`) ??
+              ? (best.placed ??
+                placedByKey.get(`${best.target.slot}:${best.target.family}`) ??
                 null)
               : null;
           if (best && best.target.kind === "item")
@@ -2510,6 +2519,11 @@ export function MallStore3D({
           ),
     [lounge],
   );
+  // as outras cores que completam as prateleiras (ver layoutShelves)
+  const variantBank = useMemo(
+    () => (lounge ? [] : layout.placed.filter((p) => p.vi > 0).map((p) => ({ slot: p.slot, f: p.fam, vi: p.vi }))),
+    [lounge, layout],
+  );
   const panelFams = useMemo(
     () =>
       panel
@@ -2580,6 +2594,15 @@ export function MallStore3D({
             <PaperDoll
               base={base}
               look={{ [slot]: f.items[0].id }}
+              only={slot}
+            />
+          </div>
+        ))}
+        {variantBank.map(({ slot, f, vi }) => (
+          <div key={`${slot}:${f.family}:${vi}`} data-k={`${slot}:${f.family}:${vi}`}>
+            <PaperDoll
+              base={base}
+              look={{ [slot]: f.items[vi % f.items.length].id }}
               only={slot}
             />
           </div>

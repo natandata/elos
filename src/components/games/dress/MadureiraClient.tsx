@@ -7,7 +7,8 @@ import { DEFAULT_BEAUTY, baseFromBeauty, cleanBeauty } from "@/lib/games/dress/b
 import { cleanChat, type ChatMsg, type HallPos, type HallRoster } from "@/lib/games/dress/hall";
 import { ITEM_BY_ID, type Look, type Slot } from "@/lib/games/dress/items";
 import { RARITY_ICON, rarityOf } from "@/lib/games/dress/rarity";
-import { FLOOR_INFO, FOODS, GIFT_DAILY_MAX, MALL_NAME, RESTAURANTS, offerItem, storeById, storesSelling, type RareOffer } from "@/lib/games/dress/shopping";
+import { FLOOR_INFO, FOOD_FLOOR, floorLabel, FOODS, GIFT_DAILY_MAX, MALL_NAME, RESTAURANTS, RESTOCK_DAYS, offerItem, storeById, storesSelling, type RareOffer } from "@/lib/games/dress/shopping";
+import { BIBLE_WOMEN, CURIOSITIES, nextCuriosity } from "@/lib/games/dress/npcData";
 import { createClient } from "@/lib/supabase/client";
 import { SIcon, ST } from "./ShopIcons";
 import { ChatFeed, ChatToggle, useHallChat } from "./HallChat";
@@ -48,10 +49,12 @@ type Dialog =
   | { kind: "booth" }
   | { kind: "elevator" }
   | { kind: "info" }
+  | { kind: "npc"; ch: number }
+  | { kind: "rarewait"; family: string; days: number }
   | null;
 
 /**
- * Shopping Elos: o mundo aberto online do Vista o Herói (5 andares, lojas, praça de alimentação e cabine de bilhetes).
+ * Shopping Elos: o mundo aberto online do Vista o Herói (3 andares, lojas, praça de alimentação e cabine de bilhetes).
  * Aqui só ficam a rede (posições e chat), as compras e as janelas; o 3D está em ShoppingWorld3D.
  */
 export function MadureiraClient({ meId, meName, tickets, owned: ownedInit }: { meId: string; meName: string; tickets: number; owned: string[] }) {
@@ -211,6 +214,24 @@ export function MadureiraClient({ meId, meName, tickets, owned: ownedInit }: { m
   const gotoRef = useRef<((t: GotoTarget) => void) | null>(null);
   const eatRef = useRef<((emoji: string, sec: number) => void) | null>(null);
   const warpRef = useRef<((floor: number) => void) | null>(null);
+  // a personagem bíblica com quem a jogadora conversa para de andar enquanto a janela está aberta
+  const freezeRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (dialog?.kind !== "npc") freezeRef.current = null;
+  }, [dialog]);
+
+  // antes de cada compra a vendedora conta uma curiosidade bíblica
+  const [curio, setCurio] = useState<{ who: string; text: string; run: () => void } | null>(null);
+  const lastCurio = useRef(-1);
+  const withCurio = (who: string, run: () => void) => {
+    const i = nextCuriosity(lastCurio.current);
+    lastCurio.current = i;
+    setCurio({ who, text: CURIOSITIES[i], run });
+  };
+  const vendorName = (): string => {
+    if (dialog?.kind === "food") return RESTAURANTS.find((x) => x.key === dialog.place)?.cook ?? "A atendente";
+    return (place.kind === "store" ? storeById(place.id)?.attendant : undefined) ?? "A atendente";
+  };
 
   // ao entrar ou sair de uma loja aparece uma tela de carregamento de 2 segundos
   const withLoading = (title: string, icon: string, color: number, go: () => void) => {
@@ -255,6 +276,11 @@ export function MadureiraClient({ meId, meName, tickets, owned: ownedInit }: { m
       setDialog({ kind: "info" });
     } else if (i.kind === "item") setDialog({ kind: "item", itemId: i.itemId });
     else if (i.kind === "rare") setDialog({ kind: "rare", offerId: i.offerId });
+    else if (i.kind === "rarewait") setDialog({ kind: "rarewait", family: i.family, days: i.days });
+    else if (i.kind === "npc") {
+      freezeRef.current = i.npc;
+      setDialog({ kind: "npc", ch: i.ch });
+    }
   };
 
   // ---- compras
@@ -334,7 +360,7 @@ export function MadureiraClient({ meId, meName, tickets, owned: ownedInit }: { m
                   Continuar
                 </button>
               ) : (
-                <button type="button" className="vh-btn" onClick={() => void buyFamily(it.family)} disabled={busy || wallet < price}>
+                <button type="button" className="vh-btn" onClick={() => withCurio(vendorName(), () => void buyFamily(it.family))} disabled={busy || wallet < price}>
                   <ST>{busy ? "..." : wallet < price ? `Faltam ${price - wallet} 🎫` : "Comprar"}</ST>
                 </button>
               )}
@@ -362,8 +388,9 @@ export function MadureiraClient({ meId, meName, tickets, owned: ownedInit }: { m
             </p>
             <p className="text-sm text-purple-100">Edição limitada: só 3 unidades, por 24 horas, no shopping inteiro.</p>
             <p className="mt-1 text-sm font-black text-amber-100">
-              {o.left > 0 ? `Restam ${o.left} de ${o.stock}` : "Esgotada"} · termina em {countdown(o.ends_at, now)}
+              {o.left > 0 ? `Restam ${o.left} de ${o.stock} · termina em ${countdown(o.ends_at, now)}` : "Esgotada!"}
             </p>
+            {o.left <= 0 ? <p className="text-xs font-bold text-purple-100">Mais unidades chegam em {RESTOCK_DAYS} dias.</p> : null}
             <p className="mt-2 text-lg font-black text-amber-200">
               <ST>{has ? "✔ Já é sua" : `${o.price} 🎫`}</ST> <span className="text-xs font-bold text-purple-200">· você tem {wallet}</span>
             </p>
@@ -377,7 +404,7 @@ export function MadureiraClient({ meId, meName, tickets, owned: ownedInit }: { m
                   Continuar
                 </button>
               ) : (
-                <button type="button" className="vh-btn" onClick={() => void buyRare(o)} disabled={busy || o.left <= 0 || over || wallet < o.price}>
+                <button type="button" className="vh-btn" onClick={() => withCurio(vendorName(), () => void buyRare(o))} disabled={busy || o.left <= 0 || over || wallet < o.price}>
                   <ST>{busy ? "..." : o.left <= 0 ? "Esgotada" : over ? "Terminou" : wallet < o.price ? `Faltam ${o.price - wallet} 🎫` : "Comprar"}</ST>
                 </button>
               )}
@@ -389,6 +416,28 @@ export function MadureiraClient({ meId, meName, tickets, owned: ownedInit }: { m
         </div>
       );
     }
+    if (dialog.kind === "rarewait") {
+      const it = offerItem(dialog.family);
+      if (!it) return null;
+      return (
+        <div className="fixed inset-0 z-[70] grid place-items-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-label={it.name}>
+          <div className="vh-panel flex max-h-[92vh] w-full max-w-sm flex-col overflow-y-auto text-center">
+            <PaperDoll base={base} look={{ [it.slot]: it.id }} only={it.slot as Slot} className="mx-auto h-28 w-full shrink-0" title={it.name} />
+            <p className="vh-title mt-1 text-xl">
+              {RARITY_ICON.limited} {it.name}
+            </p>
+            <p className="text-sm text-purple-100">Edição limitada: só 3 unidades por vez, por 24 horas.</p>
+            <p className="mt-2 rounded-xl bg-black/30 px-3 py-2 text-sm font-black text-amber-100">
+              {dialog.days <= 0 ? "Chega amanhã!" : dialog.days === 1 ? "Volta em 1 dia." : `Volta em ${dialog.days} dias.`} Quando chegar, o aviso aparece aqui.
+            </p>
+            <button type="button" className="vh-btn vh-btn-dark mt-3" onClick={() => setDialog(null)}>
+              Fechar
+            </button>
+          </div>
+        </div>
+      );
+    }
+    if (dialog.kind === "npc") return <NpcDialog ch={dialog.ch} onClose={() => setDialog(null)} />;
     if (dialog.kind === "food") {
       const r = RESTAURANTS.find((x) => x.key === dialog.place);
       if (!r) return null;
@@ -408,7 +457,7 @@ export function MadureiraClient({ meId, meName, tickets, owned: ownedInit }: { m
                 <li key={f.key} className="flex items-center gap-2 rounded-xl border border-amber-300/40 bg-white/5 px-2.5 py-1.5 text-left">
                   <SIcon name={f.icon} size="2.2rem" />
                   <span className="min-w-0 flex-1 truncate text-sm font-bold text-amber-50">{f.name}</span>
-                  <button type="button" className="vh-btn !w-auto !px-3 !py-1.5 !text-xs" disabled={busy || wallet < f.price} onClick={() => void buyFood(f.key)}>
+                  <button type="button" className="vh-btn !w-auto !px-3 !py-1.5 !text-xs" disabled={busy || wallet < f.price} onClick={() => withCurio(r.cook, () => void buyFood(f.key))}>
                     <ST>{f.price} 🎫</ST>
                   </button>
                 </li>
@@ -448,7 +497,7 @@ export function MadureiraClient({ meId, meName, tickets, owned: ownedInit }: { m
                           gotoRef.current?.({ kind: "store", id: st.id });
                         }}
                       >
-                        <SIcon name="bussola" /> {st.name} ({st.floor === 0 ? "térreo" : `${st.floor}º andar`})
+                        <SIcon name="bussola" /> {st.name} ({floorLabel(st.floor).toLowerCase()})
                       </button>
                     ) : null}
                   </li>
@@ -475,7 +524,14 @@ export function MadureiraClient({ meId, meName, tickets, owned: ownedInit }: { m
               {[...FLOOR_INFO].map((f, i) => ({ f, i })).reverse().map(({ f, i }) => (
                 <li key={f.name}>
                   <button type="button" className="vh-btn !py-2 !text-sm" data-on={i === floor} disabled={i === floor} onClick={() => rideElevator(i)}>
-                    <SIcon name={i === 4 ? "talheres" : "sacola"} /> {f.name} · {f.sub}
+                    <SIcon name={i === FOOD_FLOOR ? "talheres" : "sacola"} /> {f.name} · {f.sub}
+                  </button>
+                </li>
+              ))}
+              {["4º andar", "5º andar"].map((n) => (
+                <li key={n}>
+                  <button type="button" className="vh-btn vh-btn-dark !py-2 !text-sm" disabled>
+                    <SIcon name="alerta" /> {n} · em obras
                   </button>
                 </li>
               ))}
@@ -528,6 +584,7 @@ export function MadureiraClient({ meId, meName, tickets, owned: ownedInit }: { m
           gotoRef={gotoRef}
           eatRef={eatRef}
           warpRef={warpRef}
+          freeze={freezeRef}
           say={say}
           leftSlot={
             <span className="vh-chip shrink-0 !px-3 !py-1.5 !text-xs" data-on>
@@ -569,6 +626,75 @@ export function MadureiraClient({ meId, meName, tickets, owned: ownedInit }: { m
         </p>
       ) : null}
       {dlg}
+      {curio ? (
+        <div className="fixed inset-0 z-[80] grid place-items-center bg-black/65 p-4" role="dialog" aria-modal="true" aria-label="Curiosidade bíblica">
+          <div className="vh-panel flex w-full max-w-sm flex-col text-center">
+            <p className="vh-title text-lg">
+              <SIcon name="livro" size="1.3em" /> {curio.who} conta uma curiosidade
+            </p>
+            <p className="mt-2 rounded-xl bg-black/30 px-3 py-3 text-sm font-bold leading-snug text-amber-50">{curio.text}</p>
+            <p className="mt-1 text-[11px] font-bold text-purple-100">Antes de levar, aprenda mais um pouquinho da Bíblia!</p>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button type="button" className="vh-btn vh-btn-dark" onClick={() => setCurio(null)}>
+                Agora não
+              </button>
+              <button
+                type="button"
+                className="vh-btn"
+                onClick={() => {
+                  const run = curio.run;
+                  setCurio(null);
+                  run();
+                }}
+              >
+                Aprendi! Comprar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** Conversa curta e guiada com uma personagem bíblica do shopping: quem é, a história dela e uma curiosidade. */
+function NpcDialog({ ch, onClose }: { ch: number; onClose: () => void }) {
+  const w = BIBLE_WOMEN[ch];
+  const base = useMemo(() => baseFromBeauty(cleanBeauty({ ...DEFAULT_BEAUTY, ...w.beauty })), [w]);
+  const look = useMemo<Look>(() => ({ ...w.look, tunic: w.look.tunic ?? "tunic_simple" }), [w]);
+  const [said, setSaid] = useState<string>(`Paz do Senhor! Eu sou ${w.name}. Quer conversar um pouquinho?`);
+  const [asked, setAsked] = useState<Set<string>>(new Set());
+  const ask = (k: string, text: string) => {
+    setSaid(text);
+    setAsked((s) => new Set(s).add(k));
+  };
+  const options: { k: string; label: string; text: string }[] = [
+    { k: "who", label: "Quem é você?", text: `${w.intro} (${w.title})` },
+    { k: "story", label: "Conte a sua história", text: w.story },
+    { k: "curious", label: "Me conte uma curiosidade", text: w.curious },
+  ];
+  return (
+    <div className="fixed inset-0 z-[70] grid place-items-center bg-black/55 p-4" role="dialog" aria-modal="true" aria-label={`Conversa com ${w.name}`}>
+      <div className="vh-panel flex max-h-[92vh] w-full max-w-sm flex-col overflow-y-auto text-center">
+        <PaperDoll base={base} look={look} className="mx-auto h-36 w-full shrink-0" title={w.name} />
+        <p className="vh-title mt-1 text-xl">{w.name}</p>
+        <p className="text-xs font-bold text-purple-100">{w.title}</p>
+        <p className="mx-auto mt-1 inline-flex items-center gap-1 rounded-full bg-black/30 px-2.5 py-0.5 text-[11px] font-black text-amber-100">
+          <SIcon name="livro" /> {w.ref}
+        </p>
+        <p className="mt-2 rounded-xl bg-white/10 px-3 py-3 text-left text-sm font-bold leading-snug text-amber-50">“{said}”</p>
+        <div className="mt-3 flex flex-col gap-1.5">
+          {options.map((o) => (
+            <button key={o.k} type="button" className="vh-btn !py-2 !text-sm" data-on={asked.has(o.k)} onClick={() => ask(o.k, o.text)}>
+              {o.label}
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-[11px] font-bold text-purple-100">Procure essa história na sua Bíblia: {w.ref}.</p>
+        <button type="button" className="vh-btn vh-btn-dark mt-2" onClick={onClose}>
+          Tchau!
+        </button>
+      </div>
     </div>
   );
 }

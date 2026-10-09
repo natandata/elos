@@ -13,9 +13,11 @@ import type { DollBase } from "@/lib/games/dress/characters";
 import type { HallPos, HallRoster } from "@/lib/games/dress/hall";
 import type { Look } from "@/lib/games/dress/items";
 import { ITEM_BY_ID } from "@/lib/games/dress/items";
-import { ESC_X1, HX, FLOOR_COUNT, FLOOR_INFO, MALL_ICONS, RESTAURANTS, STORES, STORE_HL, STORES as ALL_STORES, BOOTH, npcsFor, INFO_DESK, counterFront, doorSpawn, floorAt, floorHalfZ, floorY, offerItem, routeBetween, storeById, storeShelves, type Pt, type RareOffer } from "@/lib/games/dress/shopping";
+import { limitedFamiliesOf, ESC_X1, HX, FLOOR_COUNT, FOOD_FLOOR, floorLabel, FLOOR_INFO, MALL_ICONS, RESTAURANTS, STORES, STORE_HL, STORES as ALL_STORES, BOOTH, npcsFor, INFO_DESK, counterFront, doorSpawn, floorAt, floorHalfZ, floorY, offerItem, routeBetween, storeById, storeShelves, type Pt, type RareOffer } from "@/lib/games/dress/shopping";
 import { ESC_SPEED, RUN, WALK, groundOf, stepBody, type Body } from "@/lib/games/dress/mallPhysics";
 import { step as sfxStep } from "@/lib/games/dress/sfx";
+import { BIBLE_WOMEN } from "@/lib/games/dress/npcData";
+import { CROWD_POOL, Crowd } from "@/lib/games/dress/npcSim";
 
 export type WorldPlace = { kind: "mall" } | { kind: "store"; id: string };
 export type WorldPos = { x: number; z: number; y: number; fx: 1 | -1; mv: number; s: 0 | 1; e: string; w: string };
@@ -25,7 +27,7 @@ const AV_H = 2.2;
 const AV_W = (AV_H * 200) / 360;
 
 /**
- * O Shopping Elos em 3D, em terceira pessoa: o corredor de 5 andares (escadas rolantes, praça de alimentação, cabine de bilhetes)
+ * O Shopping Elos em 3D, em terceira pessoa: o corredor de 3 andares (escadas rolantes, praça de alimentação, cabine de bilhetes)
  * e o interior de cada loja, todos no mesmo mundo online. A jogadora anda, pula, senta e come.
  */
 export function ShoppingWorld3D({
@@ -44,6 +46,7 @@ export function ShoppingWorld3D({
   gotoRef,
   eatRef,
   warpRef,
+  freeze,
   leftSlot,
   leftBelow,
   say,
@@ -64,6 +67,8 @@ export function ShoppingWorld3D({
   eatRef: React.MutableRefObject<((emoji: string, sec: number) => void) | null>;
   /** leva a jogadora ao elevador do andar escolhido */
   warpRef: React.MutableRefObject<((floor: number) => void) | null>;
+  /** id da personagem com quem a jogadora está conversando (ela para de andar) */
+  freeze: React.MutableRefObject<number | null>;
   leftSlot?: React.ReactNode;
   leftBelow?: React.ReactNode;
   say?: (m: string) => void;
@@ -96,9 +101,11 @@ export function ShoppingWorld3D({
   const sayRef = useRef(say);
   const nearRef = useRef<Interact | null>(null);
   const placeRef = useRef(place);
+  const freezeRef = useRef(freeze);
   const setPlaceRef = useRef<((p: WorldPlace) => void) | null>(null);
   const avatarSet = useRef<((svgs: SVGSVGElement[]) => void) | null>(null);
   const peerSet = useRef<((id: string, name: string, svgs: SVGSVGElement[], key: string) => void) | null>(null);
+  const crowdSet = useRef<((ch: number, svgs: SVGSVGElement[]) => void) | null>(null);
   const jumpRef = useRef<(() => void) | null>(null);
   const sitRef = useRef<(() => void) | null>(null);
   const actRef = useRef<(() => void) | null>(null);
@@ -125,24 +132,28 @@ export function ShoppingWorld3D({
     const def = storeById(place.id);
     const out: { k: string; slot: Parameters<typeof PaperDoll>[0]["only"]; id: string }[] = [];
     for (const p of storeShelves(def?.slots ?? []).placed) out.push({ k: `${p.slot}:${p.item.id}`, slot: p.slot, id: p.item.id });
-    for (const o of offers) {
-      const it = offerItem(o.family);
-      if (it) out.push({ k: `${it.slot}:${it.id}`, slot: it.slot, id: it.id });
-    }
+    for (const f of limitedFamiliesOf(def?.slots ?? [])) out.push({ k: `${f.slot}:${f.first.id}`, slot: f.slot, id: f.first.id });
     return out;
-  }, [place, offers]);
+  }, [place]);
 
   const placeKey = place.kind === "store" ? `s:${place.id}` : "mall";
   // jogadoras de verdade + as atendentes do lugar (desenhadas igual às jogadoras)
   const npcRoster = useMemo<HallRoster[]>(() => npcsFor(placeKey).map((n) => ({ id: `npc:${n.id}`, name: n.name, look: n.look, beauty: { ...DEFAULT_BEAUTY, ...n.beauty } })), [placeKey]);
-  const bankRoster = useMemo(() => [...roster.slice(0, 24), ...npcRoster], [roster, npcRoster]);
+  // as personagens bíblicas que passeiam pelo corredor (só existem no corredor)
+  const crowdRoster = useMemo<HallRoster[]>(
+    () => (placeKey === "mall" ? CROWD_POOL.map((ch) => ({ id: `crowd:${ch}`, name: BIBLE_WOMEN[ch].name, look: BIBLE_WOMEN[ch].look, beauty: { ...DEFAULT_BEAUTY, ...BIBLE_WOMEN[ch].beauty } })) : []),
+    [placeKey],
+  );
+  const bankRoster = useMemo(() => [...roster.slice(0, 24), ...npcRoster, ...crowdRoster], [roster, npcRoster, crowdRoster]);
   const rosterKey = JSON.stringify(bankRoster.map((p) => [p.id, p.look, p.beauty]));
   useEffect(() => {
     const t = setTimeout(() => {
       for (const p of bankRoster) {
         const el = peerBankRef.current?.querySelector(`[data-peer="${p.id}"]`);
         const svgs = el ? ([...el.querySelectorAll("svg")] as SVGSVGElement[]) : [];
-        if (svgs.length) peerSet.current?.(p.id, p.name, svgs, JSON.stringify([p.look, p.beauty]));
+        if (!svgs.length) continue;
+        if (p.id.startsWith("crowd:")) crowdSet.current?.(Number(p.id.slice(6)), svgs);
+        else peerSet.current?.(p.id, p.name, svgs, JSON.stringify([p.look, p.beauty]));
       }
     }, 40);
     return () => clearTimeout(t);
@@ -325,6 +336,121 @@ export function ShoppingWorld3D({
         .finally(() => {
           rm.busy = false;
         });
+    };
+
+    // ---- a multidão de personagens bíblicas (30 por andar): desenhos compartilhados por personagem
+    type CView = { sprite: THREE.Sprite; mat: THREE.SpriteMaterial; shadow: THREE.Mesh; food: THREE.Sprite; phase: number; shown: number; ch: number };
+    const crowdFrames = new Map<number, THREE.Texture[]>();
+    const crowdBusy = new Set<number>();
+    const crowdViews = new Map<number, CView>();
+    const crowdTags = new Map<number, THREE.Sprite>();
+    const crowdShadowGeo = new THREE.CircleGeometry(0.5, 16);
+    const crowdShadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.25 });
+    let crowd: Crowd | null = null;
+    crowdSet.current = (ch, svgs) => {
+      if (crowdFrames.has(ch) || crowdBusy.has(ch)) return;
+      crowdBusy.add(ch);
+      Promise.all(svgs.map((svg) => svgToCanvas(svg, 170)))
+        .then((cs) => {
+          if (disposed) return;
+          crowdFrames.set(
+            ch,
+            cs.map((c) => canvasTexture(c)),
+          );
+        })
+        .catch(() => undefined)
+        .finally(() => crowdBusy.delete(ch));
+    };
+    // balões de conversa: no máximo 3 por vez, só das que estão perto da jogadora
+    const bubbleTex = new Map<string, { tex: THREE.CanvasTexture; w: number; h: number }>();
+    const bubbleOf = (text: string): { tex: THREE.CanvasTexture; w: number; h: number } => {
+      let b = bubbleTex.get(text);
+      if (b) return b;
+      const W = 560;
+      const c = document.createElement("canvas");
+      c.width = W;
+      const g = c.getContext("2d")!;
+      g.font = "800 34px system-ui, sans-serif";
+      const words = text.split(" ");
+      const lines: string[] = [];
+      let cur = "";
+      for (const w of words) {
+        const t = cur ? `${cur} ${w}` : w;
+        if (g.measureText(t).width > W - 56 && cur) {
+          lines.push(cur);
+          cur = w;
+        } else cur = t;
+      }
+      if (cur) lines.push(cur);
+      const H = lines.length * 42 + 56;
+      c.height = H + 22;
+      g.font = "800 34px system-ui, sans-serif";
+      g.fillStyle = "rgba(255,255,255,0.96)";
+      g.strokeStyle = "#e9b84a";
+      g.lineWidth = 6;
+      g.beginPath();
+      g.roundRect(5, 5, W - 10, H - 5, 30);
+      g.fill();
+      g.stroke();
+      g.beginPath();
+      g.moveTo(W / 2 - 18, H - 2);
+      g.lineTo(W / 2, H + 18);
+      g.lineTo(W / 2 + 18, H - 2);
+      g.fill();
+      g.fillStyle = "#4a1763";
+      g.textAlign = "center";
+      g.textBaseline = "middle";
+      lines.forEach((l, i) => g.fillText(l, W / 2, 34 + i * 42 + 14));
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      b = { tex, w: c.width, h: c.height };
+      bubbleTex.set(text, b);
+      if (bubbleTex.size > 40) {
+        const first = bubbleTex.keys().next().value as string;
+        bubbleTex.get(first)?.tex.dispose();
+        bubbleTex.delete(first);
+      }
+      return b;
+    };
+    const bubbles = [0, 1, 2].map(() => {
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthWrite: false }));
+      sp.center.set(0.5, 0);
+      sp.visible = false;
+      scene.add(sp);
+      return sp;
+    });
+    const crowdView = (id: number, ch: number): CView => {
+      let v = crowdViews.get(id);
+      if (v) return v;
+      const mat = new THREE.SpriteMaterial({ transparent: true, color: 0xffffff, depthWrite: false });
+      const sprite = new THREE.Sprite(mat);
+      sprite.scale.set(AV_W, AV_H, 1);
+      sprite.center.set(0.5, 0);
+      scene.add(sprite);
+      const shadow = new THREE.Mesh(crowdShadowGeo, crowdShadowMat);
+      shadow.rotation.x = -Math.PI / 2;
+      scene.add(shadow);
+      const food = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthWrite: false }));
+      food.scale.set(0.6, 0.6, 1);
+      food.visible = false;
+      scene.add(food);
+      v = { sprite, mat, shadow, food, phase: Math.random() * 3, shown: -1, ch };
+      crowdViews.set(id, v);
+      return v;
+    };
+    const crowdHide = (v: CView) => {
+      v.sprite.visible = v.shadow.visible = v.food.visible = false;
+    };
+    const crowdTag = (ch: number): THREE.Sprite => {
+      let t = crowdTags.get(ch);
+      if (!t) {
+        t = nameTag(BIBLE_WOMEN[ch].name);
+        t.scale.set(1.9, 0.475, 1);
+        t.visible = false;
+        scene.add(t);
+        crowdTags.set(ch, t);
+      }
+      return t;
     };
 
     // ---- estado da jogadora
@@ -542,7 +668,7 @@ export function ShoppingWorld3D({
         if (hit) {
           if (Math.hypot(hit.x - st.b.x, hit.z - st.b.z) > 9) sayRef.current?.("Chegue mais perto da prateleira para ver a peça.");
           else if (hit.key.startsWith("rare:")) {
-            const r = current.interacts.find((i) => i.kind === "rare" && `rare:${i.offerId}` === hit.key);
+            const r = current.interacts.find((i) => (i.kind === "rare" && `rare:${i.offerId}` === hit.key) || (i.kind === "rarewait" && `rare:w:${i.family}` === hit.key));
             if (r) onActRef.current(r);
           } else {
             const it = current.interacts.find((i) => i.kind === "item" && i.itemId === hit.itemId && Math.abs(i.z - hit.z) < 0.3);
@@ -637,7 +763,7 @@ export function ShoppingWorld3D({
       let to: Pt = here;
       if (t.kind === "floor") {
         f1 = t.floor;
-        to = t.floor === 4 ? { x: 0, z: 28 } : { x: 0, z: 14 };
+        to = t.floor === FOOD_FLOOR ? { x: 0, z: 28 } : { x: 0, z: 14 };
       } else if (t.kind === "booth") {
         f1 = 0;
         to = BOOTH.front;
@@ -652,9 +778,9 @@ export function ShoppingWorld3D({
       } else if (t.kind === "restaurant") {
         const r = RESTAURANTS.find((q) => q.key === t.key);
         if (!r) return;
-        f1 = 4;
+        f1 = FOOD_FLOOR;
         // entra pelo corredor entre as mesas (x = centro + 5) e chega de frente ao balcão
-        st.path = [...routeBetween(f0, 4, here, { x: r.cx + 5, z: r.side * 10.5 }), { x: r.cx + 5, z: r.side * 35 }, counterFront(r)];
+        st.path = [...routeBetween(f0, FOOD_FLOOR, here, { x: r.cx + 5, z: r.side * 10.5 }), { x: r.cx + 5, z: r.side * 35 }, counterFront(r)];
         return;
       } else if (t.kind === "exit") {
         f1 = 0;
@@ -882,7 +1008,21 @@ export function ShoppingWorld3D({
             best = it;
           }
         }
-        const kk = best ? `${best.kind}:${"itemId" in best ? best.itemId : "offerId" in best ? best.offerId : "store" in best ? best.store : "place" in best ? best.place : ""}` : "";
+        // personagem bíblica por perto: dá para conversar (ganha das portas quando está bem perto)
+        if (pl.key === "mall" && crowd) {
+          let bn: (typeof crowd.npcs)[number] | null = null;
+          let bd = 2.3;
+          for (const n of crowd.npcs) {
+            if (Math.abs(n.b.y - b.y) > 1.5) continue;
+            const d = Math.hypot(n.b.x - b.x, n.b.z - b.z);
+            if (d < bd) {
+              bd = d;
+              bn = n;
+            }
+          }
+          if (bn && (!best || bd < 1.0)) best = { kind: "npc", npc: bn.id, ch: bn.ch, label: `Conversar com ${BIBLE_WOMEN[bn.ch].name}`, x: bn.b.x, z: bn.b.z, y: bn.b.y, rx: 1, rz: 1 };
+        }
+        const kk = best ? `${best.kind}:${"npc" in best ? best.npc : "itemId" in best ? best.itemId : "offerId" in best ? best.offerId : "family" in best ? best.family : "store" in best ? best.store : "place" in best ? best.place : ""}` : "";
         if (kk !== nearKey) {
           nearKey = kk;
           nearRef.current = best;
@@ -970,6 +1110,76 @@ export function ShoppingWorld3D({
         } else rm.food.visible = false;
       }
 
+      // a multidão: anda sozinha, só aparece perto da jogadora; as falas só aparecem quando ela está perto
+      if (pl.key === "mall") {
+        crowd ??= new Crowd(pl.world, pl.seats);
+        if (process.env.NODE_ENV !== "production") (window as unknown as { __crowd?: unknown }).__crowd = crowd;
+        crowd.freeze(freezeRef.current.current);
+        crowd.update(dt, floorAt(b.y));
+        let bubbleN = 0;
+        let tagged = false;
+        let taggedCh = -1;
+        const sorted = crowd.npcs.filter((n) => Math.abs(n.b.y - b.y) < 6 && Math.hypot(n.b.x - b.x, n.b.z - b.z) < 62).sort((p, q) => Math.hypot(p.b.x - b.x, p.b.z - b.z) - Math.hypot(q.b.x - b.x, q.b.z - b.z));
+        const seen = new Set<number>();
+        for (const n of sorted) {
+          const fr = crowdFrames.get(n.ch);
+          if (!fr || fr.length < 3) continue;
+          seen.add(n.id);
+          const v = crowdView(n.id, n.ch);
+          v.phase += dt;
+          const sit = n.mode === "sit";
+          const dist = Math.hypot(n.b.x - b.x, n.b.z - b.z);
+          const want = n.mv > 0.3 && !sit ? [1, 0, 2, 0][Math.floor(v.phase * 9) % 4] : 0;
+          if (want !== v.shown) {
+            v.shown = want;
+            v.mat.map = fr[want];
+            v.mat.needsUpdate = true;
+          }
+          const bob = Math.abs(Math.sin(v.phase * 9)) * 0.1 * (n.mv > 0.3 && !sit ? 1 : 0);
+          const sh = sit ? 0.52 : 0;
+          v.sprite.visible = v.shadow.visible = true;
+          v.sprite.scale.set(AV_W * (sit ? 0.86 : 1) * n.fx, AV_H * (sit ? 0.64 : 1), 1);
+          const cp = nudge(n.b.x, n.b.z);
+          v.sprite.position.set(cp.x, n.b.y - sh + bob, cp.z);
+          v.shadow.position.set(n.b.x, (sit ? n.b.y - 0.5 : n.b.y) + 0.03, n.b.z);
+          v.shadow.scale.setScalar(1.25);
+          if (sit && n.eat) {
+            v.food.visible = true;
+            (v.food.material as THREE.SpriteMaterial).map = iconTexture(n.eat);
+            (v.food.material as THREE.SpriteMaterial).needsUpdate = true;
+            const ph = ((crowd.clock + n.id) % 1.6) / 1.6;
+            const lift = ph < 0.5 ? ph / 0.5 : 1 - (ph - 0.5) / 0.5;
+            v.food.position.set(cp.x + n.fx * 0.33, n.b.y + 0.43 + 0.2 * lift, cp.z - 0.05);
+          } else v.food.visible = false;
+          // o nome de quem está mais perto
+          if (!tagged && dist < 4.5) {
+            tagged = true;
+            taggedCh = n.ch;
+            const t = crowdTag(n.ch);
+            t.visible = true;
+            t.position.set(n.b.x, n.b.y - sh + AV_H * (sit ? 0.64 : 1) + 0.45, n.b.z);
+          }
+          // conversa entre elas: o balão só aparece se a jogadora estiver perto
+          const say = bubbleN < bubbles.length && dist < 9 ? crowd.speaking(n) : null;
+          if (say) {
+            const bb = bubbleOf(say);
+            const sp = bubbles[bubbleN++];
+            (sp.material as THREE.SpriteMaterial).map = bb.tex;
+            (sp.material as THREE.SpriteMaterial).needsUpdate = true;
+            sp.scale.set(3.6, (3.6 * bb.h) / bb.w, 1);
+            sp.position.set(n.b.x, n.b.y - sh + AV_H * (sit ? 0.64 : 1) + 0.15, n.b.z);
+            sp.visible = true;
+          }
+        }
+        for (let i = bubbleN; i < bubbles.length; i++) bubbles[i].visible = false;
+        for (const [ch, t] of crowdTags) if (ch !== taggedCh) t.visible = false;
+        for (const [id, v] of crowdViews) if (!seen.has(id)) crowdHide(v);
+      } else {
+        for (const v of crowdViews.values()) crowdHide(v);
+        for (const sp of bubbles) sp.visible = false;
+        for (const t of crowdTags.values()) t.visible = false;
+      }
+
       // câmera atrás da jogadora
       st.ey += (b.y - st.ey) * Math.min(1, dt * 6);
       const pitch = st.pitch;
@@ -1035,6 +1245,16 @@ export function ShoppingWorld3D({
       textures.forEach((t) => t.dispose?.());
       avatarFrames.forEach((t) => t.dispose());
       remotes.forEach((rm) => rm.frames.forEach((t) => t.dispose()));
+      crowdSet.current = null;
+      crowdFrames.forEach((fr) => fr.forEach((t) => t.dispose()));
+      crowdViews.forEach((v) => {
+        v.mat.dispose();
+        (v.food.material as THREE.SpriteMaterial).dispose();
+      });
+      crowdTags.forEach((t) => (t.material as THREE.SpriteMaterial).map?.dispose());
+      bubbleTex.forEach((b) => b.tex.dispose());
+      crowdShadowGeo.dispose();
+      crowdShadowMat.dispose();
       own.forEach((d) => d.dispose());
       renderer.dispose();
       renderer.forceContextLoss();
@@ -1056,10 +1276,10 @@ export function ShoppingWorld3D({
   const destinations: { icon: string; label: string; t: GotoTarget }[] =
     place.kind === "mall"
       ? [
-          ...FLOOR_INFO.map((f, i) => ({ icon: i === 4 ? "talheres" : "escada", label: `${f.name} · ${f.sub}`, t: { kind: "floor", floor: i } as GotoTarget })),
+          ...FLOOR_INFO.map((f, i) => ({ icon: i === FOOD_FLOOR ? "talheres" : "escada", label: `${f.name} · ${f.sub}`, t: { kind: "floor", floor: i } as GotoTarget })),
           { icon: "bilhete", label: "Cabine de bilhetes", t: { kind: "booth" } },
           { icon: "interrogacao", label: "Informações (raras do dia)", t: { kind: "info" } },
-          ...ALL_STORES.map((s) => ({ icon: s.icon, label: `${s.name} (${s.floor === 0 ? "térreo" : `${s.floor}º`})`, t: { kind: "store", id: s.id } as GotoTarget })),
+          ...ALL_STORES.map((s) => ({ icon: s.icon, label: `${s.name} (${floorLabel(s.floor)})`, t: { kind: "store", id: s.id } as GotoTarget })),
           ...RESTAURANTS.map((r) => ({ icon: r.icon, label: r.name, t: { kind: "restaurant", key: r.key } as GotoTarget })),
           { icon: "porta", label: "Saída", t: { kind: "exit" } },
         ]
@@ -1144,7 +1364,7 @@ export function ShoppingWorld3D({
           </button>
           {place.kind === "mall" ? (
             <span className="vh-chip shrink-0 !px-3 !py-1.5 !text-xs" data-on>
-              <SIcon name={floor === 4 ? "talheres" : "sacola"} /> {FLOOR_INFO[floor]?.name}
+              <SIcon name={floor === FOOD_FLOOR ? "talheres" : "sacola"} /> {FLOOR_INFO[floor]?.name}
             </span>
           ) : null}
           {leftSlot}

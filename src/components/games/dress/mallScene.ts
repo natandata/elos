@@ -10,6 +10,8 @@ import {
   ESCALATORS,
   ESC_X0,
   FLOOR_COUNT,
+  FOOD_FLOOR,
+  CONSTRUCTION,
   FLOOR_H,
   FLOOR_INFO,
   HX,
@@ -33,6 +35,11 @@ import {
   floorY,
   holesOf,
   itemHeight,
+  RESTOCK_DAYS,
+  floorLabel,
+  limitedFamiliesOf,
+  nextRareInDays,
+  rarePrice,
   seatsOf,
   storeShelves,
   storesSelling,
@@ -56,6 +63,8 @@ export type Interact =
   | { kind: "elevator"; label: string; x: number; z: number; y: number; rx: number; rz: number }
   | { kind: "info"; label: string; x: number; z: number; y: number; rx: number; rz: number }
   | { kind: "item"; itemId: string; slot: string; family: string; label: string; ay: number; x: number; z: number; y: number; rx: number; rz: number }
+  | { kind: "npc"; npc: number; ch: number; label: string; x: number; z: number; y: number; rx: number; rz: number }
+  | { kind: "rarewait"; family: string; days: number; label: string; x: number; z: number; y: number; rx: number; rz: number }
   | { kind: "rare"; offerId: number; label: string; x: number; z: number; y: number; rx: number; rz: number };
 
 export type ItemSprite = { key: string; itemId: string; slot: string; sprite: THREE.Sprite; w: number; h: number; x: number; y: number; z: number; face: number; loaded: boolean; loading: boolean; badge: THREE.Mesh | null; family: string; price: number };
@@ -303,11 +312,11 @@ export function buildConcourse(): Place {
     }
     for (const sx of [-1, 1] as const) k.box(0.6, wallH, hz * 2 + 1, info.color, sx * (HX + 0.3), fy + wallH / 2, 0);
     // janelas (bem maiores na praça de alimentação)
-    const winN = f === 4 ? 14 : 8;
+    const winN = f === FOOD_FLOOR ? 14 : 8;
     for (const side of [-1, 1] as const) {
       for (let i = 0; i < winN; i++) {
         const wx = -HX + 6 + (i * (HX * 2 - 12)) / (winN - 1);
-        if (f < 4) continue;
+        if (f < FOOD_FLOOR) continue;
         const win = new THREE.Mesh(k.geo(new THREE.PlaneGeometry(5, 5.6)), k.basic(0xbfe3ff, 0.85));
         win.position.set(wx, fy + 4.4, side * (hz - 0.01));
         win.rotation.y = side < 0 ? 0 : Math.PI;
@@ -315,7 +324,7 @@ export function buildConcourse(): Place {
       }
     }
     // colunas ao longo das paredes (andares com lojas)
-    if (f < 4) {
+    if (f < FOOD_FLOOR) {
       for (const side of [-1, 1] as const)
         for (const px of [-45, -27, -9, 9, 27, 45]) {
           k.cyl(0.5, 0.55, wallH, 0xf4efe6, px, fy + wallH / 2, side * (hz - 1.3));
@@ -369,14 +378,14 @@ export function buildConcourse(): Place {
       interacts.push({ kind: "elevator", label: "Elevador", x: ex + 4.6, z: 0, y: fy, rx: 3.0, rz: 2.6 });
     }
     // bancos (dá para sentar) e plantas
-    const benchSpots: [number, number][] = f === 4 ? [] : [[-24, 12.5], [24, 12.5], [-24, -12.5], [24, -12.5]];
+    const benchSpots: [number, number][] = f === FOOD_FLOOR ? [] : [[-24, 12.5], [24, 12.5], [-24, -12.5], [24, -12.5]];
     for (const [bx, bz] of benchSpots) {
       k.box(2.8, 0.45, 0.95, 0xe7b3c9, bx, fy + 0.3, bz);
       k.box(2.8, 0.7, 0.18, 0xd98cae, bx, fy + 0.75, bz + (bz > 0 ? 0.45 : -0.45));
       solids.push({ x: bx, z: bz, base: fy, top: fy + 0.53, hw: 1.4, hd: 0.5 });
       seats.push({ x: bx - 0.7, z: bz, y: fy + 0.53, dir: 1 }, { x: bx + 0.7, z: bz, y: fy + 0.53, dir: -1 });
     }
-    const plantSpots: [number, number][] = f === 4 ? [[-17, 0], [17, 0]] : [[-56, 16], [56, 16], [-56, -16], [56, -16], [-14, 16], [14, 16], [-14, -16], [14, -16]];
+    const plantSpots: [number, number][] = f === FOOD_FLOOR ? [[-17, 0], [17, 0]] : [[-56, 16], [56, 16], [-56, -16], [56, -16], [-14, 16], [14, 16], [-14, -16], [14, -16]];
     for (const [px, pz] of plantSpots) {
       k.cyl(0.5, 0.4, 0.8, 0xf5f5f5, px, fy + 0.4, pz, 10);
       k.sphere(1.0, 0x3f8f4f, px, fy + 1.6, pz);
@@ -575,7 +584,7 @@ export function buildConcourse(): Place {
 
   // ---- praça de alimentação
   {
-    const fy = floorY(4);
+    const fy = floorY(FOOD_FLOOR);
     for (const r of RESTAURANTS) {
       const z0 = r.zone.z0;
       const z1 = r.zone.z1;
@@ -647,6 +656,77 @@ export function buildConcourse(): Place {
     roof.position.set(0, fy + FLOOR_H - 0.5, 0);
     g.add(roof);
     for (let i = -5; i <= 5; i++) k.box(0.5, 0.5, 88, 0xdedede, i * 11, fy + FLOOR_H - 0.55, 0);
+  }
+
+  // ---- andares 4 e 5 em obras (canto leste do último andar): tapumes, andaimes, fita e placas
+  {
+    const c = CONSTRUCTION;
+    const fy = floorY(FOOD_FLOOR);
+    const stripe = k.track(
+      (() => {
+        const [cv, gg] = canvasOf(128, 64);
+        gg.fillStyle = "#ffd23f";
+        gg.fillRect(0, 0, 128, 64);
+        gg.fillStyle = "#2b2b33";
+        for (let i = -1; i < 6; i++) {
+          gg.beginPath();
+          gg.moveTo(i * 28, 0);
+          gg.lineTo(i * 28 + 14, 0);
+          gg.lineTo(i * 28 + 14 - 24, 64);
+          gg.lineTo(i * 28 - 24, 64);
+          gg.fill();
+        }
+        const t = asTex(cv);
+        t.wrapS = t.wrapT = THREE.RepeatWrapping;
+        return t;
+      })(),
+    );
+    const fenceLen = (len: number) => {
+      const t = stripe.clone();
+      t.needsUpdate = true;
+      t.repeat.set(len / 2.2, 1);
+      return k.track(t);
+    };
+    const panel = (x: number, z: number, len: number, alongZ: boolean) => {
+      const m = new THREE.Mesh(k.geo(new THREE.BoxGeometry(alongZ ? 0.25 : len, 1.3, alongZ ? len : 0.25)), k.track(new THREE.MeshLambertMaterial({ map: fenceLen(len) })));
+      m.position.set(x, fy + 1.7, z);
+      g.add(m);
+      k.box(alongZ ? 0.4 : len, 0.12, alongZ ? len : 0.4, 0x6b6f7a, x, fy + 2.4, z);
+      for (let i = 0; i <= Math.floor(len / 3); i++) k.box(0.18, 2.4, 0.18, 0x6b6f7a, alongZ ? x : x - len / 2 + i * 3, fy + 1.2, alongZ ? z - len / 2 + i * 3 : z);
+    };
+    panel(c.x0, 0, c.z1 - c.z0 + 0.4, true);
+    panel((c.x0 + c.x1) / 2, c.z0, c.x1 - c.x0, false);
+    panel((c.x0 + c.x1) / 2, c.z1, c.x1 - c.x0, false);
+    // interior em obras (visto por cima dos tapumes): escada rolante coberta, andaimes, sacos e cones
+    const dust = k.mat(0xd9d0c4);
+    const ramp = new THREE.Mesh(k.geo(new THREE.BoxGeometry(14, 0.3, 2.6)), dust);
+    ramp.position.set(c.x0 + 8, fy + 3.2, 0);
+    ramp.rotation.z = 0.5;
+    g.add(ramp);
+    for (const zz of [-6.2, 6.2]) for (const xx of [c.x0 + 4, c.x0 + 11, c.x0 + 18]) {
+      k.box(0.25, 5.2, 0.25, 0x8a8f9c, xx, fy + 2.6, zz);
+      k.box(3.4, 0.16, 0.5, 0xb88a4a, xx + 1.5, fy + 2.4, zz);
+      k.box(3.4, 0.16, 0.5, 0xb88a4a, xx + 1.5, fy + 4.4, zz);
+    }
+    for (const [xx, zz] of [[c.x0 + 6, 2.2], [c.x0 + 12, -2.6], [c.x0 + 16, 3.2]] as const) k.box(1.4, 0.7, 1.0, 0xcab08a, xx, fy + 0.35, zz);
+    for (const zz of [-7.6, -4, 4, 7.6]) {
+      k.cyl(0.05, 0.38, 0.9, 0xff7a1a, c.x0 - 1.1, fy + 0.45, zz, 10);
+      k.cyl(0.2, 0.2, 0.12, 0xffffff, c.x0 - 1.1, fy + 0.62, zz, 10);
+    }
+    const tex = (txt: string, w: number, h: number, bg: string, fg: string, fs: number) => asTex(labelCanvas(txt, w, h, fg, bg, "#ffd23f", fs, "alerta"));
+    const big = spriteOf(k, k.track(tex("Andares 4 e 5 em obras", 1024, 200, "rgba(40,40,48,0.96)", "#ffd23f", 84)), 11, 2.15, false, -Math.PI / 2);
+    big.position.set(c.x0 - 0.5, fy + 4.4, 0);
+    g.add(big);
+    const small = spriteOf(k, k.track(tex("Em breve: novos modos de jogo e minigames", 1024, 160, "rgba(255,255,255,0.96)", "#5b1f78", 56)), 11, 1.7, false, -Math.PI / 2);
+    small.position.set(c.x0 - 0.5, fy + 2.9, 0);
+    g.add(small);
+    for (const zz of [-5, 5]) {
+      const p = spriteOf(k, k.track(tex("OBRAS · NÃO ENTRE", 512, 100, "rgba(180,40,30,0.96)", "#ffffff", 46)), 3.4, 0.7, false, -Math.PI / 2);
+      p.position.set(c.x0 - 0.5, fy + 1.6, zz);
+      g.add(p);
+    }
+    // faixas de fita zebrada atravessando a entrada
+    for (const yy of [1.0, 1.55]) k.box(0.06, 0.16, c.z1 - c.z0, yy > 1.2 ? 0xffd23f : 0x2b2b33, c.x0 - 0.35, fy + yy, 0);
   }
 
   // ---- brilho no ar e céu
@@ -848,7 +928,7 @@ export function buildStore(def: StoreDef, opts: MallOpts): Place {
     g.add(m);
   }
   const mirrorLbl = signPlane(k, "🪞 Veja como ficou", 4.4, "#5b1f78");
-  mirrorLbl.position.set(0, 5.0, -HL + 0.6);
+  mirrorLbl.position.set(0, 3.2, -HL + 0.6);
   g.add(mirrorLbl);
 
   // sofás de descanso (dá para sentar)
@@ -945,13 +1025,9 @@ export function buildStore(def: StoreDef, opts: MallOpts): Place {
   );
   let rarePosts: Post[] = [];
   let offersNow: RareOffer[] = [];
-  const relevant = (o: RareOffer) => {
-    const it = offerItem(o.family);
-    return !!it && slots.includes(it.slot);
-  };
   const layoutRares = (offers: RareOffer[]) => {
     offersNow = offers;
-    for (let i = interacts.length - 1; i >= 0; i--) if (interacts[i].kind === "rare") interacts.splice(i, 1);
+    for (let i = interacts.length - 1; i >= 0; i--) if (interacts[i].kind === "rare" || interacts[i].kind === "rarewait") interacts.splice(i, 1);
     for (let i = items.length - 1; i >= 0; i--) if (items[i].key.startsWith("rare:")) items.splice(i, 1);
     for (const p of rarePosts) {
       const at = posts.indexOf(p);
@@ -959,20 +1035,29 @@ export function buildStore(def: StoreDef, opts: MallOpts): Place {
     }
     rarePosts = [];
     for (const r of rareSprites) {
-      (r.tag.material as THREE.SpriteMaterial).map?.dispose();
-      (r.tag.material as THREE.SpriteMaterial).dispose();
+      (r.tag.material as THREE.MeshBasicMaterial).map?.dispose();
+      (r.tag.material as THREE.MeshBasicMaterial).dispose();
     }
     rareSprites = [];
     for (const c of [...rareGroup.children]) rareGroup.remove(c);
-    const mine = offers.filter(relevant);
-    mine.forEach((o, i) => {
-      const it = offerItem(o.family)!;
-      const px = (i - (mine.length - 1) / 2) * 5.2;
+    // um pedestal para cada peça de edição limitada desta loja: à venda hoje, esgotada (volta em 5 dias) ou chegando
+    const lim = limitedFamiliesOf(slots);
+    const now = Date.now();
+    const rows = lim.map((f) => {
+      const offer = offers.find((o) => o.family === f.family);
+      const days = offer ? (offer.left <= 0 && !offer.mine ? RESTOCK_DAYS : 0) : nextRareInDays(f.family, now);
+      return { ...f, offer, days };
+    });
+    rows.forEach((row, i) => {
+      const it = row.first;
+      const o = row.offer;
+      const live = !!o && o.left > 0;
+      const px = (i - (rows.length - 1) / 2) * 5.2;
       const pz = HL - 18;
-      const ped = new THREE.Mesh(k.geo(new THREE.CylinderGeometry(1.1, 1.3, 1.2, 20)), k.mat(0xe9b84a));
+      const ped = new THREE.Mesh(k.geo(new THREE.CylinderGeometry(1.1, 1.3, 1.2, 20)), k.mat(live ? 0xe9b84a : 0xb9b0a6));
       ped.position.set(px, 0.6, pz);
       rareGroup.add(ped);
-      const top = new THREE.Mesh(k.geo(new THREE.CylinderGeometry(1.25, 1.25, 0.14, 20)), k.mat(0xfff0b8, { emissive: 0x3a2a00 }));
+      const top = new THREE.Mesh(k.geo(new THREE.CylinderGeometry(1.25, 1.25, 0.14, 20)), k.mat(live ? 0xfff0b8 : 0xe3ddd6, { emissive: live ? 0x3a2a00 : 0 }));
       top.position.set(px, 1.27, pz);
       rareGroup.add(top);
       const ratio = SLOT_VIEWBOX_RATIO[it.slot];
@@ -981,38 +1066,52 @@ export function buildStore(def: StoreDef, opts: MallOpts): Place {
       sp.scale.set(hh * ratio * 0.8, hh * 0.8, 1);
       sp.position.set(px, 1.34 + hh / 2 + 0.2, pz);
       rareGroup.add(sp);
-      const glow = new THREE.Sprite(k.track(new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false, opacity: 0.85, blending: THREE.AdditiveBlending })));
+      const glow = new THREE.Sprite(k.track(new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false, opacity: live ? 0.85 : 0.25, blending: THREE.AdditiveBlending })));
       glow.scale.set(hh * 2.2, hh * 2.2, 1);
       glow.position.copy(sp.position);
       rareGroup.add(glow);
-      const sold = o.left <= 0;
-      const label = o.mine ? `✔ Você já tem` : sold ? "ESGOTADA" : `🔥 ${o.price} 🎫 · restam ${o.left}`;
-      const tag = new THREE.Mesh(new THREE.PlaneGeometry(3.8, 0.9), new THREE.MeshBasicMaterial({ map: asTex(labelCanvas(label, 512, 120, "#ffffff", sold ? "rgba(90,90,100,0.95)" : "rgba(190,40,70,0.96)", "#ffe08a", 54)), transparent: true, alphaTest: 0.04, side: THREE.DoubleSide }));
+      const price = o?.price ?? rarePrice(row.family);
+      const label = o?.mine
+        ? "✔ Você já tem"
+        : live
+          ? `🔥 ${price} 🎫 · restam ${o!.left}`
+          : o
+            ? `Esgotada · volta em ${RESTOCK_DAYS} dias`
+            : row.days <= 0
+              ? "Chega hoje"
+              : `Chega em ${row.days} dia${row.days === 1 ? "" : "s"}`;
+      const tag = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 0.9), new THREE.MeshBasicMaterial({ map: asTex(labelCanvas(label, 640, 130, "#ffffff", live ? "rgba(190,40,70,0.96)" : o?.mine ? "rgba(42,157,74,0.95)" : "rgba(90,90,100,0.95)", "#ffe08a", 54)), transparent: true, alphaTest: 0.04, side: THREE.DoubleSide }));
       tag.position.set(px, 1.3 + hh + 0.75, pz);
       rareGroup.add(tag);
       const title = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 0.7), new THREE.MeshBasicMaterial({ map: asTex(labelCanvas(it.name, 512, 100, "#5b1f78", "rgba(255,255,255,0.96)", "#e9b84a", 46)), transparent: true, alphaTest: 0.04, side: THREE.DoubleSide }));
       title.position.set(px, 1.3 + hh + 1.5, pz);
       rareGroup.add(title);
-      rareSprites.push({ sp, tag, glow, id: o.id });
+      rareSprites.push({ sp, tag, glow, id: o?.id ?? i + 1000 });
       const post: Post = { x: px, z: pz, r: 1.2, base: 0, height: 1.3 };
       posts.push(post);
       rarePosts.push(post);
-      interacts.push({ kind: "rare", offerId: o.id, label: `🔥 Peça rara: ${it.name}`, x: px, y: 0, z: pz + 2.2, rx: 2.6, rz: 2.0 });
-      // a textura da peça chega do banco (ver ShoppingWorld3D): ela procura o sprite pela chave rare:<id>
-      items.push({ key: `rare:${o.id}`, itemId: it.id, slot: it.slot, sprite: sp, w: hh * ratio, h: hh, x: px, y: 1.34 + hh / 2 + 0.2, z: pz, face: 0, loaded: false, loading: false, badge: null, family: o.family, price: o.price });
+      if (o) interacts.push({ kind: "rare", offerId: o.id, label: `🔥 Peça rara: ${it.name}`, x: px, y: 0, z: pz + 2.2, rx: 2.6, rz: 2.0 });
+      else interacts.push({ kind: "rarewait", family: row.family, days: row.days, label: `🔥 ${it.name}`, x: px, y: 0, z: pz + 2.2, rx: 2.6, rz: 2.0 });
+      items.push({ key: o ? `rare:${o.id}` : `rare:w:${row.family}`, itemId: it.id, slot: it.slot, sprite: sp, w: hh * ratio, h: hh, x: px, y: 1.34 + hh / 2 + 0.2, z: pz, face: 0, loaded: false, loading: false, badge: null, family: row.family, price });
     });
     // atendente avisa
-    const rareHere = mine.filter((o) => o.left > 0 && !o.mine);
-    const rareNames = mine.map((o) => offerItem(o.family)?.name ?? "peça rara");
-    const elsewhere = offers.filter((o) => !relevant(o) && o.left > 0).map((o) => {
-      const it = offerItem(o.family);
-      const st = it ? storesSelling(it.slot)[0] : undefined;
-      return st ? `${it?.name} na loja ${st.name} (${st.floor === 0 ? "térreo" : `${st.floor}º andar`})` : "";
-    }).filter(Boolean);
+    const todays = rows.filter((r) => r.offer && r.offer.left > 0 && !r.offer.mine);
+    const gone = rows.filter((r) => r.offer && r.offer.left <= 0 && !r.offer.mine);
+    const coming = rows.filter((r) => !r.offer).sort((a, b) => a.days - b.days)[0];
+    const elsewhere = offers
+      .filter((o) => o.left > 0 && !rows.some((r) => r.family === o.family))
+      .map((o) => {
+        const it = offerItem(o.family);
+        const st = it ? storesSelling(it.slot)[0] : undefined;
+        return st ? `${it?.name} na loja ${st.name} (${floorLabel(st.floor).toLowerCase()})` : "";
+      })
+      .filter(Boolean);
     const nl: string[] = [`Bem-vinda à ${def.name}! Pode provar à vontade.`];
-    if (mine.length) nl.unshift(rareHere.length ? `✨ Hoje temos peça RARA aqui: ${rareNames.join(" e ")}! Só 3 unidades por 24 horas!` : `Hoje a nossa peça rara (${rareNames.join(", ")}) já esgotou ou já é sua.`);
-    else if (elsewhere.length) nl.push(`Hoje não temos peça rara por aqui, mas tem: ${elsewhere[0]}.`);
-    nl.push("Peças 💜 custam 60 bilhetes e as ⭐ custam 150.");
+    if (todays.length) nl.unshift(`✨ Hoje temos peça RARA aqui: ${todays.map((r) => r.first.name).join(" e ")}! Só 3 unidades por 24 horas!`);
+    else if (gone.length) nl.unshift(`A nossa peça rara (${gone.map((r) => r.first.name).join(", ")}) esgotou! Novas unidades em ${RESTOCK_DAYS} dias.`);
+    if (!todays.length && coming) nl.push(`${coming.first.name} chega ${coming.days <= 0 ? "hoje" : `em ${coming.days} dia${coming.days === 1 ? "" : "s"}`}. Volte para garantir a sua!`);
+    if (!todays.length && elsewhere.length) nl.push(`Hoje tem peça rara em outra loja: ${elsewhere[0]}.`);
+    nl.push("Peças ✨ custam 60 bilhetes e as ⭐ custam 150.");
     lines = nl;
     lineIdx = 0;
     lineT = 99;

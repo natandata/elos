@@ -2,7 +2,7 @@
 // A conta de verdade (preços das ofertas, bilhetes, doações) é feita no banco (migração 0192); aqui ficam só os números que a tela mostra
 // e a geometria que o jogo 3D e os testes usam.
 import type { Beauty } from "./beauty";
-import { ITEMS, familiesBySlot, type DressItem, type FamilyGroup, type Look, type Slot } from "./items";
+import { ITEMS, familiesBySlot, limitedBySlot, type DressItem, type FamilyGroup, type Look, type Slot } from "./items";
 import { priceOf, rarityOf } from "./rarity";
 
 export const MALL_NAME = "Shopping Elos";
@@ -11,17 +11,19 @@ export const GIFT_DAILY_MAX = 30;
 // ------------------------------------------------------------------ planta
 export const FLOOR_H = 9;
 export const HX = 60;
-export const FLOOR_COUNT = 5;
+export const FLOOR_COUNT = 3;
+/** A praça de alimentação fica no último andar aberto. Os andares 4 e 5 estão em obras. */
+export const FOOD_FLOOR = 2;
 /** Meia profundidade de cada andar (a praça de alimentação é bem maior). */
-export const floorHalfZ = (f: number): number => (f === 4 ? 44 : 20);
+export const floorHalfZ = (f: number): number => (f === FOOD_FLOOR ? 44 : 20);
 export const floorY = (f: number): number => f * FLOOR_H;
 export const FLOOR_INFO: { name: string; sub: string; color: number; tile: [string, string] }[] = [
   { name: "Térreo", sub: "Praça Elos", color: 0xf6e7cf, tile: ["#f4e6cc", "#e9d4b0"] },
-  { name: "1º andar", sub: "Moda e Coroas", color: 0xf3dcea, tile: ["#f6e0ee", "#ecc9de"] },
-  { name: "2º andar", sub: "Calçados e Acessórios", color: 0xdfeaf7, tile: ["#e3edf8", "#cbdcf0"] },
-  { name: "3º andar", sub: "Ateliês e Galeria", color: 0xe6f3e1, tile: ["#e8f4e3", "#d1e6c9"] },
-  { name: "4º andar", sub: "Praça de Alimentação", color: 0xfff0d0, tile: ["#fff1d6", "#f7dca8"] },
+  { name: "2º andar", sub: "Moda, Joias e Calçados", color: 0xf3dcea, tile: ["#f6e0ee", "#ecc9de"] },
+  { name: "3º andar", sub: "Praça de Alimentação", color: 0xfff0d0, tile: ["#fff1d6", "#f7dca8"] },
 ];
+/** Nome do andar para textos ("Térreo", "2º andar"...). */
+export const floorLabel = (f: number): string => FLOOR_INFO[f]?.name ?? `${f + 1}º andar`;
 
 export type Rect = { x0: number; x1: number; z0: number; z1: number };
 export const inRect = (r: Rect, x: number, z: number): boolean => x >= r.x0 && x <= r.x1 && z >= r.z0 && z <= r.z1;
@@ -55,6 +57,8 @@ export const rampY = (e: Escalator, x: number): number => {
   return floorY(e.from) + t * FLOOR_H;
 };
 
+/** Área em obras (andares 4 e 5): no fim leste do último andar. */
+export const CONSTRUCTION: Rect = { x0: 37, x1: 59, z0: -8.5, z1: 8.5 };
 export const ATRIUM: Rect = { x0: -14, x1: 14, z0: -9, z1: 9 };
 /** Buracos do andar: o átrio (do 1º para cima) e o poço por onde chega a escada rolante de baixo. */
 export function holesOf(floor: number): Rect[] {
@@ -136,6 +140,11 @@ export function walls(): Wall[] {
     const lane = e.up ? LANE_UP : LANE_DOWN;
     for (const zz of [lane.z0, lane.z1]) out.push({ x0: e.rect.x0, x1: e.rect.x1, z0: zz - T, z1: zz + T, y0: floorY(e.from) - 0.6, y1: floorY(e.from + 1) + 1.6 });
   }
+  // andares 4 e 5 em obras: o canto leste do último andar fica cercado (não dá para passar nem pular)
+  const c = CONSTRUCTION;
+  const fy = floorY(FOOD_FLOOR);
+  const fence = (x0: number, x1: number, z0: number, z1: number): Wall => ({ x0, x1, z0, z1, y0: fy - 0.6, y1: fy + 2.6 });
+  out.push(fence(c.x0 - 0.2, c.x0 + 0.2, c.z0 - 0.2, c.z1 + 0.2), fence(c.x0, c.x1, c.z0 - 0.2, c.z0 + 0.2), fence(c.x0, c.x1, c.z1 - 0.2, c.z1 + 0.2));
   return out;
 }
 export const WALLS = walls();
@@ -160,13 +169,13 @@ export const STORE_W = 16;
 
 export const STORES: StoreDef[] = [
   { id: "vestidos", name: "Canaã & Alegria Moda", floor: 0, side: -1, x: -18, slots: ["tunic"], color: 0xf3b3d1, accent: 0xb5307a, attendant: "Dona Raquel", icon: "vestido" },
+  { id: "calcados", name: "Areópago Calçados", floor: 0, side: -1, x: 18, slots: ["shoes", "mantle"], color: 0xf7c9b0, accent: 0xb5532a, attendant: "Seu Tiago", icon: "sapato" },
   { id: "mantos", name: "Zorobabel Mantos", floor: 0, side: 1, x: -18, slots: ["mantle"], color: 0xc9b6f0, accent: 0x5b3aa8, attendant: "Seu Davi", icon: "manto" },
-  { id: "coroas", name: "Clara Luz Coroas", floor: 1, side: -1, x: 0, slots: ["head"], color: 0xffe08a, accent: 0xc2870a, attendant: "Dona Ester", icon: "coroa" },
-  { id: "joalheria", name: "Vinha & Aliança Joias", floor: 1, side: 1, x: 0, slots: ["ears", "neck", "wrist"], color: 0xb9e3f7, accent: 0x1f6f9c, attendant: "Dona Lídia", icon: "anel" },
-  { id: "calcados", name: "Areópago Calçados", floor: 2, side: -1, x: 0, slots: ["shoes", "mantle"], color: 0xf7c9b0, accent: 0xb5532a, attendant: "Seu Tiago", icon: "sapato" },
-  { id: "acessorios", name: "Lojas Emaús", floor: 2, side: 1, x: 0, slots: ["hand"], color: 0xb8e6c4, accent: 0x2a8a4a, attendant: "Dona Noemi", icon: "varinha" },
-  { id: "ateliegala", name: "Renascer Ateliê de Gala", floor: 3, side: -1, x: 0, slots: ["tunic", "mantle"], color: 0xf6c4e0, accent: 0x9b2a82, attendant: "Dona Priscila", icon: "brilhos" },
-  { id: "sonhos", name: "Riacho de Jacó", floor: 3, side: 1, x: 0, slots: ["head", "hand"], color: 0xd2c4f7, accent: 0x4a35a0, attendant: "Seu Mateus", icon: "estrela" },
+  { id: "acessorios", name: "Lojas Emaús", floor: 0, side: 1, x: 18, slots: ["hand"], color: 0xb8e6c4, accent: 0x2a8a4a, attendant: "Dona Noemi", icon: "varinha" },
+  { id: "ateliegala", name: "Renascer Ateliê de Gala", floor: 1, side: -1, x: -18, slots: ["tunic", "mantle"], color: 0xf6c4e0, accent: 0x9b2a82, attendant: "Dona Priscila", icon: "brilhos" },
+  { id: "coroas", name: "Clara Luz Coroas", floor: 1, side: -1, x: 18, slots: ["head"], color: 0xffe08a, accent: 0xc2870a, attendant: "Dona Ester", icon: "coroa" },
+  { id: "joalheria", name: "Vinha & Aliança Joias", floor: 1, side: 1, x: -18, slots: ["ears", "neck", "wrist"], color: 0xb9e3f7, accent: 0x1f6f9c, attendant: "Dona Lídia", icon: "anel" },
+  { id: "sonhos", name: "Riacho de Jacó", floor: 1, side: 1, x: 18, slots: ["head", "hand"], color: 0xd2c4f7, accent: 0x4a35a0, attendant: "Seu Mateus", icon: "estrela" },
 ];
 
 /** Vitrines de enfeite (portas fechadas) para o shopping parecer cheio. */
@@ -184,7 +193,7 @@ const CLOSED_NAMES: [string, string][] = [
 export function closedStores(): StoreDef[] {
   const out: StoreDef[] = [];
   let k = 0;
-  for (let f = 0; f < 4; f++) {
+  for (let f = 0; f < FOOD_FLOOR; f++) {
     for (const side of [-1, 1] as const) {
       for (const x of [-36, -18, 0, 18, 36]) {
         if (STORES.some((s) => s.floor === f && s.side === side && s.x === x)) continue;
@@ -302,6 +311,13 @@ export function storeShelves(slots: Slot[]): ShelfLayout {
   const v = Math.max(1, Math.min(12, Math.floor(96 / Math.max(1, fams.length))));
   const list: ShelfItem[] = [];
   for (const { slot, f } of fams) for (const it of pickVariants(f.items, v)) list.push({ slot, family: f.family, base: f.base, item: it, price: priceOf(f.family), rarity: rarityOf(f.family) as "epic" | "legend" });
+  // nenhuma prateleira fica com vaga: completa a última coluna com outras cores das mesmas peças
+  for (let r = 0; list.length % SHELF_TIERS !== 0 && r < 200; r++) {
+    const { slot, f } = fams[r % fams.length];
+    const used = new Set(list.filter((x) => x.family === f.family).map((x) => x.item.id));
+    const next = f.items.find((it) => !used.has(it.id));
+    if (next) list.push({ slot, family: f.family, base: f.base, item: next, price: priceOf(f.family), rarity: rarityOf(f.family) as "epic" | "legend" });
+  }
   const cols = Math.ceil(list.length / SHELF_TIERS);
   const perWall = Math.ceil(cols / 2);
   const startZ = -STORE_HL + 6;
@@ -333,7 +349,7 @@ export function storeShelves(slots: Slot[]): ShelfLayout {
   return out;
 }
 /** Espaço (slot) de cada item colocado e a altura/largura dele (o desenho mantém a proporção da janela de cada espaço). */
-export const itemHeight = (slot: Slot): number => (slot === "tunic" ? 1.05 : slot === "mantle" ? 1.0 : slot === "shoes" ? 0.55 : slot === "ears" || slot === "wrist" ? 0.5 : 0.85);
+export const itemHeight = (slot: Slot): number => (slot === "tunic" ? 1.05 : slot === "mantle" ? 1.0 : slot === "shoes" ? 0.55 : slot === "ears" ? 0.8 : slot === "wrist" ? 0.55 : 0.85);
 
 // ------------------------------------------------------------------ ofertas raras (a conta é do banco; aqui o formato e os textos)
 export type RareOffer = { id: number; family: string; price: number; stock: number; sold: number; left: number; ends_at: string; mine: boolean };
@@ -432,7 +448,7 @@ export function npcsFor(place: string): NpcDef[] {
       { id: "info", name: "Dona Zélia", place, x: INFO_DESK.x, z: INFO_DESK.z + 1.5, y: 0, fx: 1, beauty: HAIRS[1], look: outfit([["tunic", "dress", 6], ["head", "ribbon", 0]]) },
       { id: "teller", name: "Dona Abigail", place, x: BOOTH.x - 0.4, z: BOOTH.z, y: 0, fx: -1, beauty: HAIRS[3], look: outfit([["tunic", "pleated", 4], ["head", "veil", 1]]) },
     ];
-    RESTAURANTS.forEach((r, i) => out.push({ id: `cook-${r.key}`, name: r.cook, place, x: r.cx + 2.4, z: r.side * 41.6, y: floorY(4), fx: 1, beauty: HAIRS[(i + 2) % HAIRS.length], look: COOK_LOOK(i) }));
+    RESTAURANTS.forEach((r, i) => out.push({ id: `cook-${r.key}`, name: r.cook, place, x: r.cx + 2.4, z: r.side * 41.6, y: floorY(FOOD_FLOOR), fx: 1, beauty: HAIRS[(i + 2) % HAIRS.length], look: COOK_LOOK(i) }));
     return out;
   }
   const def = storeById(place.replace(/^s:/, ""));
@@ -448,3 +464,27 @@ export const MALL_ICONS: string[] = [
   "bussola", "porta", "coroa", "anel", "estrela", "brilhos", "fogo", "certo", "x", "livros", "gota", "pergaminho", "cronometro", "flor", "cafe", "pao", "casa", "interrogacao",
   "alerta", "seta-cima", "seta-baixo", "dupla", "som", "mudo", "presente", "cadeado", "templo", "maca", "coracao",
 ];
+
+// ------------------------------------------------------------------ calendário das peças de edição limitada (o mesmo do banco: _mall_pool)
+/** Ordem e preço iguais aos de public._mall_pool(). */
+export const RARE_POOL: [string, number][] = [["madcrown", 450], ["aurora", 380], ["galadress", 450], ["starmaid", 420], ["starcape", 360], ["crystal", 320], ["starwand", 340], ["comet", 300], ["constel", 330], ["auroracuff", 300]];
+export const RARE_PER_DAY = 2;
+/** Cada peça volta de 5 em 5 dias (10 peças, 2 por dia). */
+export const RESTOCK_DAYS = RARE_POOL.length / RARE_PER_DAY;
+export const rarePrice = (family: string): number => RARE_POOL.find(([f]) => f === family)?.[1] ?? 0;
+/** Dia da oferta (dias desde 01/01/2026, no horário de Brasília). */
+export function rareDayIndex(now = Date.now()): number {
+  const d = new Date(now - 3 * 3600000);
+  return Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / 86400000) - Math.floor(Date.UTC(2026, 0, 1) / 86400000);
+}
+/** Daqui a quantos dias a peça entra em oferta (0 = hoje). */
+export function nextRareInDays(family: string, now = Date.now()): number {
+  const idx = RARE_POOL.findIndex(([f]) => f === family);
+  if (idx < 0) return RESTOCK_DAYS;
+  const n = rareDayIndex(now);
+  for (let k = 0; k < RESTOCK_DAYS; k++) for (let i = 0; i < RARE_PER_DAY; i++) if (((n + k) * RARE_PER_DAY + i) % RARE_POOL.length === idx) return k;
+  return RESTOCK_DAYS;
+}
+/** Famílias de edição limitada que uma loja expõe (as do espaço que ela vende). */
+export const limitedFamiliesOf = (slots: Slot[]): { slot: Slot; family: string; base: string; first: DressItem }[] =>
+  slots.flatMap((sl) => limitedBySlot(sl).map((g) => ({ slot: sl, family: g.family, base: g.base, first: g.items[0] })));
