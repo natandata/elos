@@ -100,7 +100,7 @@ export default async function VestirPage() {
   const shoppingOpen = await gameOpenFor("madureira", profile.id);
 
   return (
-    <LandscapeShell>
+    <LandscapeShell rotate={false}>
       <VhStage>
         <Cover />
 

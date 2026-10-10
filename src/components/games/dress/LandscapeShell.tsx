@@ -63,16 +63,17 @@ export function RotateToggle() {
   if (!mobile) return null;
   return (
     <button type="button" className="vh-chip mx-auto !px-3 !py-1.5 !text-[11px]" data-on={!off} onClick={() => setOff(!off)} aria-pressed={!off}>
-      {off ? "Tela girada: desligada (toque para ligar)" : "A tela não rola ou não responde? Toque para desligar o giro"}
+      {off ? "Salas e Shopping: tela girada desligada (toque para ligar)" : "Sala ou Shopping de lado e sem responder? Toque para desligar o giro"}
     </button>
   );
 }
 
-export function LandscapeShell({ children }: { children: ReactNode }) {
+/** `rotate={false}`: telas de lista (início, salão de espera) nunca giram de lado; só as telas de jogo giram quando o celular está em pé. */
+export function LandscapeShell({ children, rotate = true }: { children: ReactNode; rotate?: boolean }) {
   const mobile = useSyncExternalStore(subCoarse, coarse, () => false);
   const portrait = useSyncExternalStore(subPortrait, portraitNow, () => false);
   const [noRot] = useNoRotate();
-  const rotated = mobile && portrait && !noRot;
+  const rotated = mobile && portrait && !noRot && rotate;
   const land = rotated || !portrait;
   const info = useMemo<LandscapeInfo>(() => ({ mobile, rotated, land }), [mobile, rotated, land]);
 

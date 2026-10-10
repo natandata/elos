@@ -81,7 +81,7 @@ export function LiveLobby() {
   }
 
   return (
-    <LandscapeShell>
+    <LandscapeShell rotate={false}>
     <VhStage>
       <p className="vh-title mb-1 text-center text-3xl">Passarela ao vivo</p>
       <p className="mb-4 text-center text-sm text-purple-100">Todas recebem o mesmo tema, se vestem ao mesmo tempo, desfilam e dão estrelas umas às outras.</p>
