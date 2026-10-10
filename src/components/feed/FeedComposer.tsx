@@ -7,6 +7,8 @@ import { createClient } from "@/lib/supabase/client";
 import { createFeedPost } from "@/lib/actions/feed";
 import { createStoryPost } from "@/lib/actions/stories";
 import { addGalleryPost } from "@/lib/actions/gallery";
+import { cancelStoryVideoUpload, createStoryVideoPost, requestStoryVideoUpload } from "@/lib/actions/storyVideo";
+import { VIDEO_MAX_BYTES, VIDEO_MAX_SECONDS, VIDEO_TYPES, putWithProgress, readVideo } from "@/lib/videoPrep";
 import { Feedback, SubmitBtn } from "@/components/forms";
 import { compressImage } from "@/lib/imageCompress";
 import { PlusSquareIcon } from "./icons";
@@ -29,7 +31,7 @@ const TITLE_BY_DESTINATION: Record<Exclude<Destination, null>, string> = {
 
 const HINT_BY_DESTINATION: Record<Exclude<Destination, null>, string> = {
   explorar: "A foto some pra todo mundo depois de 24h.",
-  story: "Some em 24h — visto pelo seu Elo, ou por quem achar você pelo Explorar.",
+  story: "Foto ou vídeo de até 15 s — some em 24h, visto pelo seu Elo.",
   feed: "Fica fixa no seu perfil até você remover.",
 };
 
@@ -50,6 +52,7 @@ export function FeedComposer({
 
   const [explorarState, explorarAction] = useActionState(createFeedPost, null);
   const [storyState, storyAction] = useActionState(createStoryPost, null);
+  const [videoState, videoAction] = useActionState(createStoryVideoPost, null);
   const [galleryState, galleryAction] = useActionState(addGalleryPost, null);
   const [open, setOpen] = useState(false);
   const [destination, setDestination] = useState<Destination>(null);
@@ -59,15 +62,32 @@ export function FeedComposer({
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [themeConfirmed, setThemeConfirmed] = useState(false);
+  // vídeo de story: reserva da cota, duração e andamento do envio
+  const [isVideo, setIsVideo] = useState(false);
+  const [videoUploadId, setVideoUploadId] = useState("");
+  const [videoSeconds, setVideoSeconds] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const videoUploadRef = useRef("");
 
   const actionByDestination = {
     explorar: explorarAction,
     story: storyAction,
     feed: galleryAction,
   } as const;
-  const state = destination ? { explorar: explorarState, story: storyState, feed: galleryState }[destination] : null;
+  const state = destination
+    ? { explorar: explorarState, story: isVideo ? videoState : storyState, feed: galleryState }[destination]
+    : null;
 
   function reset() {
+    // vídeo enviado mas não publicado: devolve a cota do dia e apaga o arquivo
+    if (videoUploadRef.current) {
+      cancelStoryVideoUpload(videoUploadRef.current).catch(() => {});
+      videoUploadRef.current = "";
+    }
+    setIsVideo(false);
+    setVideoUploadId("");
+    setVideoSeconds(0);
+    setProgress(0);
     setDestination(null);
     setPreview(null);
     setImagePath("");
@@ -87,9 +107,58 @@ export function FeedComposer({
     reset();
   }
 
+  async function handleVideo(file: File) {
+    if (!VIDEO_TYPES.includes(file.type)) return setUploadError("Use um vídeo em MP4.");
+    if (file.size > VIDEO_MAX_BYTES) return setUploadError("O vídeo passa de 70 MB.");
+
+    setUploading(true);
+    setProgress(0);
+    let info: Awaited<ReturnType<typeof readVideo>>;
+    try {
+      info = await readVideo(file);
+    } catch {
+      setUploading(false);
+      return setUploadError("Não consegui ler esse vídeo. Tente outro.");
+    }
+    if (info.seconds > VIDEO_MAX_SECONDS + 0.5) {
+      setUploading(false);
+      return setUploadError(`O vídeo precisa ter no máximo ${VIDEO_MAX_SECONDS} segundos.`);
+    }
+
+    const plan = await requestStoryVideoUpload({ bytes: file.size, seconds: info.seconds, contentType: file.type });
+    if ("error" in plan) {
+      setUploading(false);
+      return setUploadError(plan.error);
+    }
+
+    const posterPath = `${userId}/${crypto.randomUUID()}.jpg`;
+    const posterUp = await supabase.storage.from("stories").upload(posterPath, info.poster, { contentType: "image/jpeg" });
+    if (posterUp.error) {
+      await cancelStoryVideoUpload(plan.uploadId).catch(() => {});
+      setUploading(false);
+      return setUploadError("Não foi possível enviar o vídeo. Tente de novo.");
+    }
+
+    const sent = await putWithProgress(plan.uploadUrl, file, plan.contentType, setProgress);
+    setUploading(false);
+    if (!sent) {
+      await cancelStoryVideoUpload(plan.uploadId).catch(() => {});
+      await supabase.storage.from("stories").remove([posterPath]);
+      return setUploadError("O envio falhou. Confira a conexão e tente de novo.");
+    }
+
+    videoUploadRef.current = plan.uploadId;
+    setVideoUploadId(plan.uploadId);
+    setVideoSeconds(info.seconds);
+    setIsVideo(true);
+    setImagePath(posterPath);
+    setPreview(URL.createObjectURL(file));
+  }
+
   async function handleFile(file: File | null) {
     setUploadError(null);
     if (!file || !destination) return;
+    if (destination === "story" && file.type.startsWith("video/")) return handleVideo(file);
     if (!file.type.startsWith("image/")) return setUploadError("Escolha um arquivo de imagem.");
     if (file.size > MAX_BYTES) return setUploadError("A imagem precisa ter no máximo 5 MB.");
 
@@ -113,12 +182,13 @@ export function FeedComposer({
   }
 
   useEffect(() => {
-    if (explorarState?.ok || storyState?.ok || galleryState?.ok) {
+    if (explorarState?.ok || storyState?.ok || videoState?.ok || galleryState?.ok) {
+      videoUploadRef.current = ""; // publicado: não devolver a cota
       closeModal();
       router.refresh();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [explorarState, storyState, galleryState]);
+  }, [explorarState, storyState, videoState, galleryState]);
 
   return (
     <>
@@ -198,12 +268,14 @@ export function FeedComposer({
                 <input
                   ref={fileRef}
                   type="file"
-                  accept="image/*"
+                  accept={destination === "story" ? "image/*,video/*" : "image/*"}
                   className="hidden"
                   onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
                 />
 
-                {preview ? (
+                {preview && isVideo ? (
+                  <video src={preview} controls playsInline muted className="mb-3 max-h-72 w-full rounded-xl bg-black object-contain" />
+                ) : preview ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={preview} alt="" className="mb-3 max-h-64 w-full rounded-xl object-cover" />
                 ) : (
@@ -213,15 +285,27 @@ export function FeedComposer({
                     disabled={uploading}
                     className="mb-3 flex h-32 w-full items-center justify-center rounded-xl border-2 border-dashed border-[var(--line)] text-sm text-[var(--muted)] hover:border-[var(--accent)]"
                   >
-                    {uploading ? "Enviando…" : "Toque para escolher uma foto"}
+                    {uploading
+                      ? progress > 0
+                        ? `Enviando vídeo… ${Math.round(progress * 100)}%`
+                        : "Enviando…"
+                      : destination === "story"
+                        ? "Toque para escolher uma foto ou vídeo (até 15 s)"
+                        : "Toque para escolher uma foto"}
                   </button>
                 )}
 
                 {uploadError ? <p className="mb-2 text-xs text-red-700">{uploadError}</p> : null}
 
                 {imagePath ? (
-                  <form action={actionByDestination[destination]} className="space-y-2">
+                  <form action={isVideo ? videoAction : actionByDestination[destination]} className="space-y-2">
                     <input type="hidden" name="image_path" value={imagePath} />
+                    {isVideo ? (
+                      <>
+                        <input type="hidden" name="upload_id" value={videoUploadId} />
+                        <input type="hidden" name="seconds" value={videoSeconds} />
+                      </>
+                    ) : null}
                     <textarea
                       name="caption"
                       rows={2}
@@ -256,12 +340,18 @@ export function FeedComposer({
                       <button
                         type="button"
                         onClick={() => {
+                          if (videoUploadRef.current) {
+                            cancelStoryVideoUpload(videoUploadRef.current).catch(() => {});
+                            videoUploadRef.current = "";
+                          }
+                          setIsVideo(false);
+                          setVideoUploadId("");
                           setPreview(null);
                           setImagePath("");
                         }}
                         className="btn btn-ghost !py-2 !text-sm"
                       >
-                        Trocar foto
+                        {isVideo ? "Trocar vídeo" : "Trocar foto"}
                       </button>
                     </div>
                   </form>

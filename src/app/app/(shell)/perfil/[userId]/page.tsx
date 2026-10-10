@@ -7,6 +7,7 @@ import { ImageLightbox } from "@/components/ImageLightbox";
 import { ROLE_LABEL, formatXp, levelForXp, type Role } from "@/lib/types";
 import { ProfileStoryRing } from "@/components/profile/ProfileStoryRing";
 import { stableSignedUrls } from "@/lib/signedUrls";
+import { signedVideoUrls } from "@/lib/r2";
 
 type ProfileCard = {
   id: string;
@@ -41,7 +42,7 @@ export default async function VisitProfilePage({
       .order("created_at", { ascending: false }),
     supabase
       .from("story_posts")
-      .select("id, image_path, caption, created_at")
+      .select("id, image_path, caption, created_at, video_key")
       .eq("author_id", userId)
       .order("created_at", { ascending: true }),
   ]);
@@ -71,13 +72,16 @@ export default async function VisitProfilePage({
     image_path: string;
     caption: string | null;
     created_at: string;
+    video_key: string | null;
   }[];
   const storyUrls = await stableSignedUrls(supabase, "stories", storyRows.map((s) => s.image_path));
+  const storyVideoUrls = await signedVideoUrls(storyRows.flatMap((s) => (s.video_key ? [s.video_key] : [])));
   const stories = storyRows.map((s) => ({
     id: s.id,
     imageUrl: storyUrls.get(s.image_path) ?? null,
     caption: s.caption,
     createdAt: s.created_at,
+    videoUrl: s.video_key ? storyVideoUrls.get(s.video_key) ?? null : null,
   }));
 
   const level = levelForXp(card.xp);

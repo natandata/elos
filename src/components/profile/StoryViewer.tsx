@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { deleteStoryPost, markStoryViewed, updateStoryCaption } from "@/lib/actions/stories";
 import { Feedback, SubmitBtn } from "@/components/forms";
@@ -12,6 +12,8 @@ export type StoryItem = {
   caption: string | null;
   createdAt: string;
   imagePath?: string;
+  /** Vídeo do story (guardado no R2): quando existe, toca no lugar da foto, que vira a capa. */
+  videoUrl?: string | null;
   /** Só preenchido pro próprio autor — nomes de quem já viu esse story. */
   viewerNames?: string[];
 };
@@ -35,6 +37,10 @@ export function StoryViewer({
   const [editing, setEditing] = useState(false);
   const [captionDraft, setCaptionDraft] = useState("");
   const [showViewers, setShowViewers] = useState(false);
+  const [muted, setMuted] = useState(false);
+  // andamento/erro do vídeo POR story (assim não precisa zerar ao trocar de story)
+  const [vs, setVs] = useState<{ id: string; progress: number; failed: boolean }>({ id: "", progress: 0, failed: false });
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [captionState, captionAction] = useActionState(updateStoryCaption, null);
   const [deleteState, deleteAction] = useActionState(deleteStoryPost, null);
 
@@ -68,7 +74,27 @@ export function StoryViewer({
   }, [deleteState]);
 
   const current = stories[index];
+
+  // toca o vídeo com som; se o navegador não deixar, cai pro mudo (o botão 🔊 liga)
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.muted = muted;
+    const p = v.play();
+    if (p) {
+      p.catch(() => {
+        v.muted = true;
+        setMuted(true);
+        v.play().catch(() => {});
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index]);
+
   if (!current) return null;
+  const hasVideo = Boolean(current.videoUrl);
+  const myVs = vs.id === current.id ? vs : { id: current.id, progress: 0, failed: false };
+  const showVideo = hasVideo && !myVs.failed;
 
   function next() {
     if (menuOpen || editing) return;
@@ -87,7 +113,10 @@ export function StoryViewer({
         <div className="flex gap-1 p-2 pt-3">
           {stories.map((s, i) => (
             <div key={s.id} className="h-1 flex-1 overflow-hidden rounded-full bg-white/30">
-              <div className={`h-full bg-white ${i <= index ? "w-full" : "w-0"}`} />
+              <div
+                className="h-full bg-white"
+                style={{ width: i < index ? "100%" : i === index ? `${(hasVideo && !myVs.failed ? myVs.progress : 1) * 100}%` : "0%" }}
+              />
             </div>
           ))}
         </div>
@@ -148,9 +177,51 @@ export function StoryViewer({
         </div>
 
         <div className="relative flex-1 overflow-hidden bg-black">
-          {current.imageUrl ? (
+          {showVideo ? (
+            <video
+              key={current.id}
+              ref={videoRef}
+              src={current.videoUrl ?? undefined}
+              poster={current.imageUrl ?? undefined}
+              playsInline
+              preload="auto"
+              className="h-full w-full object-contain"
+              onTimeUpdate={(e) => {
+                const v = e.currentTarget;
+                if (v.duration > 0) setVs({ id: current.id, progress: v.currentTime / v.duration, failed: false });
+              }}
+              onEnded={next}
+              onError={() => setVs({ id: current.id, progress: 0, failed: true })}
+              onClick={(e) => {
+                const v = e.currentTarget;
+                if (v.paused) v.play().catch(() => {});
+                else v.pause();
+              }}
+            />
+          ) : current.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={current.imageUrl} alt="" className="h-full w-full object-contain" />
+          ) : null}
+
+          {hasVideo && myVs.failed ? (
+            <p className="absolute inset-x-4 bottom-4 rounded-lg bg-black/70 px-3 py-2 text-center text-xs text-white">
+              Este aparelho não consegue tocar esse vídeo.
+            </p>
+          ) : null}
+
+          {showVideo ? (
+            <button
+              type="button"
+              aria-label={muted ? "Ligar o som" : "Desligar o som"}
+              onClick={() => {
+                const next = !muted;
+                setMuted(next);
+                if (videoRef.current) videoRef.current.muted = next;
+              }}
+              className="absolute bottom-3 right-3 z-10 rounded-full bg-black/55 px-2.5 py-1.5 text-base text-white"
+            >
+              {muted ? "🔇" : "🔊"}
+            </button>
           ) : null}
 
           {!editing ? (

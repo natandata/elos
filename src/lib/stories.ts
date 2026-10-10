@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { StoryItem } from "@/components/profile/StoryViewer";
 import { stableSignedUrls } from "@/lib/signedUrls";
+import { signedVideoUrls } from "@/lib/r2";
 
 export type StoryTrayEntry = {
   userId: string;
@@ -28,7 +29,7 @@ export async function getEloStoriesTray(
 
   const { data: posts } = await supabase
     .from("story_posts")
-    .select("id, image_path, caption, created_at, author_id")
+    .select("id, image_path, caption, created_at, author_id, media_type, video_key")
     .in(
       "author_id",
       memberList.map((m) => m.id),
@@ -41,10 +42,13 @@ export async function getEloStoriesTray(
     caption: string | null;
     created_at: string;
     author_id: string;
+    media_type: string;
+    video_key: string | null;
   }[];
   if (rows.length === 0) return [];
 
   const urlByPath = await stableSignedUrls(supabase, "stories", rows.map((r) => r.image_path));
+  const videoUrlByKey = await signedVideoUrls(rows.flatMap((r) => (r.video_key ? [r.video_key] : [])));
 
   // Só busca "quem viu" dos PRÓPRIOS stories (é o único caso em que a tela
   // realmente mostra essa lista) — evita uma consulta à toa pros stories de
@@ -78,6 +82,7 @@ export async function getEloStoriesTray(
       caption: r.caption,
       createdAt: r.created_at,
       imagePath: r.image_path,
+      videoUrl: r.video_key ? videoUrlByKey.get(r.video_key) ?? null : null,
       viewerNames: r.author_id === myUserId ? viewerNamesByStory.get(r.id) ?? [] : undefined,
     });
     byAuthor.set(r.author_id, list);

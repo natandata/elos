@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { deleteVideo } from "@/lib/r2";
 
 type Result = { error?: string; ok?: boolean };
 
@@ -83,6 +84,13 @@ export async function deleteStoryPost(_prev: Result | null, formData: FormData):
   const imagePath = String(formData.get("image_path") ?? "");
   if (!id) return { error: "Story inválido." };
 
+  // vídeo: o arquivo mora no R2 e também precisa sair
+  const { data: row } = await supabase
+    .from("story_posts")
+    .select("video_key")
+    .eq("id", id)
+    .maybeSingle<{ video_key: string | null }>();
+
   const { error } = await supabase
     .from("story_posts")
     .delete()
@@ -92,6 +100,7 @@ export async function deleteStoryPost(_prev: Result | null, formData: FormData):
   if (error) return { error: "Não foi possível excluir." };
 
   if (imagePath) await supabase.storage.from("stories").remove([imagePath]);
+  if (row?.video_key) await deleteVideo(row.video_key);
 
   revalidatePath("/app", "layout");
   return { ok: true };
