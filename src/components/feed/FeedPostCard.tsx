@@ -184,9 +184,7 @@ export function FeedPostCard({
             className="rounded-full p-[2px]"
             style={{ background: "linear-gradient(45deg, #feda75, #fa7e1e, #d62976, #962fbf, #4f5bd5)" }}
           >
-            <span className="block rounded-full bg-[var(--bg)] p-[2px]">
-              <Avatar url={post.authorAvatar} name={post.authorName} size={32} />
-            </span>
+            <Avatar url={post.authorAvatar} name={post.authorName} size={36} className="block" />
           </span>
           <div className="min-w-0 flex-1 leading-tight">
             <p className="truncate text-sm font-semibold">

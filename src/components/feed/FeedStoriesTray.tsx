@@ -84,9 +84,7 @@ export function FeedStoriesTray({ authors, myUserId }: { authors: FeedStoryAutho
                   : "var(--line)",
               }}
             >
-              <span className="block rounded-full bg-[var(--bg)] p-[2.5px]">
-                <Avatar url={a.avatarUrl} name={a.name} size={56} />
-              </span>
+              <Avatar url={a.avatarUrl} name={a.name} size={60} className="block" />
             </span>
             <span className={`w-full truncate text-center text-[11px] ${isNew ? "text-[var(--ink)]" : "text-[var(--muted)]"}`}>
               {a.authorId === myUserId ? "Você" : a.name.split(" ")[0]}
