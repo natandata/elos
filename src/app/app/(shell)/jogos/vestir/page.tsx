@@ -10,7 +10,7 @@ import {
 import { DressMissions } from "@/components/games/dress/DressMissions";
 import { ST } from "@/components/games/dress/ShopIcons";
 import { ImmersiveLink } from "@/components/games/dress/ImmersiveLink";
-import { LandscapeShell } from "@/components/games/dress/LandscapeShell";
+import { LandscapeShell, RotateToggle } from "@/components/games/dress/LandscapeShell";
 import { MegaCard } from "@/components/games/dress/MegaCard";
 import { VhStage } from "@/components/games/dress/Vh";
 import { requireRole } from "@/lib/auth";
@@ -164,7 +164,7 @@ export default async function VestirPage() {
             {shoppingOpen ? null : <span className="ml-2 rounded-full bg-amber-300 px-2 py-0.5 align-middle text-[10px] font-black uppercase tracking-wide text-purple-900">Em breve</span>}
           </h2>
           <p className="mt-1 text-sm text-purple-100">
-            Um shopping de 5 andares, online, onde todas as jogadoras passeiam juntas: lojas, escadas rolantes, praça de alimentação e a cabine de
+            Um shopping de 3 andares, online, onde todas as jogadoras passeiam juntas: lojas, escadas rolantes, praça de alimentação e a cabine de
             bilhetes. Use os seus <ST>🎫</ST> para comprar peças raras.
           </p>
           <ImmersiveLink href="/app/jogos/vestir/shopping" className={`vh-btn mt-3 ${shoppingOpen ? "vh-btn-purple" : "vh-btn-dark"}`}>
@@ -250,6 +250,9 @@ export default async function VestirPage() {
         <Link href="/app/jogos" className="vh-btn vh-btn-dark">
           ← Voltar aos jogos
         </Link>
+        <div className="mt-3 flex justify-center">
+          <RotateToggle />
+        </div>
       </VhStage>
     </LandscapeShell>
   );

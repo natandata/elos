@@ -34,7 +34,7 @@ const GAMES: Game[] = [
   { href: "/app/jogos/arenasoccer", emoji: "⚽", title: "ArenaSoccer", hint: "Futebol arcade 2D de física, 1x1 a 4x4 contra o computador (vendido na Loja)", release: "arenasoccer" },
   { href: "/app/jogos/ultimatribo", emoji: "🪓", title: "A Última Tribo", hint: "Sobrevivência 3D pós-arrebatamento (em construção, oculto)", release: "ultimatribo" },
   { href: "/app/jogos/quemdesenha", emoji: "🎨", title: "Quem Desenha?", hint: "Desenho e adivinhação bíblicos em sala (em construção, oculto)", release: "quemdesenha" },
-  { href: "/app/jogos/vestir/shopping", emoji: "🛍️", title: "Shopping Elos", hint: "Mundo aberto do Vista o Herói: 5 andares, lojas, praça de alimentação (aparece como Em breve até a data)", release: "madureira" },
+  { href: "/app/jogos/vestir/shopping", emoji: "🛍️", title: "Shopping Elos", hint: "Mundo aberto do Vista o Herói: 3 andares, lojas, praça de alimentação (aparece como Em breve até a data)", release: "madureira" },
   { href: "/app/jogos/colecao", emoji: "🃏", title: "Coleção de cartas", hint: "Cartas ganhas nos jogos" },
 ];
 

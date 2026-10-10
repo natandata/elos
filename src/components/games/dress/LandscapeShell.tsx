@@ -24,10 +24,55 @@ const subPortrait = (fn: () => void) => {
   return () => m.removeEventListener("change", fn);
 };
 
+/** A jogadora pode desligar o giro automático (se o celular dela não rolar ou não responder à toque na tela girada). Fica salvo no aparelho. */
+const NOROT_KEY = "vh:norot";
+const NOROT_EVENT = "vh-norot";
+const noRotNow = (): boolean => {
+  try {
+    return localStorage.getItem(NOROT_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+const subNoRot = (fn: () => void) => {
+  window.addEventListener(NOROT_EVENT, fn);
+  window.addEventListener("storage", fn);
+  return () => {
+    window.removeEventListener(NOROT_EVENT, fn);
+    window.removeEventListener("storage", fn);
+  };
+};
+export function useNoRotate(): [boolean, (v: boolean) => void] {
+  const off = useSyncExternalStore(subNoRot, noRotNow, () => false);
+  const set = (v: boolean) => {
+    try {
+      if (v) localStorage.setItem(NOROT_KEY, "1");
+      else localStorage.removeItem(NOROT_KEY);
+    } catch {
+      /* sem armazenamento: vale só até recarregar */
+    }
+    window.dispatchEvent(new Event(NOROT_EVENT));
+  };
+  return [off, set];
+}
+
+/** Botão do hub: liga/desliga o giro da tela no celular em pé. */
+export function RotateToggle() {
+  const { mobile } = useLandscape();
+  const [off, setOff] = useNoRotate();
+  if (!mobile) return null;
+  return (
+    <button type="button" className="vh-chip mx-auto !px-3 !py-1.5 !text-[11px]" data-on={!off} onClick={() => setOff(!off)} aria-pressed={!off}>
+      {off ? "Tela girada: desligada (toque para ligar)" : "A tela não rola ou não responde? Toque para desligar o giro"}
+    </button>
+  );
+}
+
 export function LandscapeShell({ children }: { children: ReactNode }) {
   const mobile = useSyncExternalStore(subCoarse, coarse, () => false);
   const portrait = useSyncExternalStore(subPortrait, portraitNow, () => false);
-  const rotated = mobile && portrait;
+  const [noRot] = useNoRotate();
+  const rotated = mobile && portrait && !noRot;
   const land = rotated || !portrait;
   const info = useMemo<LandscapeInfo>(() => ({ mobile, rotated, land }), [mobile, rotated, land]);
 

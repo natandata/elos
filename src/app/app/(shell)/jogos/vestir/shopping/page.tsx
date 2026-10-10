@@ -12,7 +12,7 @@ import { createClient } from "@/lib/supabase/server";
 export const metadata = { title: "Shopping Elos" };
 
 const FEATURES: [string, string][] = [
-  ["escada", "5 andares com escadas rolantes, para passear com as amigas no mesmo mundo online."],
+  ["escada", "3 andares com escadas rolantes, para passear com as amigas no mesmo mundo online."],
   ["sacola", "Lojas enormes, do tamanho do salão de partidas, com peças épicas e lendárias para comprar com Bilhetes Dourados."],
   ["fogo", "Peças raras e limitadas: só 3 unidades por 24 horas. As atendentes avisam quando há uma na loja!"],
   ["talheres", "Praça de alimentação com cinco restaurantes: sente-se à mesa e coma com as amigas."],

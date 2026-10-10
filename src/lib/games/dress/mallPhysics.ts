@@ -120,7 +120,7 @@ export function stepBody(w: World, b: Body, wish: { x: number; z: number }, dt: 
   } else b.grounded = false;
 }
 
-/** O mundo do corredor do shopping: 5 andares, escadas rolantes, grades e peças soltas (bancos, fonte, colunas). */
+/** O mundo do corredor do shopping: 3 andares, escadas rolantes, grades e peças soltas (bancos, fonte, colunas). */
 export function concourseWorld(extra: { solids?: Solid[]; posts?: Post[] } = {}): World {
   return {
     surface: surfaceY,
