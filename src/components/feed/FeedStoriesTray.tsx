@@ -48,28 +48,31 @@ export function FeedStoriesTray({ entries, myUserId }: { entries: StoryTrayEntry
   const active = openIndex !== null ? entries[openIndex] : null;
 
   return (
-    <div className="mb-3 flex gap-3.5 overflow-x-auto px-3 pb-1 [scrollbar-width:none] sm:px-0 [&::-webkit-scrollbar]:hidden">
+    <div className="mb-3 flex gap-3 overflow-x-auto px-3 pb-1 [scrollbar-width:none] sm:px-0 [&::-webkit-scrollbar]:hidden">
       {entries.map((e, i) => {
         const latest = e.stories[e.stories.length - 1]?.createdAt;
-        const isNew = e.userId !== myUserId && (!seen[e.userId] || (latest ?? "") > seen[e.userId]);
+        const isNew = !seen[e.userId] || (latest ?? "") > seen[e.userId];
         return (
           <button
             key={e.userId}
             type="button"
             onClick={() => setOpenIndex(i)}
-            className="flex w-[68px] shrink-0 flex-col items-center gap-1"
+            className="flex w-[74px] shrink-0 flex-col items-center gap-1.5"
           >
+            {/* igual ao Instagram: anel de 2px, vão de 2px na cor do fundo e a foto preenchendo o resto (68px no total) */}
             <span
-              className="rounded-full p-[2.5px]"
+              className="flex h-[68px] w-[68px] items-center justify-center rounded-full p-[2px]"
               style={{
                 background: isNew
                   ? "linear-gradient(45deg, #feda75, #fa7e1e, #d62976, #962fbf, #4f5bd5)"
                   : "var(--line)",
               }}
             >
-              <Avatar url={e.avatarUrl} name={e.name} size={60} className="block" />
+              <span className="flex h-full w-full items-center justify-center rounded-full bg-[var(--bg)] p-[2px]">
+                <Avatar url={e.avatarUrl} name={e.name} size={60} />
+              </span>
             </span>
-            <span className={`w-full truncate text-center text-[11px] ${isNew ? "text-[var(--ink)]" : "text-[var(--muted)]"}`}>
+            <span className={`w-full truncate text-center text-xs ${isNew ? "text-[var(--ink)]" : "text-[var(--muted)]"}`}>
               {e.userId === myUserId ? "Você" : e.name.split(" ")[0]}
             </span>
           </button>

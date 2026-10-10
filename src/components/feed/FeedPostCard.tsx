@@ -180,12 +180,7 @@ export function FeedPostCard({
 
       <div className="relative flex items-center gap-3 px-3 py-2.5 sm:px-0">
         <Link href={`/app/perfil/${post.authorId}`} className="flex min-w-0 flex-1 items-center gap-2.5">
-          <span
-            className="rounded-full p-[2px]"
-            style={{ background: "linear-gradient(45deg, #feda75, #fa7e1e, #d62976, #962fbf, #4f5bd5)" }}
-          >
-            <Avatar url={post.authorAvatar} name={post.authorName} size={36} className="block" />
-          </span>
+          <Avatar url={post.authorAvatar} name={post.authorName} size={32} />
           <div className="min-w-0 flex-1 leading-tight">
             <p className="truncate text-sm font-semibold">
               {handle}
