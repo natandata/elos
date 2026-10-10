@@ -10,21 +10,12 @@ export type StoryTrayEntry = {
   stories: StoryItem[];
 };
 
-/** Membros do Elo com pelo menos um story (post no Explorar) ativo nas últimas 24h. */
-export async function getEloStoriesTray(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: SupabaseClient<any>,
-  eloId: string | null,
-  myUserId?: string,
-): Promise<StoryTrayEntry[]> {
-  if (!eloId) return [];
+type Member = { id: string; full_name: string; avatar_url: string | null };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Client = SupabaseClient<any>;
 
-  const { data: members } = await supabase
-    .from("profiles")
-    .select("id, full_name, avatar_url")
-    .eq("elo_id", eloId);
-
-  const memberList = (members ?? []) as { id: string; full_name: string; avatar_url: string | null }[];
+/** Junta os stories ativos (24h) de `memberList` por autor, com URL de foto/vídeo e "quem viu" dos próprios. */
+async function buildTray(supabase: Client, memberList: Member[], myUserId?: string): Promise<StoryTrayEntry[]> {
   if (memberList.length === 0) return [];
 
   const { data: posts } = await supabase
@@ -96,4 +87,43 @@ export async function getEloStoriesTray(
       avatarUrl: m.avatar_url,
       stories: byAuthor.get(m.id)!,
     }));
+}
+
+/** Membros do Elo com pelo menos um story ativo nas últimas 24h. */
+export async function getEloStoriesTray(
+  supabase: Client,
+  eloId: string | null,
+  myUserId?: string,
+): Promise<StoryTrayEntry[]> {
+  if (!eloId) return [];
+
+  const { data: members } = await supabase
+    .from("profiles")
+    .select("id, full_name, avatar_url")
+    .eq("elo_id", eloId);
+
+  return buildTray(supabase, (members ?? []) as Member[], myUserId);
+}
+
+/** Stories ativos de TODOS os usuários (o Explorar é aberto pra todo mundo). Você primeiro, depois quem postou mais recente. */
+export async function getAllStoriesTray(supabase: Client, myUserId: string): Promise<StoryTrayEntry[]> {
+  const { data: authors } = await supabase.from("story_posts").select("author_id");
+  const ids = Array.from(new Set(((authors ?? []) as { author_id: string }[]).map((a) => a.author_id)));
+  if (ids.length === 0) return [];
+
+  // leitura direta de profiles é restrita por Elo; esta RPC devolve nome/foto de qualquer autor
+  const { data: names } = await supabase.rpc("feed_author_names", { p_ids: ids });
+  const members = ((names ?? []) as { id: string; full_name: string; avatar_url: string | null }[]).map((n) => ({
+    id: n.id,
+    full_name: n.full_name,
+    avatar_url: n.avatar_url,
+  }));
+
+  const entries = await buildTray(supabase, members, myUserId);
+  const latest = (e: StoryTrayEntry) => e.stories[e.stories.length - 1]?.createdAt ?? "";
+  return entries.sort((a, b) => {
+    if (a.userId === myUserId) return -1;
+    if (b.userId === myUserId) return 1;
+    return latest(b).localeCompare(latest(a));
+  });
 }

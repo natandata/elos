@@ -3,7 +3,8 @@ import { needsWeeklyPushNudge, requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { dailyFeedPrompt } from "@/lib/feedPrompts";
 import { FeedComposer } from "@/components/feed/FeedComposer";
-import { FeedStoriesTray, type FeedStoryAuthor } from "@/components/feed/FeedStoriesTray";
+import { FeedStoriesTray } from "@/components/feed/FeedStoriesTray";
+import { getAllStoriesTray } from "@/lib/stories";
 import { ProfileSearch } from "@/components/feed/ProfileSearch";
 import { WeeklyPushNudge } from "@/components/push/WeeklyPushNudge";
 import { FeedPostCard, type FeedPost } from "@/components/feed/FeedPostCard";
@@ -178,32 +179,8 @@ export default async function FeedPage() {
     if (p.authorId === profile.id) p.viewerNames = viewerNamesByPost.get(p.id) ?? [];
   }
 
-  // Bolinhas de story no topo, uma por autor: as fotos de cada um em ordem
-  // cronológica (mais antiga primeiro, igual Instagram), mas a ORDEM DAS
-  // BOLINHAS é por quem postou mais recentemente primeiro.
-  const postsByAuthorAsc = [...posts].sort((a, b) => a.created_at.localeCompare(b.created_at));
-  const storyMap = new Map<string, FeedStoryAuthor>();
-  for (const p of postsByAuthorAsc) {
-    const author = authorById.get(p.author_id);
-    const item = {
-      id: p.id,
-      imageUrl: urlByPath.get(p.image_path) ?? null,
-      caption: p.caption,
-      createdAt: p.created_at,
-    };
-    const existing = storyMap.get(p.author_id);
-    if (existing) existing.posts.push(item);
-    else
-      storyMap.set(p.author_id, {
-        authorId: p.author_id,
-        name: author?.full_name || "Sem nome",
-        avatarUrl: author?.avatar_url ?? null,
-        posts: [item],
-      });
-  }
-  const storyAuthors = Array.from(storyMap.values()).sort((a, b) =>
-    b.posts[b.posts.length - 1].createdAt.localeCompare(a.posts[a.posts.length - 1].createdAt),
-  );
+  // Bolinhas do topo: só stories (foto ou vídeo, 24h) de todos os usuários — as fotos do feed ficam abaixo.
+  const storyEntries = await getAllStoriesTray(supabase, profile.id);
 
   return (
     <div className="mx-auto w-full max-w-[470px]">
@@ -242,7 +219,7 @@ export default async function FeedPage() {
         </div>
       ) : null}
 
-      <FeedStoriesTray authors={storyAuthors} myUserId={profile.id} />
+      <FeedStoriesTray entries={storyEntries} myUserId={profile.id} />
 
       <ProfileSearch />
 

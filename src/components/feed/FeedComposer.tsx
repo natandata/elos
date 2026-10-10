@@ -31,7 +31,7 @@ const TITLE_BY_DESTINATION: Record<Exclude<Destination, null>, string> = {
 
 const HINT_BY_DESTINATION: Record<Exclude<Destination, null>, string> = {
   explorar: "A foto some pra todo mundo depois de 24h.",
-  story: "Foto ou vídeo de até 15 s — some em 24h, visto pelo seu Elo.",
+  story: "Foto ou vídeo de até 15 s — visto por todos nas bolinhas do Explorar, some em 24h.",
   feed: "Fica fixa no seu perfil até você remover.",
 };
 
@@ -228,7 +228,7 @@ export function FeedComposer({
                   className="w-full rounded-xl border border-[var(--line)] p-3 text-left hover:border-[var(--accent)]"
                 >
                   <p className="font-bold">Story</p>
-                  <p className="text-xs text-[var(--muted)]">Visto pelo seu Elo na bolinha do Início — some em 24h.</p>
+                  <p className="text-xs text-[var(--muted)]">Foto ou vídeo (até 15 s) nas bolinhas do Explorar — visto por todos, some em 24h.</p>
                 </button>
                 {galleryFull ? (
                   <div className="w-full rounded-xl border border-[var(--line)] p-3 text-left opacity-60">
