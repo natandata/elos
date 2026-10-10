@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Card, EmptyState, PageHeader, StatCard } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
+import { AdjustXpButton } from "./AdjustXpButton";
 import { formatDate, formatDateTime, formatXp, type Profile } from "@/lib/types";
 
 type Day = { day: string; xp: number };
@@ -19,6 +20,9 @@ type History = {
   bonus_logged_total: number;
 };
 type MissionRow = {
+  tx_id: string;
+  adjusted_from: number | null;
+  adjust_reason: string | null;
   done_at: string;
   mission_id: string | null;
   mission_title: string;
@@ -254,9 +258,20 @@ export async function EloHistory({
                           {m.member_name} · {formatDateTime(m.done_at)}
                           {m.approver_name ? ` · aprovada por ${m.approver_name}` : ""}
                         </p>
+                        {m.adjusted_from !== null ? (
+                          <p className="mt-0.5 text-xs text-amber-700">
+                            XP corrigido pela administração: era {m.adjusted_from}, agora {m.xp}
+                            {m.adjust_reason ? ` (${m.adjust_reason})` : ""}
+                          </p>
+                        ) : null}
                       </div>
-                      <span className="chip bg-[var(--accent-soft)] text-[var(--accent-strong)]">+{m.xp} XP</span>
+                      <span className="chip shrink-0 bg-[var(--accent-soft)] text-[var(--accent-strong)]">+{m.xp} XP</span>
                     </div>
+                    {isAdmin ? (
+                      <div className="mt-2">
+                        <AdjustXpButton txId={m.tx_id} xp={m.xp} memberName={m.member_name} />
+                      </div>
+                    ) : null}
                   </Card>
                 ))}
               </div>

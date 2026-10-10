@@ -56,7 +56,15 @@ export default async function ElosPage() {
 
   return (
     <>
-      <PageHeader title="ELOS" subtitle="Estrutura, liderança e XP de cada Elo." />
+      <PageHeader
+        title="ELOS"
+        subtitle="Estrutura, liderança e XP de cada Elo."
+        action={
+          <Link href="/app/admin/elos/historico" className="btn btn-primary !py-2 !text-sm">
+            📜 Histórico de XP
+          </Link>
+        }
+      />
 
       <EloChallengeManager challenge={openChallenge} elos={(elos as unknown as Elo[]) ?? []} />
 

@@ -6,6 +6,7 @@ import { formatDateTime } from "@/lib/types";
 const ACTION_LABEL: Record<string, string> = {
   profile_update: "Alteração de perfil",
   profile_delete: "Exclusão de usuário",
+  xp_adjust: "Correção de XP de missão",
 };
 
 export default async function AuditoriaPage() {

@@ -139,6 +139,11 @@ export default async function EloDetailPage({
             · {GENDER_LABEL[elo.gender]} · {AGE_RANGE_LABEL[elo.age_range]}
           </>
         }
+        action={
+          <Link href={`/app/admin/elos/historico?elo=${elo.id}`} className="btn btn-primary !py-2 !text-sm">
+            📜 Histórico de XP
+          </Link>
+        }
       />
 
       <div className="mb-4 grid grid-cols-3 gap-3">
