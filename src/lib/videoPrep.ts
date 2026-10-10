@@ -15,17 +15,45 @@ export async function readVideo(file: File): Promise<{ seconds: number; poster: 
     video.preload = "metadata";
     video.src = url;
 
-    await new Promise<void>((resolve, reject) => {
-      video.onloadedmetadata = () => resolve();
-      video.onerror = () => reject(new Error("unreadable"));
+    // sem resposta em 10 s = arquivo que o aparelho não lê
+    const wait = (arm: (done: () => void, fail: () => void) => void) =>
+      new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error("unreadable")), 10_000);
+        arm(
+          () => {
+            clearTimeout(timer);
+            resolve();
+          },
+          () => {
+            clearTimeout(timer);
+            reject(new Error("unreadable"));
+          },
+        );
+      });
+
+    await wait((done, fail) => {
+      video.onloadedmetadata = done;
+      video.onerror = fail;
     });
+
+    // vídeos gravados pelo navegador (WebM) chegam sem duração: força o cálculo
+    if (video.duration === Infinity) {
+      await wait((done, fail) => {
+        video.ontimeupdate = () => {
+          video.ontimeupdate = null;
+          done();
+        };
+        video.onerror = fail;
+        video.currentTime = 1e101;
+      });
+    }
     const seconds = video.duration;
     if (!Number.isFinite(seconds) || seconds <= 0) throw new Error("unreadable");
 
     // a capa sai de um quadro logo no começo
-    await new Promise<void>((resolve, reject) => {
-      video.onseeked = () => resolve();
-      video.onerror = () => reject(new Error("unreadable"));
+    await wait((done, fail) => {
+      video.onseeked = done;
+      video.onerror = fail;
       video.currentTime = Math.min(0.3, seconds / 2);
     });
 
