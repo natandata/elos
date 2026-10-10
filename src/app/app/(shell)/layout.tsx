@@ -42,6 +42,7 @@ const NAV: Record<string, NavItem[]> = {
       children: [
         { href: "/app/admin/usuarios", label: "Usuários", icon: "👥" },
         { href: "/app/admin/missoes", label: "Missões", icon: "🎯" },
+        { href: "/app/admin/elos/historico", label: "Histórico de XP", icon: "📜" },
         { href: "/app/admin/monitorar-chat", label: "Monitorar Chat", icon: "🛰️" },
       ],
     },
@@ -72,6 +73,7 @@ const NAV: Record<string, NavItem[]> = {
       icon: "🏆",
       children: [
         { href: "/app/lider/missoes", label: "Missões", icon: "🎯" },
+        { href: "/app/lider/historico", label: "Histórico de XP", icon: "📜" },
         { href: "/app/chat", label: "Chat", icon: "💬" },
         { href: "/app/lider/status-crias", label: "Status Crias", icon: "💛" },
         { href: "/app/lider/devocional-crias", label: "Devocional Crias", icon: "📖" },
