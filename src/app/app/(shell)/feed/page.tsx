@@ -206,7 +206,7 @@ export default async function FeedPage() {
   );
 
   return (
-    <>
+    <div className="mx-auto w-full max-w-[470px]">
       <PageHeader
         title="Explorar"
         subtitle="Fotos do ELOS — cada uma some depois de 24h."
@@ -224,7 +224,7 @@ export default async function FeedPage() {
       <WeeklyPushNudge eligible={showPushNudge} />
 
       {canInteract ? (
-        <div className="card flex flex-wrap items-center justify-between gap-3 p-4">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--line)] bg-[var(--card)] p-3">
           <div>
             <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-[var(--accent-strong)]">
               💡 Tema de hoje
@@ -249,7 +249,7 @@ export default async function FeedPage() {
       {feed.length === 0 ? (
         <EmptyState>Nenhuma foto no Explorar nas últimas 24h.</EmptyState>
       ) : (
-        <div className="space-y-4">
+        <div className="-mx-4 sm:mx-0">
           {feed.map((post) => (
             <FeedPostCard
               key={post.id}
@@ -261,6 +261,6 @@ export default async function FeedPage() {
           ))}
         </div>
       )}
-    </>
+    </div>
   );
 }

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Avatar } from "@/components/Avatar";
 import { ROLE_LABEL, type Role } from "@/lib/types";
+import { SearchIcon } from "./icons";
 
 type Result = {
   id: string;
@@ -66,9 +67,9 @@ export function ProfileSearch() {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="flex w-full items-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--card)] px-3 py-2.5 text-sm text-[var(--muted)]"
+          className="flex w-full items-center gap-2 rounded-xl bg-[var(--card)] px-3 py-2.5 text-sm text-[var(--muted)] ring-1 ring-[var(--line)]"
         >
-          🔎 Buscar líder ou cria…
+          <SearchIcon /> Buscar líder ou cria…
         </button>
       ) : (
         <div className="card p-3">

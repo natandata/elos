@@ -9,6 +9,7 @@ import { createStoryPost } from "@/lib/actions/stories";
 import { addGalleryPost } from "@/lib/actions/gallery";
 import { Feedback, SubmitBtn } from "@/components/forms";
 import { compressImage } from "@/lib/imageCompress";
+import { PlusSquareIcon } from "./icons";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 
@@ -126,9 +127,9 @@ export function FeedComposer({
         data-tour="feed-composer"
         onClick={openModal}
         aria-label="Postar"
-        className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--card)] text-xl leading-none text-[var(--accent-strong)] hover:border-[var(--accent)]"
+        className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--ink)] hover:bg-[var(--card)]"
       >
-        +
+        <PlusSquareIcon size={28} />
       </button>
 
       {open ? (

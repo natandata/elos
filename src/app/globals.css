@@ -1890,3 +1890,25 @@ input[type="datetime-local"] {
     width: 100%;
   }
 }
+
+/* Explorar (estilo Instagram): coração que estoura no toque duplo */
+.ig-heart-burst {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  color: #fff;
+  pointer-events: none;
+  filter: drop-shadow(0 4px 14px rgb(0 0 0 / 0.35));
+  animation: ig-heart-pop 0.9s ease-out forwards;
+}
+@keyframes ig-heart-pop {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.4); }
+  18% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); }
+  34% { transform: translate(-50%, -50%) scale(0.95); }
+  70% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -62%) scale(1); }
+}
+@keyframes ig-story-progress {
+  from { width: 0; }
+  to { width: 100%; }
+}
