@@ -22,6 +22,11 @@ export type ManagedMission = {
   counts: { total: number; awaiting: number; approved: number; rejected: number; viewed: number };
   viewers: { name: string; viewedAt: string | null }[];
   canEdit: boolean;
+  /** Pedido de XP maior (2 a 3) de líder, que o admin precisa aprovar. */
+  xpRequested: number | null;
+  xpStatus: "none" | "pending" | "approved" | "rejected";
+  /** Máximo que quem está vendo pode colocar (admin 25, líder 3). */
+  maxXp: number;
 };
 
 function toDatetimeLocal(iso: string | null): string {
@@ -61,9 +66,19 @@ export function MissionManagerCard({ mission }: { mission: ManagedMission }) {
             Criada em {formatDateTime(mission.created_at)}
           </p>
         </div>
-        <span className="chip bg-[var(--accent-soft)] text-[var(--accent-strong)]">
-          {mission.xp} XP
-        </span>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <span className="chip bg-[var(--accent-soft)] text-[var(--accent-strong)]">
+            {mission.xp} XP
+          </span>
+          {mission.xpStatus === "pending" && mission.xpRequested ? (
+            <span className="chip border-amber-200 bg-amber-100 text-amber-800">
+              {mission.xpRequested} XP aguardando o admin
+            </span>
+          ) : null}
+          {mission.xpStatus === "rejected" ? (
+            <span className="chip border-red-200 bg-red-100 text-red-700">XP maior não aprovado</span>
+          ) : null}
+        </div>
       </div>
 
       {mission.description ? (
@@ -192,7 +207,17 @@ export function MissionManagerCard({ mission }: { mission: ManagedMission }) {
           </div>
           <div>
             <label className="label">XP</label>
-            <input name="xp" type="number" min={0} max={25} className="input" defaultValue={mission.xp} />
+            <input
+              name="xp"
+              type="number"
+              min={0}
+              max={mission.maxXp}
+              className="input"
+              defaultValue={mission.xpStatus === "pending" && mission.xpRequested ? mission.xpRequested : mission.xp}
+            />
+            {mission.maxXp <= 3 ? (
+              <p className="mt-1 text-xs text-[var(--muted)]">1 XP vale na hora; 2 a 3 XP o admin precisa aprovar.</p>
+            ) : null}
           </div>
           <div>
             <label className="label">Prazo</label>

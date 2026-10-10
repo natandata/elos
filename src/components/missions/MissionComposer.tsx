@@ -14,6 +14,7 @@ export function MissionComposer({
   leaders,
   canTargetAll,
   defaultEloId,
+  maxXp = 25,
 }: {
   elos: Elo[];
   crias: CriaOption[];
@@ -21,6 +22,8 @@ export function MissionComposer({
   leaders?: LeaderOption[];
   canTargetAll: boolean;
   defaultEloId?: string | null;
+  /** Admin: 25. Líder: 3 (1 XP vale na hora; de 2 a 3 o admin precisa aprovar). */
+  maxXp?: number;
 }) {
   const [state, action] = useActionState(createMission, null);
   const [open, setOpen] = useState(false);
@@ -84,12 +87,16 @@ export function MissionComposer({
                 name="xp"
                 type="number"
                 min={0}
-                max={25}
-                defaultValue={25}
+                max={maxXp}
+                defaultValue={maxXp > 3 ? 25 : 1}
                 className="input"
                 required
               />
-              <p className="mt-1 text-xs text-[var(--muted)]">Máximo 25 XP por missão.</p>
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                {maxXp > 3
+                  ? "Máximo 25 XP por missão."
+                  : "1 XP vale na hora. De 2 a 3 XP a missão sai com 1 XP e o admin precisa aprovar o resto."}
+              </p>
             </div>
 
             {hidesParticipantPickers ? null : (

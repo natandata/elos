@@ -16,6 +16,7 @@ import { ApprovalItem, type PendingReview } from "./ApprovalItem";
 import { LeaderMissionsToggle } from "./LeaderMissionsToggle";
 import { MissionComposer, type CriaOption, type LeaderOption } from "./MissionComposer";
 import { MissionManagerCard, type ManagedMission } from "./MissionManagerCard";
+import { XpApprovalItem, type PendingXp } from "./XpApprovalItem";
 
 type MissionRow = {
   id: string;
@@ -23,6 +24,8 @@ type MissionRow = {
   description: string | null;
   type: MissionType;
   xp: number;
+  xp_requested: number | null;
+  xp_status: "none" | "pending" | "approved" | "rejected";
   start_date: string | null;
   due_date: string | null;
   publish_at: string | null;
@@ -57,7 +60,7 @@ type AssignmentRow = {
   missions: { title: string; description: string | null; xp: number } | null;
 };
 
-function toManagedMission(m: MissionRow, canEdit: boolean, authorName?: string): ManagedMission {
+function toManagedMission(m: MissionRow, canEdit: boolean, maxXp: number, authorName?: string): ManagedMission {
   const a = m.mission_assignments ?? [];
   return {
     id: m.id,
@@ -84,6 +87,9 @@ function toManagedMission(m: MissionRow, canEdit: boolean, authorName?: string):
       viewedAt: x.viewed_at,
     })),
     canEdit,
+    xpRequested: m.xp_requested,
+    xpStatus: m.xp_status,
+    maxXp,
   };
 }
 
@@ -111,7 +117,7 @@ export async function MissionsWorkspace({ profile }: { profile: Profile }) {
     supabase
       .from("missions")
       .select(
-        "id, title, description, type, xp, start_date, due_date, publish_at, created_at, created_by, audience, elos:elo_id(name), creator:created_by(full_name, role), mission_assignments(id, status, viewed_at, profiles:cria_id(full_name))",
+        "id, title, description, type, xp, xp_requested, xp_status, start_date, due_date, publish_at, created_at, created_by, audience, elos:elo_id(name), creator:created_by(full_name, role), mission_assignments(id, status, viewed_at, profiles:cria_id(full_name))",
       )
       .order("created_at", { ascending: false }),
     supabase
@@ -160,12 +166,26 @@ export async function MissionsWorkspace({ profile }: { profile: Profile }) {
     ? []
     : allMissions.filter((m) => m.created_by !== profile.id && m.creator?.role === "leader");
 
+  const maxXp = isAdmin ? 25 : 3;
   const missions = ownRows.map((m) =>
-    toManagedMission(m, isAdmin || m.created_by === profile.id),
+    toManagedMission(m, isAdmin || m.created_by === profile.id, maxXp),
   );
   const otherMissions = otherLeaderRows.map((m) =>
-    toManagedMission(m, false, m.creator?.full_name || "Outro líder"),
+    toManagedMission(m, false, maxXp, m.creator?.full_name || "Outro líder"),
   );
+
+  // Admin: pedidos de líderes que querem 2 a 3 XP numa missão (o limite direto do líder é 1 XP)
+  const pendingXp: PendingXp[] = isAdmin
+    ? allMissions
+        .filter((m) => m.xp_status === "pending" && m.xp_requested)
+        .map((m) => ({
+          missionId: m.id,
+          title: m.title,
+          leaderName: m.creator?.full_name || "Líder",
+          currentXp: m.xp,
+          requestedXp: m.xp_requested as number,
+        }))
+    : [];
 
   const pending: PendingReview[] = ((pendingRes.data ?? []) as unknown as AssignmentRow[]).map(
     (r) => ({
@@ -195,7 +215,21 @@ export async function MissionsWorkspace({ profile }: { profile: Profile }) {
         leaders={isAdmin ? leaders : undefined}
         canTargetAll={isAdmin}
         defaultEloId={isAdmin ? null : profile.elo_id}
+        maxXp={maxXp}
       />
+
+      {isAdmin && pendingXp.length > 0 ? (
+        <section className="mb-6">
+          <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-amber-700">
+            Líderes pedindo mais XP ({pendingXp.length})
+          </h2>
+          <div className="space-y-3">
+            {pendingXp.map((item) => (
+              <XpApprovalItem key={item.missionId} item={item} />
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {!isAdmin && myLeadership.length > 0 ? (
         <section className="mb-6">

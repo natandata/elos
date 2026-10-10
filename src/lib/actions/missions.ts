@@ -4,10 +4,33 @@ import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushToUsers } from "@/lib/push-server";
 import type { MissionType } from "@/lib/types";
 
 type Result = { error?: string; ok?: boolean };
+
+/** Líder: 1 XP vale na hora; de 2 a 3 XP o admin precisa aprovar (a regra também é imposta no banco: migração 0198). */
+const LEADER_FREE_XP = 1;
+const LEADER_MAX_XP = 3;
+
+/** Avisa os admins que um líder pediu mais de 1 XP numa missão. Nunca atrapalha o salvamento. */
+async function notifyAdminsXpRequest(leaderName: string, title: string, xp: number) {
+  try {
+    // o líder não enxerga os perfis dos admins: a busca usa a chave de serviço (só no servidor)
+    const supabase = createAdminClient() ?? (await createClient());
+    const { data } = await supabase.from("profiles").select("id").eq("role", "admin");
+    const ids = (data ?? []).map((r) => r.id as string);
+    if (ids.length === 0) return;
+    await sendPushToUsers(ids, {
+      title: "Líder pediu mais XP",
+      body: `${(leaderName || "Um líder").trim().split(" ")[0]} pediu ${xp} XP em "${title}". Aprove em Missões.`,
+      url: "/app/admin/missoes",
+    });
+  } catch {
+    /* o aviso é opcional */
+  }
+}
 
 async function currentProfile() {
   const supabase = await createClient();
@@ -58,6 +81,9 @@ export async function createMission(_prev: Result | null, formData: FormData): P
   if (!title) return { error: "Informe o título da missão." };
   if (!Number.isFinite(xp) || xp < 0) return { error: "XP inválido." };
   if (xp > 25) return { error: "O máximo de XP por missão é 25." };
+  if (profile.role === "leader" && xp > LEADER_MAX_XP) {
+    return { error: "Líder pode colocar até 3 XP: 1 XP vale na hora e de 2 a 3 XP o admin precisa aprovar." };
+  }
   if (target === "leaders" && profile.role !== "admin") {
     return { error: "Só a administração cria Missões da Liderança." };
   }
@@ -79,7 +105,8 @@ export async function createMission(_prev: Result | null, formData: FormData): P
       title,
       description,
       type,
-      xp,
+      // líder: 1 XP vale na hora; de 2 a 3 XP entra como pedido para o admin aprovar (mission_set_xp, logo abaixo)
+      xp: profile.role === "leader" ? Math.min(xp, LEADER_FREE_XP) : xp,
       start_date: startDate,
       due_date: dueDate,
       publish_at: publishAt ? new Date(publishAt).toISOString() : null,
@@ -136,6 +163,17 @@ export async function createMission(_prev: Result | null, formData: FormData): P
     return { error: "Nenhum participante elegível para esta missão." };
   }
 
+  if (profile.role === "leader" && xp > LEADER_FREE_XP) {
+    const { error: xpError } = await supabase.rpc("mission_set_xp", { p_mission: mission.id, p_xp: xp });
+    if (xpError) {
+      await supabase.from("missions").delete().eq("id", mission.id);
+      return { error: "Não foi possível pedir esse XP ao admin." };
+    }
+    after(async () => {
+      await notifyAdminsXpRequest(profile.full_name, title, xp);
+    });
+  }
+
   const { error: assignError } = await supabase
     .from("mission_assignments")
     .insert(participants.map((cria_id) => ({ mission_id: mission.id, cria_id })));
@@ -170,7 +208,7 @@ export async function createMission(_prev: Result | null, formData: FormData): P
 }
 
 export async function updateMission(_prev: Result | null, formData: FormData): Promise<Result> {
-  const { supabase } = await currentProfile();
+  const { supabase, profile } = await currentProfile();
   const id = String(formData.get("id") ?? "");
   const title = String(formData.get("title") ?? "").trim();
   const xp = Number(formData.get("xp") ?? 0);
@@ -178,15 +216,18 @@ export async function updateMission(_prev: Result | null, formData: FormData): P
   if (!id || !title) return { error: "Dados incompletos." };
   if (!Number.isFinite(xp) || xp < 0) return { error: "XP inválido." };
   if (xp > 25) return { error: "O máximo de XP por missão é 25." };
+  if (profile.role === "leader" && xp > LEADER_MAX_XP) {
+    return { error: "Líder pode colocar até 3 XP: 1 XP vale na hora e de 2 a 3 XP o admin precisa aprovar." };
+  }
 
   const publishAt = String(formData.get("publish_at") ?? "") || null;
 
+  // o XP muda só pela função do banco (que aplica a regra de aprovação); aqui ficam os outros campos
   const { error } = await supabase
     .from("missions")
     .update({
       title,
       description: String(formData.get("description") ?? "").trim() || null,
-      xp,
       start_date: String(formData.get("start_date") ?? "") || null,
       due_date: String(formData.get("due_date") ?? "") || null,
       publish_at: publishAt ? new Date(publishAt).toISOString() : null,
@@ -194,6 +235,14 @@ export async function updateMission(_prev: Result | null, formData: FormData): P
     .eq("id", id);
 
   if (error) return { error: "Não foi possível salvar a missão." };
+
+  const { data: xpRes, error: xpError } = await supabase.rpc("mission_set_xp", { p_mission: id, p_xp: xp });
+  if (xpError) return { error: "Salvei a missão, mas não consegui mudar o XP. " + xpError.message };
+  if (profile.role === "leader" && (xpRes as { status?: string } | null)?.status === "pending") {
+    after(async () => {
+      await notifyAdminsXpRequest(profile.full_name, title, xp);
+    });
+  }
 
   revalidateMissions();
   return { ok: true };
@@ -255,7 +304,7 @@ export async function duplicateMission(_prev: Result | null, formData: FormData)
       title: original.title,
       description: original.description,
       type: original.type,
-      xp: original.xp,
+      xp: profile.role === "leader" ? Math.min(original.xp, LEADER_FREE_XP) : original.xp,
       elo_id: original.elo_id,
       audience: original.audience,
     })
@@ -263,6 +312,12 @@ export async function duplicateMission(_prev: Result | null, formData: FormData)
     .single();
 
   if (error || !copy) return { error: "Não foi possível duplicar a missão." };
+
+  if (profile.role === "leader" && original.xp > LEADER_FREE_XP) {
+    // a cópia entra com 1 XP e o XP maior (até 3) volta a ser um pedido para o admin
+    const want = Math.min(original.xp, LEADER_MAX_XP);
+    await supabase.rpc("mission_set_xp", { p_mission: copy.id, p_xp: want });
+  }
 
   const participants = original.mission_assignments.map((a) => a.cria_id);
   if (participants.length > 0) {
@@ -414,5 +469,31 @@ export async function reviewAssignment(_prev: Result | null, formData: FormData)
 
   revalidateMissions();
   revalidatePath("/app/ranking");
+  return { ok: true };
+}
+
+/** Admin aprova ou recusa o XP (2 a 3) que um líder pediu numa missão. */
+export async function reviewMissionXp(_prev: Result | null, formData: FormData): Promise<Result> {
+  const { supabase, profile } = await currentProfile();
+  if (profile.role !== "admin") return { error: "Só a administração aprova XP de missão." };
+  const id = String(formData.get("id") ?? "");
+  const approve = String(formData.get("approve") ?? "") === "true";
+  if (!id) return { error: "Missão inválida." };
+
+  const { data, error } = await supabase.rpc("admin_review_mission_xp", { p_mission: id, p_approve: approve });
+  if (error) return { error: error.message.includes("pendente") ? "Esse pedido já foi respondido." : "Não foi possível responder ao pedido." };
+
+  const r = data as { created_by?: string; title?: string; xp?: number } | null;
+  if (r?.created_by) {
+    const to = r.created_by;
+    after(async () => {
+      await sendPushToUsers([to], {
+        title: approve ? "XP aprovado!" : "XP não aprovado",
+        body: approve ? `O admin aprovou ${r.xp} XP em "${r.title}".` : `O admin manteve "${r.title}" com ${r.xp} XP.`,
+        url: "/app/lider/missoes",
+      });
+    });
+  }
+  revalidateMissions();
   return { ok: true };
 }
