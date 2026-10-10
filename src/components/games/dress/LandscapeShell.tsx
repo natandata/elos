@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 
 /**
  * O Vista o Herói ao vivo é jogado com o celular deitado (como o MineArena). No celular a tela vira "tela cheia" e,
@@ -31,6 +31,29 @@ export function LandscapeShell({ children }: { children: ReactNode }) {
   const land = rotated || !portrait;
   const info = useMemo<LandscapeInfo>(() => ({ mobile, rotated, land }), [mobile, rotated, land]);
 
+  // medida real da área visível (no iPhone as barras do Safari sobem e descem: 100dvh/100dvw por CSS erram e cortam a tela girada)
+  const [vp, setVp] = useState<{ w: number; h: number } | null>(null);
+  useEffect(() => {
+    if (!rotated) return;
+    const measure = () => {
+      const v = window.visualViewport;
+      const w = Math.round(v?.width ?? window.innerWidth);
+      const h = Math.round(v?.height ?? window.innerHeight);
+      setVp((o) => (o && o.w === w && o.h === h ? o : { w, h }));
+    };
+    measure();
+    const v = window.visualViewport;
+    window.addEventListener("resize", measure);
+    window.addEventListener("orientationchange", measure);
+    v?.addEventListener("resize", measure);
+    return () => {
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("orientationchange", measure);
+      v?.removeEventListener("resize", measure);
+    };
+  }, [rotated]);
+  const rotStyle = rotated && vp ? { left: vp.w, width: vp.h, height: vp.w } : undefined;
+
   useEffect(() => {
     if (!mobile) return;
     const prev = document.body.style.overflow;
@@ -42,7 +65,7 @@ export function LandscapeShell({ children }: { children: ReactNode }) {
 
   return (
     <LandscapeContext.Provider value={info}>
-      <div className="vh-shell" data-mobile={mobile ? "1" : "0"} data-rot={rotated ? "1" : "0"} data-land={land ? "1" : "0"} onContextMenu={(e) => e.preventDefault()}>
+      <div className="vh-shell" data-mobile={mobile ? "1" : "0"} data-rot={rotated ? "1" : "0"} data-land={land ? "1" : "0"} style={rotStyle} onContextMenu={(e) => e.preventDefault()}>
         {children}
       </div>
     </LandscapeContext.Provider>
