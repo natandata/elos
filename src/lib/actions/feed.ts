@@ -26,7 +26,7 @@ async function currentProfile() {
 }
 
 function revalidateFeed() {
-  revalidatePath("/app/feed");
+  revalidatePath("/app/elogram");
 }
 
 /** O upload da imagem já aconteceu no navegador; aqui só registra o post. */
@@ -79,7 +79,7 @@ export async function createFeedPost(_prev: Result | null, formData: FormData): 
     const { data: targets } = await supabase.rpc("feed_push_targets", { p_exclude: profile.id });
     await sendPushToUsers(
       ((targets ?? []) as { id: string }[]).map((t) => t.id),
-      { title: "Novo post no Explorar", body: "Alguém acabou de postar uma foto.", url: "/app/feed" },
+      { title: "Novo post no Elogram", body: "Alguém acabou de postar uma foto.", url: "/app/elogram" },
     );
   });
 
@@ -164,8 +164,8 @@ export async function toggleFeedLike(_prev: Result | null, formData: FormData): 
         if (authorId) {
           await sendPushToUsers([authorId as string], {
             title: "Reagiram na sua foto",
-            body: `${REACTION_EMOJI[kind] ?? "❤️"} Alguém reagiu à sua foto no Explorar.`,
-            url: "/app/feed",
+            body: `${REACTION_EMOJI[kind] ?? "❤️"} Alguém reagiu à sua foto no Elogram.`,
+            url: "/app/elogram",
           });
         }
       } catch {
@@ -201,7 +201,7 @@ export async function addFeedComment(_prev: Result | null, formData: FormData): 
     await sendPushToUsers([authorId as string], {
       title: "Comentaram na sua foto",
       body: body.length > 80 ? `${body.slice(0, 80)}…` : body,
-      url: "/app/feed",
+      url: "/app/elogram",
     });
   }
 
@@ -229,8 +229,8 @@ export async function revokeFeedThemeXp(_prev: Result | null, formData: FormData
   if (post?.author_id) {
     await sendPushToUsers([post.author_id], {
       title: "XP do tema revogado",
-      body: "Uma das suas fotos no Explorar não pareceu coerente com o tema do dia.",
-      url: "/app/feed",
+      body: "Uma das suas fotos no Elogram não pareceu coerente com o tema do dia.",
+      url: "/app/elogram",
     });
   }
 

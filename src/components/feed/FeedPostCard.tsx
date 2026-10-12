@@ -175,11 +175,11 @@ export function FeedPostCard({
   return (
     <article className="border-b border-[var(--line)] pb-3">
       {post.pinned ? (
-        <div className="px-3 pb-1.5 text-xs font-bold text-[var(--accent-strong)] sm:px-0">📌 Destaque da semana</div>
+        <div className="px-3 pb-1.5 text-xs font-bold text-[var(--accent-strong)]">📌 Destaque da semana</div>
       ) : null}
 
-      <div className="relative flex items-center gap-3 px-3 py-2.5 sm:px-0">
-        <Link href={`/app/perfil/${post.authorId}`} className="flex min-w-0 flex-1 items-center gap-2.5">
+      <div className="relative flex items-center gap-3 px-3 py-2.5">
+        <Link href={`/app/elogram/perfil/${post.authorId}`} className="flex min-w-0 flex-1 items-center gap-2.5">
           <Avatar url={post.authorAvatar} name={post.authorName} size={32} />
           <div className="min-w-0 flex-1 leading-tight">
             <p className="truncate text-sm font-semibold">
@@ -277,7 +277,7 @@ export function FeedPostCard({
         ) : null}
       </div>
 
-      <div className="px-3 sm:px-0">
+      <div className="px-3">
         <div className="relative flex items-center gap-3.5 pb-1 pt-2.5">
           {canPost ? (
             <button

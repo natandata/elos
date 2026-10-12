@@ -58,7 +58,7 @@ const NAV: Record<string, NavItem[]> = {
     { href: "/app/agenda", label: "Agenda", icon: "📅" },
     { href: "/app/eventos", label: "Eventos", icon: "🎬" },
     { href: "/app/admin/igreja", label: "Igreja 3D", icon: "⛪" },
-    { href: "/app/feed", label: "Explorar", icon: "📸" },
+    { href: "/app/elogram", label: "Elogram", icon: "📸" },
   ],
   leader: [
     {
@@ -85,7 +85,7 @@ const NAV: Record<string, NavItem[]> = {
       icon: "📅",
       children: [{ href: "/app/eventos", label: "Eventos", icon: "🎬" }],
     },
-    { href: "/app/feed", label: "Explorar", icon: "📸" },
+    { href: "/app/elogram", label: "Elogram", icon: "📸" },
     { href: "/app/jogos", label: "Jogos", icon: "🎮" },
   ],
   cria: [
@@ -108,11 +108,11 @@ const NAV: Record<string, NavItem[]> = {
       ],
     },
     { href: "/app/agenda", label: "Agenda", icon: "📅" },
-    { href: "/app/feed", label: "Explorar", icon: "📸" },
+    { href: "/app/elogram", label: "Elogram", icon: "📸" },
     { href: "/app/jogos", label: "Jogos", icon: "🎮" },
   ],
   guardian: [
-    { href: "/app/feed", label: "Explorar", icon: "📸" },
+    { href: "/app/elogram", label: "Elogram", icon: "📸" },
     { href: "/app/ranking-crias", label: "Ranking Geral de Crias", icon: "🏆" },
     { href: "/app/pedidos-oracao", label: "Pedidos de Oração", icon: "🙏" },
     { href: "/app/agenda", label: "Agenda", icon: "📅" },

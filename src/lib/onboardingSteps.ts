@@ -32,9 +32,9 @@ export const CRIA_TOUR: TourStep[] = [
     body: "Fale com seu líder e o resto do grupo aqui. As mensagens somem depois de 24h.",
   },
   {
-    path: "/app/feed",
+    path: "/app/elogram",
     selector: "[data-tour='feed-composer']",
-    title: "Explorar",
+    title: "Elogram",
     body: "Poste fotos vistas por todo mundo da plataforma — cada uma some depois de 24h. Reaja e comente nas dos outros.",
   },
   {
@@ -76,9 +76,9 @@ export const LEADER_TOUR: TourStep[] = [
     body: "Converse com todo o Elo. Se um cria mandar mensagem e ninguém responder em algumas horas, você recebe um lembrete.",
   },
   {
-    path: "/app/feed",
+    path: "/app/elogram",
     selector: "[data-tour='feed-composer']",
-    title: "Explorar",
+    title: "Elogram",
     body: "Poste fotos vistas por toda a plataforma, e destaque o melhor post da semana do seu Elo pelo menu ⋯ de qualquer post.",
   },
   {

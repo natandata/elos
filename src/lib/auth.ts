@@ -72,7 +72,7 @@ export async function requireRole(
 export function homeFor(role: Role): string {
   if (role === "admin") return "/app/admin";
   if (role === "leader") return "/app/lider";
-  if (role === "guardian") return "/app/feed";
+  if (role === "guardian") return "/app/elogram";
   return "/app/cria";
 }
 

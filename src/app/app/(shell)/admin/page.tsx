@@ -13,7 +13,7 @@ const ACTIVITY_LABEL: Record<string, { icon: string; verb: string }> = {
   mission_submitted: { icon: "🎯", verb: "enviou uma missão pra avaliação" },
   mission_approved: { icon: "✅", verb: "teve uma missão aprovada" },
   mission_rejected: { icon: "❌", verb: "teve uma missão recusada" },
-  feed_post: { icon: "📸", verb: "postou no Explorar" },
+  feed_post: { icon: "📸", verb: "postou no Elogram" },
   story_post: { icon: "⚡", verb: "postou um Story" },
   devotional_entry: { icon: "📖", verb: "escreveu no devocional" },
   prayer_request: { icon: "🙏", verb: "criou um pedido de oração" },

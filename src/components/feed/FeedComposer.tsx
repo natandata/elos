@@ -181,6 +181,18 @@ export function FeedComposer({
     setPreview(URL.createObjectURL(file));
   }
 
+  // a bolinha "Seu story" do topo abre direto o envio de story
+  useEffect(() => {
+    function openStory() {
+      reset();
+      setDestination("story");
+      setOpen(true);
+    }
+    window.addEventListener("elogram:compose-story", openStory);
+    return () => window.removeEventListener("elogram:compose-story", openStory);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (explorarState?.ok || storyState?.ok || videoState?.ok || galleryState?.ok) {
       videoUploadRef.current = ""; // publicado: não devolver a cota

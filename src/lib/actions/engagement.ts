@@ -22,6 +22,6 @@ export async function toggleFeedPin(
   const { error } = await supabase.rpc("toggle_feed_pin", { p_post_id: postId });
   if (error) return { error: "Não foi possível destacar." };
 
-  revalidatePath("/app/feed");
+  revalidatePath("/app/elogram");
   return { ok: true };
 }

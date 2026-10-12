@@ -74,3 +74,37 @@ export function PlusSquareIcon({ size = 26, className }: IconProps) {
     </svg>
   );
 }
+
+export function HomeIcon({ size = 26, className, filled = false }: IconProps & { filled?: boolean }) {
+  return (
+    <svg {...base(size)} className={className} fill={filled ? "currentColor" : "none"}>
+      <path d="M3.5 10.8 12 3.5l8.5 7.3V20a1 1 0 0 1-1 1H15v-6.2H9V21H4.5a1 1 0 0 1-1-1v-9.2z" />
+    </svg>
+  );
+}
+
+export function PaperPlaneIcon({ size = 26, className, filled = false }: IconProps & { filled?: boolean }) {
+  return (
+    <svg {...base(size)} className={className} fill={filled ? "currentColor" : "none"}>
+      <path d="M21 3.5 10.2 14" />
+      <path d="M21 3.5 14.6 20.5l-4.4-6.5L3.5 9.6 21 3.5z" />
+    </svg>
+  );
+}
+
+export function ChevronLeftIcon({ size = 26, className }: IconProps) {
+  return (
+    <svg {...base(size)} className={className}>
+      <path d="m15 5-7 7 7 7" />
+    </svg>
+  );
+}
+
+export function ComposeIcon({ size = 26, className }: IconProps) {
+  return (
+    <svg {...base(size)} className={className}>
+      <path d="M11 4H6.5A2.5 2.5 0 0 0 4 6.5v11A2.5 2.5 0 0 0 6.5 20h11a2.5 2.5 0 0 0 2.5-2.5V13" />
+      <path d="m18.4 3.6 2 2L11.5 14.5 8.5 15.5l1-3 8.9-8.9z" />
+    </svg>
+  );
+}
