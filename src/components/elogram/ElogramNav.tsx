@@ -66,9 +66,10 @@ export function ElogramNav({
         <Link href="/app/elogram/mensagens" aria-label="Mensagens" prefetch className={pill(isDm)}>
           <PaperPlaneIcon filled={isDm} size={27} />
           {unread > 0 ? (
-            <span className="absolute right-3 top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#ff3040] px-1 text-[11px] font-bold leading-none text-white">
-              {unread > 9 ? "9+" : unread}
-            </span>
+            <span
+              aria-label="Mensagens novas"
+              className="absolute right-[18px] top-[9px] h-3 w-3 rounded-full border-2 border-[var(--card)] bg-[#ff3040]"
+            />
           ) : null}
         </Link>
       ) : null}
