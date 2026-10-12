@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import { Avatar } from "@/components/Avatar";
 import { HomeIcon, PaperPlaneIcon, SearchIcon } from "@/components/feed/icons";
 
@@ -20,6 +22,24 @@ export function ElogramNav({
   dmUnread: number;
 }) {
   const path = usePathname();
+  // o selo de mensagens novas é atualizado sozinho (a barra não é recarregada ao trocar de aba)
+  const [unread, setUnread] = useState(dmUnread);
+  useEffect(() => {
+    if (!canDm) return;
+    const supabase = createClient();
+    const refresh = () => {
+      if (document.visibilityState !== "visible") return;
+      supabase.rpc("dm_unread_count").then(({ data }) => {
+        if (typeof data === "number") setUnread(data);
+      });
+    };
+    const timer = setInterval(refresh, 45_000);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [canDm]);
   // dentro de uma conversa a barra some (como no Instagram): o campo de mensagem ocupa o rodapé
   if (path.startsWith("/app/elogram/mensagens/")) return null;
   const isHome = path === "/app/elogram";
@@ -43,11 +63,11 @@ export function ElogramNav({
       </Link>
 
       {canDm ? (
-        <Link href="/app/elogram/mensagens" aria-label="Mensagens" className={pill(isDm)}>
+        <Link href="/app/elogram/mensagens" aria-label="Mensagens" prefetch className={pill(isDm)}>
           <PaperPlaneIcon filled={isDm} size={27} />
-          {dmUnread > 0 ? (
+          {unread > 0 ? (
             <span className="absolute right-3 top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#ff3040] px-1 text-[11px] font-bold leading-none text-white">
-              {dmUnread > 9 ? "9+" : dmUnread}
+              {unread > 9 ? "9+" : unread}
             </span>
           ) : null}
         </Link>
