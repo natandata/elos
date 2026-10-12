@@ -1,5 +1,6 @@
 import { GAME_CATALOG } from "@/lib/games/catalog";
 import { Bar, Card, PageHeader, StatCard } from "@/components/ui";
+import { ElogramAnnouncementCard } from "@/components/elogram/ElogramAnnouncementCard";
 import { needsWeeklyPushNudge, requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { WeeklyPushNudge } from "@/components/push/WeeklyPushNudge";
@@ -122,6 +123,7 @@ export default async function AdminDashboard() {
 
   return (
     <>
+      <ElogramAnnouncementCard />
       <PageHeader title="Dashboard" subtitle="Visão geral dos ELOS." />
 
       <WeeklyPushNudge eligible={showPushNudge} />
