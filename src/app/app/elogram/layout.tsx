@@ -19,11 +19,14 @@ export default async function ElogramLayout({ children }: { children: React.Reac
   if (needsGuardianAck(profile)) redirect("/app/responsavel");
   const pending = profile.role === "leader" && !profile.approved;
   if (pending) redirect(homeFor(profile.role));
-  if (!viewingAs && (await needsStatusCheck(profile))) redirect("/app/status");
 
   const supabase = await createClient();
   const canDm = profile.role === "admin" || profile.role === "leader" || profile.role === "cria";
-  const { data: dmUnread } = canDm ? await supabase.rpc("dm_unread_count") : { data: 0 };
+  const [mustAnswerStatus, { data: dmUnread }] = await Promise.all([
+    !viewingAs ? needsStatusCheck(profile) : Promise.resolve(false),
+    canDm ? supabase.rpc("dm_unread_count") : Promise.resolve({ data: 0 }),
+  ]);
+  if (mustAnswerStatus) redirect("/app/status");
 
   let theme = "neutral";
   if (profile.role === "leader" && profile.gender === "male") theme = "leader";

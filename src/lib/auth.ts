@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -10,7 +11,7 @@ export const VIEW_AS_COOKIE = "elos_view_as";
 
 export type ViewingAs = { adminId: string; adminName: string; targetName: string };
 
-export async function requireProfile(): Promise<{
+async function requireProfileUncached(): Promise<{
   profile: Profile;
   userId: string;
   viewingAs: ViewingAs | null;
@@ -60,6 +61,9 @@ export async function requireProfile(): Promise<{
 
   return { profile: realProfile, userId: user.id, viewingAs: null };
 }
+
+/** Layout e página pedem o perfil na mesma requisição: `cache` faz a consulta ir ao banco uma vez só. */
+export const requireProfile = cache(requireProfileUncached);
 
 export async function requireRole(
   ...roles: Role[]

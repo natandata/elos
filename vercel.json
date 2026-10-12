@@ -16,5 +16,8 @@
       "path": "/api/cron/dress-mega-reminder",
       "schedule": "0 14 * * 4"
     }
+  ],
+  "regions": [
+    "gru1"
   ]
 }

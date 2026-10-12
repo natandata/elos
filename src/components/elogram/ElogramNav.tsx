@@ -38,7 +38,7 @@ export function ElogramNav({
       className="fixed inset-x-0 z-40 mx-auto flex w-[calc(100%-24px)] max-w-[446px] items-center gap-1 rounded-full border border-[var(--line)] bg-[var(--card)]/92 p-1.5 shadow-lg backdrop-blur"
       style={{ bottom: "calc(12px + env(safe-area-inset-bottom))" }}
     >
-      <Link href="/app/elogram" aria-label="Início" className={pill(isHome)}>
+      <Link href="/app/elogram" aria-label="Início" prefetch className={pill(isHome)}>
         <HomeIcon filled={isHome} size={27} />
       </Link>
 
@@ -53,11 +53,11 @@ export function ElogramNav({
         </Link>
       ) : null}
 
-      <Link href="/app/elogram/buscar" aria-label="Buscar" className={pill(isSearch)}>
+      <Link href="/app/elogram/buscar" aria-label="Buscar" prefetch className={pill(isSearch)}>
         <SearchIcon size={27} />
       </Link>
 
-      <Link href={`/app/elogram/perfil/${myId}`} aria-label="Meu perfil" className={pill(isMe)}>
+      <Link href={`/app/elogram/perfil/${myId}`} aria-label="Meu perfil" prefetch className={pill(isMe)}>
         <span className={`rounded-full ${isMe ? "ring-2 ring-[var(--ink)]" : ""}`}>
           <Avatar url={avatarUrl} name={name} size={30} />
         </span>
