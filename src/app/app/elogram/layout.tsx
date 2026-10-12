@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { ThemeSetter } from "@/components/shell/ThemeSetter";
 import { ElogramNav } from "@/components/elogram/ElogramNav";
+import { PullToRefresh } from "@/components/elogram/PullToRefresh";
 import { homeFor, needsGuardianAck, needsStatusCheck, requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -36,6 +37,7 @@ export default async function ElogramLayout({ children }: { children: React.Reac
     <>
       <ThemeSetter theme={theme} />
       <div className="min-h-dvh bg-[var(--bg)] text-[var(--ink)]">
+        <PullToRefresh />
         <div className="mx-auto w-full max-w-[470px] pb-28">{children}</div>
         <ElogramNav
           myId={profile.id}

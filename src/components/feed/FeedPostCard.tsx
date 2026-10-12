@@ -14,6 +14,9 @@ import { toggleFeedPin } from "@/lib/actions/engagement";
 import { Avatar } from "@/components/Avatar";
 import { Feedback, SubmitBtn } from "@/components/forms";
 import { relativeTimeLabel, relativeTimeShort } from "@/lib/relativeTime";
+import { plainMentions, splitMentions } from "@/lib/mentions";
+import { MentionInput } from "@/components/elogram/MentionInput";
+import { MentionText } from "@/components/elogram/MentionText";
 import { CommentIcon, EyeIcon, HeartIcon, MoreIcon, SmileIcon } from "./icons";
 
 export type FeedComment = {
@@ -61,7 +64,7 @@ function FeedCommentRow({ comment, canDelete }: { comment: FeedComment; canDelet
   return (
     <div className="flex items-start justify-between gap-2 text-sm">
       <p className="min-w-0 break-words">
-        <strong className="font-semibold">{comment.authorName}</strong> {comment.body}
+        <strong className="font-semibold">{comment.authorName}</strong> <MentionText text={comment.body} />
       </p>
       {canDelete ? (
         <form action={action} className="shrink-0">
@@ -123,7 +126,6 @@ export function FeedPostCard({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [captionOpen, setCaptionOpen] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [captionDraft, setCaptionDraft] = useState(post.caption ?? "");
   const [burst, setBurst] = useState(0);
   const [slide, setSlide] = useState(0);
   const slideCount = Math.max(1, post.imageUrls.length);
@@ -175,7 +177,7 @@ export function FeedPostCard({
   const onlyLikes = kindsPresent.length === 1 && kindsPresent[0] === "like";
   const myIsHeart = reaction.my === "like";
   const lastComments = post.comments.slice(-2);
-  const captionLong = (post.caption?.length ?? 0) > 110;
+  const captionLong = plainMentions(post.caption ?? "").length > 110;
 
   return (
     <article className="border-b border-[var(--line)] pb-3">
@@ -220,7 +222,6 @@ export function FeedPostCard({
                     <button
                       type="button"
                       onClick={() => {
-                        setCaptionDraft(post.caption ?? "");
                         setEditing(true);
                         setMenuOpen(false);
                       }}
@@ -420,14 +421,19 @@ export function FeedPostCard({
         {editing ? (
           <form action={captionAction} className="mt-1.5 space-y-2">
             <input type="hidden" name="id" value={post.id} />
-            <textarea
+            <MentionInput
               name="caption"
+              multiline
               rows={2}
               maxLength={280}
+              excludeId={currentUserId}
               className="input"
-              value={captionDraft}
-              onChange={(e) => setCaptionDraft(e.target.value)}
               autoFocus
+              placeholder="Legenda — use @ pra marcar alguém"
+              initialText={plainMentions(post.caption ?? "")}
+              initialMentions={splitMentions(post.caption ?? "").flatMap((p) =>
+                p.type === "mention" ? [{ id: p.id, name: p.name }] : [],
+              )}
             />
             <Feedback state={captionState} />
             <div className="flex gap-2">
@@ -441,7 +447,7 @@ export function FeedPostCard({
           </form>
         ) : post.caption ? (
           <p className={`mt-0.5 break-words text-sm leading-snug ${captionOpen ? "" : "line-clamp-2"}`}>
-            <strong className="font-semibold">{handle}</strong> {post.caption}
+            <strong className="font-semibold">{handle}</strong> <MentionText text={post.caption} />
             {captionLong && !captionOpen ? (
               <button type="button" onClick={() => setCaptionOpen(true)} className="ml-1 text-[var(--muted)]">
                 mais
@@ -486,7 +492,7 @@ export function FeedPostCard({
           <div className="mt-0.5 space-y-0.5">
             {lastComments.map((c) => (
               <p key={c.id} className="line-clamp-1 break-words text-sm">
-                <strong className="font-semibold">{c.authorName}</strong> {c.body}
+                <strong className="font-semibold">{c.authorName}</strong> <MentionText text={c.body} />
               </p>
             ))}
           </div>
@@ -509,13 +515,13 @@ export function FeedPostCard({
         {canPost ? (
           <form action={commentAction} className="mt-2 flex items-center gap-2 border-t border-[var(--line)] pt-2">
             <input type="hidden" name="post_id" value={post.id} />
-            <input
+            <MentionInput
               name="body"
               maxLength={500}
+              excludeId={currentUserId}
               placeholder="Adicione um comentário…"
-              autoComplete="off"
               required
-              className="min-w-0 flex-1 bg-transparent py-1 text-sm outline-none placeholder:text-[var(--muted)]"
+              className="w-full min-w-0 bg-transparent py-1 text-sm outline-none placeholder:text-[var(--muted)]"
             />
             <SubmitBtn className="text-sm font-bold text-[var(--accent-strong)] disabled:opacity-50" pendingLabel="Enviando…">
               Publicar

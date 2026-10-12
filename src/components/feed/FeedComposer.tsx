@@ -12,6 +12,7 @@ import { VIDEO_MAX_BYTES, VIDEO_MAX_SECONDS, VIDEO_TYPES, putWithProgress, readV
 import { Feedback, SubmitBtn } from "@/components/forms";
 import { compressImage } from "@/lib/imageCompress";
 import { PlusSquareIcon } from "./icons";
+import { MentionInput } from "@/components/elogram/MentionInput";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_CAROUSEL = 10;
@@ -408,15 +409,28 @@ export function FeedComposer({
                         <input type="hidden" name="seconds" value={videoSeconds} />
                       </>
                     ) : null}
-                    <textarea
-                      name="caption"
-                      rows={2}
-                      maxLength={280}
-                      placeholder="Legenda (opcional)"
-                      className="input"
-                      value={caption}
-                      onChange={(e) => setCaption(e.target.value)}
-                    />
+                    {destination === "explorar" ? (
+                      <MentionInput
+                        name="caption"
+                        multiline
+                        rows={2}
+                        maxLength={280}
+                        excludeId={userId}
+                        placeholder="Legenda (opcional) — use @ pra marcar alguém"
+                        className="input"
+                        onTextChange={setCaption}
+                      />
+                    ) : (
+                      <textarea
+                        name="caption"
+                        rows={2}
+                        maxLength={280}
+                        placeholder="Legenda (opcional)"
+                        className="input"
+                        value={caption}
+                        onChange={(e) => setCaption(e.target.value)}
+                      />
+                    )}
                     {destination === "explorar" ? (
                       <>
                         <input type="hidden" name="theme_confirmed" value={themeConfirmed ? "true" : "false"} />

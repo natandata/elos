@@ -5,6 +5,8 @@ import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { sendPushToUsers } from "@/lib/push-server";
+import { mentionIds, plainMentions } from "@/lib/mentions";
+import { MAX_MENTIONS_POST, notifyElogramMentions } from "@/lib/mentionNotify";
 
 type Result = { error?: string; ok?: boolean };
 
@@ -25,6 +27,22 @@ async function currentProfile() {
   return { supabase, profile };
 }
 
+/** Confere o tamanho do que a pessoa vê (a marcação @[Nome](id) guarda mais caracteres) e quantas pessoas foram marcadas. */
+function checkTextAndMentions(text: string, maxVisible: number): string | null {
+  if (plainMentions(text).length > maxVisible) return "Texto muito longo.";
+  if (mentionIds(text).length > MAX_MENTIONS_POST) return `Marque até ${MAX_MENTIONS_POST} pessoas.`;
+  return null;
+}
+
+async function senderName(supabase: Awaited<ReturnType<typeof createClient>>, id: string): Promise<string> {
+  const { data } = await supabase
+    .from("profiles")
+    .select("full_name, username")
+    .eq("id", id)
+    .maybeSingle<{ full_name: string; username: string | null }>();
+  return data?.username || data?.full_name || "Alguém";
+}
+
 function revalidateFeed() {
   revalidatePath("/app/elogram");
 }
@@ -38,6 +56,10 @@ export async function createFeedPost(_prev: Result | null, formData: FormData): 
   const caption = String(formData.get("caption") ?? "").trim() || null;
   const themeConfirmed = formData.get("theme_confirmed") === "true";
   if (!imagePath) return { error: "Envie uma foto." };
+  if (caption) {
+    const bad = checkTextAndMentions(caption, 280);
+    if (bad) return { error: bad === "Texto muito longo." ? "Legenda muito longa." : bad };
+  }
 
   // carrossel: até 9 fotos extras depois da capa — todas precisam estar na pasta de quem posta
   let extraPaths: string[] = [];
@@ -87,6 +109,19 @@ export async function createFeedPost(_prev: Result | null, formData: FormData): 
   // esperar por dezenas de envios de push deixaria "Publicar" travado por
   // segundos. `after` roda isso depois que a tela já respondeu.
   after(async () => {
+    if (caption && mentionIds(caption).length > 0) {
+      try {
+        await notifyElogramMentions({
+          text: caption,
+          senderId: profile.id,
+          senderName: await senderName(supabase, profile.id),
+          postId: post.id,
+          inComment: false,
+        });
+      } catch (err) {
+        console.error("aviso de marcação falhou (post já publicado):", err);
+      }
+    }
     // record_feed_streak() já chama check_and_grant_achievements por dentro
     // — numa tentativa própria: se ela falhar (ex.: rede), o post em si já
     // foi publicado acima, e o envio de push abaixo não pode ficar refém disso.
@@ -110,7 +145,18 @@ export async function updateFeedCaption(_prev: Result | null, formData: FormData
   const id = String(formData.get("id") ?? "");
   const caption = String(formData.get("caption") ?? "").trim() || null;
   if (!id) return { error: "Post inválido." };
-  if (caption && caption.length > 280) return { error: "Legenda muito longa." };
+  if (caption) {
+    const bad = checkTextAndMentions(caption, 280);
+    if (bad) return { error: bad === "Texto muito longo." ? "Legenda muito longa." : bad };
+  }
+
+  // quem já foi marcado antes não é avisado de novo
+  const { data: before } = await supabase
+    .from("feed_posts")
+    .select("caption")
+    .eq("id", id)
+    .eq("author_id", profile.id)
+    .maybeSingle<{ caption: string | null }>();
 
   const { error } = await supabase
     .from("feed_posts")
@@ -119,6 +165,24 @@ export async function updateFeedCaption(_prev: Result | null, formData: FormData
     .eq("author_id", profile.id);
 
   if (error) return { error: "Não foi possível salvar." };
+
+  if (caption && mentionIds(caption).length > 0) {
+    const already = mentionIds(before?.caption ?? "");
+    after(async () => {
+      try {
+        await notifyElogramMentions({
+          text: caption,
+          senderId: profile.id,
+          senderName: await senderName(supabase, profile.id),
+          postId: id,
+          inComment: false,
+          skip: already,
+        });
+      } catch (err) {
+        console.error("aviso de marcação falhou:", err);
+      }
+    });
+  }
 
   revalidateFeed();
   return { ok: true };
@@ -213,7 +277,8 @@ export async function addFeedComment(_prev: Result | null, formData: FormData): 
   const body = String(formData.get("body") ?? "").trim();
   if (!postId) return { error: "Post inválido." };
   if (!body) return { error: "Escreva um comentário." };
-  if (body.length > 500) return { error: "Comentário muito longo." };
+  if (plainMentions(body).length > 500) return { error: "Comentário muito longo." };
+  if (mentionIds(body).length > MAX_MENTIONS_POST) return { error: `Marque até ${MAX_MENTIONS_POST} pessoas.` };
 
   const { error } = await supabase
     .from("feed_comments")
@@ -224,10 +289,26 @@ export async function addFeedComment(_prev: Result | null, formData: FormData): 
     p_post_id: postId,
     p_kind: "comment",
   });
+  if (mentionIds(body).length > 0) {
+    after(async () => {
+      try {
+        await notifyElogramMentions({
+          text: body,
+          senderId: profile.id,
+          senderName: await senderName(supabase, profile.id),
+          postId,
+          inComment: true,
+        });
+      } catch (err) {
+        console.error("aviso de marcação falhou:", err);
+      }
+    });
+  }
   if (authorId) {
+    const plain = plainMentions(body);
     await sendPushToUsers([authorId as string], {
       title: "Comentaram na sua foto",
-      body: body.length > 80 ? `${body.slice(0, 80)}…` : body,
+      body: plain.length > 80 ? `${plain.slice(0, 80)}…` : plain,
       url: "/app/elogram",
     });
   }

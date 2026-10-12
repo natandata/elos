@@ -6,7 +6,7 @@ import { ChevronLeftIcon } from "@/components/feed/icons";
 import { ElogramActivityList, type ActivityGroup } from "@/components/elogram/ElogramActivityList";
 
 type Activity = {
-  kind: "like" | "comment" | "story_view";
+  kind: "like" | "comment" | "story_view" | "mention";
   actor_id: string;
   actor_name: string;
   actor_username: string | null;
@@ -43,10 +43,11 @@ export default async function ElogramActivityPage() {
     const thumb = (r.kind === "story_view" ? storyUrls.get(r.image_path) : feedUrls.get(r.image_path)) ?? null;
     const href = r.kind === "story_view" ? `/app/elogram/perfil/${profile.id}` : `/app/elogram/post/${r.post_id}`;
 
-    if (r.kind === "comment") {
+    if (r.kind === "comment" || r.kind === "mention") {
       groups.push({
-        key: `c-${r.post_id}-${r.actor_id}-${r.at}`,
-        kind: "comment",
+        key: `${r.kind[0]}-${r.post_id}-${r.actor_id}-${r.at}`,
+        kind: r.kind,
+        where: r.kind === "mention" ? (r.reaction === "comment" ? "comment" : "post") : null,
         actors: [actor],
         total: 1,
         body: r.body,

@@ -6,6 +6,8 @@ import { Avatar } from "@/components/Avatar";
 import { formatDateTime } from "@/lib/types";
 import type { ChatMessage } from "@/lib/types";
 import { markChatRead, sendChatMessage } from "@/lib/actions/chat";
+import { MentionInput } from "@/components/elogram/MentionInput";
+import { MentionText } from "@/components/elogram/MentionText";
 
 type Participant = {
   id: string;
@@ -111,6 +113,15 @@ export function ChatPanel({
     if (state.ok) formRef.current?.reset();
   }, [state.ok]);
 
+  // quem pode ser marcado: o resto do Elo (menos você)
+  const mentionCandidates = useMemo(
+    () =>
+      participants
+        .filter((p) => p.id !== currentUserId)
+        .map((p) => ({ id: p.id, name: p.full_name || "Sem nome", avatar: p.avatar_url })),
+    [participants, currentUserId],
+  );
+
   const onlineNames = participants
     .filter((p) => p.id !== currentUserId && onlineIds.has(p.id))
     .map((p) => p.full_name || "Sem nome");
@@ -153,7 +164,7 @@ export function ChatPanel({
                         : "bg-[var(--line)] text-[var(--ink)]"
                     }`}
                   >
-                    {m.body}
+                    <MentionText text={m.body} tone={mine ? "onAccent" : "default"} />
                   </p>
                 </div>
               </div>
@@ -167,13 +178,14 @@ export function ChatPanel({
         <form ref={formRef} action={formAction} className="border-t border-[var(--line)] p-3">
           {state.error ? <p className="mb-2 text-xs text-red-600">{state.error}</p> : null}
           <div className="flex gap-2">
-            <input
+            <MentionInput
               name="body"
               maxLength={2000}
-              placeholder="Escreva uma mensagem…"
-              autoComplete="off"
+              placeholder="Escreva uma mensagem… (@ marca alguém, @todos avisa o Elo)"
               required
-              className="flex-1 rounded-xl border border-[var(--line)] bg-[var(--card)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+              allowAll
+              candidates={mentionCandidates}
+              className="w-full rounded-xl border border-[var(--line)] bg-[var(--card)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
             />
             <button type="submit" disabled={pending} className="btn">
               Enviar

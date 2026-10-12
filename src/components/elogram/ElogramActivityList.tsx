@@ -4,12 +4,15 @@ import { useState } from "react";
 import Link from "next/link";
 import { Avatar } from "@/components/Avatar";
 import { relativeTimeShort } from "@/lib/relativeTime";
+import { plainMentions } from "@/lib/mentions";
 
 export type ActivityActor = { id: string; name: string; avatar: string | null };
 
 export type ActivityGroup = {
   key: string;
-  kind: "like" | "comment" | "story_view";
+  kind: "like" | "comment" | "story_view" | "mention";
+  /** Marcação: foi numa publicação ou num comentário? */
+  where?: "post" | "comment" | null;
   actors: ActivityActor[];
   /** Quantas pessoas no total (pode ser maior que `actors`, que guarda só as primeiras). */
   total: number;
@@ -27,6 +30,7 @@ const FILTERS = [
   { id: "comment", label: "Comentários" },
   { id: "like", label: "Reações" },
   { id: "story_view", label: "Stories" },
+  { id: "mention", label: "Marcações" },
 ] as const;
 
 function sectionOf(iso: string): string {
@@ -63,7 +67,9 @@ function Names({ g }: { g: ActivityGroup }) {
 
 function sentence(g: ActivityGroup) {
   const many = g.total > 1;
-  if (g.kind === "comment") return `comentou: ${g.body ?? ""}`;
+  if (g.kind === "comment") return `comentou: ${plainMentions(g.body ?? "")}`;
+  if (g.kind === "mention")
+    return g.where === "comment" ? `marcou você num comentário: ${plainMentions(g.body ?? "")}` : "marcou você numa publicação.";
   if (g.kind === "story_view") return many ? "viram o seu story." : "viu o seu story.";
   return many ? "reagiram à sua foto." : `reagiu ${g.emoji ?? "❤️"} à sua foto.`;
 }
