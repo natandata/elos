@@ -21,15 +21,16 @@ export function PullToRefresh() {
   useEffect(() => {
     if (disabled) return;
 
-    // o navegador não pode recarregar por conta própria (recarregaria o app inteiro)
-    const prev = document.documentElement.style.overscrollBehaviorY;
-    document.documentElement.style.overscrollBehaviorY = "contain";
+    // O topo da tela é travado: puxar pra baixo no topo não "estica" a página (elástico do iPhone) nem
+    // dispara a recarga do navegador (que recarregaria o app inteiro) — só o nosso indicador age.
+    // Isso é feito segurando o gesto (preventDefault) e não por CSS global, pra não prender quem deu zoom.
 
     const blocked = () =>
       document.body.style.overflow === "hidden" || !!document.querySelector("[data-no-pull], .fixed.inset-0");
 
     function onStart(e: TouchEvent) {
-      if (window.scrollY > 0 || blocked() || e.touches.length !== 1) {
+      const zoomed = (window.visualViewport?.scale ?? 1) > 1.01;
+      if (window.scrollY > 0 || blocked() || zoomed || e.touches.length !== 1) {
         startY.current = null;
         return;
       }
@@ -40,10 +41,14 @@ export function PullToRefresh() {
       if (startY.current === null) return;
       const dy = e.touches[0].clientY - startY.current;
       if (dy <= 0 || window.scrollY > 0) {
+        // rolando a tela pra baixo normalmente: deixa o navegador cuidar
         pullRef.current = 0;
         setPull(0);
+        if (dy <= 0) startY.current = null;
         return;
       }
+      // puxando pra baixo estando no topo: segura o "elástico" do iPhone e usa só o nosso indicador
+      if (e.cancelable) e.preventDefault();
       // resistência: quanto mais puxa, mais "pesado"
       const eased = Math.min(MAX_PULL, dy * 0.5);
       pullRef.current = eased;
@@ -59,11 +64,10 @@ export function PullToRefresh() {
     }
 
     window.addEventListener("touchstart", onStart, { passive: true });
-    window.addEventListener("touchmove", onMove, { passive: true });
+    window.addEventListener("touchmove", onMove, { passive: false });
     window.addEventListener("touchend", onEnd, { passive: true });
     window.addEventListener("touchcancel", onEnd, { passive: true });
     return () => {
-      document.documentElement.style.overscrollBehaviorY = prev;
       window.removeEventListener("touchstart", onStart);
       window.removeEventListener("touchmove", onMove);
       window.removeEventListener("touchend", onEnd);
