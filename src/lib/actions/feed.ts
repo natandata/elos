@@ -39,15 +39,34 @@ export async function createFeedPost(_prev: Result | null, formData: FormData): 
   const themeConfirmed = formData.get("theme_confirmed") === "true";
   if (!imagePath) return { error: "Envie uma foto." };
 
+  // carrossel: até 9 fotos extras depois da capa — todas precisam estar na pasta de quem posta
+  let extraPaths: string[] = [];
+  try {
+    const raw = JSON.parse(String(formData.get("extra_paths") ?? "[]"));
+    if (Array.isArray(raw)) extraPaths = raw.map((p) => String(p));
+  } catch {
+    extraPaths = [];
+  }
+  const own = (p: string) => p.startsWith(`${profile.id}/`) && !p.includes("..");
+  extraPaths = Array.from(new Set(extraPaths)).filter((p) => p !== imagePath);
+  if (!own(imagePath) || extraPaths.some((p) => !own(p))) return { error: "Foto inválida." };
+  if (extraPaths.length > 9) return { error: "Um carrossel tem até 10 fotos." };
+
   const { data: post, error } = await supabase
     .from("feed_posts")
-    .insert({ author_id: profile.id, image_path: imagePath, caption, theme_confirmed: themeConfirmed })
+    .insert({
+      author_id: profile.id,
+      image_path: imagePath,
+      extra_image_paths: extraPaths,
+      caption,
+      theme_confirmed: themeConfirmed,
+    })
     .select("id")
     .single<{ id: string }>();
 
   if (error || !post) {
-    // o arquivo já subiu: sem registro ele viraria lixo invisível no Storage
-    await supabase.storage.from("feed").remove([imagePath]);
+    // os arquivos já subiram: sem registro eles viraram lixo invisível no Storage
+    await supabase.storage.from("feed").remove([imagePath, ...extraPaths]);
     return { error: "Não foi possível publicar." };
   }
 
@@ -111,10 +130,18 @@ export async function deleteFeedPost(_prev: Result | null, formData: FormData): 
   const imagePath = String(formData.get("image_path") ?? "");
   if (!id) return { error: "Post inválido." };
 
+  // os arquivos a apagar vêm do próprio post (não do que o navegador mandou), inclusive as fotos do carrossel
+  const { data: row } = await supabase
+    .from("feed_posts")
+    .select("image_path, extra_image_paths")
+    .eq("id", id)
+    .maybeSingle<{ image_path: string; extra_image_paths: string[] | null }>();
+
   const { error } = await supabase.from("feed_posts").delete().eq("id", id);
   if (error) return { error: "Não foi possível excluir." };
 
-  if (imagePath) await supabase.storage.from("feed").remove([imagePath]);
+  const files = row ? [row.image_path, ...(row.extra_image_paths ?? [])] : imagePath ? [imagePath] : [];
+  if (files.length > 0) await supabase.storage.from("feed").remove(files);
 
   revalidateFeed();
   return { ok: true };

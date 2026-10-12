@@ -27,7 +27,10 @@ export type FeedComment = {
 export type FeedPost = {
   id: string;
   imagePath: string;
+  /** Todas as fotos do post, na ordem (a primeira é a capa). Carrossel quando há mais de uma. */
+  imagePaths: string[];
   imageUrl: string | null;
+  imageUrls: (string | null)[];
   caption: string | null;
   createdAt: string;
   authorId: string;
@@ -122,6 +125,8 @@ export function FeedPostCard({
   const [editing, setEditing] = useState(false);
   const [captionDraft, setCaptionDraft] = useState(post.caption ?? "");
   const [burst, setBurst] = useState(0);
+  const [slide, setSlide] = useState(0);
+  const slideCount = Math.max(1, post.imageUrls.length);
 
   const canDeletePost = isAdmin || post.authorId === currentUserId;
   const canEditCaption = post.authorId === currentUserId;
@@ -257,7 +262,39 @@ export function FeedPostCard({
       </div>
 
       <div className="relative select-none overflow-hidden bg-[var(--card)] sm:rounded-sm" onClick={onImageTap}>
-        {post.imageUrl ? (
+        {slideCount > 1 ? (
+          <>
+            <div
+              className="flex snap-x snap-mandatory overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              onScroll={(e) => {
+                const el = e.currentTarget;
+                setSlide(Math.round(el.scrollLeft / Math.max(1, el.clientWidth)));
+              }}
+            >
+              {post.imageUrls.map((url, i) =>
+                url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={i}
+                    src={url}
+                    alt=""
+                    loading={i === 0 ? "eager" : "lazy"}
+                    decoding="async"
+                    draggable={false}
+                    className="aspect-[4/5] w-full shrink-0 snap-center object-cover"
+                  />
+                ) : (
+                  <div key={i} className="flex aspect-[4/5] w-full shrink-0 snap-center items-center justify-center text-xs text-[var(--muted)]">
+                    Foto indisponível
+                  </div>
+                ),
+              )}
+            </div>
+            <span className="absolute right-3 top-3 rounded-full bg-black/60 px-2.5 py-1 text-xs font-semibold text-white">
+              {slide + 1}/{slideCount}
+            </span>
+          </>
+        ) : post.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={post.imageUrl}
@@ -279,6 +316,16 @@ export function FeedPostCard({
 
       <div className="px-3">
         <div className="relative flex items-center gap-3.5 pb-1 pt-2.5">
+          {slideCount > 1 ? (
+            <div className="pointer-events-none absolute left-1/2 top-[22px] flex -translate-x-1/2 gap-1" aria-hidden>
+              {Array.from({ length: slideCount }).map((_, i) => (
+                <span
+                  key={i}
+                  className={`h-1.5 w-1.5 rounded-full ${i === slide ? "bg-[#0095f6]" : "bg-[var(--muted)] opacity-50"}`}
+                />
+              ))}
+            </div>
+          ) : null}
           {canPost ? (
             <button
               type="button"

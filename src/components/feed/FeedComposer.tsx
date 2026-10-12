@@ -14,6 +14,7 @@ import { compressImage } from "@/lib/imageCompress";
 import { PlusSquareIcon } from "./icons";
 
 const MAX_BYTES = 5 * 1024 * 1024;
+const MAX_CAROUSEL = 10;
 
 type Destination = "explorar" | "story" | "feed" | null;
 
@@ -58,6 +59,8 @@ export function FeedComposer({
   const [destination, setDestination] = useState<Destination>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [imagePath, setImagePath] = useState("");
+  // Explorar: até 10 fotos (carrossel). A primeira é a capa.
+  const [photos, setPhotos] = useState<{ path: string; preview: string }[]>([]);
   const [caption, setCaption] = useState("");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -91,6 +94,7 @@ export function FeedComposer({
     setDestination(null);
     setPreview(null);
     setImagePath("");
+    setPhotos([]);
     setCaption("");
     setUploadError(null);
     setThemeConfirmed(false);
@@ -153,6 +157,51 @@ export function FeedComposer({
     setIsVideo(true);
     setImagePath(posterPath);
     setPreview(URL.createObjectURL(file));
+  }
+
+  async function addExplorarPhotos(files: File[]) {
+    const room = MAX_CAROUSEL - photos.length;
+    const images = files.filter((f) => f.type.startsWith("image/"));
+    if (images.length === 0) return setUploadError("Escolha arquivos de imagem.");
+    if (room <= 0) return setUploadError(`Um carrossel tem até ${MAX_CAROUSEL} fotos.`);
+    const picked = images.slice(0, room);
+
+    setUploading(true);
+    let skipped = images.length - picked.length;
+    for (const file of picked) {
+      if (file.size > MAX_BYTES) {
+        skipped++;
+        continue;
+      }
+      const upload = await compressImage(file);
+      const ext = upload.name.split(".").pop()?.toLowerCase() || "jpg";
+      const path = `${userId}/${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage.from("feed").upload(path, upload, { contentType: upload.type });
+      if (error) {
+        skipped++;
+        continue;
+      }
+      const preview = URL.createObjectURL(file);
+      setPhotos((cur) => [...cur, { path, preview }]);
+    }
+    setUploading(false);
+    if (skipped > 0) setUploadError(`${skipped} foto(s) não entraram (limite de ${MAX_CAROUSEL} fotos ou 5 MB cada).`);
+  }
+
+  function removePhoto(index: number) {
+    setPhotos((cur) => {
+      const gone = cur[index];
+      if (gone) supabase.storage.from("feed").remove([gone.path]).catch(() => {});
+      return cur.filter((_, i) => i !== index);
+    });
+  }
+
+  function handleFiles(list: FileList | null) {
+    const files = Array.from(list ?? []);
+    setUploadError(null);
+    if (fileRef.current) fileRef.current.value = ""; // deixa escolher a mesma foto de novo
+    if (destination === "explorar") return addExplorarPhotos(files);
+    return handleFile(files[0] ?? null);
   }
 
   async function handleFile(file: File | null) {
@@ -281,11 +330,47 @@ export function FeedComposer({
                   ref={fileRef}
                   type="file"
                   accept={destination === "story" ? "image/*,video/*" : "image/*"}
+                  multiple={destination === "explorar"}
                   className="hidden"
-                  onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
+                  onChange={(e) => handleFiles(e.target.files)}
                 />
 
-                {preview && isVideo ? (
+                {destination === "explorar" && photos.length > 0 ? (
+                  <div className="mb-3">
+                    <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                      {photos.map((ph, i) => (
+                        <div key={ph.path} className="relative h-24 w-20 shrink-0 overflow-hidden rounded-lg bg-[var(--card)]">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={ph.preview} alt="" className="h-full w-full object-cover" />
+                          {i === 0 ? (
+                            <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1 text-[10px] font-semibold text-white">capa</span>
+                          ) : null}
+                          <button
+                            type="button"
+                            aria-label="Remover foto"
+                            onClick={() => removePhoto(i)}
+                            className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/65 text-xs leading-none text-white"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                      {photos.length < MAX_CAROUSEL ? (
+                        <button
+                          type="button"
+                          onClick={() => fileRef.current?.click()}
+                          disabled={uploading}
+                          className="flex h-24 w-20 shrink-0 flex-col items-center justify-center rounded-lg border-2 border-dashed border-[var(--line)] text-2xl text-[var(--muted)] hover:border-[var(--accent)]"
+                        >
+                          {uploading ? <span className="text-xs">…</span> : "+"}
+                        </button>
+                      ) : null}
+                    </div>
+                    <p className="mt-1 text-xs text-[var(--muted)]">
+                      {photos.length}/{MAX_CAROUSEL} fotos{photos.length > 1 ? " — vira um carrossel" : ""}
+                    </p>
+                  </div>
+                ) : preview && isVideo ? (
                   <video src={preview} controls playsInline muted className="mb-3 max-h-72 w-full rounded-xl bg-black object-contain" />
                 ) : preview ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -303,15 +388,20 @@ export function FeedComposer({
                         : "Enviando…"
                       : destination === "story"
                         ? "Toque para escolher uma foto ou vídeo (até 15 s)"
-                        : "Toque para escolher uma foto"}
+                        : destination === "explorar"
+                          ? "Toque para escolher até 10 fotos"
+                          : "Toque para escolher uma foto"}
                   </button>
                 )}
 
                 {uploadError ? <p className="mb-2 text-xs text-red-700">{uploadError}</p> : null}
 
-                {imagePath ? (
+                {(destination === "explorar" ? photos.length > 0 : imagePath) ? (
                   <form action={isVideo ? videoAction : actionByDestination[destination]} className="space-y-2">
-                    <input type="hidden" name="image_path" value={imagePath} />
+                    <input type="hidden" name="image_path" value={destination === "explorar" ? photos[0]?.path ?? "" : imagePath} />
+                    {destination === "explorar" ? (
+                      <input type="hidden" name="extra_paths" value={JSON.stringify(photos.slice(1).map((p) => p.path))} />
+                    ) : null}
                     {isVideo ? (
                       <>
                         <input type="hidden" name="upload_id" value={videoUploadId} />
@@ -360,10 +450,14 @@ export function FeedComposer({
                           setVideoUploadId("");
                           setPreview(null);
                           setImagePath("");
+                          if (photos.length > 0) {
+                            supabase.storage.from("feed").remove(photos.map((p) => p.path)).catch(() => {});
+                            setPhotos([]);
+                          }
                         }}
                         className="btn btn-ghost !py-2 !text-sm"
                       >
-                        {isVideo ? "Trocar vídeo" : "Trocar foto"}
+                        {isVideo ? "Trocar vídeo" : destination === "explorar" ? "Limpar fotos" : "Trocar foto"}
                       </button>
                     </div>
                   </form>

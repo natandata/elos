@@ -131,15 +131,20 @@ export async function GET(request: NextRequest) {
   // com uma consulta direta em vez da RPC (que é escopada por usuário).
   const buckets = ["feed", "stories", "profile_gallery"] as const;
   const [feed, stories, gallery] = await Promise.all([
-    supabase.from("feed_posts").select("image_path"),
+    supabase.from("feed_posts").select("image_path, extra_image_paths"),
     supabase.from("story_posts").select("image_path"),
     supabase.from("profile_gallery_posts").select("image_path"),
   ]);
-  const alive = new Set(
-    [...(feed.data ?? []), ...(stories.data ?? []), ...(gallery.data ?? [])].map(
-      (r: { image_path: string }) => r.image_path,
-    ),
-  );
+  // fotos extras do carrossel também estão "vivas" — sem isso a faxina as apagaria como órfãs
+  const feedPaths = ((feed.data ?? []) as { image_path: string; extra_image_paths: string[] | null }[]).flatMap((r) => [
+    r.image_path,
+    ...(r.extra_image_paths ?? []),
+  ]);
+  const alive = new Set([
+    ...feedPaths,
+    ...((stories.data ?? []) as { image_path: string }[]).map((r) => r.image_path),
+    ...((gallery.data ?? []) as { image_path: string }[]).map((r) => r.image_path),
+  ]);
 
   let removed = 0;
   const details: Record<string, number> = {};

@@ -16,7 +16,7 @@ type Result = {
   elo_id: string | null;
 };
 
-export type SearchGridItem = { id: string; imageUrl: string | null; authorId: string };
+export type SearchGridItem = { id: string; imageUrl: string | null; authorId: string; multi?: boolean };
 
 /** Busca de perfis do Elogram. Sem texto, mostra a grade de fotos recentes (como a aba de busca do Instagram).
  *  `hrefBase` + id do usuário define pra onde cada resultado leva (perfil, ou nova conversa). */
@@ -111,10 +111,15 @@ export function ElogramSearch({
       ) : grid.length > 0 ? (
         <div className="grid grid-cols-3 gap-0.5 pt-1">
           {grid.map((g) => (
-            <Link key={g.id} href={`/app/elogram/perfil/${g.authorId}`} className="relative aspect-square bg-[var(--card)]">
+            <Link key={g.id} href={`/app/elogram/post/${g.id}`} className="relative aspect-square bg-[var(--card)]">
               {g.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={g.imageUrl} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+              ) : null}
+              {g.multi ? (
+                <svg viewBox="0 0 24 24" width="20" height="20" className="absolute right-1.5 top-1.5 text-white drop-shadow" fill="currentColor" aria-label="Carrossel">
+                  <path d="M7 3h11a3 3 0 0 1 3 3v11h-2V6a1 1 0 0 0-1-1H7V3zM3 8a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V8z" />
+                </svg>
               ) : null}
             </Link>
           ))}
