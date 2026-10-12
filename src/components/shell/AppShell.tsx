@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { signOut } from "@/lib/actions/session";
 import { Avatar } from "@/components/Avatar";
@@ -20,6 +20,33 @@ export type NavItem = {
   /** Itens agrupados dentro deste (menu do admin): aparecem recolhidos por padrão. */
   children?: NavItem[];
 };
+
+/**
+ * Telas que carregam em segundo plano assim que o app abre, pra o toque no menu ser instantâneo.
+ * Ficam de fora as que mudam o tempo todo (chat, notificações, mural, missões, telas do admin):
+ * uma tela pré-carregada pode mostrar dados de até 5 minutos atrás.
+ */
+const PREFETCH_HREFS = new Set([
+  "/app/cria",
+  "/app/lider",
+  "/app/ranking",
+  "/app/ranking-crias",
+  "/app/agenda",
+  "/app/jogos",
+  "/app/elogram",
+  "/app/perfil",
+  "/app/devocional",
+  "/app/eventos",
+]);
+
+function collectHrefs(items: NavItem[]): string[] {
+  const out: string[] = [];
+  for (const it of items) {
+    if (it.href && PREFETCH_HREFS.has(it.href)) out.push(it.href);
+    if (it.children) out.push(...collectHrefs(it.children));
+  }
+  return Array.from(new Set(out));
+}
 
 function NavBadge({ count }: { count: number }) {
   if (count <= 0) return null;
@@ -54,7 +81,19 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
+
+  // pré-carrega as telas principais aos poucos (sem competir com a tela que acabou de abrir)
+  useEffect(() => {
+    if (pending) return;
+    const hrefs = collectHrefs(items).filter((h) => h !== pathname);
+    const timers = hrefs.map((h, i) => setTimeout(() => router.prefetch(h), 1500 + i * 400));
+    return () => timers.forEach(clearTimeout);
+    // roda uma vez por abertura do app: o menu não muda ao navegar
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [menuOpen, setMenuOpen] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
