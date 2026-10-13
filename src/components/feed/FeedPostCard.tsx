@@ -460,6 +460,10 @@ export function FeedPostCard({
           <p className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-[var(--accent)] bg-[var(--accent-soft)] px-2.5 py-0.5 text-xs font-bold text-[var(--accent-strong)]">
             ✨ Tema do dia — +1 XP
           </p>
+        ) : post.themeConfirmed && !post.themeXpRevoked ? (
+          <p className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-[var(--line)] px-2.5 py-0.5 text-xs font-bold text-[var(--muted)]">
+            👯 Tema em dupla — o XP sai quando a dupla postar também
+          </p>
         ) : post.themeXpRevoked ? (
           <p className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-[var(--line)] px-2.5 py-0.5 text-xs font-bold text-[var(--muted)]">
             XP do tema revogado

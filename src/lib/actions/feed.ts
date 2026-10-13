@@ -8,7 +8,7 @@ import { sendPushToUsers } from "@/lib/push-server";
 import { mentionIds, plainMentions } from "@/lib/mentions";
 import { MAX_MENTIONS_POST, notifyElogramMentions } from "@/lib/mentionNotify";
 
-type Result = { error?: string; ok?: boolean };
+type Result = { error?: string; ok?: boolean; /** Tema em dupla: "waiting" = falta a dupla postar; "awarded" = XP dado. */ pair?: string };
 
 async function currentProfile() {
   const supabase = await createClient();
@@ -95,9 +95,11 @@ export async function createFeedPost(_prev: Result | null, formData: FormData): 
   // XP do tema entra já na resposta (não em `after`): é o que acende o
   // "+1 XP" na tela pra quem confirmou — não pode depender de um passo que
   // roda só depois que a tela já respondeu.
+  let themeStatus: string | undefined;
   if (themeConfirmed) {
     try {
-      await supabase.rpc("award_feed_theme_xp", { p_post_id: post.id });
+      const { data: status } = await supabase.rpc("award_feed_theme_xp", { p_post_id: post.id });
+      themeStatus = typeof status === "string" ? status : undefined;
     } catch (err) {
       console.error("award_feed_theme_xp falhou (post já publicado):", err);
     }
@@ -137,7 +139,7 @@ export async function createFeedPost(_prev: Result | null, formData: FormData): 
     );
   });
 
-  return { ok: true };
+  return { ok: true, pair: themeStatus };
 }
 
 export async function updateFeedCaption(_prev: Result | null, formData: FormData): Promise<Result> {

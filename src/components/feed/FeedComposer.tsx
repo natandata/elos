@@ -42,11 +42,14 @@ export function FeedComposer({
   userId,
   galleryFull = false,
   dailyPrompt,
+  pairPartner = null,
 }: {
   userId: string;
   galleryFull?: boolean;
   /** Tema do dia (mesmo pra todo mundo) — mostrado só na hora de postar no Explorar. */
   dailyPrompt?: string;
+  /** Dia de tema em dupla: nome da parceira/do parceiro de hoje (o XP só sai quando os dois postam). */
+  pairPartner?: string | null;
 }) {
   const router = useRouter();
   const supabase = createClient();
@@ -442,8 +445,17 @@ export function FeedComposer({
                             className="mt-0.5"
                           />
                           <span>
-                            Esse post é pra cumprir o tema do dia?{" "}
-                            <span className="font-semibold text-[var(--accent-strong)]">+1 XP</span>
+                            {pairPartner ? (
+                              <>
+                                Esse post é pra cumprir o tema em dupla com {pairPartner}?{" "}
+                                <span className="font-semibold text-[var(--accent-strong)]">+1 XP quando vocês dois postarem</span>
+                              </>
+                            ) : (
+                              <>
+                                Esse post é pra cumprir o tema do dia?{" "}
+                                <span className="font-semibold text-[var(--accent-strong)]">+1 XP</span>
+                              </>
+                            )}
                           </span>
                         </label>
                       </>

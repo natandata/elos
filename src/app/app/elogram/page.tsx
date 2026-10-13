@@ -2,7 +2,7 @@ import { homeFor, needsWeeklyPushNudge, requireRole } from "@/lib/auth";
 import { ElogramTopBar } from "@/components/elogram/ElogramTopBar";
 import { createClient } from "@/lib/supabase/server";
 import { dailyFeedPrompt, dailyFeedTheme } from "@/lib/feedPrompts";
-import { DailyThemeCard } from "@/components/elogram/DailyThemeCard";
+import { DailyThemeCard, type ThemePair } from "@/components/elogram/DailyThemeCard";
 import { FeedComposer } from "@/components/feed/FeedComposer";
 import { FeedStoriesTray } from "@/components/feed/FeedStoriesTray";
 import { getAllStoriesTray } from "@/lib/stories";
@@ -22,7 +22,7 @@ export default async function FeedPage() {
   const dailyPrompt = dailyFeedPrompt();
   const dailyTheme = dailyFeedTheme();
 
-  const [feed, galleryCountRes, storyEntries, { data: unread }] = await Promise.all([
+  const [feed, galleryCountRes, storyEntries, { data: unread }, themeTodayRes] = await Promise.all([
     loadFeedPosts(supabase, profile, { viewingAs: !!viewingAs }),
     canInteract
       ? supabase
@@ -33,7 +33,14 @@ export default async function FeedPage() {
     // Bolinhas do topo: só stories (foto ou vídeo, 24h) de todos os usuários — as fotos do feed ficam abaixo.
     getAllStoriesTray(supabase, profile.id),
     supabase.rpc("elogram_unread_count"),
+    canInteract ? supabase.rpc("elogram_theme_today") : Promise.resolve({ data: null }),
   ]);
+  // A cada 2 dias o tema é em dupla: só dá XP quando a pessoa e a parceira do dia postam.
+  const themeToday = ((themeTodayRes.data ?? []) as { pair: boolean; partner_id: string | null; partner_name: string | null; partner_avatar: string | null; my_posted: boolean; partner_posted: boolean }[])[0];
+  const pair: ThemePair | null =
+    themeToday?.pair && themeToday.partner_id
+      ? { partnerId: themeToday.partner_id, partnerName: themeToday.partner_name ?? "sua dupla", partnerAvatar: themeToday.partner_avatar, myPosted: themeToday.my_posted, partnerPosted: themeToday.partner_posted }
+      : null;
 
   const backHref = profile.role === "guardian" ? null : homeFor(profile.role);
 
@@ -48,6 +55,7 @@ export default async function FeedPage() {
               userId={profile.id}
               galleryFull={(galleryCountRes.count ?? 0) >= 3}
               dailyPrompt={dailyPrompt}
+              pairPartner={pair?.partnerName ?? null}
             />
           ) : undefined
         }
@@ -63,7 +71,7 @@ export default async function FeedPage() {
         myAvatar={profile.avatar_url}
       />
 
-      {canInteract ? <DailyThemeCard theme={dailyTheme} streak={profile.feed_streak} /> : null}
+      {canInteract ? <DailyThemeCard theme={dailyTheme} streak={profile.feed_streak} pair={pair} /> : null}
 
       {feed.length === 0 ? (
         <p className="px-6 py-16 text-center text-sm text-[var(--muted)]">Nenhuma foto no Elogram nas últimas 24h.</p>
