@@ -61,7 +61,7 @@ export function QdClient({ me, initial }: { me: { id: string; name: string }; in
 
   return (
     <div className="space-y-3">
-      <section className="overflow-hidden rounded-3xl border-[3px] border-indigo-400 bg-indigo-950 shadow-lg">
+      <section className="overflow-hidden rounded-3xl border-[3px] border-[#6c63f0] bg-indigo-950 shadow-[0_4px_0_#130f58]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/quemdesenha/capa.webp" alt="Quem Desenha?" className="block aspect-[4/3] w-full object-cover" draggable={false} />
         <h1 className="sr-only">Quem Desenha?</h1>
@@ -70,27 +70,27 @@ export function QdClient({ me, initial }: { me: { id: string; name: string }; in
 
       <section className="card p-4">
         <div className="flex items-center gap-3">
-          <span className="grid h-14 w-14 place-items-center rounded-2xl bg-[var(--accent-soft)] text-3xl" aria-hidden><QT>{title.emoji}</QT></span>
+          <span className="grid h-14 w-14 place-items-center rounded-2xl border-[3px] border-amber-300 bg-[var(--accent-soft)] text-3xl" aria-hidden><QT>{title.emoji}</QT></span>
           <div className="min-w-0 flex-1">
             <p className="truncate text-lg font-black">{me.name}</p>
             <p className="text-sm font-bold text-[var(--accent-strong)]">{title.name}</p>
           </div>
           <p className="text-right text-2xl font-black tabular-nums"><QT>⭐ </QT>{stats.stars.toLocaleString("pt-BR")}</p>
         </div>
-        <div className="mt-2 h-2 overflow-hidden rounded-full bg-[var(--line)]">
-          <div className="h-full rounded-full bg-[var(--accent)]" style={{ width: `${into}%` }} />
+        <div className="mt-2 h-3 overflow-hidden rounded-full border-2 border-white/20 bg-[#1c1670]">
+          <div className="h-full rounded-full bg-gradient-to-r from-pink-500 via-amber-400 to-cyan-400" style={{ width: `${into}%` }} />
         </div>
         <p className="mt-1 text-[11px] text-[var(--muted)]">{next ? `Faltam ${next.stars - stats.stars} estrelas para ${next.emoji} ${next.name}` : "Você chegou ao maior título!"}</p>
         <div className="mt-3 grid grid-cols-4 gap-2 text-center">
           {[
-            ["🎨", stats.drawings, "desenhos"],
-            ["🎯", stats.guesses, "acertos"],
-            ["🏆", stats.wins, "vitórias"],
-            ["🔥", stats.win_streak, "em sequência"],
-          ].map(([e, n, l]) => (
-            <div key={String(l)} className="rounded-xl bg-[var(--line)]/60 py-2">
+            ["🎨", stats.drawings, "desenhos", "bg-pink-500"],
+            ["🎯", stats.guesses, "acertos", "bg-cyan-500"],
+            ["🏆", stats.wins, "vitórias", "bg-amber-500"],
+            ["🔥", stats.win_streak, "em sequência", "bg-orange-500"],
+          ].map(([e, n, l, c]) => (
+            <div key={String(l)} className={`rounded-2xl border-2 border-white/30 py-2 text-white shadow-[0_3px_0_rgba(0,0,0,0.3)] ${c}`}>
               <p className="text-lg font-black tabular-nums"><QT>{e}</QT> {n}</p>
-              <p className="text-[10px] font-bold text-[var(--muted)]">{l}</p>
+              <p className="text-[10px] font-bold text-white/90">{l}</p>
             </div>
           ))}
         </div>
@@ -135,7 +135,7 @@ export function QdClient({ me, initial }: { me: { id: string; name: string }; in
         ) : (
           <ul className="mt-2 space-y-2">
             {rooms.map((r) => (
-              <li key={r.code} className="flex items-center gap-3 rounded-xl bg-[var(--line)]/60 px-3 py-2">
+              <li key={r.code} className="flex items-center gap-3 rounded-2xl border-2 border-cyan-300/60 bg-[#1c1670] px-3 py-2">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-black">Sala de {r.hostName}</p>
                   <p className="text-[11px] text-[var(--muted)]">{r.players}/{r.max} jogadores · {r.summary}</p>

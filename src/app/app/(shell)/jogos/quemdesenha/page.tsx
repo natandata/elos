@@ -14,7 +14,7 @@ export default async function QuemDesenhaPage() {
   const supabase = await createClient();
   const { data } = await supabase.from("qd_stats").select("stars, matches, wins, drawings, guesses, win_streak, best_streak").eq("user_id", profile.id).maybeSingle<QdStats>();
   return (
-    <div className="mx-auto max-w-xl">
+    <div className="qd-theme mx-auto max-w-xl rounded-3xl p-3">
       <QdClient me={{ id: profile.id, name: profile.full_name?.split(" ")[0] || "Jogador" }} initial={data ?? EMPTY_STATS} />
     </div>
   );

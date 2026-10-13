@@ -14,7 +14,7 @@ const secs = (ms: number) => Math.ceil(Math.max(0, ms) / 1000);
 
 function Chip({ on, children, onClick, disabled }: { on: boolean; children: React.ReactNode; onClick?: () => void; disabled?: boolean }) {
   return (
-    <button type="button" disabled={disabled} onClick={onClick} className={`rounded-full px-3 py-1.5 text-xs font-black transition ${on ? "bg-[var(--accent)] text-[var(--accent-ink)]" : "bg-[var(--line)] text-[var(--muted)]"} ${disabled ? "opacity-60" : "active:scale-95"}`}>
+    <button type="button" disabled={disabled} onClick={onClick} className={`rounded-full border-2 px-3 py-1.5 text-xs font-black transition ${on ? "border-amber-600 bg-gradient-to-b from-amber-300 to-orange-400 text-[#2b1700]" : "border-[#6c63f0] bg-[#3a32c2] text-white"} ${disabled ? "opacity-60" : "active:scale-95"}`}>
       {children}
     </button>
   );
@@ -174,7 +174,7 @@ export function QdRoom({ session, training, onLeave, onFinished }: { session: Se
           <p className="text-sm font-black"><QT>🎨 Jogadores (</QT>{s.players.length}/{st.maxPlayers})</p>
           <ul className="mt-2 grid grid-cols-2 gap-2">
             {s.players.map((p) => (
-              <li key={p.id} className="flex items-center gap-2 rounded-xl bg-[var(--line)]/60 px-3 py-2 text-sm font-bold">
+              <li key={p.id} className="flex items-center gap-2 rounded-2xl border-2 border-pink-300/60 bg-[#1c1670] px-3 py-2 text-sm font-bold">
                 <span aria-hidden>{p.id === s.hostId ? <QT>{"👑"}</QT> : p.bot ? <QT>{"🤖"}</QT> : <QT>{"🙂"}</QT>}</span>
                 <span className="truncate">{p.name}</span>
                 {p.id === session.me.id ? <span className="ml-auto text-[10px] text-[var(--muted)]">você</span> : null}

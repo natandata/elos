@@ -1912,3 +1912,79 @@ input[type="datetime-local"] {
   from { width: 0; }
   to { width: 100%; }
 }
+
+/* ------------------------------------------------------------- Quem Desenha?
+   Visual da capa do jogo: azul-índigo profundo, confete colorido, amarelo/laranja vivo,
+   cartões de contorno grosso e botões "de desenho animado". Só vale dentro de .qd-theme. */
+.qd-theme {
+  --bg: #231d86;
+  --card: #2e27a3;
+  --surface: #241e8c;
+  --line: #4a42cf;
+  --ink: #ffffff;
+  --muted: #c4c1ff;
+  --accent: #ffc72c;
+  --accent-ink: #2b1700;
+  --accent-soft: rgba(255, 199, 44, 0.2);
+  --accent-strong: #ffd96b;
+  --shadow-card: 0 4px 0 #130f58;
+  color: var(--ink);
+  background-color: #231d86;
+  background-image:
+    radial-gradient(circle at 12% 8%, #ff4f9a 0 3px, transparent 4px),
+    radial-gradient(circle at 88% 14%, #ffc72c 0 3px, transparent 4px),
+    radial-gradient(circle at 30% 34%, #37d3ff 0 2.5px, transparent 3.5px),
+    radial-gradient(circle at 74% 46%, #7cf08a 0 2.5px, transparent 3.5px),
+    radial-gradient(circle at 18% 70%, #ffc72c 0 3px, transparent 4px),
+    radial-gradient(circle at 90% 82%, #ff4f9a 0 3px, transparent 4px),
+    radial-gradient(circle at 50% 96%, #37d3ff 0 3px, transparent 4px),
+    linear-gradient(180deg, #2a22a8 0%, #1d1773 100%);
+  background-size: 190px 230px, 230px 190px, 170px 210px, 210px 170px, 200px 240px, 240px 200px, 180px 220px, 100% 100%;
+}
+.qd-theme .card {
+  border: 3px solid #5b52e6;
+  border-radius: 1.5rem;
+}
+.qd-theme .btn {
+  border-radius: 1.1rem;
+  font-weight: 900;
+  border-width: 3px;
+}
+.qd-theme .btn-primary {
+  background: linear-gradient(180deg, #ffd94a, #ff9d1c);
+  border: 3px solid #b85d00;
+  box-shadow: 0 4px 0 #8a4300;
+  color: #2b1700;
+}
+.qd-theme .btn-primary:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+.qd-theme .btn-primary:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #8a4300;
+}
+.qd-theme .btn-ghost {
+  background: #3a32c2;
+  border: 3px solid #6c63f0;
+  box-shadow: 0 4px 0 #130f58;
+  color: #fff;
+}
+.qd-theme .btn-ghost:hover:not(:disabled) {
+  background: #453dd6;
+}
+.qd-theme .btn-ghost:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #130f58;
+}
+.qd-theme input {
+  color: #fff;
+  border-color: #6c63f0 !important;
+  background: #1c1670 !important;
+}
+.qd-theme input::placeholder {
+  color: #9d99e8;
+}
+.qd-theme .text-amber-700 { color: #ffd96b; }
+.qd-theme .text-emerald-700 { color: #6ff0a0; }
+.qd-theme .text-rose-700 { color: #ff8fb0; }
+.qd-theme details > summary { color: #c4c1ff; }
