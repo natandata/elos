@@ -4,7 +4,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { useEffect, useRef, useState } from "react";
 import type { Peer } from "@/lib/minearena/net/room";
 import { MiniRoom, type MiniRoomInfo, type StartInfo, watchMiniRooms } from "@/lib/minearena/mini/room";
-import { MINI_BY_ID, MINI_GAMES, type MiniGame, type MiniPlayer } from "@/lib/minearena/mini/types";
+import { MINI_BY_ID, MINI_GAMES, isBotId, type MiniGame, type MiniPlayer } from "@/lib/minearena/mini/types";
+
+/** Quantos computadores entram numa partida "contra o computador" (além de você). */
+const DEFAULT_BOTS: Record<MiniGame, number> = { hunger: 5, skywars: 3, build: 3 };
 
 export type MiniLaunch = StartInfo & { room: MiniRoom; solo: boolean };
 
@@ -54,15 +57,16 @@ export function MiniMenu({ sb, me, free, onStart, onBack }: { sb: SupabaseClient
     },
   };
 
-  async function create(g: MiniGame) {
+  async function create(g: MiniGame, vsComputer = false) {
     if (busy) return;
     setBusy(true);
     setError(null);
     try {
       // o canal do lobby precisa estar livre antes de anunciar a sala (mesmo nome de canal)
       await stopRef.current?.();
-      const r = await MiniRoom.host(sb, me, g, cb);
+      const r = await MiniRoom.host(sb, me, g, cb, vsComputer);
       roomRef.current = r;
+      if (vsComputer) for (let i = 0; i < DEFAULT_BOTS[g]; i++) r.addBot();
       setRoom(r);
     } catch {
       setError("Não consegui abrir a sala. Verifique a conexão.");
@@ -110,13 +114,24 @@ export function MiniMenu({ sb, me, free, onStart, onBack }: { sb: SupabaseClient
         <ul className="ma-mini-roster">
           {roster.map((p) => (
             <li key={p.id}>
-              {p.id === room.hostId ? "👑 " : "🧑 "}
+              {p.id === room.hostId ? "👑 " : isBotId(p.id) ? "" : "🧑 "}
               {p.name}
               {p.id === me.id ? " (você)" : ""}
             </li>
           ))}
         </ul>
-        {!enough ? <p className="ma-lobby-empty">Chame os colegas: eles entram pela lista de salas do {info.name}.</p> : null}
+        {host ? (
+          <div className="ma-mini-bots">
+            <span>🤖 Computadores: {room.botCount}</span>
+            <button type="button" className="ma-btn ma-btn-dark" disabled={room.botCount === 0} onClick={() => room.removeBot()}>
+              − Tirar
+            </button>
+            <button type="button" className="ma-btn ma-btn-dark" disabled={roster.length >= info.max} onClick={() => room.addBot()}>
+              + Adicionar
+            </button>
+          </div>
+        ) : null}
+        {!enough ? <p className="ma-lobby-empty">Chame os colegas (eles entram pela lista de salas do {info.name}) ou adicione computadores.</p> : null}
         {host ? (
           <button type="button" className="ma-btn" disabled={!canStart} onClick={() => room.start()}>
             {enough ? "▶ COMEÇAR A PARTIDA" : free && roster.length >= 1 ? (roster.length === 1 ? "▶ Testar sozinho (admin)" : `▶ Começar com ${roster.length} (admin)`) : `Faltam ${info.min - roster.length} jogador(es)`}
@@ -145,8 +160,11 @@ export function MiniMenu({ sb, me, free, onStart, onBack }: { sb: SupabaseClient
             <li key={h}>{h}</li>
           ))}
         </ul>
-        <button type="button" className="ma-btn" disabled={busy} onClick={() => void create(game)}>
-          ➕ Criar sala ({info.min} a {info.max} jogadores)
+        <button type="button" className="ma-btn" disabled={busy} onClick={() => void create(game, true)}>
+          🤖 Jogar contra o computador
+        </button>
+        <button type="button" className="ma-btn ma-btn-dark" disabled={busy} onClick={() => void create(game)}>
+          ➕ Criar sala online ({info.min} a {info.max} jogadores)
         </button>
         {error ? <p className="ma-lobby-error">{error}</p> : null}
         <h3 className="ma-mini-sub">Salas abertas</h3>
@@ -186,7 +204,7 @@ export function MiniMenu({ sb, me, free, onStart, onBack }: { sb: SupabaseClient
   return (
     <div className="ma-load ma-mini">
       <h2 className="ma-lobby-title">🎮 Minigames</h2>
-      <p className="ma-lobby-empty">Partidas online com os colegas. Escolha um jogo:</p>
+      <p className="ma-lobby-empty">Jogue com os colegas online ou contra o computador. Escolha um jogo:</p>
       <ul>
         {MINI_GAMES.map((g) => (
           <li key={g.id}>

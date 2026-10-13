@@ -47,7 +47,13 @@ export const MINI_BY_ID = new Map(MINI_GAMES.map((g) => [g.id, g]));
 export interface MiniPlayer {
   id: string;
   name: string;
+  /** jogador do computador (o anfitrião simula) */
+  bot?: boolean;
 }
+
+export const BOT_PREFIX = "bot-";
+export const isBotId = (id: string): boolean => id.startsWith(BOT_PREFIX);
+export const BOT_NAMES = ["Davi", "Ester", "Calebe", "Ruth", "Jonas", "Lia", "Samuel", "Raquel", "Josué", "Débora"];
 
 export type ZoneStage = { wait: number; shrink: number; r: number; dmg: number };
 

@@ -39,8 +39,9 @@ import { ARENA, FORTRESS_RESIDENTS, GEENA_ARRIVAL, fortressesNear } from "./worl
 import type { MobDef } from "./entities/definitions";
 import { RECIPES, type Recipe, gridLayout, matchGrid } from "./crafting/recipes";
 import { MiniDirector, type MiniEngine } from "./mini/director";
+import { MiniBots } from "./mini/bots";
 import { miniMap } from "./mini/maps";
-import type { MiniGame, MiniHud, MiniMap, MiniPlayer } from "./mini/types";
+import { isBotId, type MiniGame, type MiniHud, type MiniMap, type MiniPlayer } from "./mini/types";
 
 export interface HudState {
   health: number;
@@ -290,6 +291,8 @@ export class MineArena {
   private hand = new THREE.Group();
   story: StoryDirector | null = null;
   mini: MiniDirector | null = null;
+  /** Minigames: jogadores do computador (só o anfitrião simula). */
+  private bots: MiniBots | null = null;
   private miniHud: MiniHud | null = null;
   private miniMapDef: MiniMap | null = null;
   private spectating = false;
@@ -433,6 +436,7 @@ export class MineArena {
       this.wxT = 1e9;
       this.attachMiniNet();
       this.mini = new MiniDirector(this.miniEngine(), opts.mini.net, this.miniMapDef, opts.mini.players, this.me, opts.mini.role, opts.mini.theme, (why) => this.cb.onRoomEnded(why ?? ""), !!opts.mini.solo);
+      if (opts.mini.role === "host" && opts.mini.players.some((p) => isBotId(p.id))) this.bots = this.makeBots(opts.mini.players);
       const zg = new THREE.CylinderGeometry(1, 1, 220, 72, 1, true);
       this.zoneMesh = new THREE.Mesh(zg, new THREE.MeshBasicMaterial({ color: 0x4aa3ff, transparent: true, opacity: 0.2, side: THREE.DoubleSide, depthWrite: false }));
       this.zoneMesh.visible = false;
@@ -625,6 +629,7 @@ export class MineArena {
     await this.saveNow();
     // o convidado só fecha a conexão ao sair de verdade (quem fecha é a tela, que também sobrevive a remontagens)
     if (this.role !== "guest" && !this.mini) this.closeRoom(true);
+    this.bots?.dispose();
     this.remotes.dispose();
     if (this.zoneMesh) {
       this.scene.remove(this.zoneMesh);
@@ -1626,6 +1631,7 @@ export class MineArena {
     }
     this.story?.update(dt);
     this.mini?.update(dt);
+    this.bots?.update(dt);
     this.miniFrozen = !!this.mini?.frozen;
     const mm = !!this.mini && (this.mini.phase === "judge" || this.mini.phase === "end");
     if (mm !== this.miniModal) {
@@ -2831,6 +2837,24 @@ export class MineArena {
       hud: (h) => {
         this.miniHud = h;
       },
+      scanPlot: (i) => {
+        const pl = this.miniMapDef?.plots[i];
+        if (!pl) return { count: 0, kinds: 0 };
+        let count = 0;
+        const kinds = new Set<number>();
+        for (let x = pl.x0; x <= pl.x1; x++) {
+          for (let z = pl.z0; z <= pl.z1; z++) {
+            for (let y = pl.floorY + 1; y <= pl.ceilY; y++) {
+              const id = this.world.getBlock(x, y, z);
+              if (id !== B.air) {
+                count++;
+                kinds.add(id);
+              }
+            }
+          }
+        }
+        return { count, kinds: kinds.size };
+      },
       dropEverything: () => {
         if (!this.net || !this.mini || this.mini.game === "build") return;
         const items: NonNullable<Stack>[] = [];
@@ -2863,8 +2887,26 @@ export class MineArena {
       if (!this.remotes.list.has(m.from)) this.remotes.add(m.from, names.get(m.from) ?? "Jogador", m.x as number, m.y as number, m.z as number);
       this.remotes.setTarget(m.from, m.x as number, m.y as number, m.z as number, m.yaw as number);
     });
+    // posições dos jogadores do computador (o anfitrião é quem os move)
+    net.on("bpos", (m) => {
+      for (const e of (m.l as number[][]) ?? []) {
+        const p = mp?.players[e[0]];
+        if (!p || (this.mini && !this.mini.isAlive(p.id))) continue;
+        if (!this.remotes.list.has(p.id)) this.remotes.add(p.id, p.name, e[1], e[2], e[3]);
+        this.remotes.setTarget(p.id, e[1], e[2], e[3], e[4]);
+      }
+    });
+    net.on("bpvp", (m) => {
+      this.mini?.noteHit(String(m.bot));
+      this.damagePlayer(Number(m.dmg) || 1, Number(m.fx), Number(m.fz));
+    });
     net.on("chat", (m) => this.cb.onMessage(`${m.name as string}: ${m.text as string}`, "info"));
     net.on("pvp", (m) => {
+      // alguém bateu num jogador do computador: só o anfitrião cuida
+      if (m.bot) {
+        this.bots?.hurt(String(m.bot), Number(m.dmg) || 1, m.from, Number(m.fx), Number(m.fz));
+        return;
+      }
       this.mini?.noteHit(m.from);
       this.damagePlayer(m.dmg as number, m.fx as number, m.fz as number);
     });
@@ -2944,7 +2986,7 @@ export class MineArena {
     if (crit) dmg *= 1.5;
     this.atkCd = w?.cooldown ?? 0.45;
     this.swing = 1;
-    this.net?.send("pvp", { dmg, fx: this.body.x - dir.x * 0.5, fz: this.body.z - dir.z * 0.5 }, id);
+    this.sendPvp(id, dmg, this.body.x - dir.x * 0.5, this.body.z - dir.z * 0.5);
     this.sfx.play("hit");
     const p = this.remotes.list.get(id);
     if (p) this.particles.burst(p.tx, p.ty + 1.2, p.tz, crit ? 0xffd36a : 0xff4d4d, crit ? 10 : 5, 3, 0.1);
@@ -2957,13 +2999,62 @@ export class MineArena {
     for (const p of this.remotes.list.values()) {
       if (Math.hypot(x - p.tx, z - p.tz) < 0.7 && y > p.ty - 0.1 && y < p.ty + 2) {
         const n = Math.hypot(vx, vz) || 1;
-        this.net?.send("pvp", { dmg, fx: x - (vx / n) * 2, fz: z - (vz / n) * 2 }, p.id);
+        this.sendPvp(p.id, dmg, x - (vx / n) * 2, z - (vz / n) * 2);
         this.sfx.play("hit");
         this.particles.burst(x, y, z, 0xff4d4d, 6, 3, 0.1);
         return true;
       }
     }
     return false;
+  }
+
+  /** Golpe em outro jogador: direto na vítima; em jogador do computador, no anfitrião (que o simula). */
+  private sendPvp(id: string, dmg: number, fx: number, fz: number): void {
+    if (!isBotId(id)) {
+      this.net?.send("pvp", { dmg, fx, fz }, id);
+      return;
+    }
+    if (this.bots) this.bots.hurt(id, dmg, this.me?.id ?? "", fx, fz);
+    else if (this.net) this.net.send("pvp", { dmg, fx, fz, bot: id }, this.net.hostId);
+  }
+
+  /** Anfitrião: liga os jogadores do computador ao motor. */
+  private makeBots(players: MiniPlayer[]): MiniBots {
+    return new MiniBots(
+      {
+        isSolid: (x, y, z) => this.world.isSolid(x, y, z),
+        setBlock: (x, y, z, id) => {
+          this.world.setBlockRemote(x, y, z, id);
+          this.net?.send("blk", { x, y, z, id });
+        },
+        phase: () => this.mini?.phase ?? "wait",
+        zone: () => this.mini?.zoneNow() ?? { started: false, r: 999, dmg: 0 },
+        humans: () => {
+          const out = [{ id: this.me?.id ?? "", x: this.body.x, y: this.body.y, z: this.body.z, alive: !this.spectating && !!this.mini?.isAlive(this.me?.id ?? "") }];
+          for (const p of this.remotes.list.values()) if (!isBotId(p.id)) out.push({ id: p.id, x: p.tx, y: p.ty, z: p.tz, alive: !!this.mini?.isAlive(p.id) });
+          return out;
+        },
+        hurtHuman: (id, dmg, fx, fz, botId) => {
+          if (id === this.me?.id) {
+            this.mini?.noteHit(botId);
+            this.damagePlayer(dmg, fx, fz);
+          } else this.net?.send("bpvp", { dmg, fx, fz, bot: botId }, id);
+        },
+        addVisual: (id, name, x, y, z) => {
+          if (!this.remotes.list.has(id)) this.remotes.add(id, name, x, y, z);
+        },
+        moveVisual: (id, x, y, z, yaw) => this.remotes.setTarget(id, x, y, z, yaw),
+        removeVisual: (id) => this.remotes.remove(id),
+        broadcast: (t, d) => this.net?.send(t, d),
+        died: (id, by) => this.mini?.botDied(id, by),
+        hitFx: (x, y, z) => {
+          this.sfx.play("hit");
+          this.particles.burst(x, y, z, 0xff4d4d, 6, 3, 0.1);
+        },
+      },
+      this.miniMapDef!,
+      players,
+    );
   }
 
   miniVote(stars: number): void {

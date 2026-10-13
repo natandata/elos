@@ -1,7 +1,7 @@
 // Salas dos minigames: anúncio no lobby (presença) e a sala em si (anfitrião manda; convidados entram pelo "hello").
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { type NetMsg, type Peer, RoomNet } from "../net/room";
-import { MINI_BY_ID, type MiniGame, type MiniPlayer } from "./types";
+import { BOT_NAMES, BOT_PREFIX, MINI_BY_ID, type MiniGame, type MiniPlayer } from "./types";
 
 export const MINI_LOBBY = "minearena-mini-lobby";
 export const miniTopic = (hostId: string) => `minearena-mini:${hostId}`;
@@ -66,11 +66,12 @@ export class MiniRoom {
     this.list = role === "host" ? [{ id: me.id, name: me.name }] : [];
   }
 
-  static async host(sb: SupabaseClient, me: Peer, game: MiniGame, cb: RoomCb): Promise<MiniRoom> {
+  /** `priv`: sala só sua (contra o computador), não aparece na lista de salas abertas. */
+  static async host(sb: SupabaseClient, me: Peer, game: MiniGame, cb: RoomCb, priv = false): Promise<MiniRoom> {
     const r = new MiniRoom(sb, me, me.id, "host", game, cb);
     await r.net.connect();
     r.wireHost();
-    r.announce();
+    if (!priv) r.announce();
     cb.onRoster(r.list);
     return r;
   }
@@ -108,6 +109,34 @@ export class MiniRoom {
 
   get players(): MiniPlayer[] {
     return this.list;
+  }
+
+  get botCount(): number {
+    return this.list.filter((p) => p.bot).length;
+  }
+
+  /** Anfitrião: põe um jogador do computador na sala (devolve false se estiver cheia). */
+  addBot(): boolean {
+    const max = MINI_BY_ID.get(this.game)?.max ?? 8;
+    if (this.role !== "host" || this.started || this.list.length >= max) return false;
+    const used = new Set(this.list.map((p) => p.name));
+    const name = BOT_NAMES.map((n) => `🤖 ${n}`).find((n) => !used.has(n)) ?? `🤖 PC ${this.list.length}`;
+    let n = 1;
+    while (this.list.some((p) => p.id === `${BOT_PREFIX}${n}`)) n++;
+    this.list.push({ id: `${BOT_PREFIX}${n}`, name, bot: true });
+    this.sync();
+    return true;
+  }
+
+  removeBot(): void {
+    if (this.role !== "host" || this.started) return;
+    for (let i = this.list.length - 1; i >= 0; i--) {
+      if (this.list[i].bot) {
+        this.list.splice(i, 1);
+        break;
+      }
+    }
+    this.sync();
   }
 
   private info(): MiniRoomInfo {

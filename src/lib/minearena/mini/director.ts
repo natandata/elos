@@ -1,7 +1,7 @@
 // Diretor das partidas dos minigames. Todo mundo roda o mesmo diretor; o anfitrião manda nas fases (largada, zona, votação, fim)
 // e cada jogador avisa a própria eliminação. Mensagens: ph (fase), zone, died, vote, end, refill, rdy (ver `attach`).
 import type { RoomNet, NetMsg, Peer } from "../net/room";
-import { MINI_BY_ID, THEMES, type MiniHud, type MiniMap, type MiniPlayer, type MiniResult } from "./types";
+import { MINI_BY_ID, THEMES, isBotId, type MiniHud, type MiniMap, type MiniPlayer, type MiniResult } from "./types";
 
 /** O que o diretor pede ao motor (implementado por MineArena). */
 export interface MiniEngine {
@@ -20,6 +20,8 @@ export interface MiniEngine {
   play(kind: "ui" | "pickup" | "hurt" | "death"): void;
   hud(h: MiniHud): void;
   dropEverything(): void;
+  /** Quantos blocos (e de quantos tipos) há no terreno da construção `i` (os bots usam para dar nota). */
+  scanPlot?(i: number): { count: number; kinds: number };
 }
 
 export const BUILD_SECS = 300;
@@ -238,6 +240,20 @@ export class MiniDirector {
     if (this.role === "host") this.checkWin();
   }
 
+  /** Um jogador do computador morreu (só o anfitrião chama): avisa todo mundo. */
+  botDied(id: string, by?: string): void {
+    if (this.role !== "host" || !this.alive.has(id)) return;
+    this.broadcast("dead", { id, by });
+    this.onDead(id, by, false);
+    this.checkWin();
+  }
+  isAlive(id: string): boolean {
+    return this.alive.has(id);
+  }
+  zoneNow(): { started: boolean; r: number; dmg: number } {
+    return { started: this.zone.started, r: this.zone.r, dmg: this.zone.dmg };
+  }
+
   /** Pode mexer neste bloco agora? (regras de cada minigame) */
   canEdit(x: number, y: number, z: number): boolean {
     if (this.spectating || this.phase !== "play") return false;
@@ -275,6 +291,8 @@ export class MiniDirector {
     // host: monta a classificação e avisa todos
     const ranked: string[] = [];
     if (winner) ranked.push(winner);
+    // quem ainda estava vivo quando a partida acabou antes da hora (só sobraram computadores) fica acima de quem já tinha caído
+    for (const id of [...this.alive].filter((x) => x !== winner).sort((a, b) => (this.kills.get(b) ?? 0) - (this.kills.get(a) ?? 0))) ranked.push(id);
     for (const id of [...this.order].reverse()) if (!ranked.includes(id)) ranked.push(id);
     for (const p of this.players) if (!ranked.includes(p.id)) ranked.push(p.id);
     const ranks = ranked.map((id, i) => ({ id, name: this.names.get(id) ?? "?", place: i + 1, note: notes?.get(id) ?? (this.kills.get(id) ? `${this.kills.get(id)} abate${this.kills.get(id) === 1 ? "" : "s"}` : "") }));
@@ -285,6 +303,13 @@ export class MiniDirector {
 
   private checkWin(): void {
     if (this.role !== "host" || this.phase !== "play" || this.map.game === "build") return;
+    // só sobraram computadores: a partida acaba (ganha o que tem mais abates)
+    const hasBots = this.players.some((p) => isBotId(p.id));
+    if (hasBots && this.alive.size > 0 && [...this.alive].every((id) => isBotId(id))) {
+      const winner = [...this.alive].sort((a, b) => (this.kills.get(b) ?? 0) - (this.kills.get(a) ?? 0))[0];
+      this.finish(winner, `${this.names.get(winner)} venceu!`);
+      return;
+    }
     const need = this.solo || this.players.length < 2 ? 0 : 1;
     if (this.alive.size <= need && (this.players.length > 1 || this.alive.size === 0)) {
       const winner = [...this.alive][0] ?? null;
@@ -369,7 +394,7 @@ export class MiniDirector {
   private hostTick(): void {
     const t = this.now;
     if (this.phase === "wait") {
-      const all = this.players.every((p) => this.readyIds.has(p.id) || this.left.has(p.id));
+      const all = this.players.every((p) => this.readyIds.has(p.id) || this.left.has(p.id) || isBotId(p.id));
       if (this.readySent && (all || t > READY_TIMEOUT)) {
         this.broadcast("ph", { phase: "countdown", dur: COUNTDOWN });
         this.onPhase({ t: "ph", from: this.me.id, phase: "countdown", dur: COUNTDOWN } as NetMsg);
@@ -425,9 +450,24 @@ export class MiniDirector {
     this.judgeIdx++;
     const owner = this.players[this.judgeIdx].id;
     this.judgeAt = this.now + JUDGE_SECS;
+    this.botVotes(owner);
     const m = { phase: "judge", dur: JUDGE_SECS, owner, idx: this.judgeIdx };
     this.broadcast("ph", m);
     this.onPhase({ t: "ph", from: this.me.id, ...m } as NetMsg);
+  }
+
+  /** Os computadores dão nota (1 a 5) pela quantidade e variedade de blocos da construção. */
+  private botVotes(owner: string): void {
+    const bots = this.players.filter((p) => isBotId(p.id) && p.id !== owner);
+    if (!bots.length) return;
+    const idx = this.players.findIndex((p) => p.id === owner);
+    const scan = this.eng.scanPlot?.(idx) ?? { count: 120, kinds: 3 };
+    const v = this.votes.get(owner) ?? new Map<string, number>();
+    for (const b of bots) {
+      const score = Math.min(1, scan.count / 220) * 0.75 + Math.min(1, scan.kinds / 6) * 0.25;
+      v.set(b.id, Math.max(1, Math.min(5, Math.round(1 + score * 4 + (Math.random() - 0.5) * 1.4))));
+    }
+    this.votes.set(owner, v);
   }
 
   private publish(): void {
