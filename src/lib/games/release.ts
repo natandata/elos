@@ -42,3 +42,22 @@ export const msUntilRelease = (game: ReleasedGame, now = Date.now(), dates: Rele
 
 /** Já abriu agora (com as datas em vigor)? Esconde o relógio para poder usar em páginas do servidor. */
 export const releasedNow = (game: ReleasedGame, dates: ReleaseDates = GAME_RELEASES, isTestAccount = false): boolean => isReleased(game, isTestAccount, Date.now(), dates);
+
+/**
+ * Ordem das capas na Sala de Jogos (para usar em `order` do CSS): o último lançamento vem primeiro.
+ * 1) já abertos por data, do mais novo ao mais antigo; 2) com data futura, do mais próximo; 3) sem data (em construção);
+ * 4) os clássicos (Arena, Memória), que não têm data de lançamento.
+ */
+export function gameCoverOrder(dates: ReleaseDates = GAME_RELEASES, now = Date.now()): Record<string, number> {
+  const dated = (["dress", "minearena", "arenasoccer", "biblerush", "ultimatribo", "quemdesenha"] as const).map((k) => {
+    const at = releaseAt(k, dates);
+    const group = !hasDate(dates[k]) ? 2 : at <= now ? 0 : 1;
+    return { k: k as string, at, group };
+  });
+  dated.sort((a, b) => a.group - b.group || (a.group === 0 ? b.at - a.at : a.at - b.at));
+  const order: Record<string, number> = {};
+  dated.forEach((d, i) => (order[d.k] = i));
+  order.arena = dated.length;
+  order.memory = dated.length + 1;
+  return order;
+}

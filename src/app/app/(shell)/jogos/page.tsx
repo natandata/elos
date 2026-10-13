@@ -11,7 +11,7 @@ import { ArenaCover } from "@/components/games/ArenaCover";
 import { arenaAsleep } from "@/lib/games/curfew";
 import { DressTeaserText } from "@/components/games/dress/DressTeaser";
 import type { GameKey } from "@/lib/games/catalog";
-import { GAME_TEASER, releasedNow } from "@/lib/games/release";
+import { GAME_TEASER, gameCoverOrder, releasedNow } from "@/lib/games/release";
 import { getReleaseDates } from "@/lib/games/releaseServer";
 import { lockedGames } from "@/lib/games/storeAccess";
 import { XpExchange } from "@/components/games/XpExchange";
@@ -65,6 +65,9 @@ export default async function JogosPage() {
   const hide = (k: GameKey) => isHiddenFor(vis[k], profile.role, early.has(k)) || locked.has(k);
   const showTile = (t: Tile) => !hide(t.game === "verse" ? "verse" : (t.game as GameKey));
   const tiles = TILES.filter(showTile);
+  // O lançamento mais recente fica no topo: já abertos por data (mais novo primeiro), depois os que abrem em breve
+  // (o mais próximo primeiro), depois os sem data (em construção) e, por fim, os clássicos.
+  const order = gameCoverOrder(dates);
   const streak = liveGameStreak(profile.game_streak ?? 0, profile.game_streak_date ?? null);
   const doneCount = tiles.filter((t) => plays.get(t.game)?.finished).length;
   const chestOpened = plays.get("chest")?.finished === true;
@@ -97,117 +100,135 @@ export default async function JogosPage() {
     <>
       <PageHeader title="🎮 Jogos" subtitle="Aprenda a Bíblia jogando, ganhe XP e junte cartas." />
 
-      {hide("quemdesenha") || !qdOpen ? null : (
-        <Link href="/app/jogos/quemdesenha" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-indigo-400 bg-indigo-950 shadow-lg transition active:scale-[0.99]">
+      <div className="flex flex-col">
+      <div key="quemdesenha" style={{ order: order["quemdesenha"] }}>
+        {hide("quemdesenha") || !qdOpen ? null : (
+          <Link href="/app/jogos/quemdesenha" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-indigo-400 bg-indigo-950 shadow-lg transition active:scale-[0.99]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/quemdesenha/capa.webp" alt="Quem Desenha?" className="block aspect-[4/3] w-full object-cover" draggable={false} />
+            <span className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-black/85 to-transparent px-4 pb-2.5 pt-8">
+              <span className="text-xs font-bold text-indigo-100">Desenhe a Bíblia e deixe os amigos adivinharem</span>
+              <span className="shrink-0 rounded-full bg-rose-600 px-2.5 py-0.5 text-[11px] font-black text-white">▶ JOGAR</span>
+            </span>
+          </Link>
+        )}
+      </div>
+
+      <div key="arena" style={{ order: order["arena"] }}>
+        {hide("arena") ? null : <ArenaCover asleep={arenaAsleep() && profile.role !== "admin"} />}
+      </div>
+
+      <div key="memory" style={{ order: order["memory"] }}>
+        {hide("memory") ? null : (
+        <Link href="/app/jogos/memoria" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-amber-400 bg-[#2a2a3a] shadow-lg transition active:scale-[0.99]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/quemdesenha/capa.webp" alt="Quem Desenha?" className="block aspect-[4/3] w-full object-cover" draggable={false} />
+          <img src="/memoria/capa.webp" alt="Memória dos Heróis" className="block aspect-[4/3] w-full object-cover" draggable={false} />
           <span className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-black/85 to-transparent px-4 pb-2.5 pt-8">
-            <span className="text-xs font-bold text-indigo-100">Desenhe a Bíblia e deixe os amigos adivinharem</span>
+            <span className="text-xs font-bold text-amber-100">Ache os pares das cartas da Arena · desafie um colega</span>
             <span className="shrink-0 rounded-full bg-rose-600 px-2.5 py-0.5 text-[11px] font-black text-white">▶ JOGAR</span>
           </span>
         </Link>
-      )}
+        )}
+      </div>
 
-      {hide("arena") ? null : <ArenaCover asleep={arenaAsleep() && profile.role !== "admin"} />}
-
-      {hide("memory") ? null : (
-      <Link href="/app/jogos/memoria" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-amber-400 bg-[#2a2a3a] shadow-lg transition active:scale-[0.99]">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/memoria/capa.webp" alt="Memória dos Heróis" className="block aspect-[4/3] w-full object-cover" draggable={false} />
-        <span className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-black/85 to-transparent px-4 pb-2.5 pt-8">
-          <span className="text-xs font-bold text-amber-100">Ache os pares das cartas da Arena · desafie um colega</span>
-          <span className="shrink-0 rounded-full bg-rose-600 px-2.5 py-0.5 text-[11px] font-black text-white">▶ JOGAR</span>
-        </span>
-      </Link>
-      )}
-
-      {hide("dress") ? null : dressOpen ? (
-        <Link href="/app/jogos/vestir" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-amber-300 bg-[#34104f] shadow-lg transition active:scale-[0.99]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/dress/capa.webp" alt="Vista o Herói" className="block aspect-[16/8] w-full object-cover object-top" draggable={false} />
-          <span className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-black/85 to-transparent px-4 pb-2.5 pt-8">
-            <span className="text-xs font-bold text-amber-100">Jogo de vestir bíblico · ganhe Bilhetes Dourados 🎫</span>
-            <span className="shrink-0 rounded-full bg-rose-600 px-2.5 py-0.5 text-[11px] font-black text-white">NOVO</span>
-          </span>
-        </Link>
-      ) : !GAME_TEASER.dress ? null : (
-        <Link href="/app/jogos/vestir" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-amber-300 bg-[#34104f] shadow-lg transition active:scale-[0.99]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/dress/capa.webp" alt="Vista o Herói em breve" className="block aspect-[16/8] w-full object-cover object-top brightness-50" draggable={false} />
-          <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-center text-white">
-            <span className="text-3xl" aria-hidden>
-              🔒
+      <div key="dress" style={{ order: order["dress"] }}>
+        {hide("dress") ? null : dressOpen ? (
+          <Link href="/app/jogos/vestir" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-amber-300 bg-[#34104f] shadow-lg transition active:scale-[0.99]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/dress/capa.webp" alt="Vista o Herói" className="block aspect-[16/8] w-full object-cover object-top" draggable={false} />
+            <span className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-black/85 to-transparent px-4 pb-2.5 pt-8">
+              <span className="text-xs font-bold text-amber-100">Jogo de vestir bíblico · ganhe Bilhetes Dourados 🎫</span>
+              <span className="shrink-0 rounded-full bg-rose-600 px-2.5 py-0.5 text-[11px] font-black text-white">NOVO</span>
             </span>
-            <span className="text-lg font-black [text-shadow:0_2px_6px_#000]">Vista o Herói · em breve</span>
-            <span className="rounded-full bg-black/60 px-3 py-0.5 text-xs font-black text-amber-200">
-              Abre em <DressTeaserText at={dates.dress} />
+          </Link>
+        ) : !GAME_TEASER.dress ? null : (
+          <Link href="/app/jogos/vestir" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-amber-300 bg-[#34104f] shadow-lg transition active:scale-[0.99]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/dress/capa.webp" alt="Vista o Herói em breve" className="block aspect-[16/8] w-full object-cover object-top brightness-50" draggable={false} />
+            <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-center text-white">
+              <span className="text-3xl" aria-hidden>
+                🔒
+              </span>
+              <span className="text-lg font-black [text-shadow:0_2px_6px_#000]">Vista o Herói · em breve</span>
+              <span className="rounded-full bg-black/60 px-3 py-0.5 text-xs font-black text-amber-200">
+                Abre em <DressTeaserText at={dates.dress} />
+              </span>
             </span>
-          </span>
-        </Link>
-      )}
+          </Link>
+        )}
+      </div>
 
-      {hide("minearena") ? null : mineOpen ? (
-        <Link href="/app/jogos/minearena" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-amber-400 bg-[#14213f] shadow-lg transition active:scale-[0.99]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/minearena/capa.webp" alt="MineArena" className="block aspect-[3/2] w-full object-cover" draggable={false} />
-          <span className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-black/85 to-transparent px-4 pb-2.5 pt-8">
-            <span className="text-xs font-bold text-amber-100">Sandbox 3D · construa, explore e enfrente</span>
-            <span className="shrink-0 rounded-full bg-rose-600 px-2.5 py-0.5 text-[11px] font-black text-white">NOVO</span>
-          </span>
-        </Link>
-      ) : !GAME_TEASER.minearena ? null : (
-        <Link href="/app/jogos/minearena" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-amber-400 bg-[#14213f] shadow-lg transition active:scale-[0.99]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/minearena/capa.webp" alt="MineArena em breve" className="block aspect-[3/2] w-full object-cover brightness-50" draggable={false} />
-          <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-center text-white">
-            <span className="text-3xl" aria-hidden>
-              🔒
+      <div key="minearena" style={{ order: order["minearena"] }}>
+        {hide("minearena") ? null : mineOpen ? (
+          <Link href="/app/jogos/minearena" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-amber-400 bg-[#14213f] shadow-lg transition active:scale-[0.99]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/minearena/capa.webp" alt="MineArena" className="block aspect-[3/2] w-full object-cover" draggable={false} />
+            <span className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-black/85 to-transparent px-4 pb-2.5 pt-8">
+              <span className="text-xs font-bold text-amber-100">Sandbox 3D · construa, explore e enfrente</span>
+              <span className="shrink-0 rounded-full bg-rose-600 px-2.5 py-0.5 text-[11px] font-black text-white">NOVO</span>
             </span>
-            <span className="text-lg font-black [text-shadow:0_2px_6px_#000]">MineArena · em breve</span>
-            <span className="rounded-full bg-black/60 px-3 py-0.5 text-xs font-black text-amber-200">
-              Abre em <DressTeaserText game="minearena" at={dates.minearena} />
+          </Link>
+        ) : !GAME_TEASER.minearena ? null : (
+          <Link href="/app/jogos/minearena" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-amber-400 bg-[#14213f] shadow-lg transition active:scale-[0.99]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/minearena/capa.webp" alt="MineArena em breve" className="block aspect-[3/2] w-full object-cover brightness-50" draggable={false} />
+            <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-center text-white">
+              <span className="text-3xl" aria-hidden>
+                🔒
+              </span>
+              <span className="text-lg font-black [text-shadow:0_2px_6px_#000]">MineArena · em breve</span>
+              <span className="rounded-full bg-black/60 px-3 py-0.5 text-xs font-black text-amber-200">
+                Abre em <DressTeaserText game="minearena" at={dates.minearena} />
+              </span>
             </span>
-          </span>
-        </Link>
-      )}
+          </Link>
+        )}
+      </div>
 
-      {hide("arenasoccer") || !soccerOpen ? null : (
-        <Link href="/app/jogos/arenasoccer" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-emerald-400 bg-[#0d3b22] shadow-lg transition active:scale-[0.99]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/arenasoccer/capa.webp" alt="ArenaSoccer" className="block aspect-[4/3] w-full object-cover" draggable={false} />
-          <span className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-black/85 to-transparent px-4 pb-2.5 pt-8">
-            <span className="text-xs font-bold text-emerald-100">Futebol arcade · 1×1 a 4×4, Copa, Carreira e Online</span>
-            <span className="shrink-0 rounded-full bg-rose-600 px-2.5 py-0.5 text-[11px] font-black text-white">▶ JOGAR</span>
-          </span>
-        </Link>
-      )}
+      <div key="arenasoccer" style={{ order: order["arenasoccer"] }}>
+        {hide("arenasoccer") || !soccerOpen ? null : (
+          <Link href="/app/jogos/arenasoccer" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-emerald-400 bg-[#0d3b22] shadow-lg transition active:scale-[0.99]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/arenasoccer/capa.webp" alt="ArenaSoccer" className="block aspect-[4/3] w-full object-cover" draggable={false} />
+            <span className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-black/85 to-transparent px-4 pb-2.5 pt-8">
+              <span className="text-xs font-bold text-emerald-100">Futebol arcade · 1×1 a 4×4, Copa, Carreira e Online</span>
+              <span className="shrink-0 rounded-full bg-rose-600 px-2.5 py-0.5 text-[11px] font-black text-white">▶ JOGAR</span>
+            </span>
+          </Link>
+        )}
+      </div>
+
+      <div key="biblerush" style={{ order: order["biblerush"] }}>
+        {hide("biblerush") || !rushOpen ? null : (
+          <Link href="/app/jogos/biblerush" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-amber-400 bg-gradient-to-br from-[#1f3a5f] via-[#2e5a7a] to-[#c9a15a] p-4 shadow-lg transition active:scale-[0.99]">
+            <span className="absolute -right-2 -top-3 text-7xl opacity-30" aria-hidden>
+              🛶
+            </span>
+            <p className="text-2xl font-black tracking-wide text-amber-100 [text-shadow:0_2px_0_#3a2208]">BIBLE RUSH</p>
+            <p className="mt-0.5 text-sm font-bold text-white/90">Histórias da Bíblia, uma missão de cada vez.</p>
+            <span className="mt-3 inline-block rounded-full bg-rose-600 px-3 py-0.5 text-[11px] font-black text-white">{releasedNow("biblerush", dates) ? "NOVO" : "SÓ ADMIN"}</span>
+          </Link>
+        )}
+      </div>
+
+      <div key="ultimatribo" style={{ order: order["ultimatribo"] }}>
+        {hide("ultimatribo") || !triboOpen ? null : (
+          <Link href="/app/jogos/ultimatribo" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-stone-500 bg-[#14110d] shadow-lg transition active:scale-[0.99]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/ultimatribo/capa.webp" alt="" className="block h-36 w-full object-cover object-[50%_28%] opacity-80" draggable={false} />
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+            <div className="absolute inset-x-0 bottom-0 p-3">
+              <p className="text-xl font-black tracking-wide text-stone-100 [text-shadow:0_2px_0_#000]">A ÚLTIMA TRIBO</p>
+              <p className="text-xs font-bold text-white/85">O arrebatamento aconteceu. Você ficou. Agora, sobreviva.</p>
+              <span className="mt-1 inline-block rounded-full bg-rose-700 px-3 py-0.5 text-[10px] font-black text-white">SÓ ADMIN · EM CONSTRUÇÃO</span>
+            </div>
+          </Link>
+        )}
+      </div>
+      </div>
 
       <StoreGallery items={storeItems.map((i) => (i.status === "scheduled" && i.game_key && i.game_key in dates ? { ...i, release_at: dates[i.game_key as keyof typeof dates] } : i))} balance={coinBalance} ownedIds={ownedAll} />
       <XpExchange availableXp={availableXp} rate={xpRate} early={earlyExchange} />
-
-      {hide("biblerush") || !rushOpen ? null : (
-        <Link href="/app/jogos/biblerush" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-amber-400 bg-gradient-to-br from-[#1f3a5f] via-[#2e5a7a] to-[#c9a15a] p-4 shadow-lg transition active:scale-[0.99]">
-          <span className="absolute -right-2 -top-3 text-7xl opacity-30" aria-hidden>
-            🛶
-          </span>
-          <p className="text-2xl font-black tracking-wide text-amber-100 [text-shadow:0_2px_0_#3a2208]">BIBLE RUSH</p>
-          <p className="mt-0.5 text-sm font-bold text-white/90">Histórias da Bíblia, uma missão de cada vez.</p>
-          <span className="mt-3 inline-block rounded-full bg-rose-600 px-3 py-0.5 text-[11px] font-black text-white">{releasedNow("biblerush", dates) ? "NOVO" : "SÓ ADMIN"}</span>
-        </Link>
-      )}
-
-      {hide("ultimatribo") || !triboOpen ? null : (
-        <Link href="/app/jogos/ultimatribo" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-stone-500 bg-[#14110d] shadow-lg transition active:scale-[0.99]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/ultimatribo/capa.webp" alt="" className="block h-36 w-full object-cover object-[50%_28%] opacity-80" draggable={false} />
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 p-3">
-            <p className="text-xl font-black tracking-wide text-stone-100 [text-shadow:0_2px_0_#000]">A ÚLTIMA TRIBO</p>
-            <p className="text-xs font-bold text-white/85">O arrebatamento aconteceu. Você ficou. Agora, sobreviva.</p>
-            <span className="mt-1 inline-block rounded-full bg-rose-700 px-3 py-0.5 text-[10px] font-black text-white">SÓ ADMIN · EM CONSTRUÇÃO</span>
-          </div>
-        </Link>
-      )}
 
       <section className="mb-5 grid grid-cols-2 gap-3">
         <div className="rounded-2xl bg-[var(--accent)] p-4 text-[var(--accent-ink)]">
