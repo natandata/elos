@@ -199,14 +199,13 @@ export default async function JogosPage() {
       )}
 
       {hide("quemdesenha") || !qdOpen ? null : (
-        <Link href="/app/jogos/quemdesenha" className="relative mb-5 block overflow-hidden rounded-2xl bg-gradient-to-br from-sky-500 via-indigo-500 to-fuchsia-500 p-4 text-white shadow-lg transition active:scale-[0.99]">
-          <p className="flex items-center gap-2 text-xl font-black">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/quemdesenha/icones/paleta.webp" alt="" width={32} height={32} draggable={false} />
-            QUEM DESENHA?
-          </p>
-          <p className="text-xs font-bold text-white/90">Desenhe a Bíblia e deixe os amigos adivinharem.</p>
-          <span className="mt-1 inline-block rounded-full bg-rose-700 px-3 py-0.5 text-[10px] font-black text-white">SÓ ADMIN · EM CONSTRUÇÃO</span>
+        <Link href="/app/jogos/quemdesenha" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-indigo-400 bg-indigo-950 shadow-lg transition active:scale-[0.99]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/quemdesenha/capa.webp" alt="Quem Desenha?" className="block aspect-[4/3] w-full object-cover" draggable={false} />
+          <span className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-black/85 to-transparent px-4 pb-2.5 pt-8">
+            <span className="text-xs font-bold text-indigo-100">Desenhe a Bíblia e deixe os amigos adivinharem</span>
+            <span className="shrink-0 rounded-full bg-rose-600 px-2.5 py-0.5 text-[11px] font-black text-white">▶ JOGAR</span>
+          </span>
         </Link>
       )}
 

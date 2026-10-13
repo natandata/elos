@@ -13,8 +13,8 @@ export const GAME_RELEASES = {
   arenacampanha: "2099-01-01T00:00:00-03:00",
   /** A Última Tribo (sobrevivência 3D pós-arrebatamento): em construção, sem data. Só admin e acesso antecipado. */
   ultimatribo: "2099-01-01T00:00:00-03:00",
-  /** Quem Desenha? (desenho e adivinhação bíblicos, multiplayer): em construção, sem data. Só admin e acesso antecipado. */
-  quemdesenha: "2099-01-01T00:00:00-03:00",
+  /** Quem Desenha? (desenho e adivinhação bíblicos, multiplayer): aberto para todos desde 12/10/2026. */
+  quemdesenha: "2026-10-12T00:00:00-03:00",
   /** Shopping Elos (mundo aberto do Vista o Herói): aparece como "Em breve" para todos, sem data até o admin marcar uma. Admin e acesso antecipado entram antes. */
   madureira: "2099-01-01T00:00:00-03:00",
 } as const;

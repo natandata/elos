@@ -9,7 +9,7 @@ export const metadata = { title: "Quem Desenha?" };
 
 export default async function QuemDesenhaPage() {
   const { profile } = await requireRole("cria", "leader", "admin");
-  // Em construção: quem não é admin (nem tem acesso antecipado) volta para a Sala de Jogos como se o jogo não existisse.
+  // Respeita a liberação do admin (data de abertura ou botão visível/oculto): fechado, volta para a Sala de Jogos.
   if (!(await gameOpenFor("quemdesenha", profile.id))) redirect("/app/jogos");
   const supabase = await createClient();
   const { data } = await supabase.from("qd_stats").select("stars, matches, wins, drawings, guesses, win_streak, best_streak").eq("user_id", profile.id).maybeSingle<QdStats>();

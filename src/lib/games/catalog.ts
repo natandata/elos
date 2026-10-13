@@ -18,7 +18,7 @@ export const GAME_CATALOG: { key: GameKey; emoji: string; title: string }[] = [
   { key: "arenasoccer", emoji: "⚽", title: "ArenaSoccer (vendido na Loja)" },
   { key: "arenacampanha", emoji: "🛡️", title: "Campanha da Arena dos Heróis (só batalhar; ver cartas e arenas é livre)" },
   { key: "ultimatribo", emoji: "🪓", title: "A Última Tribo (em construção: só admin e acesso antecipado)" },
-  { key: "quemdesenha", emoji: "🎨", title: "Quem Desenha? (em construção: só admin e acesso antecipado)" },
+  { key: "quemdesenha", emoji: "🎨", title: "Quem Desenha?" },
   { key: "madureira", emoji: "🛍️", title: "Shopping Elos (Vista o Herói: aparece como Em breve até você liberar ou marcar a data)" },
 ];
 
