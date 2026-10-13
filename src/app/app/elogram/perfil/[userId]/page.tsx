@@ -8,7 +8,8 @@ import { AvatarLightbox } from "@/components/AvatarLightbox";
 import { ImageLightbox } from "@/components/ImageLightbox";
 import { ProfileStoryRing } from "@/components/profile/ProfileStoryRing";
 import { ChevronLeftIcon } from "@/components/feed/icons";
-import { ROLE_LABEL, formatXp, levelForXp, type Role } from "@/lib/types";
+import { DevotionalStreakCard } from "@/components/elogram/DevotionalStreakCard";
+import { ROLE_LABEL, levelForXp, type Role } from "@/lib/types";
 
 type ProfileCard = {
   id: string;
@@ -29,7 +30,7 @@ export default async function ElogramProfilePage({ params }: { params: Promise<{
   const supabase = await createClient();
   const isMe = userId === profile.id;
 
-  const [cardRes, galleryRes, storiesRes] = await Promise.all([
+  const [cardRes, galleryRes, storiesRes, devoRes] = await Promise.all([
     supabase.rpc("public_profile_card", { p_user: userId }),
     supabase
       .from("profile_gallery_posts")
@@ -41,7 +42,9 @@ export default async function ElogramProfilePage({ params }: { params: Promise<{
       .select("id, image_path, caption, created_at, video_key")
       .eq("author_id", userId)
       .order("created_at", { ascending: true }),
+    supabase.rpc("elogram_devotional_streak", { p_user: userId }),
   ]);
+  const devoStreak = Number(devoRes.data ?? 0);
 
   const card = ((cardRes.data as ProfileCard[] | null) ?? [])[0];
   if (!card) notFound();
@@ -74,13 +77,6 @@ export default async function ElogramProfilePage({ params }: { params: Promise<{
   const tag = card.role === "admin" ? null : `${ROLE_LABEL[card.role]}${eloName ? ` · ${eloName}` : ""}`;
   const canDm = (profile.role === "leader" || profile.role === "cria") && (card.role === "leader" || card.role === "cria");
 
-  const stat = (value: string, label: string) => (
-    <div className="text-center">
-      <p className="text-[17px] font-bold leading-tight">{value}</p>
-      <p className="text-[13px] text-[var(--muted)]">{label}</p>
-    </div>
-  );
-
   return (
     <div>
       <header className="flex items-center gap-2 px-3 pb-2 pt-3">
@@ -91,21 +87,24 @@ export default async function ElogramProfilePage({ params }: { params: Promise<{
       </header>
 
       <div className="px-4">
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4">
           <ProfileStoryRing hasStory={stories.length > 0} stories={stories} authorName={card.full_name}>
             <AvatarLightbox url={card.avatar_url} name={card.full_name} size={86} />
           </ProfileStoryRing>
-          <div className="grid flex-1 grid-cols-3 gap-2">
-            {stat(String(galleryRows.length), "fotos")}
-            {card.role !== "admin" ? stat(formatXp(card.xp), "XP") : stat("—", "XP")}
-            {card.role !== "admin" ? stat(String(card.status_streak ?? 0), "sequência") : stat("—", "sequência")}
+          <div className="min-w-0 flex-1">
+            <p className="text-[17px] font-semibold leading-tight">{card.full_name}</p>
+            {tag ? <p className="text-sm text-[var(--muted)]">{tag}</p> : null}
+            {card.role !== "admin" ? <p className="text-sm text-[var(--muted)]">{level.title}</p> : null}
           </div>
         </div>
 
-        <p className="mt-3 text-[15px] font-semibold">{card.full_name}</p>
-        {tag ? <p className="text-sm text-[var(--muted)]">{tag}</p> : null}
-        {card.role !== "admin" ? <p className="text-sm text-[var(--muted)]">{level.title}</p> : null}
         {card.bio ? <p className="mt-1 whitespace-pre-line text-[15px] leading-snug">{card.bio}</p> : null}
+
+        {card.role !== "admin" ? (
+          <div className="mt-3">
+            <DevotionalStreakCard days={devoStreak} isMe={isMe} />
+          </div>
+        ) : null}
 
         <div className="mt-3 flex gap-2">
           {isMe ? (
