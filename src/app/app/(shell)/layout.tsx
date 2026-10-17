@@ -176,6 +176,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         .from("announcements")
         .select("id, title, body, version")
         .eq("active", true)
+        // aviso sem Elo vale pra todo mundo; com Elo, só pra quem é desse Elo
+        .or(profile.elo_id ? `elo_id.is.null,elo_id.eq.${profile.elo_id}` : "elo_id.is.null")
         .order("created_at", { ascending: true }),
       supabase
         .from("announcement_seen")
