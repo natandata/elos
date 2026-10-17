@@ -79,6 +79,18 @@ function FeedCommentRow({ comment, canDelete }: { comment: FeedComment; canDelet
   );
 }
 
+/** A foto inteira dentro do quadro 4:5 (nada é cortado); as sobras ficam com a própria foto desfocada ao fundo. */
+function PostPhoto({ url, eager = false, className = "" }: { url: string; eager?: boolean; className?: string }) {
+  return (
+    <div className={`relative aspect-[4/5] overflow-hidden bg-black ${className}`}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={url} alt="" aria-hidden draggable={false} loading={eager ? "eager" : "lazy"} decoding="async" className="absolute inset-0 h-full w-full scale-125 object-cover opacity-70 blur-2xl" />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={url} alt="" draggable={false} loading={eager ? "eager" : "lazy"} decoding="async" className="relative h-full w-full object-contain" />
+    </div>
+  );
+}
+
 export function FeedPostCard({
   post,
   currentUserId,
@@ -274,16 +286,7 @@ export function FeedPostCard({
             >
               {post.imageUrls.map((url, i) =>
                 url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    key={i}
-                    src={url}
-                    alt=""
-                    loading={i === 0 ? "eager" : "lazy"}
-                    decoding="async"
-                    draggable={false}
-                    className="aspect-[4/5] w-full shrink-0 snap-center object-cover"
-                  />
+                  <PostPhoto key={i} url={url} eager={i === 0} className="w-full shrink-0 snap-center" />
                 ) : (
                   <div key={i} className="flex aspect-[4/5] w-full shrink-0 snap-center items-center justify-center text-xs text-[var(--muted)]">
                     Foto indisponível
@@ -296,15 +299,7 @@ export function FeedPostCard({
             </span>
           </>
         ) : post.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={post.imageUrl}
-            alt=""
-            loading="lazy"
-            decoding="async"
-            draggable={false}
-            className="aspect-[4/5] w-full object-cover"
-          />
+          <PostPhoto url={post.imageUrl} className="w-full" />
         ) : (
           <div className="flex aspect-[4/5] items-center justify-center text-xs text-[var(--muted)]">Foto indisponível</div>
         )}
