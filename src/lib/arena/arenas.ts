@@ -1,4 +1,5 @@
 // Arenas da Arena dos Heróis: lugares bíblicos que se destravam com troféus (client-safe).
+import { CAMPAIGN_KEYS } from "./campaignCards";
 
 export const TROPHY_WIN = 30;
 export const TROPHY_LOSS = 20;
@@ -195,6 +196,8 @@ export function chestFinds(best: number): string[] {
  * `owned` = heróis de baú que o jogador já achou (cópias > 0 ou nível acima de 1).
  */
 export function isCardUnlocked(key: string, best: number, owned: ReadonlySet<string>): boolean {
+  // cartas da campanha: só quem zerou a campanha (o servidor grava a posse junto com as cartas de baú)
+  if (CAMPAIGN_KEYS.has(key)) return owned.has(key);
   const a = CARD_UNLOCK_ARENA[key];
   if (a === undefined) return false;
   if (CHEST_ONLY.has(key)) return owned.has(key);
@@ -207,7 +210,7 @@ export function deckAllowed(deck: string[], best: number, owned: ReadonlySet<str
 
 /** Heróis de baú que o jogador já achou, a partir das linhas de nível/cópias. */
 export function ownedFromRows(rows: { card: string; level: number; copies: number }[]): Set<string> {
-  return new Set(rows.filter((r) => CHEST_ONLY.has(r.card) && (r.copies > 0 || r.level > 1)).map((r) => r.card));
+  return new Set(rows.filter((r) => (CHEST_ONLY.has(r.card) || CAMPAIGN_KEYS.has(r.card)) && (r.copies > 0 || r.level > 1)).map((r) => r.card));
 }
 
 export function arenaIndexFor(trophies: number): number {

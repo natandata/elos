@@ -8,6 +8,7 @@
 
 import { isCardUnlocked } from "./arenas";
 import { ARENA_CARDS } from "./cards";
+import { CAMPAIGN_CARDS } from "./campaignCards";
 
 /** Cópias de UMA carta por partida (precisa durar pelo menos 75 s, como o XP). */
 export const COPIES_WIN = 12;
@@ -39,7 +40,7 @@ export type CopyGrant = { card: string; n: number };
 
 /** Cartas que o jogador já pode usar (arena pelo recorde de troféus + heróis de baú que já achou). */
 export function unlockedCards(best: number, owned: ReadonlySet<string>): string[] {
-  return ARENA_CARDS.filter((c) => isCardUnlocked(c.key, best, owned)).map((c) => c.key);
+  return [...ARENA_CARDS, ...CAMPAIGN_CARDS].filter((c) => isCardUnlocked(c.key, best, owned)).map((c) => c.key);
 }
 
 /** Chance de um baú trazer um herói de baú (Adão, Eva, Jacó…). */
