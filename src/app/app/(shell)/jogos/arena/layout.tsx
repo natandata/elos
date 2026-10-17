@@ -2,14 +2,14 @@ import Link from "next/link";
 import { ArenaMusic } from "@/components/arena/ArenaMusic";
 import { PageHeader } from "@/components/ui";
 import { requireProfile } from "@/lib/auth";
-import { arenaAsleep } from "@/lib/games/curfew";
+import { arenaClosedFor } from "@/lib/games/curfew";
 import { guardGame } from "@/lib/games/guard";
 import { AT } from "@/components/arena/ArenaText";
 
 export default async function ArenaLayout({ children }: { children: React.ReactNode }) {
   await guardGame("arena");
   const { profile } = await requireProfile();
-  if (arenaAsleep() && profile.role !== "admin") {
+  if (arenaClosedFor(profile.role)) {
     return (
       <>
         <PageHeader title={<AT>🌙 Arena dos Heróis</AT>} subtitle="Os heróis estão descansando." />

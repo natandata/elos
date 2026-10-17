@@ -8,7 +8,7 @@ import { difficultyChip } from "@/lib/games/difficulty";
 import { liveGameStreak, playDifficulty, todaysPlays } from "@/lib/games/status";
 import { createClient } from "@/lib/supabase/server";
 import { ArenaCover } from "@/components/games/ArenaCover";
-import { arenaAsleep } from "@/lib/games/curfew";
+import { arenaClosedFor } from "@/lib/games/curfew";
 import { DressTeaserText } from "@/components/games/dress/DressTeaser";
 import type { GameKey } from "@/lib/games/catalog";
 import { GAME_TEASER, gameCoverOrder, releasedNow } from "@/lib/games/release";
@@ -115,7 +115,7 @@ export default async function JogosPage() {
       </div>
 
       <div key="arena" style={{ order: order["arena"] }}>
-        {hide("arena") ? null : <ArenaCover asleep={arenaAsleep() && profile.role !== "admin"} />}
+        {hide("arena") ? null : <ArenaCover asleep={arenaClosedFor(profile.role)} />}
       </div>
 
       <div key="memory" style={{ order: order["memory"] }}>
