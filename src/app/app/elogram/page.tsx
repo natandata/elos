@@ -36,7 +36,7 @@ export default async function FeedPage() {
     canInteract ? supabase.rpc("elogram_theme_today") : Promise.resolve({ data: null }),
   ]);
   // A cada 2 dias o tema é em dupla: só dá XP quando a pessoa e a parceira do dia postam.
-  const themeToday = ((themeTodayRes.data ?? []) as { pair: boolean; partner_id: string | null; partner_name: string | null; partner_avatar: string | null; my_posted: boolean; partner_posted: boolean }[])[0];
+  const themeToday = ((themeTodayRes.data ?? []) as { pair: boolean; partner_id: string | null; partner_name: string | null; partner_avatar: string | null; my_posted: boolean; partner_posted: boolean; my_awarded: boolean }[])[0];
   const pair: ThemePair | null =
     themeToday?.pair && themeToday.partner_id
       ? { partnerId: themeToday.partner_id, partnerName: themeToday.partner_name ?? "sua dupla", partnerAvatar: themeToday.partner_avatar, myPosted: themeToday.my_posted, partnerPosted: themeToday.partner_posted }
@@ -56,6 +56,7 @@ export default async function FeedPage() {
               galleryFull={(galleryCountRes.count ?? 0) >= 3}
               dailyPrompt={dailyPrompt}
               pairPartner={pair?.partnerName ?? null}
+              themeDone={!!themeToday?.my_awarded}
             />
           ) : undefined
         }

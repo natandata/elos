@@ -43,6 +43,7 @@ export function FeedComposer({
   galleryFull = false,
   dailyPrompt,
   pairPartner = null,
+  themeDone = false,
 }: {
   userId: string;
   galleryFull?: boolean;
@@ -50,6 +51,8 @@ export function FeedComposer({
   dailyPrompt?: string;
   /** Dia de tema em dupla: nome da parceira/do parceiro de hoje (o XP só sai quando os dois postam). */
   pairPartner?: string | null;
+  /** Já ganhou o XP do tema hoje (vale 1 vez por dia): posts extras não rendem XP. */
+  themeDone?: boolean;
 }) {
   const router = useRouter();
   const supabase = createClient();
@@ -436,7 +439,12 @@ export function FeedComposer({
                     )}
                     {destination === "explorar" ? (
                       <>
-                        <input type="hidden" name="theme_confirmed" value={themeConfirmed ? "true" : "false"} />
+                        <input type="hidden" name="theme_confirmed" value={themeConfirmed && !themeDone ? "true" : "false"} />
+                        {themeDone ? (
+                          <p className="rounded-xl border border-[var(--line)] p-2.5 text-xs text-[var(--muted)]">
+                            ✅ Você já ganhou o XP do Tema do dia hoje. Ele vale 1 vez por dia, então outros posts não rendem XP.
+                          </p>
+                        ) : (
                         <label className="flex items-start gap-2 rounded-xl border border-[var(--line)] p-2.5 text-xs">
                           <input
                             type="checkbox"
@@ -458,6 +466,7 @@ export function FeedComposer({
                             )}
                           </span>
                         </label>
+                        )}
                       </>
                     ) : null}
                     <Feedback state={state} />
