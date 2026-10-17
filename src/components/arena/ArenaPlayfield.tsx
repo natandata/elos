@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { ARENA_CARDS, ARENA_CARD_BY_KEY, shortName } from "@/lib/arena/cards";
 import { ARENAS, type ArenaTheme } from "@/lib/arena/arenas";
 import { CAMPAIGN_CARDS, CAMPAIGN_COMBOS, activeCombos, inCombo, type Combo } from "@/lib/arena/campaignCards";
-import { drawLimbs } from "./arenaLimbs";
+import { computePose } from "./arenaMotion";
+import { drawRig, rigOf } from "./arenaRig";
 import { CardArt } from "./CardArt";
 import { TEAM, buildAmbient, buildBackground, drawAmbient, drawRubble, drawTower, layoutFor, type Ambient, type Layout } from "./arenaRender";
 import { loadCampo } from "./arenaAssets";
@@ -62,21 +63,6 @@ function fmtTime(ticks: number): string {
   const s = Math.max(0, Math.ceil(((ticks >= MATCH_TICKS ? MAX_MATCH_TICKS : MATCH_TICKS) - ticks) / TICKS_PER_SEC));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
-
-/** Como o corpo do herói se mexe ao golpear de perto: recuo, avanço e pulo. */
-const ATK_BODY_DEFAULT = { wind: 1, lunge: 1, hop: 0 };
-const ATK_BODY: Record<string, { wind: number; lunge: number; hop: number }> = {
-  sansao: { wind: 1.9, lunge: 1.25, hop: 0.45 }, // levanta a clava e desce com tudo
-  daniel: { wind: 0.8, lunge: 1.5, hop: 0.1 }, // bote do leão
-  joao: { wind: 0.6, lunge: 1.1, hop: 0 },
-  gideao: { wind: 0.6, lunge: 0.8, hop: 0 },
-  miguel: { wind: 1.1, lunge: 1.2, hop: 0.3 },
-  josue: { wind: 1.4, lunge: 1.1, hop: 0.15 },
-  noe: { wind: 1.2, lunge: 0.9, hop: 0.15 },
-  adao: { wind: 1.1, lunge: 1.1, hop: 0.1 },
-  jaco: { wind: 1.2, lunge: 1.15, hop: 0 },
-  nabucodonosor: { wind: 1.5, lunge: 1.0, hop: 0.2 },
-};
 
 /** Pãozinho de Maná (custo das cartas e Maná atual). */
 function ManaBread({ n, size = 28 }: { n: number; size?: number }) {
@@ -166,7 +152,8 @@ export function ArenaPlayfield({
   const dprRef = useRef(1);
   const fxRef = useRef<Fx[]>([]);
   const animsRef = useRef<Map<number, Anim>>(new Map());
-  const shakeRef = useRef({ until: -1, amp: 0 });
+  const shakeRef = useRef<{ until: number; amp: number; from?: number }>({ until: -1, amp: 0 });
+  const lowEndRef = useRef(false);
   const selectedRef = useRef<number | null>(null);
   const rafRef = useRef<number | null>(null);
   const spritesRef = useRef<Record<string, HTMLImageElement>>({});
@@ -312,7 +299,7 @@ export function ArenaPlayfield({
       if (game.jericho) drawJericho(ctx, l.cw, l.ch, s, tickF);
       ctx.save();
       const sh = shakeRef.current;
-      const left = sh.until - tickF;
+      const left = tickF < (sh.from ?? -1) ? 0 : sh.until - tickF;
       const shx = left > 0 ? Math.sin(tickF * 53) * sh.amp * Math.min(1, left / 6) : 0;
       const shy = left > 0 ? Math.cos(tickF * 41) * sh.amp * Math.min(1, left / 6) : 0;
       ctx.translate(l.ox + shx, l.oy + shy);
@@ -373,82 +360,12 @@ export function ArenaPlayfield({
         const spawnP = Math.min(1, age / 9);
         const popScale = spawnP < 1 ? 0.35 + 0.65 * (1 - Math.pow(1 - spawnP, 3) + Math.sin(spawnP * Math.PI) * 0.12) : 1;
         const dropY = spawnP < 1 ? -(1 - spawnP) * 1.3 * s : 0;
-        const moving = !!an?.moving;
-        const gait = (an?.walk ?? 0) * 3.6;
-        const hop = Math.abs(Math.sin(gait));
-        // balanço: caminhada quica e se estica no ar / amassa ao pisar; parado respira
-        let bob = moving ? hop * 0.1 * r * 4 : Math.sin(tickF * 0.16 + e.id) * 0.02 * r * 4;
-        let sx = moving ? 1 - (hop - 0.5) * 0.05 : 1 - Math.sin(tickF * 0.16 + e.id) * 0.012;
-        let sy = moving ? 1 + (hop - 0.5) * 0.07 : 1 + Math.sin(tickF * 0.16 + e.id) * 0.02;
-        // inclina pro lado em que anda e alterna a cada passo
-        let sway = moving ? Math.sin(gait) * 0.07 + (an?.face ?? 1) * 0.04 : Math.sin(tickF * 0.08 + e.id * 3) * 0.012;
-        if (e.flying) {
-          bob = Math.sin(tickF * 0.2 + e.id) * 0.16 * s;
-          sx *= 1 + Math.sin(tickF * 0.9 + e.id) * 0.05; // bater de asas
-          sy *= 1 - Math.sin(tickF * 0.9 + e.id) * 0.025;
-        }
-        // pousa: amassa quando termina a entrada
-        if (spawnP > 0.75 && spawnP < 1) {
-          const k = Math.sin(((spawnP - 0.75) / 0.25) * Math.PI);
-          sx *= 1 + 0.12 * k;
-          sy *= 1 - 0.12 * k;
-        }
-        let thrustX = 0;
-        let thrustY = 0;
-        if (an) {
-          // ataque: prepara (recua), dispara (avança rápido) e volta
-          const a = tickF - an.atk;
-          const W_ATK = 9;
-          const style = ATK_BODY[e.card] ?? ATK_BODY_DEFAULT;
-          if (a >= 0 && a < W_ATK) {
-            const t = a / W_ATK;
-            let off: number;
-            if (an.ranged) {
-              off = -0.24 * Math.sin(Math.min(1, t * 1.6) * Math.PI);
-              sway += -0.1 * an.face * Math.sin(t * Math.PI);
-              sx *= 1 - 0.05 * Math.sin(t * Math.PI);
-              sy *= 1 + 0.05 * Math.sin(t * Math.PI);
-            } else if (t < 0.28) {
-              const u = t / 0.28;
-              off = -0.22 * u * style.wind;
-              sx *= 1 - 0.05 * u;
-              sy *= 1 + 0.06 * u;
-              sway += -0.12 * an.face * u * style.wind;
-              bob += style.hop * s * u;
-            } else if (t < 0.5) {
-              const u = (t - 0.28) / 0.22;
-              const e3 = 1 - Math.pow(1 - u, 3);
-              off = -0.22 * style.wind + (0.92 * style.lunge + 0.22 * style.wind) * e3;
-              sx *= 1 + 0.12 * e3;
-              sy *= 1 - 0.1 * e3;
-              sway += 0.28 * an.face * e3 - 0.12 * an.face * style.wind * (1 - e3);
-              bob += style.hop * s * (1 - e3);
-            } else {
-              const u = (t - 0.5) / 0.5;
-              const e2 = u * u * (3 - 2 * u);
-              off = 0.7 * style.lunge * (1 - e2);
-              sx *= 1 + 0.12 * (1 - e2);
-              sy *= 1 - 0.1 * (1 - e2);
-              sway += 0.28 * an.face * (1 - e2);
-            }
-            thrustX = an.atkDx * off * s;
-            thrustY = an.atkDy * off * s * 0.7;
-          }
-          // apanhou: tranco pra trás e amassa
-          const h = tickF - an.hit;
-          if (h >= 0 && h < 6) {
-            const k = 1 - h / 6;
-            const push = 0.3 * k * k * s;
-            thrustX += an.hitDx * push;
-            thrustY += an.hitDy * push * 0.7;
-            sx *= 1 + 0.1 * k;
-            sy *= 1 - 0.1 * k;
-            sway += an.hitDx * 0.12 * k;
-          }
-          // vira de lado suavemente
-          an.fs += (an.face - an.fs) * 0.3;
-        }
-        const flash = an !== undefined && tickF - an.hit < 3;
+        const pose = computePose({ card: e.card, flying: e.flying, id: e.id, s, r, tickF, an, spawnP });
+        const { bob, thrustX, thrustY, gait, moving } = pose;
+        const { sx, sy, sway } = pose;
+        // vira de lado suavemente
+        if (an) an.fs += (an.face - an.fs) * 0.3;
+        const flash = an !== undefined && tickF - an.hit >= 0 && tickF - an.hit < 3;
 
         const lowFactor = 1 - Math.min(0.3, Math.abs(bob) / (s * 1.2));
         ctx.fillStyle = "rgba(0,0,0,0.28)";
@@ -482,9 +399,18 @@ export function ArenaPlayfield({
             ctx.ellipse(0, -h * 0.5, h * 0.7, h * 0.85, 0, 0, Math.PI * 2);
             ctx.fill();
           }
+          // rastro de velocidade: duas cópias que ficam pra trás no avanço do golpe (só em aparelho bom)
+          if (pose.trail > 0.15 && !lowEndRef.current) {
+            const bx = -(an?.atkDx ?? 0) * s * 0.32;
+            const by = -(an?.atkDy ?? 0) * s * 0.22;
+            ctx.globalAlpha = 0.2 * pose.trail;
+            ctx.drawImage(img, -w / 2 + bx * 2, -h * 0.97 + by * 2, w, h);
+            ctx.globalAlpha = 0.32 * pose.trail;
+            ctx.drawImage(img, -w / 2 + bx, -h * 0.97 + by, w, h);
+            ctx.globalAlpha = 1;
+          }
           if (!e.flying && e.variant === 0) {
-            const atkT = an ? (tickF - an.atk) / 9 : -1;
-            drawLimbs(ctx, img, -w / 2, -h * 0.97, w, h, gait, moving, atkT >= 0 && atkT < 1 ? atkT : -1, 1, tickF * 0.16 + e.id);
+            drawRig(ctx, img, -w / 2, -h * 0.97, w, h, { gait, moving, atk: pose.atkT, hit: pose.hitK, idle: tickF * 0.16 + e.id, ranged: an?.ranged }, rigOf(e.card));
           } else {
             ctx.drawImage(img, -w / 2, -h * 0.97, w, h);
           }
@@ -559,6 +485,7 @@ export function ArenaPlayfield({
     let noBgFrames = 0;
     let lastDraw = 0;
     const lowEnd = isLowEnd();
+    lowEndRef.current = lowEnd;
     const tick = (now: number): boolean => {
       const d = driverRef.current;
       const game = d.game;
