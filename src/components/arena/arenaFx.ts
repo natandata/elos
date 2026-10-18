@@ -3,7 +3,7 @@ import type { GameEvent } from "@/lib/arena/core";
 import { TEAM } from "./arenaRender";
 import { CUSTOM_PROJ, IMPACT_CARDS, IMPACT_DUR, MELEE_DUR, drawImpact, drawMelee, drawProjectile } from "./arenaAttackFx";
 import { glyph } from "./arenaGlyph";
-import { ATK_TICKS, STRIKE_AT, bodyOf, holdAt } from "./arenaMotion";
+import { ATK_TICKS, RELEASE_TICKS, STRIKE_AT, bodyOf, holdAt } from "./arenaMotion";
 
 // Animações da Arena. Tudo aqui é só visual: nada disso altera o jogo.
 // Tempos em "ticks" (1/20 s); `tickF` = tick atual + fração entre ticks.
@@ -101,12 +101,14 @@ export function applyEvent(ev: GameEvent, tick: number, anims: Map<number, Anim>
       if (ev.ranged) {
         const tower = ev.fromCard === "atalaia" || ev.fromCard === "santuario";
         const dur = Math.max(3, Math.min(8, Math.round(d * 0.8)));
-        delay = dur;
+        // o projétil sai quando o herói solta (torres atiram na hora)
+        const rel = tower ? 0 : RELEASE_TICKS;
+        delay = rel + dur;
         fx.push({
-          k: "proj", x1: ev.x1, y1: ev.y1 - (tower ? 1 : 0.3), x2: ev.x2, y2: ev.y2, t0: tick,
+          k: "proj", x1: ev.x1, y1: ev.y1 - (tower ? 1 : 0.3), x2: ev.x2, y2: ev.y2, t0: tick + rel,
           dur, emoji: tower ? null : (PROJ_EMOJI[ev.fromCard] ?? null), team: ev.side, card: ev.fromCard,
         });
-        if (IMPACT_CARDS.has(ev.fromCard)) fx.push({ k: "impact", card: ev.fromCard, x: ev.x2, y: ev.y2 - 0.3, t0: tick + dur, dur: IMPACT_DUR });
+        if (IMPACT_CARDS.has(ev.fromCard)) fx.push({ k: "impact", card: ev.fromCard, x: ev.x2, y: ev.y2 - 0.3, t0: tick + rel + dur, dur: IMPACT_DUR });
       } else {
         fx.push({ k: "melee", card: ev.fromCard, x: ev.x2, y: ev.y2 - 0.2, ang: Math.atan2(dy, dx), t0: tick + Math.max(0, strikeDelay - 2), dur: MELEE_DUR[ev.fromCard] ?? 6 });
         // pausa de impacto: quem bate e quem apanha congelam um instante (só nos golpes de perto)

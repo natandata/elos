@@ -73,8 +73,14 @@ function piece(ctx: CanvasRenderingContext2D, img: HTMLImageElement, dst: { x: n
 const smooth = (u: number) => u * u * (3 - 2 * u);
 
 /** Inclinação do tronco no golpe: recua na antecipação, curva pra frente no golpe e volta. */
-function strikeLean(atk: number): number {
+function strikeLean(atk: number, ranged = false): number {
   if (atk < 0) return 0;
+  if (ranged) {
+    // à distância: puxa até 0,3, solta rápido pra frente e volta
+    if (atk < 0.3) return -smooth(atk / 0.3) * 0.5;
+    if (atk < 0.45) return -0.5 + 1.2 * (1 - Math.pow(1 - (atk - 0.3) / 0.15, 3));
+    return 0.7 * (1 - smooth((atk - 0.45) / 0.55));
+  }
   if (atk < 0.28) return -(atk / 0.28) * 0.5;
   if (atk < 0.5) {
     const u = (atk - 0.28) / 0.22;
@@ -103,7 +109,7 @@ export function drawRig(ctx: CanvasRenderingContext2D, img: HTMLImageElement, x:
   piece(ctx, img, dst, { x0: 0.5, y0: hipY, x1: 1, y1: 1 }, { px: 0.75, py: hipY }, -stride * legAmp, 0, -liftR);
 
   // tronco: gira em volta do quadril (contra o passo, e se inclina no golpe)
-  const lean = strikeLean(atk);
+  const lean = strikeLean(atk, pose.ranged);
   const twist = (moving ? Math.sin(gait - 0.9) * 0.035 : Math.sin(idle * 0.7) * 0.012) * g;
   const torsoAng = twist + lean * 0.07 * g - hit * 0.05 * g;
   const swing = moving ? Math.sin(gait + Math.PI) : Math.sin(idle * 0.8) * 0.15; // braços em oposição às pernas
@@ -125,9 +131,9 @@ export function drawRig(ctx: CanvasRenderingContext2D, img: HTMLImageElement, x:
     aL += -arm * 0.1 * ag * spec.armL;
   } else if (atk >= 0) {
     // à distância: os dois braços puxam e soltam
-    const u = Math.sin(atk * Math.PI);
-    aR += -u * 0.16 * ag * spec.armR;
-    aL += -u * 0.1 * ag * spec.armL;
+    const arm = strikeLean(atk, true);
+    aR += arm * 0.18 * ag * spec.armR;
+    aL += arm * 0.1 * ag * spec.armL;
   }
   aL += hit * 0.1 * ag * spec.armL;
   aR += -hit * 0.1 * ag * spec.armR;

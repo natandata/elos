@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { newAnim } from "./arenaFx";
 import { ATK_TICKS, computePose, type Pose } from "./arenaMotion";
 import { drawRig, rigOf } from "./arenaRig";
+import { drawCharge } from "./arenaCharge";
 
 // Laboratório de animação da Arena: cada herói em todos os estados (parado, andando, golpe em 3 tempos, tranco)
 // e um laço ao vivo. Serve para ajustar o "feeling" sem jogar uma partida.
@@ -12,7 +13,10 @@ const HEROES = ["amandinha", "mbappe", "nery", "henrique", "tiaaline", "marcelin
 
 type Frame = { label: string; pose: (card: string) => Pose; ranged?: boolean };
 
-function poseAt(card: string, setup: (an: ReturnType<typeof newAnim>) => number, ranged = false): Pose {
+const RANGED = new Set(["henrique", "mbappe", "tiaaline", "marcelinho", "natanrebeca", "davi", "moises"]);
+
+function poseAt(card: string, setup: (an: ReturnType<typeof newAnim>) => number): Pose {
+  const ranged = RANGED.has(card);
   const an = newAnim(-999, 0);
   an.ranged = ranged;
   an.atkDx = 1;
@@ -35,7 +39,7 @@ const FRAMES: Frame[] = [
 
 const CELL = 150;
 
-function drawHero(ctx: CanvasRenderingContext2D, img: HTMLImageElement, card: string, pose: Pose, cx: number, foot: number, tickF: number) {
+function drawHero(ctx: CanvasRenderingContext2D, img: HTMLImageElement, card: string, pose: Pose, cx: number, foot: number, tickF: number, ranged = false) {
   const h = 120;
   const w = (h * img.naturalWidth) / img.naturalHeight;
   ctx.fillStyle = "rgba(0,0,0,0.28)";
@@ -53,7 +57,8 @@ function drawHero(ctx: CanvasRenderingContext2D, img: HTMLImageElement, card: st
     ctx.drawImage(img, -w / 2 - 13, -h * 0.97, w, h);
     ctx.globalAlpha = 1;
   }
-  drawRig(ctx, img, -w / 2, -h * 0.97, w, h, { gait: pose.gait, moving: pose.moving, atk: pose.atkT, hit: pose.hitK, idle: tickF * 0.16 }, rigOf(card));
+  drawRig(ctx, img, -w / 2, -h * 0.97, w, h, { gait: pose.gait, moving: pose.moving, atk: pose.atkT, hit: pose.hitK, idle: tickF * 0.16, ranged }, rigOf(card));
+  if (pose.atkT >= 0) drawCharge(ctx, card, w, h, pose.atkT, tickF, ranged);
   ctx.restore();
 }
 
@@ -101,7 +106,7 @@ export function ArenaLab({ cards = HEROES }: { cards?: string[] }) {
       FRAMES.forEach((f, col) => {
         const cx = col * CELL + CELL / 2;
         const foot = row * CELL + CELL - 14;
-        drawHero(ctx, im, c, f.pose(c), cx, foot, 50);
+        drawHero(ctx, im, c, f.pose(c), cx, foot, 50, RANGED.has(c));
         if (row === 0) {
           ctx.fillStyle = "#fff";
           ctx.fillText(f.label, cx, 12);
@@ -127,7 +132,7 @@ export function ArenaLab({ cards = HEROES }: { cards?: string[] }) {
       ctx.save();
       ctx.translate(cv.width / 2 - 50, cv.height - 40);
       ctx.scale(2.6, 2.6);
-      drawHero(ctx, im, sel, FRAMES[still].pose(sel), 0, 0, 50);
+      drawHero(ctx, im, sel, FRAMES[still].pose(sel), 0, 0, 50, RANGED.has(sel));
       ctx.restore();
       return;
     }
@@ -140,12 +145,13 @@ export function ArenaLab({ cards = HEROES }: { cards?: string[] }) {
       tick += 1;
       an.moving = mode === "andar";
       if (an.moving) an.walk += 0.12;
+      an.ranged = RANGED.has(sel);
       if (mode === "golpe" && tick % 24 === 0) an.atk = tick;
       if (mode === "tranco" && tick % 24 === 0) an.hit = tick;
       const p = computePose({ card: sel, flying: false, id: 3, s: 40, r: 22, tickF: tick, an, spawnP: 1 });
       ctx.fillStyle = "#3d7a3d";
       ctx.fillRect(0, 0, cv.width, cv.height);
-      drawHero(ctx, im, sel, p, cv.width / 2, cv.height - 30, tick);
+      drawHero(ctx, im, sel, p, cv.width / 2, cv.height - 30, tick, RANGED.has(sel));
     }, 50);
     return () => clearInterval(id);
   }, [imgs, sel, mode, still]);

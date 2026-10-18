@@ -6,7 +6,7 @@ import { glyph } from "./arenaGlyph";
 const TAU = Math.PI * 2;
 
 /** Duração (ticks) do golpe corpo a corpo de cada herói; o resto usa a padrão. */
-export const MELEE_DUR: Record<string, number> = { sansao: 10, noe: 9, joao: 8, isaque: 8, josue: 8, daniel: 7, miguel: 7, gideao: 6, jose: 6, adao: 7, jaco: 7, nabucodonosor: 10, nery: 9 };
+export const MELEE_DUR: Record<string, number> = { sansao: 10, noe: 9, joao: 8, isaque: 8, josue: 8, daniel: 7, miguel: 7, gideao: 6, jose: 6, adao: 7, jaco: 7, nabucodonosor: 10, nery: 9, zepa: 10, amandinha: 6 };
 /** Heróis à distância que ganham efeito ao acertar, e quanto ele dura. */
 export const IMPACT_DUR = 9;
 export const IMPACT_CARDS = new Set(["davi", "moises", "salomao", "ester", "maria", "eva", "isaias", "jeremias", "tiaaline", "henrique", "marcelinho", "mbappe", "natanrebeca"]);
@@ -259,6 +259,70 @@ export function drawMelee(ctx: CanvasRenderingContext2D, s: number, card: string
         ctx.moveTo(x0, y0);
         ctx.lineTo(x1, y1);
         ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+      break;
+    }
+    case "zepa": {
+      // a Bíblia desce: coluna de luz, anel dourado que se abre e raios; o chão brilha
+      const u = Math.min(1, p / 0.35);
+      ctx.globalAlpha = Math.max(0, 1 - Math.max(0, p - 0.45) / 0.55);
+      const g = ctx.createLinearGradient(0, -s * 2.4, 0, s * 0.2);
+      g.addColorStop(0, "rgba(255,248,200,0)");
+      g.addColorStop(0.6, "rgba(253,230,138,0.75)");
+      g.addColorStop(1, "rgba(255,255,255,0.95)");
+      ctx.fillStyle = g;
+      ctx.fillRect(-s * 0.32 * (1 - p * 0.4), -s * 2.4 * u, s * 0.64 * (1 - p * 0.4), s * 2.6 * u);
+      ctx.globalAlpha = 1;
+      ripple(ctx, s, 0, s * 0.15, p, 2.1, "rgba(253,224,71,0.95)");
+      ripple(ctx, s, 0, s * 0.15, Math.max(0, p - 0.18), 1.3, "rgba(255,255,255,0.9)");
+      ctx.strokeStyle = `rgba(255,244,190,${Math.max(0, 1 - p)})`;
+      ctx.lineWidth = Math.max(2, s * 0.07);
+      ctx.lineCap = "round";
+      for (let i = 0; i < 8; i++) {
+        const a2 = (i * TAU) / 8 + 0.2;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(a2) * s * (0.4 + p * 0.5), Math.sin(a2) * s * 0.4 * (0.4 + p * 0.5));
+        ctx.lineTo(Math.cos(a2) * s * (0.9 + p * 1.3), Math.sin(a2) * s * 0.4 * (0.9 + p * 1.3));
+        ctx.stroke();
+      }
+      star(ctx, 0, -s * 0.2, s * 0.35 * Math.sin(Math.min(1, p * 2) * Math.PI), 6, p * 3, "rgba(255,255,255,0.95)");
+      break;
+    }
+    case "amandinha": {
+      // arranhão rápido de três riscos e folhinhas que voam
+      ctx.rotate(ang);
+      const draw = Math.min(1, p / 0.4);
+      ctx.lineCap = "round";
+      for (let i = -1; i <= 1; i++) {
+        ctx.globalAlpha = Math.max(0, 1 - Math.max(0, p - 0.4) * 1.7);
+        const x0 = -s * 0.3;
+        const y0 = -s * 0.45 + i * s * 0.2;
+        ctx.strokeStyle = "#4ade80";
+        ctx.lineWidth = Math.max(2.5, s * 0.12);
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x0 + s * 0.9 * draw, y0 + s * 0.9 * draw);
+        ctx.stroke();
+        ctx.strokeStyle = "#f0fdf4";
+        ctx.lineWidth = Math.max(1.2, s * 0.04);
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x0 + s * 0.9 * draw, y0 + s * 0.9 * draw);
+        ctx.stroke();
+      }
+      ctx.rotate(-ang);
+      ctx.globalAlpha = Math.max(0, 1 - p);
+      ctx.fillStyle = "#22c55e";
+      for (let i = 0; i < 5; i++) {
+        const a2 = (i * TAU) / 5 + 0.5;
+        ctx.save();
+        ctx.translate(Math.cos(a2) * s * (0.3 + p * 0.9), Math.sin(a2) * s * 0.5 * (0.3 + p * 0.9) - p * s * 0.4);
+        ctx.rotate(a2 + p * 4);
+        ctx.beginPath();
+        ctx.ellipse(0, 0, s * 0.13, s * 0.06, 0, 0, TAU);
+        ctx.fill();
+        ctx.restore();
       }
       ctx.globalAlpha = 1;
       break;

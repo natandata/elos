@@ -6,6 +6,7 @@ import { ARENAS, type ArenaTheme } from "@/lib/arena/arenas";
 import { CAMPAIGN_CARDS, CAMPAIGN_COMBOS, activeCombos, inCombo, type Combo } from "@/lib/arena/campaignCards";
 import { computePose } from "./arenaMotion";
 import { drawRig, rigOf } from "./arenaRig";
+import { drawCharge } from "./arenaCharge";
 import { CardArt } from "./CardArt";
 import { TEAM, buildAmbient, buildBackground, drawAmbient, drawRubble, drawTower, layoutFor, type Ambient, type Layout } from "./arenaRender";
 import { loadCampo } from "./arenaAssets";
@@ -414,6 +415,8 @@ export function ArenaPlayfield({
           } else {
             ctx.drawImage(img, -w / 2, -h * 0.97, w, h);
           }
+          // carga do ataque: brilho e partículas na mão enquanto prepara e solta
+          if (pose.atkT >= 0 && !lowEndRef.current) drawCharge(ctx, e.card, w, h, pose.atkT, tickF, !!an?.ranged);
           // levou dano: o personagem clareia por um instante (soma de luz, sem ctx.filter, que pisca e pesa em muitos celulares)
           if (flash) {
             ctx.globalCompositeOperation = "lighter";

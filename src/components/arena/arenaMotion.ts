@@ -8,6 +8,10 @@ import type { Anim } from "./arenaFx";
 export const ATK_TICKS = 9;
 /** Instante do golpe em que o dano "cai" (fração do golpe: o pico do avanço). */
 export const STRIKE_AT = 0.45;
+/** Golpe à distância: fração do golpe em que o projétil sai da mão (puxa até aqui, solta e acompanha). */
+export const RELEASE_AT = 0.3;
+/** Tick (após o início do golpe) em que o projétil sai. */
+export const RELEASE_TICKS = Math.round(ATK_TICKS * RELEASE_AT);
 
 export type Body = {
   /** quanto recua antes de bater */
@@ -63,6 +67,8 @@ export function holdAt(an: Anim | undefined, at: number, ticks: number) {
   an.hs0 = at;
   an.hsN = ticks;
 }
+
+const smooth = (u: number) => u * u * (3 - 2 * u);
 
 export type Pose = {
   bob: number;
@@ -140,11 +146,27 @@ export function computePose(o: Input): Pose {
       atkT = t;
       let off: number;
       if (an.ranged) {
-        // à distância: puxa pra trás, solta e volta
-        off = -0.24 * Math.sin(Math.min(1, t * 1.6) * Math.PI);
-        sway += -0.1 * an.face * Math.sin(t * Math.PI);
-        sx *= 1 - 0.05 * Math.sin(t * Math.PI);
-        sy *= 1 + 0.05 * Math.sin(t * Math.PI);
+        // à distância: puxa pra trás (carrega), solta com um tranco pra frente e assenta
+        if (t < RELEASE_AT) {
+          const u = smooth(t / RELEASE_AT);
+          off = -0.26 * u;
+          sway += -0.12 * an.face * u;
+          sx *= 1 - 0.05 * u;
+          sy *= 1 + 0.06 * u;
+        } else if (t < 0.45) {
+          const u = 1 - Math.pow(1 - (t - RELEASE_AT) / (0.45 - RELEASE_AT), 3);
+          off = -0.26 + 0.38 * u;
+          sway += (-0.12 + 0.26 * u) * an.face;
+          sx *= 1 + 0.08 * u;
+          sy *= 1 - 0.07 * u;
+          trail = 0;
+        } else {
+          const u = smooth((t - 0.45) / 0.55);
+          off = 0.12 * (1 - u);
+          sway += 0.14 * an.face * (1 - u);
+          sx *= 1 + 0.08 * (1 - u);
+          sy *= 1 - 0.07 * (1 - u);
+        }
       } else if (t < 0.28) {
         // antecipação: recua e amassa
         const u = t / 0.28;
