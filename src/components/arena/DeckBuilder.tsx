@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ARENA_CARDS, ARENA_CARD_BY_KEY, MAX_CARD_LEVEL, STARTER_DECK, levelMult, upgradeCost, type ArenaCard } from "@/lib/arena/cards";
 import { ARENAS, CARD_UNLOCK_ARENA, CHEST_ONLY, isCardUnlocked } from "@/lib/arena/arenas";
+import { CAMPAIGN_CARDS, CAMPAIGN_KEYS } from "@/lib/arena/campaignCards";
 import { CARD_LORE } from "@/lib/arena/cardLore";
 import { CardArt } from "./CardArt";
 import { AT } from "./ArenaText";
@@ -113,7 +114,9 @@ export function DeckBuilder({
   const [upMsg, setUpMsg] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   // heróis de baú que o jogador já achou (cópias ou nível acima de 1)
-  const owned = new Set([...CHEST_ONLY].filter((k) => (copies[k] ?? 0) > 0 || (levels[k] ?? 1) > 1));
+  const owned = new Set([...CHEST_ONLY, ...CAMPAIGN_KEYS].filter((k) => (copies[k] ?? 0) > 0 || (levels[k] ?? 1) > 1));
+  // cartas da campanha só aparecem pra quem zerou a campanha
+  const campaignCards = CAMPAIGN_CARDS.filter((c) => owned.has(c.key));
   const unlocked = (k: string) => isCardUnlocked(k, best, owned);
 
   function show(key: string) {
@@ -163,6 +166,19 @@ export function DeckBuilder({
             </div>
           ))}
       </div>
+
+      {campaignCards.length > 0 ? (
+        <>
+          <p className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]"><AT>🏅 Cartas da campanha · você zerou a campanha</AT></p>
+          <div className="mb-4 grid grid-cols-4 gap-2">
+            {campaignCards.map((c) => (
+              <div key={c.key} className={deck.includes(c.key) ? "opacity-45" : ""}>
+                <Tile card={c} level={levels[c.key] ?? 1} copies={copies[c.key] ?? 0} onClick={() => show(c.key)} />
+              </div>
+            ))}
+          </div>
+        </>
+      ) : null}
 
       {error ? <p className="mb-3 text-center text-sm font-semibold text-rose-600">{error}</p> : null}
       <button type="button" disabled={!ready || saving} onClick={() => onSave(deck)} className="btn btn-primary w-full !py-3 disabled:opacity-50">

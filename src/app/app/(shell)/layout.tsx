@@ -174,7 +174,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     const [annRes, seenRes] = await Promise.all([
       supabase
         .from("announcements")
-        .select("id, title, body, version")
+        .select("id, title, body, version, audience")
         .eq("active", true)
         // aviso sem Elo vale pra todo mundo; com Elo, só pra quem é desse Elo
         .or(profile.elo_id ? `elo_id.is.null,elo_id.eq.${profile.elo_id}` : "elo_id.is.null")
@@ -190,10 +190,25 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         s.seen_version,
       ]),
     );
-    announcement =
-      ((annRes.data ?? []) as ActiveAnnouncement[]).find(
-        (a) => (seenVersion.get(a.id) ?? 0) < a.version,
-      ) ?? null;
+    // aviso com público (ex.: quem zerou a campanha da Arena) só aparece pra quem se encaixa
+    let doneCampaign: boolean | null = null;
+    const isDoneCampaign = async () => {
+      if (doneCampaign === null) {
+        const { count } = await supabase
+          .from("arena_campaign_progress")
+          .select("stage", { count: "exact", head: true })
+          .eq("user_id", profile.id)
+          .gte("tiers", 3);
+        doneCampaign = (count ?? 0) >= 8;
+      }
+      return doneCampaign;
+    };
+    for (const a of (annRes.data ?? []) as (ActiveAnnouncement & { audience: string | null })[]) {
+      if ((seenVersion.get(a.id) ?? 0) >= a.version) continue;
+      if (a.audience === "campaign_done" && !(await isDoneCampaign())) continue;
+      announcement = { id: a.id, title: a.title, body: a.body, version: a.version };
+      break;
+    }
   }
 
   // Pesquisa única do Elo Masculino 16–17 ("Você gostaria de ser mais generoso?"): só crias desse Elo, uma vez por pessoa
