@@ -203,9 +203,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       }
       return doneCampaign;
     };
+    // aviso "targeted": só vale pra quem está em announcement_targets (ex.: troféus devolvidos)
+    let targeted: Set<string> | null = null;
+    const isTargeted = async (id: string) => {
+      if (targeted === null) {
+        const { data } = await supabase.from("announcement_targets").select("announcement_id").eq("user_id", profile.id);
+        targeted = new Set(((data ?? []) as { announcement_id: string }[]).map((r) => r.announcement_id));
+      }
+      return targeted.has(id);
+    };
     for (const a of (annRes.data ?? []) as (ActiveAnnouncement & { audience: string | null })[]) {
       if ((seenVersion.get(a.id) ?? 0) >= a.version) continue;
       if (a.audience === "campaign_done" && !(await isDoneCampaign())) continue;
+      if (a.audience === "targeted" && !(await isTargeted(a.id))) continue;
       announcement = { id: a.id, title: a.title, body: a.body, version: a.version };
       break;
     }
