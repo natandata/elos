@@ -3,6 +3,7 @@ import type { GameEvent } from "@/lib/arena/core";
 import { TEAM } from "./arenaRender";
 import { CUSTOM_PROJ, IMPACT_CARDS, IMPACT_DUR, MELEE_DUR, drawImpact, drawMelee, drawProjectile } from "./arenaAttackFx";
 import { glyph } from "./arenaGlyph";
+import { ATK_TICKS, RELEASE_TICKS, STRIKE_AT, bodyOf, holdAt } from "./arenaMotion";
 
 // Animações da Arena. Tudo aqui é só visual: nada disso altera o jogo.
 // Tempos em "ticks" (1/20 s); `tickF` = tick atual + fração entre ticks.
@@ -27,6 +28,12 @@ export type Anim = {
   steps: number;
   /** debaixo d'água (João mergulhando): pra soltar o respingo na entrada e na saída */
   sub: boolean;
+  /** o golpe de perto/à distância só "cai" depois deste atraso (ticks): o dano visual chega com o golpe */
+  hitDelay: number;
+  hitDelayAt: number;
+  /** pausa de impacto (hit-stop): começa em `hs0` e dura `hsN` ticks */
+  hs0: number;
+  hsN: number;
 };
 
 
@@ -38,7 +45,7 @@ export type Fx =
   | { k: "burst"; x: number; y: number; t0: number; dur: number; color: string; r: number }
   | { k: "ring"; x: number; y: number; t0: number; dur: number; color: string; r: number }
   | { k: "spell"; key: string; x: number; y: number; r: number; t0: number; dur: number }
-  | { k: "ghost"; x: number; y: number; card: string; flying: boolean; radius: number; side: number; t0: number; dur: number }
+  | { k: "ghost"; x: number; y: number; card: string; flying: boolean; radius: number; side: number; t0: number; dur: number; wait: number; kx: number }
   | { k: "boom"; x: number; y: number; big: boolean; t0: number; dur: number }
   | { k: "mark"; x: number; y: number; emoji: string; t0: number; dur: number }
   | { k: "dust"; x: number; y: number; t0: number; dur: number; big: boolean };
@@ -58,6 +65,10 @@ export const newAnim = (born: number, side: number): Anim => ({
   fs: 1,
   steps: 0,
   sub: false,
+  hitDelay: 0,
+  hitDelayAt: -99,
+  hs0: -99,
+  hsN: 0,
 });
 
 // projétil em emoji (os heróis em CUSTOM_PROJ desenham o próprio)
@@ -83,6 +94,10 @@ export function applyEvent(ev: GameEvent, tick: number, anims: Map<number, Anim>
         if (Math.abs(dx) > 0.2) a.face = dx > 0 ? 1 : -1;
       }
       const tgt = anims.get(ev.to);
+      // o dano visual (número, clarão, tranco) chega junto com o golpe, não no instante em que o motor o calcula
+      const body = bodyOf(ev.fromCard);
+      const strikeDelay = Math.round(ATK_TICKS * STRIKE_AT * 0.75);
+      let delay = strikeDelay;
       if (tgt) {
         tgt.hitDx = dx / d;
         tgt.hitDy = dy / d;
@@ -90,30 +105,45 @@ export function applyEvent(ev: GameEvent, tick: number, anims: Map<number, Anim>
       if (ev.ranged) {
         const tower = ev.fromCard === "atalaia" || ev.fromCard === "santuario";
         const dur = Math.max(3, Math.min(8, Math.round(d * 0.8)));
+        // o projétil sai quando o herói solta (torres atiram na hora)
+        const rel = tower ? 0 : RELEASE_TICKS;
+        delay = rel + dur;
         fx.push({
-          k: "proj", x1: ev.x1, y1: ev.y1 - (tower ? 1 : 0.3), x2: ev.x2, y2: ev.y2, t0: tick,
+          k: "proj", x1: ev.x1, y1: ev.y1 - (tower ? 1 : 0.3), x2: ev.x2, y2: ev.y2, t0: tick + rel,
           dur, emoji: tower ? null : (PROJ_EMOJI[ev.fromCard] ?? null), team: ev.side, card: ev.fromCard,
         });
-        if (IMPACT_CARDS.has(ev.fromCard)) fx.push({ k: "impact", card: ev.fromCard, x: ev.x2, y: ev.y2 - 0.3, t0: tick + dur, dur: IMPACT_DUR });
+        if (IMPACT_CARDS.has(ev.fromCard)) fx.push({ k: "impact", card: ev.fromCard, x: ev.x2, y: ev.y2 - 0.3, t0: tick + rel + dur, dur: IMPACT_DUR });
       } else {
-        fx.push({ k: "melee", card: ev.fromCard, x: ev.x2, y: ev.y2 - 0.2, ang: Math.atan2(dy, dx), t0: tick, dur: MELEE_DUR[ev.fromCard] ?? 6 });
-        // a clava do Sansão faz o chão tremer um pouquinho
-        if (ev.fromCard === "sansao" && shake.until < tick + 4) {
-          shake.until = tick + 4;
-          shake.amp = 1.6;
+        fx.push({ k: "melee", card: ev.fromCard, x: ev.x2, y: ev.y2 - 0.2, ang: Math.atan2(dy, dx), t0: tick + Math.max(0, strikeDelay - 2), dur: MELEE_DUR[ev.fromCard] ?? 6 });
+        // pausa de impacto: quem bate e quem apanha congelam um instante (só nos golpes de perto)
+        if (ev.dmg > 0) {
+          holdAt(a, tick + strikeDelay, body.stop);
+          holdAt(tgt, tick + strikeDelay, body.stop);
         }
+        // golpe pesado faz o chão tremer (sempre o mais forte que já estiver rolando)
+        const heavy = ev.fromCard === "sansao" ? 1.8 : body.stop >= 3 ? 1.4 : 0;
+        if (heavy > 0 && !(shake.until > tick + strikeDelay + 2 && shake.amp >= heavy)) {
+          shake.from = tick + strikeDelay;
+          shake.until = tick + strikeDelay + 4;
+          shake.amp = heavy;
+        }
+      }
+      if (tgt) {
+        tgt.hitDelay = delay;
+        tgt.hitDelayAt = tick;
       }
       break;
     }
     case "hit": {
       const a = anims.get(ev.id);
-      if (a) a.hit = tick;
+      const dl = a && a.hitDelayAt === tick ? a.hitDelay : 0;
+      if (a) a.hit = tick + dl;
       if (ev.dmg > 0) {
         fx.push({
           k: "float", x: ev.x + (((ev.id * 7) % 5) - 2) * 0.12, y: ev.y - 1.3, text: String(Math.round(ev.dmg)),
-          color: ev.side === 0 ? "#ff6b6b" : "#ffd43b", t0: tick, dur: 22, big: ev.dmg >= 100,
+          color: ev.side === 0 ? "#ff6b6b" : "#ffd43b", t0: tick + dl, dur: 22, big: ev.dmg >= 100,
         });
-        fx.push({ k: "burst", x: ev.x, y: ev.y - 0.4, t0: tick, dur: 5, color: ev.side === 0 ? "#ff8787" : "#fff3bf", r: 0.5 });
+        fx.push({ k: "burst", x: ev.x, y: ev.y - 0.4, t0: tick + dl, dur: 5, color: ev.side === 0 ? "#ff8787" : "#fff3bf", r: 0.5 });
       }
       break;
     }
@@ -158,8 +188,11 @@ export function applyEvent(ev: GameEvent, tick: number, anims: Map<number, Anim>
         shake.until = tick + 14;
         shake.amp = 6;
       } else {
-        fx.push({ k: "ghost", x: ev.x, y: ev.y, card: ev.card, flying: ev.flying, radius: ev.radius, side: ev.side, t0: tick, dur: 14 });
-        fx.push({ k: "boom", x: ev.x, y: ev.y, big: false, t0: tick, dur: 10 });
+        // morreu de um golpe: fica de pé até o golpe chegar, aí voa pro lado contrário ao do atacante
+        const a = anims.get(ev.id);
+        const wait = a && a.hitDelayAt === tick ? a.hitDelay : 0;
+        fx.push({ k: "ghost", x: ev.x, y: ev.y, card: ev.card, flying: ev.flying, radius: ev.radius, side: ev.side, t0: tick, dur: 14 + wait, wait, kx: a?.hitDx ?? 0 });
+        fx.push({ k: "boom", x: ev.x, y: ev.y, big: false, t0: tick + wait, dur: 10 });
       }
       anims.delete(ev.id);
       break;
@@ -170,12 +203,13 @@ const ease = (p: number) => 1 - Math.pow(1 - p, 3);
 
 type Sprites = Record<string, HTMLImageElement>;
 
-function drawGhost(ctx: CanvasRenderingContext2D, s: number, f: Extract<Fx, { k: "ghost" }>, p: number, sprites: Sprites) {
+function drawGhost(ctx: CanvasRenderingContext2D, s: number, f: Extract<Fx, { k: "ghost" }>, pAll: number, sprites: Sprites) {
   const img = sprites[f.card];
   const x = f.x * s;
   const footY = f.y * s + f.radius * s * 0.9 - (f.flying ? 0.9 * s : 0);
-  // cai de lado (sempre pro mesmo lado do mesmo personagem), quica e some
-  const dir = Math.floor(f.x * 10) % 2 === 0 ? 1 : -1;
+  // antes do golpe chegar ele ainda está de pé (p = 0); depois cai pro lado contrário ao do atacante, quica e some
+  const p = f.wait > 0 ? Math.max(0, (pAll * f.dur - f.wait) / (f.dur - f.wait)) : pAll;
+  const dir = Math.abs(f.kx) > 0.2 ? (f.kx > 0 ? 1 : -1) : Math.floor(f.x * 10) % 2 === 0 ? 1 : -1;
   const fall = ease(Math.min(1, p * 1.5));
   const hop = Math.sin(Math.min(1, p * 1.4) * Math.PI) * s * 0.3;
   ctx.save();
