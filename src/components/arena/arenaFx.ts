@@ -150,12 +150,23 @@ export function applyEvent(ev: GameEvent, tick: number, anims: Map<number, Anim>
       fx.push({ k: "float", x: ev.x, y: ev.y - 2.6, text: "A arca chegou!", color: "#fde68a", t0: tick + 8, dur: 30, big: true });
       break;
     case "dunk": {
+      // Batismo de João: a tropa e o João voam pro rio; o dano de 50 aparece na hora da queda
       const a = anims.get(ev.id);
-      if (a) a.fly = { x: ev.x1, y: ev.y1, t0: tick };
+      if (a) {
+        a.fly = { x: ev.x1, y: ev.y1, t0: tick };
+      }
+      const j = anims.get(ev.jid);
+      if (j) j.fly = { x: ev.jx1, y: ev.jy1, t0: tick };
       fx.push({ k: "ring", x: ev.x1, y: ev.y1 + 0.4, t0: tick, dur: 8, color: "rgba(147,197,253,0.9)", r: 0.9 });
-      fx.push({ k: "ring", x: ev.x2, y: ev.y2, t0: tick + FLY_TICKS, dur: 16, color: "rgba(255,255,255,0.95)", r: 1.6 });
-      fx.push({ k: "boom", x: ev.x2, y: ev.y2, big: false, t0: tick + FLY_TICKS, dur: 10 });
-      fx.push({ k: "float", x: ev.x2, y: ev.y2 - 1.6, text: "Preso na água!", color: "#7dd3fc", t0: tick + FLY_TICKS, dur: 30, big: true });
+      fx.push({ k: "ring", x: ev.jx1, y: ev.jy1 + 0.4, t0: tick, dur: 8, color: "rgba(147,197,253,0.9)", r: 0.9 });
+      fx.push({ k: "ring", x: ev.x2, y: ev.y2, t0: tick + FLY_TICKS, dur: 18, color: "rgba(255,255,255,0.95)", r: 2.0 });
+      fx.push({ k: "ring", x: ev.x2, y: ev.y2, t0: tick + FLY_TICKS + 2, dur: 18, color: "rgba(125,211,252,0.9)", r: 1.3 });
+      fx.push({ k: "boom", x: ev.x2, y: ev.y2, big: false, t0: tick + FLY_TICKS, dur: 12 });
+      fx.push({ k: "float", x: ev.x2, y: ev.y2 - 2.0, text: "Batismo de João!", color: "#7dd3fc", t0: tick + FLY_TICKS, dur: 36, big: true });
+      fx.push({ k: "float", x: ev.x2, y: ev.y2 - 1.3, text: String(ev.dmg), color: ev.side === 0 ? "#ff6b6b" : "#ffd43b", t0: tick + FLY_TICKS, dur: 22, big: false });
+      shake.from = tick + FLY_TICKS;
+      shake.until = tick + FLY_TICKS + 5;
+      shake.amp = 2;
       break;
     }
     case "immune":

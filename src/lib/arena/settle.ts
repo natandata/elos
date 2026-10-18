@@ -123,7 +123,7 @@ export async function settleArena(
   // treino numa arena antiga: cópias de derrota, seja qual for o resultado
   const copies = elapsed >= MIN_SECONDS_FOR_XP ? (result === "win" && !match.training ? COPIES_WIN : COPIES_OTHER) : 0;
   const copyCard = copies > 0 ? pickBattleCard(unlockedCards(stats.best, found), match.deck) : null;
-  const delta = match.training ? 0 : trophyDelta(result, result === "win" && elapsed < MIN_SECONDS_FOR_XP);
+  const delta = match.training ? 0 : trophyDelta(result);
 
   // fecha UMA vez (condicional): duas chamadas juntas não pagam duas vezes
   const { data: closed } = await admin

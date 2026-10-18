@@ -230,8 +230,8 @@ export function arenaProgress(trophies: number) {
 }
 
 /** Variação de troféus de uma partida confirmada. */
-export function trophyDelta(result: "win" | "loss" | "draw", verifiedFast = false): number {
-  if (result === "win") return verifiedFast ? 0 : TROPHY_WIN;
+export function trophyDelta(result: "win" | "loss" | "draw"): number {
+  if (result === "win") return TROPHY_WIN;
   if (result === "loss") return -TROPHY_LOSS;
   return 0;
 }

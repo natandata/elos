@@ -314,13 +314,19 @@ function dealAttack(state: GameState, e: Entity, target: Entity, ev: GameEvent[]
   ev.push({ t: "attack", from: e.id, to: target.id, fromCard: e.card, x1: e.x, y1: e.y, x2: target.x, y2: target.y, ranged: e.range > 1.5, side: e.side, dmg });
   ev.push({ t: "hit", id: target.id, x: target.x, y: target.y, dmg, side: target.side });
   if (e.card === DUNK.card && !e.reinforced && target.type === "unit" && !target.flying && target.hp > 0 && state.tick - e.born >= DUNK.afterSecs * TICKS_PER_SEC) {
-    // o primeiro golpe depois de 5 s joga a tropa no rio do meio, onde ela fica presa por 3 s
+    // Batismo de João: o primeiro golpe depois de 5 s leva a tropa e o próprio João pro rio do meio;
+    // ela leva 50 de dano e fica presa por 3 s
     e.reinforced = true;
     const fx = target.x;
     const fy = target.y;
+    const jx = e.x;
+    const jy = e.y;
     target.y = RIVER_MID;
-    target.stunUntil = state.tick + Math.round(DUNK.stunSecs * TICKS_PER_SEC);
-    ev.push({ t: "dunk", id: target.id, x1: fx, y1: fy, x2: target.x, y2: target.y });
+    e.x = target.x;
+    e.y = RIVER_MID + (e.side === 0 ? 0.9 : -0.9);
+    ev.push({ t: "dunk", id: target.id, x1: fx, y1: fy, x2: target.x, y2: target.y, jid: e.id, jx1: jx, jy1: jy, jx2: e.x, jy2: e.y, dmg: DUNK.dmg, side: target.side });
+    target.hp -= DUNK.dmg;
+    if (target.hp > 0) target.stunUntil = state.tick + Math.round(DUNK.stunSecs * TICKS_PER_SEC);
   } else if (e.knock > 0 && target.type === "unit" && !target.flying && target.hp > 0) knockBack(e, target);
   if (e.splash > 0) {
     for (const o of state.entities) {

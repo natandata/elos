@@ -37,23 +37,23 @@ import { glyph } from "./arenaGlyph";
 /** Quem comanda a partida: contra o computador ou 1x1 (lockstep). */
 export type PlayDriver = {
   game: GameState;
-  /** lado (equipe) de quem joga: define a visão do campo e as coroas */
+  /** lado (equipe) de quem joga: define a visÃ£o do campo e as coroas */
   mySide: Side;
-  /** número do jogador (só nas duplas, 0–3); no resto é igual ao lado */
+  /** nÃºmero do jogador (sÃ³ nas duplas, 0â€“3); no resto Ã© igual ao lado */
   myPlayer?: number;
-  /** índice da arena (cenário) */
+  /** Ã­ndice da arena (cenÃ¡rio) */
   arena: number;
-  /** campanha: cenário próprio (cores, desenho e nome) no lugar das arenas bíblicas */
+  /** campanha: cenÃ¡rio prÃ³prio (cores, desenho e nome) no lugar das arenas bÃ­blicas */
   campaign?: { theme: ArenaTheme; scenery: string; name: string };
-  /** nome de quem está do outro lado */
+  /** nome de quem estÃ¡ do outro lado */
   opponentLabel: string;
   /** atraso das jogadas em ticks (1x1); 0 = imediato */
   inputDelay: number;
   /** roda um tick; null = esperando o colega */
   advance: () => GameEvent[] | null;
-  /** o jogador soltou a carta `slot` em (x, y), já em coordenadas do jogo */
+  /** o jogador soltou a carta `slot` em (x, y), jÃ¡ em coordenadas do jogo */
   place: (slot: number, x: number, y: number) => boolean;
-  /** essa carta já tem jogada agendada? */
+  /** essa carta jÃ¡ tem jogada agendada? */
   isPending: (slot: number) => boolean;
 };
 
@@ -62,16 +62,16 @@ type Hud = { mana: number; tick: number; mine: number; theirs: number; slots: st
 const STEP_MS = 1000 / TICKS_PER_SEC;
 
 function fmtTime(ticks: number): string {
-  // no Jericó o relógio mostra o que resta da morte súbita
+  // no JericÃ³ o relÃ³gio mostra o que resta da morte sÃºbita
   const s = Math.max(0, Math.ceil(((ticks >= MATCH_TICKS ? MAX_MATCH_TICKS : MATCH_TICKS) - ticks) / TICKS_PER_SEC));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
-/** Como o corpo do herói se mexe ao golpear de perto: recuo, avanço e pulo. */
+/** Como o corpo do herÃ³i se mexe ao golpear de perto: recuo, avanÃ§o e pulo. */
 const ATK_BODY_DEFAULT = { wind: 1, lunge: 1, hop: 0 };
 const ATK_BODY: Record<string, { wind: number; lunge: number; hop: number }> = {
   sansao: { wind: 1.9, lunge: 1.25, hop: 0.45 }, // levanta a clava e desce com tudo
-  daniel: { wind: 0.8, lunge: 1.5, hop: 0.1 }, // bote do leão
+  daniel: { wind: 0.8, lunge: 1.5, hop: 0.1 }, // bote do leÃ£o
   joao: { wind: 0.6, lunge: 1.1, hop: 0 },
   gideao: { wind: 0.6, lunge: 0.8, hop: 0 },
   miguel: { wind: 1.1, lunge: 1.2, hop: 0.3 },
@@ -82,7 +82,7 @@ const ATK_BODY: Record<string, { wind: number; lunge: number; hop: number }> = {
   nabucodonosor: { wind: 1.5, lunge: 1.0, hop: 0.2 },
 };
 
-/** Pãozinho de Maná (custo das cartas e Maná atual). */
+/** PÃ£ozinho de ManÃ¡ (custo das cartas e ManÃ¡ atual). */
 function ManaBread({ n, size = 28 }: { n: number; size?: number }) {
   return (
     <span className="relative inline-flex items-center justify-center drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]" style={{ width: size, height: size }}>
@@ -122,7 +122,7 @@ function CrownCount({ n, color }: { n: number; color: "red" | "blue" }) {
         style={{ filter: color === "red" ? "hue-rotate(-35deg) saturate(2.4)" : "hue-rotate(170deg) saturate(1.8)" }}
         aria-hidden
       ><AT>
-        👑
+        ðŸ‘‘
       </AT></span>
     </div>
   );
@@ -147,11 +147,12 @@ export function ArenaPlayfield({
   onOverRef.current = onOver;
 
   const [hud, setHud] = useState<Hud | null>(null);
-  /** clarão do Pastor Zepa: cada vez que cega o meu lado, sobe um número e a tela fica branca por 1,5 s */
+  /** clarÃ£o do Pastor Zepa: cada vez que cega o meu lado, sobe um nÃºmero e a tela fica branca por 1,5 s */
   const [blindKey, setBlindKey] = useState(0);
-  /** Jericó: sobe um número quando a morte súbita começa (mostra o aviso por 3 s) */
+  /** JericÃ³: sobe um nÃºmero quando a morte sÃºbita comeÃ§a (mostra o aviso por 3 s) */
   const [jerichoKey, setJerichoKey] = useState(0);
   const jerichoSeen = useRef(false);
+  const [baptism, setBaptism] = useState<{ n: number } | null>(null);
   const [comboMsg, setComboMsg] = useState<{ mine: boolean; n: number; combo: Combo } | null>(null);
   const comboPrev = useRef<Set<string>>(new Set());
   const [selected, setSelected] = useState<number | null>(null);
@@ -176,7 +177,7 @@ export function ArenaPlayfield({
   const spritesRef = useRef<Record<string, HTMLImageElement>>({});
   selectedRef.current = selected;
 
-  // posição no jogo -> posição na tela (o 2º jogador vê o campo girado)
+  // posiÃ§Ã£o no jogo -> posiÃ§Ã£o na tela (o 2Âº jogador vÃª o campo girado)
   const vx = useCallback((x: number) => (flip ? W - x : x), [flip]);
   const vy = useCallback((y: number) => (flip ? H - y : y), [flip]);
   const vs = useCallback((s: Side): Side => (flip ? ((1 - s) as Side) : s), [flip]);
@@ -209,7 +210,7 @@ export function ArenaPlayfield({
   }, []);
   useEffect(() => stopLoop, [stopLoop]);
 
-  // telas grandes só saem da memória quando o navegador resolve limpar: celulares fracos estouram o limite na 2ª partida (campo verde/travado). Zerar o tamanho libera na hora.
+  // telas grandes sÃ³ saem da memÃ³ria quando o navegador resolve limpar: celulares fracos estouram o limite na 2Âª partida (campo verde/travado). Zerar o tamanho libera na hora.
   const freeCanvases = useCallback(() => {
     for (const c of [bgRef.current, ambRef.current?.tile ?? null]) {
       if (c) {
@@ -227,7 +228,7 @@ export function ArenaPlayfield({
     const area = areaRef.current;
     const canvas = canvasRef.current;
     if (!area || !canvas) return;
-    // área ainda sem tamanho (a tela está montando ou o navegador está trocando a barra): tenta de novo logo em vez de desistir
+    // Ã¡rea ainda sem tamanho (a tela estÃ¡ montando ou o navegador estÃ¡ trocando a barra): tenta de novo logo em vez de desistir
     if (area.clientWidth < 8 || area.clientHeight < 8) {
       if (triesRef.current++ < 60 && retryRef.current === null) {
         retryRef.current = setTimeout(() => {
@@ -239,12 +240,12 @@ export function ArenaPlayfield({
     }
     triesRef.current = 0;
     const l = layoutFor(area.clientWidth, area.clientHeight);
-    // menos pixels em aparelhos fracos: o campo é desenhado todo quadro, e memória de vídeo acabando faz a tela piscar
+    // menos pixels em aparelhos fracos: o campo Ã© desenhado todo quadro, e memÃ³ria de vÃ­deo acabando faz a tela piscar
     const lowMem = isLowEnd();
     const budget = Math.sqrt((lowMem ? 450_000 : 1_300_000) / Math.max(1, l.cw * l.ch));
     const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1, budget));
     const key = `${l.cw}x${l.ch}@${dpr}`;
-    // mesmo tamanho de antes: não mexe no canvas (redimensionar apaga a tela e fazia o campo piscar)
+    // mesmo tamanho de antes: nÃ£o mexe no canvas (redimensionar apaga a tela e fazia o campo piscar)
     if (!force && key === sizeKeyRef.current && bgRef.current) return;
     sizeKeyRef.current = key;
     canvas.style.width = `${l.cw}px`;
@@ -262,7 +263,7 @@ export function ArenaPlayfield({
       } catch (err) {
         console.error("arena background", err);
         reportClientError("arena-bg", err, { cw: l.cw, ch: l.ch, dpr, key: key2 });
-        // aparelho sem memória/contexto: tenta de novo em resolução baixa; sem fundo a tela ficaria só verde
+        // aparelho sem memÃ³ria/contexto: tenta de novo em resoluÃ§Ã£o baixa; sem fundo a tela ficaria sÃ³ verde
         try {
           if (dpr > 1) {
             canvas.width = l.cw;
@@ -284,7 +285,7 @@ export function ArenaPlayfield({
       }
     };
     build();
-    // os sprites do campo (torres, árvores, ponte...) chegam depois: refaz o fundo quando prontos, sem piscar
+    // os sprites do campo (torres, Ã¡rvores, ponte...) chegam depois: refaz o fundo quando prontos, sem piscar
     void loadCampo().then(() => {
       if (canvasRef.current && layoutRef.current === l) build();
     });
@@ -321,13 +322,13 @@ export function ArenaPlayfield({
       const shy = left > 0 ? Math.cos(tickF * 41) * sh.amp * Math.min(1, left / 6) : 0;
       ctx.translate(l.ox + shx, l.oy + shy);
 
-      // zona de colocação quando há uma carta de tropa escolhida (sempre embaixo, na tela)
+      // zona de colocaÃ§Ã£o quando hÃ¡ uma carta de tropa escolhida (sempre embaixo, na tela)
       const sel = selectedRef.current;
       if (sel !== null) {
         const card = ARENA_CARD_BY_KEY.get(game.slots[driverRef.current.myPlayer ?? mySide][sel]);
         if (card?.kind === "unit") {
           const pulse = 0.16 + Math.sin(tickF * 0.25) * 0.05;
-          // zona (inclusive a liberada por torre derrubada), já no ponto de vista de quem joga
+          // zona (inclusive a liberada por torre derrubada), jÃ¡ no ponto de vista de quem joga
           for (const r of deployRects(mySide, game)) {
             const x0 = flip ? W - r.x1 : r.x0;
             const x1 = flip ? W - r.x0 : r.x1;
@@ -349,12 +350,12 @@ export function ArenaPlayfield({
         }
       }
 
-      // escombros das torres que já caíram
+      // escombros das torres que jÃ¡ caÃ­ram
       drawRubble(ctx, s, game.entities, tickF);
-      // arca do Noé sobre a ponte bloqueada (com a contagem regressiva)
+      // arca do NoÃ© sobre a ponte bloqueada (com a contagem regressiva)
       for (const b of game.blocks ?? []) drawArk(ctx, s, flip ? W - b.x : b.x, (RIVER_TOP + RIVER_BOT) / 2, b.from, b.until, tickF);
 
-      // entidades já no ponto de vista de quem joga
+      // entidades jÃ¡ no ponto de vista de quem joga
       const view = (e: Entity): Entity =>
         flip ? { ...e, x: W - e.x, y: H - e.y, px: W - e.px, py: H - e.py, side: vs(e.side) } : e;
       const lerp = (a: number, b: number) => a + (b - a) * alpha;
@@ -372,7 +373,7 @@ export function ArenaPlayfield({
         const r = e.radius * s;
         const img = spritesRef.current[ARENA_CARD_BY_KEY.get(e.card)?.crew?.[e.variant] ?? e.card];
         const hasArt = !!img && img.complete && img.naturalWidth > 0;
-        // jogado no rio pelo João: voa em arco girando até onde caiu
+        // jogado no rio pelo JoÃ£o: voa em arco girando atÃ© onde caiu
         let flyLift = 0;
         let flySpin = 0;
         let flying = false;
@@ -388,7 +389,7 @@ export function ArenaPlayfield({
         }
         const footBase = y + r * 0.9;
         const lift = (e.flying ? 0.9 * s : 0) + flyLift;
-        // debaixo d'água: o João mergulhando e quem ficou preso no rio afundam até a cintura
+        // debaixo d'Ã¡gua: o JoÃ£o mergulhando e quem ficou preso no rio afundam atÃ© a cintura
         const trapped = e.stunUntil > game.tick && !flying;
         const inRiver = e.y > RIVER_TOP && e.y < RIVER_BOT;
         const depth = flying ? 0 : trapped ? 0.32 : e.card === DUNK.card && inRiver ? Math.min(1, Math.min(e.y - RIVER_TOP, RIVER_BOT - e.y) / 0.8) : 0;
@@ -400,7 +401,7 @@ export function ArenaPlayfield({
         const moving = !!an?.moving;
         const gait = (an?.walk ?? 0) * 3.6;
         const hop = Math.abs(Math.sin(gait));
-        // balanço: caminhada quica e se estica no ar / amassa ao pisar; parado respira
+        // balanÃ§o: caminhada quica e se estica no ar / amassa ao pisar; parado respira
         let bob = moving ? hop * 0.1 * r * 4 : Math.sin(tickF * 0.16 + e.id) * 0.02 * r * 4;
         let sx = moving ? 1 - (hop - 0.5) * 0.05 : 1 - Math.sin(tickF * 0.16 + e.id) * 0.012;
         let sy = moving ? 1 + (hop - 0.5) * 0.07 : 1 + Math.sin(tickF * 0.16 + e.id) * 0.02;
@@ -420,7 +421,7 @@ export function ArenaPlayfield({
         let thrustX = 0;
         let thrustY = 0;
         if (an) {
-          // ataque: prepara (recua), dispara (avança rápido) e volta
+          // ataque: prepara (recua), dispara (avanÃ§a rÃ¡pido) e volta
           const a = tickF - an.atk;
           const W_ATK = 9;
           const style = ATK_BODY[e.card] ?? ATK_BODY_DEFAULT;
@@ -458,7 +459,7 @@ export function ArenaPlayfield({
             thrustX = an.atkDx * off * s;
             thrustY = an.atkDy * off * s * 0.7;
           }
-          // apanhou: tranco pra trás e amassa
+          // apanhou: tranco pra trÃ¡s e amassa
           const h = tickF - an.hit;
           if (h >= 0 && h < 6) {
             const k = 1 - h / 6;
@@ -495,7 +496,7 @@ export function ArenaPlayfield({
         if (hasArt && img) {
           const h = e.radius * 4.4 * s;
           const w = (h * img.naturalWidth) / img.naturalHeight;
-          // afundado: só aparece o que está acima da linha d'água
+          // afundado: sÃ³ aparece o que estÃ¡ acima da linha d'Ã¡gua
           if (depth > 0) {
             ctx.beginPath();
             ctx.rect(-w, -h * 2, w * 2, h * 2 + h * 0.03);
@@ -535,19 +536,19 @@ export function ArenaPlayfield({
           ctx.textBaseline = "middle";
           ctx.font = `${Math.max(14, e.radius * 2.4 * s)}px system-ui, "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
           ctx.fillStyle = "#000";
-          glyph(ctx, ARENA_CARD_BY_KEY.get(e.card)?.emoji ?? "❔", 0, -r * 0.9, Math.max(14, e.radius * 2.4 * s));
+          glyph(ctx, ARENA_CARD_BY_KEY.get(e.card)?.emoji ?? "â”", 0, -r * 0.9, Math.max(14, e.radius * 2.4 * s));
           topLocal = -r * 1.9;
         }
         ctx.restore();
         if (depth > 0) drawWaterRipples(ctx, x, footBase, r * 1.05, Math.max(0.3, depth), tickF, e.id);
 
         const headY = footBase - lift - bob + dropY + topLocal * popScale;
-        // preso na água: relógio de 3 s embaixo dele
+        // preso na Ã¡gua: relÃ³gio de 3 s embaixo dele
         if (trapped) {
           const left = Math.max(0, e.stunUntil - tickF) / TICKS_PER_SEC;
           const br = Math.max(9, s * 0.3);
           const bx = x;
-          const by2 = footBase + r * 0.7 + br * 1.1; // embaixo dos pés: não cobre o nome nem a vida
+          const by2 = footBase + r * 0.7 + br * 1.1; // embaixo dos pÃ©s: nÃ£o cobre o nome nem a vida
           ctx.fillStyle = "rgba(15,23,42,0.85)";
           ctx.beginPath();
           ctx.arc(bx, by2, br, 0, Math.PI * 2);
@@ -574,7 +575,7 @@ export function ArenaPlayfield({
         }
         // nome do personagem, pequenininho, em cima dele
         const card = ARENA_CARD_BY_KEY.get(e.card);
-        // um nome por grupo: tropas coladas (ex.: os 3 Gideões) dividem o mesmo rótulo
+        // um nome por grupo: tropas coladas (ex.: os 3 GideÃµes) dividem o mesmo rÃ³tulo
         const crowded = namesDrawn.some((n) => Math.abs(n.x - x) < s * 1.3 && Math.abs(n.y - headY) < s * 0.7);
         if (card && spawnP >= 1 && !crowded && !(card.crew && e.variant > 0) && e.variant < 9) {
           namesDrawn.push({ x, y: headY });
@@ -598,9 +599,9 @@ export function ArenaPlayfield({
     [flip, vs],
   );
 
-  // ------------------------------------------------------------ laço
+  // ------------------------------------------------------------ laÃ§o
   const startLoop = useCallback(() => {
-    // um erro de desenho num aparelho antigo não pode parar o jogo: ignora o quadro e segue
+    // um erro de desenho num aparelho antigo nÃ£o pode parar o jogo: ignora o quadro e segue
     const safeDraw = (alpha: number) => {
       try {
         draw(alpha);
@@ -639,7 +640,7 @@ export function ArenaPlayfield({
           const mdy = e.y - e.py;
           const moved = Math.sqrt(mdx * mdx + mdy * mdy);
           an.moving = moved > 0.004;
-          // João mergulhando: respingo ao entrar e ao sair da água
+          // JoÃ£o mergulhando: respingo ao entrar e ao sair da Ã¡gua
           const diving = e.card === DUNK.card && e.y > RIVER_TOP && e.y < RIVER_BOT;
           if (diving !== an.sub) {
             an.sub = diving;
@@ -651,7 +652,7 @@ export function ArenaPlayfield({
           if (an.moving) {
             an.walk += moved;
             if (Math.abs(mdx) > 0.003) an.face = mdx > 0 ? 1 : -1;
-            // a cada passo, uma nuvenzinha de poeira nos pés (só quem anda no chão)
+            // a cada passo, uma nuvenzinha de poeira nos pÃ©s (sÃ³ quem anda no chÃ£o)
             const step = Math.floor((an.walk * 3.6) / Math.PI);
             if (step > an.steps) {
               an.steps = step;
@@ -663,6 +664,7 @@ export function ArenaPlayfield({
         }
         for (const e of ev) {
           if (e.t === "blind" && e.side === d.mySide) setBlindKey((k) => k + 1);
+          if (e.t === "dunk") setBaptism({ n: game.tick });
           const m: GameEvent = flip ? mapEvent(e, vs) : e;
           applyEvent(m, game.tick, animsRef.current, fxRef.current, shakeRef.current);
           try {
@@ -692,7 +694,7 @@ export function ArenaPlayfield({
           setJerichoKey((k) => k + 1);
           soundRef.current?.doubleMana();
         }
-        // sons de marco: maná em dobro, contagem final e coroas
+        // sons de marco: manÃ¡ em dobro, contagem final e coroas
         const snd = soundRef.current;
         if (snd) {
           if (game.tick === DOUBLE_MANA_TICK) snd.doubleMana();
@@ -727,9 +729,9 @@ export function ArenaPlayfield({
         stalledSince = null;
         setWaiting(false);
       }
-      // fundo ainda não pronto (ou perdido): tenta montar de novo a cada segundo, sem parar o jogo
+      // fundo ainda nÃ£o pronto (ou perdido): tenta montar de novo a cada segundo, sem parar o jogo
       if (!bgRef.current && ++noBgFrames % 60 === 0) setupCanvas(true);
-      // aparelho fraco desenha ~30 vezes por segundo (a lógica do jogo não muda); os outros, a cada quadro
+      // aparelho fraco desenha ~30 vezes por segundo (a lÃ³gica do jogo nÃ£o muda); os outros, a cada quadro
       if (!lowEnd || now - lastDraw >= 30 || game.over) {
         lastDraw = now;
         safeDraw(Math.min(1, acc / STEP_MS));
@@ -743,7 +745,7 @@ export function ArenaPlayfield({
       }
       return false;
     };
-    // um erro num quadro não pode matar o laço (a tela ficava congelada ou em branco): registra e segue no próximo
+    // um erro num quadro nÃ£o pode matar o laÃ§o (a tela ficava congelada ou em branco): registra e segue no prÃ³ximo
     const frame = (now: number) => {
       let over = false;
       try {
@@ -770,7 +772,7 @@ export function ArenaPlayfield({
     let roPending = 0;
     const ro = area
       ? new ResizeObserver(() => {
-          // vários avisos de tamanho no mesmo quadro viram um só
+          // vÃ¡rios avisos de tamanho no mesmo quadro viram um sÃ³
           cancelAnimationFrame(roPending);
           roPending = requestAnimationFrame(() => setupCanvas());
         })
@@ -800,7 +802,7 @@ export function ArenaPlayfield({
         main.height = 0;
       }
     };
-    // o campo é montado uma vez por partida
+    // o campo Ã© montado uma vez por partida
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -819,7 +821,7 @@ export function ArenaPlayfield({
     if (!d.place(slot, gx, gy)) return;
     if (d.inputDelay > 0) {
       const card = ARENA_CARD_BY_KEY.get(d.game.slots[d.myPlayer ?? d.mySide][slot]);
-      fxRef.current.push({ k: "mark", x, y, emoji: card?.emoji ?? "❔", t0: d.game.tick, dur: d.inputDelay + 1 });
+      fxRef.current.push({ k: "mark", x, y, emoji: card?.emoji ?? "â”", t0: d.game.tick, dur: d.inputDelay + 1 });
     }
     setSelected(null);
   }
@@ -839,34 +841,43 @@ export function ArenaPlayfield({
           <canvas ref={canvasRef} onPointerDown={onCanvasPointer} className="absolute left-0 top-0 touch-none" />
           {jerichoKey > 0 ? (
             <div key={jerichoKey} className="arena-jericho pointer-events-none absolute inset-x-0 top-1/3 z-40 flex flex-col items-center gap-1">
-              <span className="rounded-2xl bg-gradient-to-b from-yellow-200 to-amber-500 px-6 py-2 text-4xl font-black uppercase tracking-wide text-amber-950 shadow-2xl ring-4 ring-white [text-shadow:0_2px_0_rgba(255,255,255,0.6)]">Jericó!</span>
-              <span className="rounded-full bg-black/75 px-4 py-1 text-sm font-black text-yellow-200">A próxima torre derrubada vence!</span>
+              <span className="rounded-2xl bg-gradient-to-b from-yellow-200 to-amber-500 px-6 py-2 text-4xl font-black uppercase tracking-wide text-amber-950 shadow-2xl ring-4 ring-white [text-shadow:0_2px_0_rgba(255,255,255,0.6)]">JericÃ³!</span>
+              <span className="rounded-full bg-black/75 px-4 py-1 text-sm font-black text-yellow-200">A prÃ³xima torre derrubada vence!</span>
               <style>{`.arena-jericho{animation:arenaJericho 3.2s ease-out forwards}@keyframes arenaJericho{0%{opacity:0;transform:scale(.4)}12%{opacity:1;transform:scale(1.15)}22%{transform:scale(1)}80%{opacity:1}100%{opacity:0;transform:scale(1.05)}}`}</style>
+            </div>
+          ) : null}
+          {baptism ? (
+            <div key={baptism.n} className="arena-baptism pointer-events-none absolute inset-x-0 top-28 z-30 flex justify-center">
+              <span className="rounded-2xl bg-gradient-to-b from-sky-300 to-sky-500 px-5 py-2 text-center text-xl font-black text-sky-950 shadow-xl ring-2 ring-white"><AT>
+                ðŸŒŠ </AT>Batismo de JoÃ£o<AT> ðŸŒŠ</AT>
+                <span className="block text-xs font-bold text-sky-900">50 de dano Â· preso na Ã¡gua por 3 s</span>
+              </span>
+              <style>{`.arena-baptism{animation:arenaBaptism 2.4s ease-out forwards}@keyframes arenaBaptism{0%{opacity:0;transform:scale(0.7)}12%{opacity:1;transform:scale(1.08)}22%{transform:scale(1)}80%{opacity:1}100%{opacity:0}}`}</style>
             </div>
           ) : null}
           {comboMsg ? (
             <div key={comboMsg.n} className="arena-combo pointer-events-none absolute inset-x-0 top-16 z-30 flex justify-center">
               <span className={`rounded-full px-4 py-1.5 text-sm font-black shadow-lg ring-2 ${comboMsg.mine ? "bg-amber-300 text-amber-950 ring-white" : "bg-rose-600 text-white ring-rose-200"}`}><AT>
-                ✨ </AT>{comboMsg.mine ? "Combo" : "Combo do adversário"}: {comboMsg.combo.label} · {comboMsg.combo.effect}
+                âœ¨ </AT>{comboMsg.mine ? "Combo" : "Combo do adversÃ¡rio"}: {comboMsg.combo.label} Â· {comboMsg.combo.effect}
               </span>
               <style>{`.arena-combo{animation:arenaCombo 2.6s ease-out forwards}@keyframes arenaCombo{0%{opacity:0;transform:translateY(-8px)}12%{opacity:1;transform:none}80%{opacity:1}100%{opacity:0}}`}</style>
             </div>
           ) : null}
           {blindKey > 0 ? (
             <div key={blindKey} className="arena-blind pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-white">
-              <span className="text-6xl" aria-hidden><AT>✨</AT></span>
+              <span className="text-6xl" aria-hidden><AT>âœ¨</AT></span>
               <style>{`.arena-blind{animation:arenaBlind 1.5s ease-out forwards}@keyframes arenaBlind{0%{opacity:0}8%{opacity:1}70%{opacity:1}100%{opacity:0}}`}</style>
             </div>
           ) : null}
           <div className="pointer-events-none absolute left-2 top-2 flex items-center gap-2">
-            <div className="flex h-11 w-11 items-center justify-center rounded-lg border-2 border-amber-300 bg-gradient-to-b from-rose-700 to-rose-950 text-2xl shadow-lg"><AT>🛡️</AT></div>
+            <div className="flex h-11 w-11 items-center justify-center rounded-lg border-2 border-amber-300 bg-gradient-to-b from-rose-700 to-rose-950 text-2xl shadow-lg"><AT>ðŸ›¡ï¸</AT></div>
             <div className="rounded-lg bg-black/65 px-2.5 py-1 leading-tight ring-1 ring-white/25">
               <p className="max-w-[170px] truncate text-base font-black text-white">{d.opponentLabel}</p>
-              <p className="text-xs font-bold text-amber-200">{d.campaign?.name ?? ARENAS[d.arena]?.name ?? "Arena dos Heróis"}</p>
+              <p className="text-xs font-bold text-amber-200">{d.campaign?.name ?? ARENAS[d.arena]?.name ?? "Arena dos HerÃ³is"}</p>
             </div>
           </div>
           <div className="pointer-events-none absolute right-2 top-2 rounded-lg border-2 border-white/40 bg-black/75 px-3 py-1 text-right shadow-lg">
-            <p className={`text-xs font-black ${inJericho ? "text-yellow-300" : doubled || manaMult > 1 ? "text-amber-300" : "text-white"}`}>{inJericho ? "JERICÓ!" : manaMult > 1 ? (doubled ? "Maná x4!" : "Maná Duplo!") : doubled ? "Maná em dobro!" : "Tempo:"}</p>
+            <p className={`text-xs font-black ${inJericho ? "text-yellow-300" : doubled || manaMult > 1 ? "text-amber-300" : "text-white"}`}>{inJericho ? "JERICÃ“!" : manaMult > 1 ? (doubled ? "ManÃ¡ x4!" : "ManÃ¡ Duplo!") : doubled ? "ManÃ¡ em dobro!" : "Tempo:"}</p>
             <p className="text-2xl font-black leading-none tabular-nums text-white">{fmtTime(hud?.tick ?? 0)}</p>
           </div>
           <div className="pointer-events-none absolute right-1 top-1/2 flex -translate-y-1/2 flex-col gap-4">
@@ -887,11 +898,11 @@ export function ArenaPlayfield({
             }}
             className="absolute left-2 top-16 flex h-9 w-9 items-center justify-center rounded-full border-2 border-black/60 bg-black/55 text-lg"
           >
-            {muted ? <AT>{"🔇"}</AT> : <AT>{"🔊"}</AT>}
+            {muted ? <AT>{"ðŸ”‡"}</AT> : <AT>{"ðŸ”Š"}</AT>}
           </button>
           {waiting ? (
             <div className="pointer-events-none absolute inset-x-0 top-20 flex justify-center">
-              <p className="rounded-full bg-black/70 px-4 py-1.5 text-sm font-black text-white"><AT>⏳ Sincronizando com </AT>{d.opponentLabel}…</p>
+              <p className="rounded-full bg-black/70 px-4 py-1.5 text-sm font-black text-white"><AT>â³ Sincronizando com </AT>{d.opponentLabel}â€¦</p>
             </div>
           ) : null}
           {extra}
@@ -906,9 +917,9 @@ export function ArenaPlayfield({
                 aria-label="Desistir"
                 className="flex h-10 w-10 items-center justify-center rounded-lg border-2 border-[#5a1010] bg-gradient-to-b from-red-500 to-red-700 text-xl font-black text-white shadow active:scale-95"
               ><AT>
-                ✕
+                âœ•
               </AT></button>
-              <p className="text-[11px] font-black text-white">Próxima:</p>
+              <p className="text-[11px] font-black text-white">PrÃ³xima:</p>
               <div className="flex h-12 w-11 items-center justify-center rounded-lg border-2 border-[#0f2f6b] bg-gradient-to-b from-[#4a90e2] to-[#2d62b8]">
                 {nextCard ? nextCard.art ? <CardArt card={nextCard} className="h-10" /> : <span className="text-xl" aria-hidden><AT>{nextCard.emoji}</AT></span> : null}
               </div>
@@ -961,7 +972,7 @@ export function ArenaPlayfield({
                 <span key={i} className="absolute top-0 h-full w-px bg-black/40" style={{ left: `${((i + 1) / MANA_MAX) * 100}%` }} />
               ))}
             </div>
-            <span className="w-12 text-right text-[11px] font-black text-white">Máx: {MANA_MAX}</span>
+            <span className="w-12 text-right text-[11px] font-black text-white">MÃ¡x: {MANA_MAX}</span>
           </div>
         </div>
       </div>
@@ -969,11 +980,11 @@ export function ArenaPlayfield({
   );
 }
 
-/** Jericó: a arena brilha (dourado pulsando, raios de luz e estrelinhas). */
+/** JericÃ³: a arena brilha (dourado pulsando, raios de luz e estrelinhas). */
 function drawJericho(ctx: CanvasRenderingContext2D, cw: number, ch: number, s: number, t: number) {
   ctx.save();
   const pulse = 0.5 + 0.5 * Math.sin(t * 0.12);
-  // névoa dourada
+  // nÃ©voa dourada
   ctx.globalCompositeOperation = "lighter";
   const g = ctx.createRadialGradient(cw / 2, ch / 2, ch * 0.05, cw / 2, ch / 2, ch * 0.75);
   g.addColorStop(0, `rgba(255,214,90,${0.1 + pulse * 0.1})`);
@@ -1022,7 +1033,7 @@ function drawJericho(ctx: CanvasRenderingContext2D, cw: number, ch: number, s: n
   ctx.restore();
 }
 
-/** Evento do motor visto de cabeça pra baixo (2º jogador). */
+/** Evento do motor visto de cabeÃ§a pra baixo (2Âº jogador). */
 function mapEvent(e: GameEvent, vs: (s: Side) => Side): GameEvent {
   const fx = (x: number) => W - x;
   const fy = (y: number) => H - y;
@@ -1046,7 +1057,7 @@ function mapEvent(e: GameEvent, vs: (s: Side) => Side): GameEvent {
     case "ark":
       return { ...e, x: fx(e.x), y: fy(e.y), side: vs(e.side) };
     case "dunk":
-      return { ...e, x1: fx(e.x1), y1: fy(e.y1), x2: fx(e.x2), y2: fy(e.y2) };
+      return { ...e, x1: fx(e.x1), y1: fy(e.y1), x2: fx(e.x2), y2: fy(e.y2), jx1: fx(e.jx1), jy1: fy(e.jy1), jx2: fx(e.jx2), jy2: fy(e.jy2), side: vs(e.side) };
     case "immune":
       return { ...e, x: fx(e.x), y: fy(e.y) };
     case "jericho":

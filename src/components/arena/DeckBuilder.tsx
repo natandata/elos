@@ -81,7 +81,7 @@ function abilities(c: ArenaCard): string[] {
   if (c.key === ARK.card) out.push(`🛶 Depois de ${ARK.afterSecs} s em campo, a arca gigante bloqueia uma ponte (sorteada) por ${ARK.blockSecs} s. Vale para tropas de terra dos dois lados.`);
   if (c.key === DUNK.card) {
     out.push("🏊 Mergulha e atravessa o rio sem usar a ponte; debaixo d'água não pode ser atacado.");
-    out.push(`🌊 Depois de ${DUNK.afterSecs} s em campo, o próximo golpe joga a tropa no rio do meio, presa por ${DUNK.stunSecs} s (só 1 vez).`);
+    out.push(`🌊 Batismo de João: depois de ${DUNK.afterSecs} s em campo, o próximo golpe leva a tropa pro rio do meio, com ${DUNK.dmg} de dano e presa por ${DUNK.stunSecs} s (só 1 vez).`);
   }
   if (c.key === MUSTER.card) out.push(`🎺 Depois de ${MUSTER.afterSecs} s em campo, chegam mais ${MUSTER.count} soldados que morrem com qualquer golpe.`);
   if (c.flying) out.push("🕊️ Voa: passa por cima do rio e das tropas.");
