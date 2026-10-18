@@ -31,16 +31,17 @@ export function MissaoGame({ avatar, onEnd, onExit }: { avatar: number; onEnd: (
   const mini = useRef<HTMLCanvasElement>(null);
   const [loading, setLoading] = useState<{ step: string; p: number } | null>({ step: "Carregando o mapa de Madureira…", p: 0 });
   const [error, setError] = useState<string | null>(null);
-  const [hud, setHud] = useState({ left: ROUND_SECS, saved: 0, near: null as string | null, place: "", inChurch: true, started: false });
+  const [hud, setHud] = useState({ left: ROUND_SECS, saved: 0, near: null as string | null, place: "", inChurch: true, started: false, flying: false, alt: 0 });
   const [talk, setTalk] = useState<Talk | null>(null);
   const [over, setOver] = useState(false);
   const [touch] = useState(() => typeof window !== "undefined" && matchMedia("(pointer: coarse)").matches);
-  const api = useRef<{ startTalk: () => void; submit: (ref: string, idea: string) => Verdict | null; closeTalk: () => void; run: (on: boolean) => void } | null>(null);
+  const api = useRef<{ startTalk: () => void; submit: (ref: string, idea: string) => Verdict | null; closeTalk: () => void; run: (on: boolean) => void; fly: () => void } | null>(null);
   const talkRef = useRef<Talk | null>(null);
   useEffect(() => {
     talkRef.current = talk;
   }, [talk]);
   const [running, setRunning] = useState(false);
+  const vert = useRef({ up: false, down: false });
   const stick = useRef({ x: 0, y: 0, id: -1, ox: 0, oy: 0 });
   const [stickUi, setStickUi] = useState<{ ox: number; oy: number; x: number; y: number } | null>(null);
 
@@ -74,6 +75,15 @@ export function MissaoGame({ avatar, onEnd, onExit }: { avatar: number; onEnd: (
     // a missão começa dentro do templo; o relógio só corre depois que o jogador sai pela porta do fundo
     let inChurch = true;
     let started = false;
+    // voo: toque duplo no espaço; espaço sobe, shift desce; ao tocar o chão volta a andar
+    let flying = false;
+    let fy = 0;
+    let lastSpace = 0;
+    const toggleFly = () => {
+      if (flying || inChurch || talkRef.current || ended || !player) return;
+      flying = true;
+      fy = 0.4;
+    };
     const keys = new Set<string>();
     let camYaw = 0;
     let camPitch = 0.32;
@@ -139,6 +149,14 @@ export function MissaoGame({ avatar, onEnd, onExit }: { avatar: number; onEnd: (
       else keys.delete(k);
       if (down && k === "e" && near && !talkRef.current) startTalk();
       if (k === "shift") run = down;
+      if (k === " ") {
+        e.preventDefault();
+        if (down && !e.repeat) {
+          const t2 = performance.now();
+          if (t2 - lastSpace < 330) toggleFly();
+          lastSpace = t2;
+        }
+      }
     };
     const kd = (e: KeyboardEvent) => onKey(e, true);
     const ku = (e: KeyboardEvent) => onKey(e, false);
@@ -177,7 +195,7 @@ export function MissaoGame({ avatar, onEnd, onExit }: { avatar: number; onEnd: (
       drag.x = e.clientX;
       drag.y = e.clientY;
       camYaw -= dx * 0.006;
-      camPitch = Math.max(0.05, Math.min(1.1, camPitch + dy * 0.004));
+      camPitch = Math.max(0.05, Math.min(1.45, camPitch + dy * 0.004));
     };
     const onUp = (e: PointerEvent) => {
       if (stick.current.id === e.pointerId) {
@@ -230,7 +248,7 @@ export function MissaoGame({ avatar, onEnd, onExit }: { avatar: number; onEnd: (
       }
       setTalk(null);
     };
-    api.current = { startTalk, submit, closeTalk, run: (on) => (run = on) };
+    api.current = { startTalk, submit, closeTalk, run: (on) => (run = on), fly: toggleFly };
 
     const finish = () => {
       if (ended) return;
@@ -281,14 +299,28 @@ export function MissaoGame({ avatar, onEnd, onExit }: { avatar: number; onEnd: (
         const L = Math.hypot(mx, mz) || 1;
         mx /= L;
         mz /= L;
-        const sp = (run ? 5.4 : 2.3) * (touch ? Math.max(0.4, mag) : 1);
-        [px, pz] = inChurch && interior ? interior.resolve(px + mx * sp * dt, pz + mz * sp * dt, 0.32) : col.resolve(px + mx * sp * dt, pz + mz * sp * dt, 0.32);
+        const sp = flying ? 18 * (touch ? Math.max(0.4, mag) : 1) : (run ? 5.4 : 2.3) * (touch ? Math.max(0.4, mag) : 1);
+        const nx = px + mx * sp * dt;
+        const nz = pz + mz * sp * dt;
+        // acima dos prédios (35 m) não há colisão; abaixo disso as paredes continuam valendo
+        if (flying && fy > 36) [px, pz] = [Math.min(col.x1 - 1, Math.max(col.x0 + 1, nx)), Math.min(col.z1 - 1, Math.max(col.z0 + 1, nz))];
+        else [px, pz] = inChurch && interior ? interior.resolve(nx, nz, 0.32) : col.resolve(nx, nz, 0.32);
         pyaw = lerpAngle(pyaw, Math.atan2(mx, mz), 0.2);
-        play(player, run ? "Run" : "Walk", 0.2, run ? 1 : Math.max(0.6, mag));
+        play(player, flying ? "Run" : run ? "Run" : "Walk", 0.2, flying ? 1.4 : run ? 1 : Math.max(0.6, mag));
       } else {
         play(player, "Idle");
       }
-      player.root.position.set(px, 0.15, pz);
+      if (flying) {
+        const up = keys.has(" ") || vert.current.up;
+        const down = keys.has("shift") || vert.current.down;
+        if (up && !talkRef.current) fy = Math.min(650, fy + (fy > 60 ? 28 : 12) * dt);
+        if (down) fy -= (fy > 60 ? 28 : 12) * dt;
+        if (fy <= 0) {
+          fy = 0;
+          flying = false;
+        }
+      }
+      player.root.position.set(px, 0.15 + fy, pz);
       player.root.rotation.y = pyaw;
       player.mixer.update(dt);
 
@@ -318,7 +350,7 @@ export function MissaoGame({ avatar, onEnd, onExit }: { avatar: number; onEnd: (
       if (!inChurch) crowd.update(dt, px, pz);
       near = null;
       let nd = 2.7;
-      for (const n of inChurch ? [] : crowd.npcs) {
+      for (const n of inChurch || fy > 1.5 ? [] : crowd.npcs) {
         if (n.saved || n.fails >= 2 || n.state === "saved") continue;
         const d = Math.hypot(n.x - px, n.z - pz);
         if (d < nd) {
@@ -338,19 +370,20 @@ export function MissaoGame({ avatar, onEnd, onExit }: { avatar: number; onEnd: (
       // câmera atrás do jogador (não entra nos prédios)
       const tx = px;
       const tz = pz;
-      const ty = 1.55;
+      const ty = 1.55 + fy;
       const back = Math.cos(camPitch) * camDist;
       let cx = tx - Math.sin(camYaw) * back;
       let cz = tz - Math.cos(camYaw) * back;
       if (inChurch && interior) [cx, cz] = interior.clampCam(cx, cz);
-      else {
+      else if (fy < 36) {
         const hit = col.firstHit(tx, tz, cx, cz);
         if (hit < 1) {
           cx = tx + (cx - tx) * Math.max(0.25, hit);
           cz = tz + (cz - tz) * Math.max(0.25, hit);
         }
       }
-      camera.position.set(cx, Math.min(inChurch ? 9 : 99, ty + Math.sin(camPitch) * camDist), cz);
+      const camY = ty + Math.sin(camPitch) * camDist;
+      camera.position.set(cx, inChurch ? Math.min(9, camY) : camY, cz);
       camera.lookAt(tx, ty, tz);
 
       // sol e céu acompanham
@@ -358,6 +391,7 @@ export function MissaoGame({ avatar, onEnd, onExit }: { avatar: number; onEnd: (
       city.sun.target.position.set(px, 0, pz);
       city.sky.position.copy(camera.position);
 
+      if (scene.fog instanceof THREE.Fog) scene.fog.far = 520 + fy * 3;
       renderer.render(scene, camera);
 
       // HUD e minimapa (10x por segundo)
@@ -373,7 +407,7 @@ export function MissaoGame({ avatar, onEnd, onExit }: { avatar: number; onEnd: (
             place = d < 120 ? `Perto: ${LANDMARK_NAMES[k] ?? k}` : "";
           }
         }
-        setHud({ left: Math.ceil(left), saved, near: near && !talkRef.current ? near.name : null, place: inChurch ? "" : place, inChurch, started });
+        setHud({ left: Math.ceil(left), saved, near: near && !talkRef.current ? near.name : null, place: inChurch ? "" : place, inChurch, started, flying, alt: Math.round(fy) });
         drawMini();
       }
     };
@@ -599,6 +633,7 @@ export function MissaoGame({ avatar, onEnd, onExit }: { avatar: number; onEnd: (
             {mm}:{ss}
           </p>
           <p className="mt-1 text-xs font-bold text-amber-300">✝️ {hud.saved} evangelizado{hud.saved === 1 ? "" : "s"}</p>
+          {hud.flying ? <p className="mt-1 text-xs font-bold text-sky-300">✈️ Voando · {hud.alt} m</p> : null}
         </div>
       </div>
       {hud.inChurch && !hud.started && !loading ? (
@@ -635,6 +670,23 @@ export function MissaoGame({ avatar, onEnd, onExit }: { avatar: number; onEnd: (
           >
             {running ? "Andar" : "Correr"}
           </button>
+          {!hud.inChurch ? (
+            <>
+              <button type="button" onPointerDown={() => api.current?.fly()} className={`absolute bottom-28 right-6 z-10 h-14 w-14 rounded-full text-xs font-black ring-2 ring-white/60 ${hud.flying ? "bg-sky-500" : "bg-black/45"}`}>
+                ✈️ Voar
+              </button>
+              {hud.flying ? (
+                <>
+                  <button type="button" onPointerDown={() => (vert.current.up = true)} onPointerUp={() => (vert.current.up = false)} onPointerLeave={() => (vert.current.up = false)} onPointerCancel={() => (vert.current.up = false)} className="absolute bottom-44 right-6 z-10 h-14 w-14 rounded-full bg-black/45 text-xl font-black ring-2 ring-white/60">
+                    ▲
+                  </button>
+                  <button type="button" onPointerDown={() => (vert.current.down = true)} onPointerUp={() => (vert.current.down = false)} onPointerLeave={() => (vert.current.down = false)} onPointerCancel={() => (vert.current.down = false)} className="absolute bottom-44 right-24 z-10 h-14 w-14 rounded-full bg-black/45 text-xl font-black ring-2 ring-white/60">
+                    ▼
+                  </button>
+                </>
+              ) : null}
+            </>
+          ) : null}
           {stickUi ? (
             <div className="pointer-events-none absolute z-10 h-28 w-28 rounded-full bg-white/10 ring-2 ring-white/30" style={{ left: stickUi.ox - 56, top: stickUi.oy - 56 }}>
               <div className="absolute h-12 w-12 rounded-full bg-white/50" style={{ left: 32 + stickUi.x, top: 32 + stickUi.y }} />
@@ -644,7 +696,7 @@ export function MissaoGame({ avatar, onEnd, onExit }: { avatar: number; onEnd: (
           )}
         </>
       ) : !touch && !loading ? (
-        <p className="pointer-events-none absolute bottom-4 right-4 z-10 rounded-full bg-black/40 px-3 py-1 text-xs text-white/80">WASD andar · Shift correr · arraste para olhar · E falar</p>
+        <p className="pointer-events-none absolute bottom-4 right-4 z-10 rounded-full bg-black/40 px-3 py-1 text-xs text-white/80">WASD andar · Shift correr · Espaço ×2 voar · arraste para olhar · E falar</p>
       ) : null}
 
       {talk ? <TalkPanel talk={talk} onSubmit={(r, i) => api.current?.submit(r, i) ?? null} onClose={() => api.current?.closeTalk()} onVerdict={(v) => setTalk((t) => (t ? { ...t, verdict: v } : t))} /> : null}
