@@ -20,7 +20,7 @@ export const CARD_LORE: Record<string, CardLore> = {
     story:
       "João Batista viveu no deserto e pregava que as pessoas se arrependessem e voltassem para Deus. Batizava no rio Jordão e preparou o caminho para Jesus, a quem apontou dizendo: “Eis o Cordeiro de Deus, que tira o pecado do mundo”. Falava a verdade com coragem, até diante do rei.",
     ref: "Mateus 3 · João 1:19-34",
-    attack: "João é rápido e valente: corre na frente para anunciar a batalha e ataca de perto.",
+    attack: "João é rápido e valente: corre na frente e atravessa o rio mergulhando (ninguém o alcança debaixo d'água). Depois de 5 s em campo, o primeiro golpe dele joga a tropa atingida no rio do meio, onde ela fica presa por 3 s (só uma vez).",
   },
   jose: {
     story:
@@ -32,7 +32,7 @@ export const CARD_LORE: Record<string, CardLore> = {
     story:
       "Gideão achava que era pequeno demais, mas Deus o chamou para livrar Israel de Midiã. Deus reduziu o exército a apenas 300 homens para mostrar que a vitória vinha dEle. Com trombetas, jarros e tochas, eles cercaram o acampamento inimigo de noite e o inimigo fugiu.",
     ref: "Juízes 6–7",
-    attack: "Três guerreiros entram juntos, lembrando os 300 que venceram um exército enorme.",
+    attack: "Três guerreiros entram juntos, lembrando os 300 que venceram um exército enorme. Depois de 4 s em campo, chegam mais 10 soldados, cada um cai com um golpe de qualquer personagem.",
   },
   sansao: {
     story:
@@ -50,7 +50,7 @@ export const CARD_LORE: Record<string, CardLore> = {
     story:
       "Quando o povo de Israel saiu do Egito, o faraó foi atrás deles e eles ficaram presos diante do Mar Vermelho. Deus mandou Moisés estender a mão: as águas se abriram e o povo passou a pé enxuto. Quando os egípcios entraram, o mar voltou ao lugar.",
     ref: "Êxodo 14",
-    attack: "Uma onda que atinge uma área e deixa os inimigos lentos, como os egípcios no meio do mar.",
+    attack: "Uma onda que atinge uma área e deixa os inimigos lentos, como os egípcios no meio do mar. Moisés, que abriu o mar, é imune.",
   },
   trombetas: {
     story:
@@ -62,7 +62,7 @@ export const CARD_LORE: Record<string, CardLore> = {
     story:
       "Noé era um homem justo num tempo em que o mundo estava cheio de violência. Deus o avisou do dilúvio e ele construiu a arca, onde guardou a família e os animais. Depois do dilúvio, Deus fez uma aliança e deixou o arco-íris como sinal da promessa.",
     ref: "Gênesis 6–9",
-    attack: "Noé abriga e cuida: cura os aliados que estão por perto enquanto resiste.",
+    attack: "Noé abriga e cuida: cura os aliados que estão por perto enquanto resiste. Depois de 3 s em campo, a arca gigante aparece numa ponte (sorteada) e a bloqueia por 7 s, com uma contagem na tela.",
   },
   moises: {
     story:

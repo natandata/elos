@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ARENA_CARDS, ARENA_CARD_BY_KEY, MAX_CARD_LEVEL, STARTER_DECK, levelMult, upgradeCost, type ArenaCard } from "@/lib/arena/cards";
 import { ARENAS, CARD_UNLOCK_ARENA, CHEST_ONLY, isCardUnlocked } from "@/lib/arena/arenas";
 import { CAMPAIGN_CARDS, CAMPAIGN_KEYS } from "@/lib/arena/campaignCards";
+import { ARK, DUNK, MUSTER, SEA } from "@/lib/arena/abilities";
 import { CARD_LORE } from "@/lib/arena/cardLore";
 import { CardArt } from "./CardArt";
 import { AT } from "./ArenaText";
@@ -74,8 +75,15 @@ function abilities(c: ArenaCard): string[] {
   if (c.kind === "spell") {
     out.push(c.desc);
     if (c.slow) out.push(`🐢 Deixa os inimigos ${pct(c.slow)} mais lentos por ${c.slowSecs} s.`);
+    if (c.key === SEA.spell) out.push("🛡️ Moisés é imune: ele abriu o mar.");
     return out;
   }
+  if (c.key === ARK.card) out.push(`🛶 Depois de ${ARK.afterSecs} s em campo, a arca gigante bloqueia uma ponte (sorteada) por ${ARK.blockSecs} s. Vale para tropas de terra dos dois lados.`);
+  if (c.key === DUNK.card) {
+    out.push("🏊 Mergulha e atravessa o rio sem usar a ponte; debaixo d'água não pode ser atacado.");
+    out.push(`🌊 Depois de ${DUNK.afterSecs} s em campo, o próximo golpe joga a tropa no rio do meio, presa por ${DUNK.stunSecs} s (só 1 vez).`);
+  }
+  if (c.key === MUSTER.card) out.push(`🎺 Depois de ${MUSTER.afterSecs} s em campo, chegam mais ${MUSTER.count} soldados que morrem com qualquer golpe.`);
   if (c.flying) out.push("🕊️ Voa: passa por cima do rio e das tropas.");
   if (c.canHitAir) out.push("🎯 Acerta também quem voa.");
   if (c.splash) out.push("💫 Dano em área: o golpe pega quem está em volta do alvo.");

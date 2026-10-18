@@ -10,7 +10,9 @@ import { TEAM, buildAmbient, buildBackground, drawAmbient, drawRubble, drawTower
 import { loadCampo } from "./arenaAssets";
 import { isLowEnd } from "./lowEnd";
 import { reportClientError } from "@/lib/clientErrors";
-import { applyEvent, drawFx, newAnim, type Anim, type Fx } from "./arenaFx";
+import { applyEvent, drawFx, newAnim, FLY_TICKS, type Anim, type Fx } from "./arenaFx";
+import { drawArk, drawWaterRipples } from "./arenaArk";
+import { DUNK } from "@/lib/arena/abilities";
 import { ArenaSound, readMuted } from "./arenaSound";
 import { suspendMusic } from "./arenaMusicEngine";
 import {
@@ -20,6 +22,8 @@ import {
   MANA_MAX,
   MATCH_TICKS,
   MAX_MATCH_TICKS,
+  RIVER_BOT,
+  RIVER_TOP,
   TICKS_PER_SEC,
   W,
   type Entity,
@@ -166,7 +170,7 @@ export function ArenaPlayfield({
   const dprRef = useRef(1);
   const fxRef = useRef<Fx[]>([]);
   const animsRef = useRef<Map<number, Anim>>(new Map());
-  const shakeRef = useRef({ until: -1, amp: 0 });
+  const shakeRef = useRef<{ until: number; amp: number; from?: number }>({ until: -1, amp: 0 });
   const selectedRef = useRef<number | null>(null);
   const rafRef = useRef<number | null>(null);
   const spritesRef = useRef<Record<string, HTMLImageElement>>({});
@@ -312,7 +316,7 @@ export function ArenaPlayfield({
       if (game.jericho) drawJericho(ctx, l.cw, l.ch, s, tickF);
       ctx.save();
       const sh = shakeRef.current;
-      const left = sh.until - tickF;
+      const left = tickF < (sh.from ?? -1) ? 0 : sh.until - tickF;
       const shx = left > 0 ? Math.sin(tickF * 53) * sh.amp * Math.min(1, left / 6) : 0;
       const shy = left > 0 ? Math.cos(tickF * 41) * sh.amp * Math.min(1, left / 6) : 0;
       ctx.translate(l.ox + shx, l.oy + shy);
@@ -347,6 +351,8 @@ export function ArenaPlayfield({
 
       // escombros das torres que já caíram
       drawRubble(ctx, s, game.entities, tickF);
+      // arca do Noé sobre a ponte bloqueada (com a contagem regressiva)
+      for (const b of game.blocks ?? []) drawArk(ctx, s, flip ? W - b.x : b.x, (RIVER_TOP + RIVER_BOT) / 2, b.from, b.until, tickF);
 
       // entidades já no ponto de vista de quem joga
       const view = (e: Entity): Entity =>
@@ -361,13 +367,31 @@ export function ArenaPlayfield({
           drawTower(ctx, s, e, tickF, an ? tickF - an.hit : 99, an ? tickF - an.atk : 99);
           continue;
         }
-        const x = lerp(e.px, e.x) * s;
-        const y = lerp(e.py, e.y) * s;
+        let x = lerp(e.px, e.x) * s;
+        let y = lerp(e.py, e.y) * s;
         const r = e.radius * s;
         const img = spritesRef.current[ARENA_CARD_BY_KEY.get(e.card)?.crew?.[e.variant] ?? e.card];
         const hasArt = !!img && img.complete && img.naturalWidth > 0;
+        // jogado no rio pelo João: voa em arco girando até onde caiu
+        let flyLift = 0;
+        let flySpin = 0;
+        let flying = false;
+        if (an?.fly) {
+          const u = (tickF - an.fly.t0) / FLY_TICKS;
+          if (u >= 0 && u < 1) {
+            flying = true;
+            x = (an.fly.x + (e.x - an.fly.x) * u) * s;
+            y = (an.fly.y + (e.y - an.fly.y) * u) * s;
+            flyLift = Math.sin(u * Math.PI) * 2.4 * s;
+            flySpin = u * Math.PI * 4;
+          }
+        }
         const footBase = y + r * 0.9;
-        const lift = e.flying ? 0.9 * s : 0;
+        const lift = (e.flying ? 0.9 * s : 0) + flyLift;
+        // debaixo d'água: o João mergulhando e quem ficou preso no rio afundam até a cintura
+        const trapped = e.stunUntil > game.tick && !flying;
+        const inRiver = e.y > RIVER_TOP && e.y < RIVER_BOT;
+        const depth = flying ? 0 : trapped ? 0.32 : e.card === DUNK.card && inRiver ? Math.min(1, Math.min(e.y - RIVER_TOP, RIVER_BOT - e.y) / 0.8) : 0;
 
         const age = an ? tickF - an.born : 99;
         const spawnP = Math.min(1, age / 9);
@@ -450,11 +474,13 @@ export function ArenaPlayfield({
         }
         const flash = an !== undefined && tickF - an.hit < 3;
 
-        const lowFactor = 1 - Math.min(0.3, Math.abs(bob) / (s * 1.2));
-        ctx.fillStyle = "rgba(0,0,0,0.28)";
-        ctx.beginPath();
-        ctx.ellipse(x, footBase, r * 1.05 * lowFactor * popScale, r * 0.42 * lowFactor * popScale, 0, 0, Math.PI * 2);
-        ctx.fill();
+        const lowFactor = 1 - Math.min(0.3, Math.abs(bob) / (s * 1.2)) - Math.min(0.5, flyLift / (s * 5));
+        if (depth < 0.5) {
+          ctx.fillStyle = "rgba(0,0,0,0.28)";
+          ctx.beginPath();
+          ctx.ellipse(x, footBase, r * 1.05 * lowFactor * popScale, r * 0.42 * lowFactor * popScale, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
         ctx.strokeStyle = TEAM[e.side];
         ctx.lineWidth = 2.5;
         ctx.beginPath();
@@ -463,12 +489,19 @@ export function ArenaPlayfield({
 
         ctx.save();
         ctx.translate(x + thrustX, footBase - lift - bob + dropY + thrustY);
-        ctx.rotate(sway);
+        ctx.rotate(sway + flySpin);
         ctx.scale((an?.fs ?? 1) * sx * popScale, sy * popScale);
         let topLocal = -r;
         if (hasArt && img) {
           const h = e.radius * 4.4 * s;
           const w = (h * img.naturalWidth) / img.naturalHeight;
+          // afundado: só aparece o que está acima da linha d'água
+          if (depth > 0) {
+            ctx.beginPath();
+            ctx.rect(-w, -h * 2, w * 2, h * 2 + h * 0.03);
+            ctx.clip();
+            ctx.translate(0, depth * h * 0.85);
+          }
           const glowCombo = comboOn[e.side].find((c) => inCombo(c, e.card));
           if (glowCombo) {
             // combo Henrique + Amandinha: o personagem brilha
@@ -496,7 +529,7 @@ export function ArenaPlayfield({
             ctx.globalAlpha = 1;
             ctx.globalCompositeOperation = "source-over";
           }
-          topLocal = -h - 2;
+          topLocal = -h - 2 + depth * h * 0.85;
         } else {
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
@@ -506,8 +539,31 @@ export function ArenaPlayfield({
           topLocal = -r * 1.9;
         }
         ctx.restore();
+        if (depth > 0) drawWaterRipples(ctx, x, footBase, r * 1.05, Math.max(0.3, depth), tickF, e.id);
 
         const headY = footBase - lift - bob + dropY + topLocal * popScale;
+        // preso na água: relógio de 3 s embaixo dele
+        if (trapped) {
+          const left = Math.max(0, e.stunUntil - tickF) / TICKS_PER_SEC;
+          const br = Math.max(9, s * 0.3);
+          const bx = x;
+          const by2 = footBase + r * 0.7 + br * 1.1; // embaixo dos pés: não cobre o nome nem a vida
+          ctx.fillStyle = "rgba(15,23,42,0.85)";
+          ctx.beginPath();
+          ctx.arc(bx, by2, br, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = "#7dd3fc";
+          ctx.lineWidth = Math.max(2, br * 0.25);
+          ctx.lineCap = "round";
+          ctx.beginPath();
+          ctx.arc(bx, by2, br * 0.78, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, left / DUNK.stunSecs));
+          ctx.stroke();
+          ctx.fillStyle = "#fff";
+          ctx.font = `900 ${Math.round(br * 1.1)}px system-ui, sans-serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(String(Math.ceil(left)), bx, by2 + 1);
+        }
         if (e.hp < e.maxHp) {
           const bw = Math.max(r * 2, 0.9 * s);
           const by = headY - 7;
@@ -520,7 +576,7 @@ export function ArenaPlayfield({
         const card = ARENA_CARD_BY_KEY.get(e.card);
         // um nome por grupo: tropas coladas (ex.: os 3 Gideões) dividem o mesmo rótulo
         const crowded = namesDrawn.some((n) => Math.abs(n.x - x) < s * 1.3 && Math.abs(n.y - headY) < s * 0.7);
-        if (card && spawnP >= 1 && !crowded && !(card.crew && e.variant > 0)) {
+        if (card && spawnP >= 1 && !crowded && !(card.crew && e.variant > 0) && e.variant < 9) {
           namesDrawn.push({ x, y: headY });
           const fs = Math.max(8, Math.round(s * 0.33));
           const ny = headY - (e.hp < e.maxHp ? 11 : 3);
@@ -583,6 +639,15 @@ export function ArenaPlayfield({
           const mdy = e.y - e.py;
           const moved = Math.sqrt(mdx * mdx + mdy * mdy);
           an.moving = moved > 0.004;
+          // João mergulhando: respingo ao entrar e ao sair da água
+          const diving = e.card === DUNK.card && e.y > RIVER_TOP && e.y < RIVER_BOT;
+          if (diving !== an.sub) {
+            an.sub = diving;
+            if (fxRef.current.length < 120) {
+              fxRef.current.push({ k: "ring", x: vx(e.x), y: vy(e.y) + 0.3, t0: game.tick, dur: 12, color: "rgba(255,255,255,0.95)", r: 1.3 });
+              fxRef.current.push({ k: "burst", x: vx(e.x), y: vy(e.y) - 0.2, t0: game.tick, dur: 7, color: "#bfe9ff", r: 0.9 });
+            }
+          }
           if (an.moving) {
             an.walk += moved;
             if (Math.abs(mdx) > 0.003) an.face = mdx > 0 ? 1 : -1;
@@ -977,6 +1042,12 @@ function mapEvent(e: GameEvent, vs: (s: Side) => Side): GameEvent {
     case "blind":
       return { ...e, side: vs(e.side) };
     case "dodge":
+      return { ...e, x: fx(e.x), y: fy(e.y) };
+    case "ark":
+      return { ...e, x: fx(e.x), y: fy(e.y), side: vs(e.side) };
+    case "dunk":
+      return { ...e, x1: fx(e.x1), y1: fy(e.y1), x2: fx(e.x2), y2: fy(e.y2) };
+    case "immune":
       return { ...e, x: fx(e.x), y: fy(e.y) };
     case "jericho":
       return e;

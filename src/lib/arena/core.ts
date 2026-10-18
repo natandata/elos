@@ -71,8 +71,10 @@ export type Entity = {
   variant: number;
   /** tick em que entrou em campo */
   born: number;
-  /** Amandinha: já chamou os reforços */
+  /** habilidade de uma vez só já usada (Amandinha: reforços; Noé: barca; João: mergulho; Gideão: soldados) */
   reinforced: boolean;
+  /** preso na água (João Batista) até este tick; 0 = livre */
+  stunUntil: number;
 };
 
 export type GameState = {
@@ -101,6 +103,8 @@ export type GameState = {
   jericho?: boolean;
   /** multiplicador do Maná durante toda a partida (desafio Maná Duplo = 2; o dobro do último minuto vem por cima) */
   manaMult?: number;
+  /** pontes bloqueadas pela barca do Noé: x da ponte e o intervalo de ticks */
+  blocks?: { x: number; from: number; until: number; side: Side }[];
 };
 
 /** `side` é o lado (equipe); `player` só existe nas duplas (0–3) e, se faltar, vale o próprio lado. */
@@ -121,7 +125,13 @@ export type GameEvent =
   | { t: "spawn"; x: number; y: number; card: string }
   | { t: "blind"; side: Side; ticks: number }
   | { t: "dodge"; id: number; x: number; y: number }
-  | { t: "jericho" };
+  | { t: "jericho" }
+  /** a barca do Noé chegou numa ponte */
+  | { t: "ark"; x: number; y: number; side: Side }
+  /** João Batista jogou uma tropa no rio */
+  | { t: "dunk"; id: number; x1: number; y1: number; x2: number; y2: number }
+  /** o Mar Vermelho não afeta esta tropa */
+  | { t: "immune"; id: number; x: number; y: number };
 
 // ------------------------------------------------------------ sorteio
 
@@ -195,6 +205,13 @@ export function inField(x: number, y: number): boolean {
 
 export function nearestBridge(x: number): number {
   return Math.abs(x - BRIDGES[0]) <= Math.abs(x - BRIDGES[1]) ? BRIDGES[0] : BRIDGES[1];
+}
+
+/** A ponte mais próxima que não está bloqueada (se todas estiverem, a mais próxima mesmo). */
+export function nearestOpenBridge(x: number, blocked: readonly number[]): number {
+  const open = BRIDGES.filter((b) => !blocked.includes(b));
+  const pool = open.length > 0 ? open : BRIDGES;
+  return pool.reduce((best, b) => (Math.abs(x - b) < Math.abs(x - best) ? b : best), pool[0]);
 }
 
 export function onBridge(x: number): boolean {

@@ -1,6 +1,7 @@
 import { ARENA_CARDS, ARENA_CARD_BY_KEY, ATALAIA, SANTUARIO, botLevelForArena, levelMult, type ArenaCard } from "./cards";
 import { CARD_UNLOCK_ARENA } from "./arenas";
 import { DODGE, REINFORCE, comboMults } from "./campaignCards";
+import { ARK, DUNK, MUSTER, SEA } from "./abilities";
 import { botDecide } from "./bot";
 import {
   BRIDGES,
@@ -20,7 +21,7 @@ import {
   dist,
   inDeployZone,
   inField,
-  nearestBridge,
+  nearestOpenBridge,
   nextRand,
   onBridge,
   shuffleWith,
@@ -61,7 +62,7 @@ function makeTower(id: number, side: Side, kind: "atalaia" | "santuario", lane: 
     id, side, type: "tower", card: kind, lane, x, y, px: x, py: y,
     hp: t.hp, maxHp: t.hp, radius: t.radius, dmg: t.dmg, atkTicks: Math.round(t.atkSpeed * TICKS_PER_SEC),
     range: t.range, speed: 0, flying: false, towersOnly: false, canHitAir: true, splash: 0, towerMult: 1,
-    hitSlow: 0, hitSlowTicks: 0, healAmount: 0, healTicks: 0, healRadius: 0, cd: 0, slowUntil: 0, slowAmount: 0, knock: 0, variant: 0, born: 0, reinforced: false,
+    hitSlow: 0, hitSlowTicks: 0, healAmount: 0, healTicks: 0, healRadius: 0, cd: 0, slowUntil: 0, slowAmount: 0, knock: 0, variant: 0, born: 0, reinforced: false, stunUntil: 0,
   };
 }
 
@@ -131,7 +132,7 @@ function makeUnit(state: GameState, card: ArenaCard, side: Side, player: number,
     canHitAir: !!card.canHitAir, splash: card.splash ?? 0, towerMult: card.unitTowerMult ?? 1,
     hitSlow: card.hitSlow?.amount ?? 0, hitSlowTicks: Math.round((card.hitSlow?.secs ?? 0) * TICKS_PER_SEC),
     healAmount: card.heal?.amount ?? 0, healTicks: Math.round((card.heal?.secs ?? 0) * TICKS_PER_SEC), healRadius: card.heal?.radius ?? 0,
-    cd: 0, slowUntil: 0, slowAmount: 0, knock: card.knockback ?? 0, variant, born: state.tick, reinforced: false,
+    cd: 0, slowUntil: 0, slowAmount: 0, knock: card.knockback ?? 0, variant, born: state.tick, reinforced: false, stunUntil: 0,
   };
 }
 
@@ -148,6 +149,11 @@ function castSpell(state: GameState, card: ArenaCard, side: Side, player: number
   for (const e of state.entities) {
     if (e.side === side || e.hp <= 0) continue;
     if (dist(x, y, e.x, e.y) > r + e.radius) continue;
+    // o Mar Vermelho não faz nada com Moisés (ele abriu o mar)
+    if (card.key === SEA.spell && e.card === SEA.immune) {
+      ev.push({ t: "immune", id: e.id, x: e.x, y: e.y });
+      continue;
+    }
     const dmg = (card.spellDmg ?? 0) * levelMult(state.levels[player][card.key] ?? 1) * (e.type === "tower" ? (card.towerMult ?? 1) : 1);
     e.hp -= dmg;
     ev.push({ t: "hit", id: e.id, x: e.x, y: e.y, dmg, side: e.side });
@@ -199,12 +205,21 @@ export function applyInput(state: GameState, input: Input, ev: GameEvent[] = [])
 
 // ------------------------------------------------------------ alvos
 
+const RIVER_MID = (RIVER_TOP + RIVER_BOT) / 2;
+/** João Batista atravessa o rio mergulhando; debaixo d'água ninguém o alcança. */
+const isDiving = (e: Entity) => e.card === DUNK.card && e.y > RIVER_TOP && e.y < RIVER_BOT;
+/** pontes bloqueadas agora pela barca do Noé */
+const blockedBridges = (state: GameState): number[] => (state.blocks ?? []).filter((b) => state.tick >= b.from && state.tick < b.until).map((b) => b.x);
+/** jogador "dono" do lado (os níveis das cartas são por jogador; nas duplas o primeiro do time) */
+const playerOfSide = (state: GameState, side: Side) => (state.players <= 2 ? side : side * (state.players / 2));
+
 function nearestEnemyUnit(state: GameState, e: Entity, maxDist: number): Entity | null {
   let best: Entity | null = null;
   let bestD = maxDist;
   for (const o of state.entities) {
     if (o.side === e.side || o.type !== "unit" || o.hp <= 0) continue;
     if (o.flying && !e.canHitAir) continue;
+    if (isDiving(o)) continue;
     const d = dist(e.x, e.y, o.x, o.y);
     if (d < bestD) {
       best = o;
@@ -235,8 +250,9 @@ function chooseTarget(state: GameState, e: Entity): Entity | null {
 
 // ------------------------------------------------------------ movimento
 
-function waypoint(e: Entity, tx: number, ty: number): [number, number] {
-  if (e.flying) return [tx, ty];
+function waypoint(state: GameState, e: Entity, tx: number, ty: number): [number, number] {
+  // voadores e o João (que mergulha) vão em linha reta, sem ponte
+  if (e.flying || e.card === DUNK.card) return [tx, ty];
   const above = e.y < RIVER_TOP;
   const below = e.y > RIVER_BOT;
   const inRiver = !above && !below;
@@ -244,7 +260,7 @@ function waypoint(e: Entity, tx: number, ty: number): [number, number] {
   const targetBelow = ty > RIVER_BOT;
   const needCross = inRiver || (above && targetBelow) || (below && targetAbove);
   if (!needCross) return [tx, ty];
-  const bx = nearestBridge(e.x);
+  const bx = nearestOpenBridge(e.x, blockedBridges(state));
   if (inRiver) return [bx, ty >= e.y ? RIVER_BOT + 0.3 : RIVER_TOP - 0.3];
   if (Math.abs(e.x - bx) > 0.5) return [bx, above ? RIVER_TOP - 0.3 : RIVER_BOT + 0.3];
   return [bx, above ? RIVER_BOT + 0.3 : RIVER_TOP - 0.3];
@@ -297,7 +313,15 @@ function dealAttack(state: GameState, e: Entity, target: Entity, ev: GameEvent[]
   }
   ev.push({ t: "attack", from: e.id, to: target.id, fromCard: e.card, x1: e.x, y1: e.y, x2: target.x, y2: target.y, ranged: e.range > 1.5, side: e.side, dmg });
   ev.push({ t: "hit", id: target.id, x: target.x, y: target.y, dmg, side: target.side });
-  if (e.knock > 0 && target.type === "unit" && !target.flying && target.hp > 0) knockBack(e, target);
+  if (e.card === DUNK.card && !e.reinforced && target.type === "unit" && !target.flying && target.hp > 0 && state.tick - e.born >= DUNK.afterSecs * TICKS_PER_SEC) {
+    // o primeiro golpe depois de 5 s joga a tropa no rio do meio, onde ela fica presa por 3 s
+    e.reinforced = true;
+    const fx = target.x;
+    const fy = target.y;
+    target.y = RIVER_MID;
+    target.stunUntil = state.tick + Math.round(DUNK.stunSecs * TICKS_PER_SEC);
+    ev.push({ t: "dunk", id: target.id, x1: fx, y1: fy, x2: target.x, y2: target.y });
+  } else if (e.knock > 0 && target.type === "unit" && !target.flying && target.hp > 0) knockBack(e, target);
   if (e.splash > 0) {
     for (const o of state.entities) {
       if (o === target || o.side === e.side || o.type !== "unit" || o.hp <= 0) continue;
@@ -348,15 +372,49 @@ function followAlly(state: GameState, e: Entity) {
   const ty = lead.y + behind;
   if (dist(e.x, e.y, tx, ty) < 0.8) return;
   const slowed = state.tick < e.slowUntil ? 1 - e.slowAmount : 1;
-  const [wx, wy] = waypoint(e, tx, ty);
+  const [wx, wy] = waypoint(state, e, tx, ty);
   moveToward(e, wx, wy, e.speed * slowed);
 }
 
-/** Amandinha: depois de 5 s viva, chegam mais 3 de cada bichinho que a acompanha. */
+/** Habilidades de "depois de X segundos em campo": Amandinha (bichinhos), Noé (barca) e Gideão (soldados). */
 function reinforce(state: GameState, e: Entity, ev: GameEvent[]) {
+  if (e.reinforced || e.variant !== 0) return;
+  const age = state.tick - e.born;
+  if (e.card === ARK.card) {
+    if (age < ARK.afterSecs * TICKS_PER_SEC) return;
+    e.reinforced = true;
+    // a barca gigante fecha uma das pontes (sorteada) por 7 s: tropas de terra, de qualquer lado, têm que usar a outra
+    const bx = nextRand(state, e.side) < 0.5 ? BRIDGES[0] : BRIDGES[1];
+    (state.blocks ??= []).push({ x: bx, from: state.tick, until: state.tick + Math.round(ARK.blockSecs * TICKS_PER_SEC), side: e.side });
+    ev.push({ t: "ark", x: bx, y: RIVER_MID, side: e.side });
+    return;
+  }
+  if (e.card === MUSTER.card) {
+    if (age < MUSTER.afterSecs * TICKS_PER_SEC) return;
+    e.reinforced = true;
+    const gideao = ARENA_CARD_BY_KEY.get(e.card);
+    if (!gideao) return;
+    const player = playerOfSide(state, e.side);
+    const f = e.side === 0 ? -1 : 1; // pra frente do grupo
+    for (let i = 0; i < MUSTER.count; i++) {
+      const a = (i / MUSTER.count) * Math.PI * 2;
+      const x = Math.min(W - 0.3, Math.max(0.3, e.x + Math.cos(a) * 1.3));
+      const y = Math.min(H - 0.3, Math.max(0.3, e.y + Math.sin(a) * 1.0 + f * 0.4));
+      const s = makeUnit(state, gideao, e.side, player, x, y, 9);
+      // soldado: morre com qualquer golpe
+      s.hp = 1;
+      s.maxHp = 1;
+      s.radius = 0.3;
+      s.dmg = Math.max(1, Math.round(s.dmg * MUSTER.dmgFactor));
+      s.reinforced = true;
+      state.entities.push(s);
+    }
+    ev.push({ t: "spawn", x: e.x, y: e.y, card: gideao.key });
+    return;
+  }
   const card = ARENA_CARD_BY_KEY.get(e.card);
-  if (e.reinforced || e.card !== REINFORCE.card || e.variant !== 0 || !card?.crew) return;
-  if (state.tick - e.born < REINFORCE.afterSecs * TICKS_PER_SEC) return;
+  if (e.card !== REINFORCE.card || !card?.crew) return;
+  if (age < REINFORCE.afterSecs * TICKS_PER_SEC) return;
   e.reinforced = true;
   const side = e.side;
   const f = side === 0 ? 1 : -1;
@@ -374,6 +432,12 @@ function reinforce(state: GameState, e: Entity, ev: GameEvent[]) {
 
 function updateUnit(state: GameState, e: Entity, ev: GameEvent[]) {
   if (e.cd > 0) e.cd--;
+  // preso na água (jogado pelo João): não anda, não ataca nem cura; ao soltar volta pra margem do próprio lado
+  if (e.stunUntil > 0) {
+    if (state.tick < e.stunUntil) return;
+    e.stunUntil = 0;
+    e.y = e.side === 0 ? RIVER_BOT + 0.2 : RIVER_TOP - 0.2;
+  }
   reinforce(state, e, ev);
   healAllies(state, e, ev);
   if (e.dmg <= 0) {
@@ -387,7 +451,7 @@ function updateUnit(state: GameState, e: Entity, ev: GameEvent[]) {
     return;
   }
   const slowed = (state.tick < e.slowUntil ? 1 - e.slowAmount : 1) * comboMults(state.entities, e.side, e.card).speed;
-  const [wx, wy] = waypoint(e, target.x, target.y);
+  const [wx, wy] = waypoint(state, e, target.x, target.y);
   moveToward(e, wx, wy, e.speed * slowed);
 }
 
@@ -417,11 +481,14 @@ function separate(state: GameState) {
       b.y += uy * push;
     }
   }
+  const blocked = blockedBridges(state);
   for (const e of ground) {
     e.x = Math.min(W - 0.3, Math.max(0.3, e.x));
     e.y = Math.min(H - 0.3, Math.max(0.3, e.y));
+    // João (mergulha) e quem está preso na água podem ficar no rio
+    if (e.card === DUNK.card || e.stunUntil > state.tick) continue;
     if (e.y > RIVER_TOP && e.y < RIVER_BOT) {
-      const onBr = BRIDGES.some((b) => Math.abs(e.x - b) <= 1.2);
+      const onBr = BRIDGES.some((b) => !blocked.includes(b) && Math.abs(e.x - b) <= 1.2);
       if (!onBr) e.y = e.py <= (RIVER_TOP + RIVER_BOT) / 2 ? RIVER_TOP : RIVER_BOT;
     }
   }
@@ -479,6 +546,7 @@ export function step(state: GameState, inputs: Input[], bots: Side[] = [1]): Gam
     }
   }
   state.entities = alive;
+  if (state.blocks) state.blocks = state.blocks.filter((b) => state.tick < b.until + 12);
 
   state.tick++;
   if (!state.over) {
