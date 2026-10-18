@@ -71,6 +71,6 @@ export const config = {
     // instalação no celular falharia.
     // /api/cron/* fica fora: são rotinas agendadas, sem sessão de usuário —
     // elas se autenticam sozinhas pelo CRON_SECRET.
-    "/((?!_next/static|_next/image|favicon.ico|manifest.json|sw.js|offline.html|api/cron|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|webmanifest)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|manifest.json|sw.js|offline.html|api/cron|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|webmanifest|mp3|ogg|wav)$).*)",
   ],
 };

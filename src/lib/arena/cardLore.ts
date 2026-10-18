@@ -62,7 +62,7 @@ export const CARD_LORE: Record<string, CardLore> = {
     story:
       "Noé era um homem justo num tempo em que o mundo estava cheio de violência. Deus o avisou do dilúvio e ele construiu a arca, onde guardou a família e os animais. Depois do dilúvio, Deus fez uma aliança e deixou o arco-íris como sinal da promessa.",
     ref: "Gênesis 6–9",
-    attack: "Noé abriga e cuida: cura os aliados que estão por perto enquanto resiste. Depois de 3 s em campo, a arca gigante aparece numa ponte (sorteada) e a bloqueia por 7 s, com uma contagem na tela.",
+    attack: "Noé abriga e cuida: cura os aliados que estão por perto enquanto resiste. Depois de 3 s em campo, a arca gigante aparece numa ponte (sorteada) e a bloqueia por 10 s, com uma contagem na tela.",
   },
   moises: {
     story:

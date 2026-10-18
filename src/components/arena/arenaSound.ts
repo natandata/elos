@@ -1,11 +1,12 @@
-// Efeitos sonoros da Arena. Usa a biblioteca open source ZzFX (MIT, Frank Force):
-// sintetizador de efeitos de jogo, sem arquivos de áudio. Cada efeito é uma
-// lista de parâmetros; os sons são gerados uma vez e guardados.
+// Efeitos sonoros da Arena. Os sons são amostras gravadas CC0 (pacotes do Kenney, www.kenney.nl) em
+// public/arena/sfx: pancadas macias, espadas, sinos, estrondos. Se uma amostra ainda não carregou (ou
+// falhou), cai no sintetizador open source ZzFX (MIT, Frank Force), com a lista de parâmetros abaixo.
 // Só áudio: nada daqui mexe no jogo. O navegador só libera o som depois de um
 // toque do jogador, então tudo é carregado/retomado nos toques da partida.
 
 import { ARENA_CARD_BY_KEY } from "@/lib/arena/cards";
 import { H, W, type GameEvent } from "@/lib/arena/core";
+import { SFX_FILES } from "./arenaSfxList";
 
 type Zz = typeof import("zzfx").ZZFX;
 type Params = (number | undefined)[];
@@ -70,11 +71,16 @@ export const SOUND_PARAMS: Record<string, Params> = {
 const NOTE = { G3: -14, C4: -9, Eb4: -6, G4: -2, C5: 3, E5: 7, G5: 10, C6: 15, D5: 5, A5: 12 };
 
 const MAX_VOICES = 12;
+/** ganho base das amostras (elas já vêm normalizadas em -3 dB) */
+const SAMPLE_GAIN = 0.55;
 
 export class ArenaSound {
   private Z: Zz | null = null;
   private loading = false;
   private cache = new Map<string, Float32Array>();
+  /** amostras gravadas já decodificadas, por efeito (cada efeito tem algumas variações) */
+  private bufs = new Map<string, AudioBuffer[]>();
+  private samplesStarted = false;
   private last: Record<string, number> = {};
   private voices = 0;
   muted = false;
@@ -98,10 +104,33 @@ export class ArenaSound {
         this.Z = m.ZZFX;
         this.Z.volume = 0.32;
         if (this.Z.audioContext.state === "suspended") void this.Z.audioContext.resume();
+        this.loadSamples();
       })
       .catch(() => {
         this.loading = false;
       });
+  }
+
+  /** Baixa e decodifica as amostras (uma vez). Quem falhar fica no sintetizador. */
+  private loadSamples() {
+    if (this.samplesStarted || !this.Z) return;
+    this.samplesStarted = true;
+    const ctx = this.Z.audioContext;
+    for (const [slot, files] of Object.entries(SFX_FILES)) {
+      for (const f of files) {
+        void fetch(`/arena/sfx/${f}`)
+          .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error("sfx"))))
+          .then((ab) => ctx.decodeAudioData(ab))
+          .then((buf) => {
+            const list = this.bufs.get(slot) ?? [];
+            list.push(buf);
+            this.bufs.set(slot, list);
+          })
+          .catch(() => {
+            // sem esse arquivo: o efeito usa o sintetizador
+          });
+      }
+    }
   }
 
   setMuted(m: boolean) {
@@ -145,11 +174,40 @@ export class ArenaSound {
     const key = opts.key ?? name;
     if (opts.gap && !this.gap(key, opts.gap)) return;
     if (this.voices >= MAX_VOICES && !opts.priority) return;
-    const params = opts.params ?? SOUND_PARAMS[name];
-    if (!params) return;
     const far = opts.y !== undefined && opts.y < H / 2 ? 0.6 : 1;
     const pan = opts.x !== undefined ? Math.max(-0.8, Math.min(0.8, (opts.x / W - 0.5) * 1.4)) : 0;
     const rate = (opts.pitch ?? 1) * (1 + (Math.random() - 0.5) * 0.1);
+    // amostra gravada (sorteia uma das variações)
+    const recorded = opts.params ? undefined : this.bufs.get(key);
+    if (recorded && recorded.length > 0) {
+      try {
+        const ctx = this.Z!.audioContext;
+        const src = ctx.createBufferSource();
+        src.buffer = recorded[Math.floor(Math.random() * recorded.length)];
+        src.playbackRate.value = rate;
+        const g = ctx.createGain();
+        g.gain.value = (opts.vol ?? 1) * far * SAMPLE_GAIN;
+        let out: AudioNode = g;
+        src.connect(g);
+        if (ctx.createStereoPanner) {
+          const p = ctx.createStereoPanner();
+          p.pan.value = pan;
+          g.connect(p);
+          out = p;
+        }
+        out.connect(ctx.destination);
+        src.start();
+        this.voices++;
+        src.onended = () => {
+          this.voices = Math.max(0, this.voices - 1);
+        };
+        return;
+      } catch {
+        // cai no sintetizador
+      }
+    }
+    const params = opts.params ?? SOUND_PARAMS[name];
+    if (!params) return;
     try {
       const src = this.Z!.playSamples([this.samples(key, params)], (opts.vol ?? 1) * far, rate, pan);
       this.voices++;
@@ -257,9 +315,27 @@ export class ArenaSound {
           this.brass();
         }
         break;
+      case "ark":
+        // a arca cai na ponte (a animação leva ~0,4 s): pancada na madeira e respingo
+        this.later(380, () => {
+          this.play("arkLand", { x: e.x, priority: true });
+          this.play("splash", { x: e.x, priority: true, vol: 0.8 });
+        });
+        break;
+      case "dunk":
+        // Batismo de João: respingo quando caem no rio e pancada
+        this.later(430, () => {
+          this.play("splash", { x: e.x2, priority: true });
+          this.play("hitBig", { x: e.x2, priority: true, vol: 0.8, key: "hitBig" });
+        });
+        break;
+      case "immune":
+        this.play("immune", { gap: 0.2, x: e.x, y: e.y });
+        break;
       case "death":
         if (e.tower) {
           this.play("towerDown", { x: e.x, priority: true });
+          this.later(90, () => this.play("towerCrunch", { x: e.x, priority: true, vol: 0.9 }));
         } else {
           this.play("death", { gap: 0.08, x: e.x, y: e.y });
         }
