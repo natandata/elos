@@ -73,8 +73,6 @@ export type Entity = {
   born: number;
   /** habilidade de uma vez só já usada (Amandinha: reforços; Noé: barca; João: mergulho; Gideão: soldados) */
   reinforced: boolean;
-  /** preso na água (João Batista) até este tick; 0 = livre */
-  stunUntil: number;
 };
 
 export type GameState = {
@@ -128,8 +126,6 @@ export type GameEvent =
   | { t: "jericho" }
   /** a barca do Noé chegou numa ponte */
   | { t: "ark"; x: number; y: number; side: Side }
-  /** Batismo de João: ele e a tropa atingida caem no rio (posições de antes e de depois dos dois) */
-  | { t: "dunk"; id: number; x1: number; y1: number; x2: number; y2: number; jid: number; jx1: number; jy1: number; jx2: number; jy2: number; dmg: number; side: Side }
   /** o Mar Vermelho não afeta esta tropa */
   | { t: "immune"; id: number; x: number; y: number };
 

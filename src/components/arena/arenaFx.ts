@@ -25,14 +25,10 @@ export type Anim = {
   fs: number;
   /** passos já dados (poeira nos pés) */
   steps: number;
-  /** jogado no rio pelo João: sai daqui (em tiles, já no ponto de vista de quem joga) e voa até onde está agora */
-  fly: { x: number; y: number; t0: number } | null;
   /** debaixo d'água (João mergulhando): pra soltar o respingo na entrada e na saída */
   sub: boolean;
 };
 
-/** Duração (ticks) do voo da tropa jogada no rio. */
-export const FLY_TICKS = 9;
 
 export type Fx =
   | { k: "float"; x: number; y: number; text: string; color: string; t0: number; dur: number; big: boolean }
@@ -61,7 +57,6 @@ export const newAnim = (born: number, side: number): Anim => ({
   hitDy: 0,
   fs: 1,
   steps: 0,
-  fly: null,
   sub: false,
 });
 
@@ -149,26 +144,6 @@ export function applyEvent(ev: GameEvent, tick: number, anims: Map<number, Anim>
       shake.amp = 2.4;
       fx.push({ k: "float", x: ev.x, y: ev.y - 2.6, text: "A arca chegou!", color: "#fde68a", t0: tick + 8, dur: 30, big: true });
       break;
-    case "dunk": {
-      // Batismo de João: a tropa e o João voam pro rio; o dano de 50 aparece na hora da queda
-      const a = anims.get(ev.id);
-      if (a) {
-        a.fly = { x: ev.x1, y: ev.y1, t0: tick };
-      }
-      const j = anims.get(ev.jid);
-      if (j) j.fly = { x: ev.jx1, y: ev.jy1, t0: tick };
-      fx.push({ k: "ring", x: ev.x1, y: ev.y1 + 0.4, t0: tick, dur: 8, color: "rgba(147,197,253,0.9)", r: 0.9 });
-      fx.push({ k: "ring", x: ev.jx1, y: ev.jy1 + 0.4, t0: tick, dur: 8, color: "rgba(147,197,253,0.9)", r: 0.9 });
-      fx.push({ k: "ring", x: ev.x2, y: ev.y2, t0: tick + FLY_TICKS, dur: 18, color: "rgba(255,255,255,0.95)", r: 2.0 });
-      fx.push({ k: "ring", x: ev.x2, y: ev.y2, t0: tick + FLY_TICKS + 2, dur: 18, color: "rgba(125,211,252,0.9)", r: 1.3 });
-      fx.push({ k: "boom", x: ev.x2, y: ev.y2, big: false, t0: tick + FLY_TICKS, dur: 12 });
-      fx.push({ k: "float", x: ev.x2, y: ev.y2 - 2.0, text: "Batismo de João!", color: "#7dd3fc", t0: tick + FLY_TICKS, dur: 36, big: true });
-      fx.push({ k: "float", x: ev.x2, y: ev.y2 - 1.3, text: String(ev.dmg), color: ev.side === 0 ? "#ff6b6b" : "#ffd43b", t0: tick + FLY_TICKS, dur: 22, big: false });
-      shake.from = tick + FLY_TICKS;
-      shake.until = tick + FLY_TICKS + 5;
-      shake.amp = 2;
-      break;
-    }
     case "immune":
       fx.push({ k: "float", x: ev.x, y: ev.y - 1.5, text: "Imune!", color: "#fde68a", t0: tick, dur: 26, big: true });
       fx.push({ k: "ring", x: ev.x, y: ev.y + 0.2, t0: tick, dur: 10, color: "#fde68a", r: 0.9 });

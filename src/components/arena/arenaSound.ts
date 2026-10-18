@@ -322,13 +322,6 @@ export class ArenaSound {
           this.play("splash", { x: e.x, priority: true, vol: 0.8 });
         });
         break;
-      case "dunk":
-        // Batismo de João: respingo quando caem no rio e pancada
-        this.later(430, () => {
-          this.play("splash", { x: e.x2, priority: true });
-          this.play("hitBig", { x: e.x2, priority: true, vol: 0.8, key: "hitBig" });
-        });
-        break;
       case "immune":
         this.play("immune", { gap: 0.2, x: e.x, y: e.y });
         break;

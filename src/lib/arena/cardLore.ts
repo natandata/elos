@@ -20,7 +20,7 @@ export const CARD_LORE: Record<string, CardLore> = {
     story:
       "João Batista viveu no deserto e pregava que as pessoas se arrependessem e voltassem para Deus. Batizava no rio Jordão e preparou o caminho para Jesus, a quem apontou dizendo: “Eis o Cordeiro de Deus, que tira o pecado do mundo”. Falava a verdade com coragem, até diante do rei.",
     ref: "Mateus 3 · João 1:19-34",
-    attack: "João é rápido e valente: corre na frente e atravessa o rio mergulhando (ninguém o alcança debaixo d'água). Depois de 5 s em campo, o primeiro golpe dele é o Batismo de João: ele entra no rio do meio com a tropa atingida, que leva 50 de dano e fica presa por 3 s (só uma vez).",
+    attack: "João é rápido e valente: corre na frente e atravessa o rio mergulhando (ninguém o alcança debaixo d'água). Na ponte, ele anda.",
   },
   jose: {
     story:

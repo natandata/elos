@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ARENA_CARDS, ARENA_CARD_BY_KEY, MAX_CARD_LEVEL, STARTER_DECK, levelMult, upgradeCost, type ArenaCard } from "@/lib/arena/cards";
 import { ARENAS, CARD_UNLOCK_ARENA, CHEST_ONLY, isCardUnlocked } from "@/lib/arena/arenas";
 import { CAMPAIGN_CARDS, CAMPAIGN_KEYS } from "@/lib/arena/campaignCards";
-import { ARK, DUNK, MUSTER, SEA } from "@/lib/arena/abilities";
+import { ARK, MUSTER, SEA, SWIM } from "@/lib/arena/abilities";
 import { CARD_LORE } from "@/lib/arena/cardLore";
 import { CardArt } from "./CardArt";
 import { AT } from "./ArenaText";
@@ -79,10 +79,7 @@ function abilities(c: ArenaCard): string[] {
     return out;
   }
   if (c.key === ARK.card) out.push(`🛶 Depois de ${ARK.afterSecs} s em campo, a arca gigante bloqueia uma ponte (sorteada) por ${ARK.blockSecs} s. Vale para tropas de terra dos dois lados.`);
-  if (c.key === DUNK.card) {
-    out.push("🏊 Mergulha e atravessa o rio sem usar a ponte; debaixo d'água não pode ser atacado.");
-    out.push(`🌊 Batismo de João: depois de ${DUNK.afterSecs} s em campo, o próximo golpe leva a tropa pro rio do meio, com ${DUNK.dmg} de dano e presa por ${DUNK.stunSecs} s (só 1 vez).`);
-  }
+  if (c.key === SWIM.card) out.push("🏊 Atravessa o rio mergulhando (só onde tem água: na ponte ele anda). Debaixo d'água não pode ser atacado.");
   if (c.key === MUSTER.card) out.push(`🎺 Depois de ${MUSTER.afterSecs} s em campo, chegam mais ${MUSTER.count} soldados que morrem com qualquer golpe.`);
   if (c.flying) out.push("🕊️ Voa: passa por cima do rio e das tropas.");
   if (c.canHitAir) out.push("🎯 Acerta também quem voa.");
