@@ -1,7 +1,7 @@
 /** Jogos que o admin pode mostrar ou esconder para os jogadores (client-safe). */
 export type Visibility = "auto" | "visible" | "hidden";
 
-export type GameKey = "quiz" | "verse" | "who" | "order" | "arena" | "memory" | "duel" | "collection" | "dress" | "minearena" | "biblerush" | "arenasoccer" | "arenacampanha" | "ultimatribo" | "quemdesenha" | "madureira";
+export type GameKey = "quiz" | "verse" | "who" | "order" | "arena" | "memory" | "duel" | "collection" | "dress" | "minearena" | "biblerush" | "arenasoccer" | "arenacampanha" | "ultimatribo" | "quemdesenha" | "madureira" | "missao";
 
 export const GAME_CATALOG: { key: GameKey; emoji: string; title: string }[] = [
   { key: "quiz", emoji: "🧠", title: "Quiz do Dia" },
@@ -19,6 +19,7 @@ export const GAME_CATALOG: { key: GameKey; emoji: string; title: string }[] = [
   { key: "arenacampanha", emoji: "🛡️", title: "Campanha da Arena dos Heróis (só batalhar; ver cartas e arenas é livre)" },
   { key: "ultimatribo", emoji: "🪓", title: "A Última Tribo (em construção: só admin e acesso antecipado)" },
   { key: "quemdesenha", emoji: "🎨", title: "Quem Desenha?" },
+  { key: "missao", emoji: "✝️", title: "Missão Madureira (em construção: só admin e acesso antecipado)" },
   { key: "madureira", emoji: "🛍️", title: "Shopping Elos (Vista o Herói: aparece como Em breve até você liberar ou marcar a data)" },
 ];
 

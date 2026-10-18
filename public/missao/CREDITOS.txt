@@ -1,0 +1,5 @@
+Missão Madureira - créditos dos dados e modelos
+
+Mapa (ruas, trilhos, estação, parque, torres): © colaboradores do OpenStreetMap, licença ODbL 1.0 (https://www.openstreetmap.org/copyright).
+Edificações (contorno e altura) e quadras: Data.Rio / Instituto Pereira Passos - Prefeitura do Rio de Janeiro, licença CC BY 4.0.
+Personagens 3D (people/p0-p3.glb): Quaternius (quaternius.com, via poly.pizza), domínio público (CC0).

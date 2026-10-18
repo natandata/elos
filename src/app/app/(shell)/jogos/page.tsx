@@ -57,7 +57,7 @@ export default async function JogosPage() {
   const storeItems = (storeRes.data ?? []) as StoreItem[];
 
   const dates = await getReleaseDates();
-  const [dressOpen, mineOpen, rushOpen, soccerOpen, triboOpen, qdOpen, vis] = await Promise.all([gameOpenFor("dress", profile.id), gameOpenFor("minearena", profile.id), gameOpenFor("biblerush", profile.id), gameOpenFor("arenasoccer", profile.id), gameOpenFor("ultimatribo", profile.id), gameOpenFor("quemdesenha", profile.id), getVisibilities()]);
+  const [dressOpen, mineOpen, rushOpen, soccerOpen, triboOpen, qdOpen, missaoOpen, vis] = await Promise.all([gameOpenFor("dress", profile.id), gameOpenFor("minearena", profile.id), gameOpenFor("biblerush", profile.id), gameOpenFor("arenasoccer", profile.id), gameOpenFor("ultimatribo", profile.id), gameOpenFor("quemdesenha", profile.id), gameOpenFor("missao", profile.id), getVisibilities()]);
   const locked = await lockedGames(supabase, profile.id, profile.role);
   const early = await getEarlyAccess(profile.id);
   // quem tem acesso antecipado recebe o jogo da Loja de graça: aparece como já adquirido
@@ -207,6 +207,16 @@ export default async function JogosPage() {
             <p className="text-2xl font-black tracking-wide text-amber-100 [text-shadow:0_2px_0_#3a2208]">BIBLE RUSH</p>
             <p className="mt-0.5 text-sm font-bold text-white/90">Histórias da Bíblia, uma missão de cada vez.</p>
             <span className="mt-3 inline-block rounded-full bg-rose-600 px-3 py-0.5 text-[11px] font-black text-white">{releasedNow("biblerush", dates) ? "NOVO" : "SÓ ADMIN"}</span>
+          </Link>
+        )}
+      </div>
+
+      <div key="missao" style={{ order: order["missao"] }}>
+        {hide("missao") || !missaoOpen ? null : (
+          <Link href="/app/jogos/missao" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-amber-400 bg-gradient-to-br from-[#0f2747] via-[#1d4ed8] to-[#f59e0b] p-4 shadow-lg transition active:scale-[0.99]">
+            <p className="text-2xl font-black tracking-wide text-white [text-shadow:0_2px_0_#0b1a33]">MISSÃO MADUREIRA</p>
+            <p className="mt-0.5 text-sm font-bold text-white/90">3 minutos para falar de Jesus pelas ruas de Madureira.</p>
+            <span className="mt-2 inline-block rounded-full bg-rose-700 px-3 py-0.5 text-[10px] font-black text-white">SÓ ADMIN · EM CONSTRUÇÃO</span>
           </Link>
         )}
       </div>

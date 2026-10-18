@@ -17,10 +17,12 @@ export const GAME_RELEASES = {
   quemdesenha: "2026-10-12T00:00:00-03:00",
   /** Shopping Elos (mundo aberto do Vista o Herói): aparece como "Em breve" para todos, sem data até o admin marcar uma. Admin e acesso antecipado entram antes. */
   madureira: "2099-01-01T00:00:00-03:00",
+  /** Missão Madureira (mundo aberto no bairro de Madureira, evangelismo): em construção, oculto. Só admin e acesso antecipado. */
+  missao: "2099-01-01T00:00:00-03:00",
 } as const;
 
 /** Antes da data, aparece um cartão "em breve" para os jogadores? O Bible Rush fica invisível até abrir. */
-export const GAME_TEASER: Record<keyof typeof GAME_RELEASES, boolean> = { dress: true, minearena: true, biblerush: false, arenasoccer: false, arenacampanha: false, ultimatribo: false, quemdesenha: false, madureira: false };
+export const GAME_TEASER: Record<keyof typeof GAME_RELEASES, boolean> = { dress: true, minearena: true, biblerush: false, arenasoccer: false, arenacampanha: false, ultimatribo: false, quemdesenha: false, madureira: false, missao: false };
 
 export type ReleasedGame = keyof typeof GAME_RELEASES;
 
@@ -49,7 +51,7 @@ export const releasedNow = (game: ReleasedGame, dates: ReleaseDates = GAME_RELEA
  * 4) os clássicos (Arena, Memória), que não têm data de lançamento.
  */
 export function gameCoverOrder(dates: ReleaseDates = GAME_RELEASES, now = Date.now()): Record<string, number> {
-  const dated = (["dress", "minearena", "arenasoccer", "biblerush", "ultimatribo", "quemdesenha"] as const).map((k) => {
+  const dated = (["dress", "minearena", "arenasoccer", "biblerush", "ultimatribo", "quemdesenha", "missao"] as const).map((k) => {
     const at = releaseAt(k, dates);
     const group = !hasDate(dates[k]) ? 2 : at <= now ? 0 : 1;
     return { k: k as string, at, group };
