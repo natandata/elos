@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { pointInPoly, pts, roadIndex, type Collider, type MapData } from "@/lib/missao/map";
-import { asphaltTex, ballastTex, grassTex, houseTex, metalTex, roofTex, shopTex, sidewalkTex, signTex, skyTex, upperTex } from "./textures";
+import { asphaltTex, ballastTex, churchAnnexTex, churchDoorTex, churchHallTex, grassTex, houseTex, metalTex, roofTex, shopTex, sidewalkTex, signTex, skyTex, upperTex } from "./textures";
 
 // Monta Madureira em 3D a partir do mapa: chão, calçadas, prédios (fundidos por pedaço do mapa para pesar pouco),
 // trilhos e estação, viaduto, parque, torres de energia, árvores, postes e as placas dos pontos marcantes.
@@ -276,37 +276,16 @@ export function buildCity(map: MapData, col: Collider, opts: { low: boolean }): 
     roof: keep(roofTex()),
   };
   T.roof.repeat.set(1 / 6, 1 / 6);
-  const churchWall = keep(
-    signTex([], 512, 512, (c) => {
-      c.fillStyle = "#f7f4ec";
-      c.fillRect(0, 0, 512, 512);
-      for (let i = 0; i < 2; i++) {
-        const x = 70 + i * 256;
-        c.fillStyle = "#5a7fa8";
-        c.beginPath();
-        c.moveTo(x, 440);
-        c.lineTo(x, 170);
-        c.arc(x + 58, 170, 58, Math.PI, 0);
-        c.lineTo(x + 116, 440);
-        c.closePath();
-        c.fill();
-        c.strokeStyle = "#e9e3d6";
-        c.lineWidth = 8;
-        c.stroke();
-        c.fillStyle = "rgba(255,255,255,0.25)";
-        c.fillRect(x + 54, 120, 8, 320);
-        c.fillRect(x, 300, 116, 8);
-      }
-    }),
-  );
-  churchWall.wrapS = churchWall.wrapT = THREE.RepeatWrapping;
+  const churchHall = keep(churchHallTex());
+  const churchAnnex = keep(churchAnnexTex());
   const mats = {
     shop: std({ map: T.shop, vertexColors: true }),
     house: std({ map: T.house, vertexColors: true }),
     upper: std({ map: T.upper, vertexColors: true }),
     metal: std({ map: T.metal, vertexColors: true }),
     roof: std({ map: T.roof, vertexColors: true }),
-    church: std({ map: churchWall, vertexColors: true }),
+    church: std({ map: churchHall, vertexColors: true }),
+    annex: std({ map: churchAnnex, vertexColors: true }),
     slab: std({ color: 0xffffff, vertexColors: true }),
   };
   type MatKey = keyof typeof mats;
@@ -315,7 +294,7 @@ export function buildCity(map: MapData, col: Collider, opts: { low: boolean }): 
     const k = `${Math.floor(x / 80)},${Math.floor(z / 80)}`;
     let c = chunks.get(k);
     if (!c) {
-      c = { shop: acc(), house: acc(), upper: acc(), metal: acc(), roof: acc(), church: acc(), slab: acc() };
+      c = { shop: acc(), house: acc(), upper: acc(), metal: acc(), roof: acc(), church: acc(), annex: acc(), slab: acc() };
       chunks.set(k, c);
     }
     return c;
@@ -346,8 +325,18 @@ export function buildCity(map: MapData, col: Collider, opts: { low: boolean }): 
       return;
     }
     if (b.m === "church") {
-      walls(C.church, b.p, y0, y1, 8, Math.max(0.5, (y1 - y0) / 8), 0, [1, 1, 1], true);
-      cap(C.roof, b.p, y1, [0.9, 0.9, 0.88], 1);
+      const ar = Math.abs(signedArea(b.p));
+      if (ar < 60) {
+        // torre azul fina da esquina (nas fotos)
+        walls(C.slab, b.p, y0, y1, 1, 1, 0, [0.1, 0.22, 0.5]);
+        cap(C.slab, b.p, y1, [0.08, 0.17, 0.4], 1);
+      } else if (b.h < 17) {
+        walls(C.church, b.p, y0, y1, 8, 1, 0, [1, 1, 1], true);
+        cap(C.slab, b.p, y1, [0.72, 0.72, 0.7], 1);
+      } else {
+        walls(C.annex, b.p, y0, y1, 8, 8, 0, [1, 1, 1]);
+        cap(C.roof, b.p, y1, [0.86, 0.85, 0.82], 1);
+      }
       return;
     }
     if (b.k === 1 || b.m === "mercadao") {
@@ -829,12 +818,12 @@ export function buildCity(map: MapData, col: Collider, opts: { low: boolean }): 
   }
 
   // ---------------------------------------------------------------- placas dos pontos marcantes
-  // Igreja: letreiro na parede do templo voltada para a rua + cruz no ponto mais alto
+  // Igreja: marquise, letreiro, porta de madeira, escada e grade, na parede do templo mais perto do ponto de spawn
   {
-    const church = map.bld.filter((b) => b.m === "church");
-    const near = roadIndex(map, new Set(["residential", "tertiary", "secondary", "primary", "unclassified"]));
-    let best: { x: number; z: number; ang: number; L: number; h: number } | null = null;
-    let score = -1e9;
+    const church = map.bld.filter((b) => b.m === "church" && Math.abs(signedArea(b.p)) > 60 && b.h < 17);
+    const [fx, fz] = map.spawn.front ?? [map.spawn.x, map.spawn.z];
+    let best: { x: number; z: number; ang: number; L: number; d: number } | null = null;
+    let bd = 1e9;
     for (const b of church) {
       const p = pts(b.p);
       const ccw = signedArea(b.p) > 0;
@@ -843,63 +832,96 @@ export function buildCity(map: MapData, col: Collider, opts: { low: boolean }): 
         let [bx, bz] = p[(i + 1) % p.length];
         if (!ccw) [ax, az, bx, bz] = [bx, bz, ax, az];
         const L = Math.hypot(bx - ax, bz - az);
-        if (L < 6) continue;
-        const nx = (bz - az) / L;
-        const nz = -(bx - ax) / L;
-        const mx = (ax + bx) / 2;
-        const mz = (az + bz) / 2;
-        // parede comprida, perto da rua e virada para ela
-        const sc = Math.min(L, 20) - near(mx + nx * 3, mz + nz * 3) * 2 + (near(mx + nx * 3, mz + nz * 3) < near(mx - nx * 3, mz - nz * 3) ? 10 : -30);
-        if (sc > score) {
-          score = sc;
-          best = { x: mx + nx * 0.12, z: mz + nz * 0.12, ang: Math.atan2(nx, nz), L, h: b.h };
+        if (L < 8) continue;
+        const ux = (bx - ax) / L;
+        const uz = (bz - az) / L;
+        const t = Math.max(2, Math.min(L - 2, (fx - ax) * ux + (fz - az) * uz));
+        const px = ax + ux * t;
+        const pz = az + uz * t;
+        const d = Math.hypot(px - fx, pz - fz);
+        if (d < bd) {
+          bd = d;
+          // normal para fora = (uz, -ux); o grupo olha para +z local
+          best = { x: px, z: pz, ang: Math.atan2(uz, -ux), L, d };
         }
       }
     }
     if (best) {
-      const w = Math.min(best.L - 1, 14);
-      const sign = new THREE.Mesh(
-        keep(new THREE.PlaneGeometry(w, w * 0.17)),
-        lam({
-          map: keep(
-            signTex(
-              [
-                { text: "PRIMEIRA IGREJA BATISTA", font: "bold 64px Georgia, serif", color: "#1d3557", y: 62 },
-                { text: "DE MADUREIRA", font: "bold 52px Georgia, serif", color: "#1d3557", y: 138 },
-              ],
-              1024,
-              180,
-              (c) => {
-                c.fillStyle = "#fbf8f1";
-                c.fillRect(0, 0, 1024, 180);
-                c.strokeStyle = "#c9a227";
-                c.lineWidth = 8;
-                c.strokeRect(6, 6, 1012, 168);
-              },
-            ),
-          ),
-        }),
-      );
-      sign.position.set(best.x, Math.min(best.h - 1.5, 7), best.z);
-      sign.rotation.y = best.ang;
-      group.add(sign);
-    }
-    const tall = church.reduce<(typeof church)[number] | null>((m, b) => (!m || b.h > m.h ? b : m), null);
-    if (tall) {
-      const p = pts(tall.p);
-      const cx = p.reduce((s, q) => s + q[0], 0) / p.length;
-      const cz = p.reduce((s, q) => s + q[1], 0) / p.length;
-      const cross = new THREE.Group();
-      const cm = std({ color: 0xfafafa });
-      const v = new THREE.Mesh(keep(new THREE.BoxGeometry(0.5, 4.6, 0.5)), cm);
-      v.position.y = 2.3;
-      const h = new THREE.Mesh(keep(new THREE.BoxGeometry(2.6, 0.5, 0.5)), cm);
-      h.position.y = 3.1;
-      cross.add(v, h);
-      cross.position.set(cx, (tall.y ?? 0) + tall.h, cz);
-      cross.rotation.y = best ? best.ang : 0;
-      cross.traverse((o) => shadow(o as THREE.Mesh));
-      group.add(cross);
+      const g = new THREE.Group();
+      g.position.set(best.x, 0.15, best.z);
+      g.rotation.y = best.ang;
+      const white = std({ color: 0xf1f1ec });
+      const dark = std({ color: 0x1b1b1d });
+      const add = (m: THREE.Mesh, x: number, y: number, z: number) => {
+        m.position.set(x, y, z);
+        g.add(shadow(m));
+      };
+      // marquise sobre a porta e letreiro escuro na frente dela
+      add(new THREE.Mesh(keep(new THREE.BoxGeometry(11, 0.28, 1.9)), white), 0, 3.55, 0.95);
+      add(new THREE.Mesh(keep(new THREE.BoxGeometry(10, 1.0, 0.16)), dark), 0, 4.15, 1.9);
+      const signMat = lam({
+        map: keep(
+          signTex([], 1024, 110, (c) => {
+            c.fillStyle = "#2b2a30";
+            c.fillRect(0, 0, 1024, 110);
+            c.fillStyle = "#e9e4d8";
+            c.textAlign = "center";
+            c.textBaseline = "middle";
+            c.font = "italic 28px Georgia, serif";
+            c.fillText("Primeira", 110, 58);
+            c.fillText("de Madureira", 905, 58);
+            c.font = "bold 56px Georgia, serif";
+            c.fillText("IGREJA BATISTA", 510, 56);
+            c.strokeStyle = "rgba(233,228,216,0.5)";
+            c.lineWidth = 3;
+            c.strokeRect(5, 5, 1014, 100);
+          }),
+        ),
+      });
+      const sg = new THREE.Mesh(keep(new THREE.PlaneGeometry(9.8, 0.98)), signMat);
+      sg.position.set(0, 4.15, 1.99);
+      g.add(sg);
+      // porta dupla de madeira e blocos de vidro dos lados
+      const door = new THREE.Mesh(keep(new THREE.PlaneGeometry(2.8, 3.2)), lam({ map: keep(churchDoorTex()) }));
+      door.position.set(0, 1.6, 0.04);
+      g.add(door);
+      for (const s of [-1, 1]) {
+        const gb = new THREE.Mesh(keep(new THREE.PlaneGeometry(1.5, 2.4)), lam({ color: 0xaab8bb }));
+        gb.position.set(s * 2.9, 1.5, 0.04);
+        g.add(gb);
+      }
+      // escada de três degraus
+      const stepM = std({ color: 0xcfcfca });
+      for (let i = 0; i < 3; i++) {
+        const h = 0.15 * (3 - i);
+        add(new THREE.Mesh(keep(new THREE.BoxGeometry(3.6 + i * 0.4, h, 0.45)), stepM), 0, h / 2, 0.225 + 0.45 * i);
+      }
+      // mureta de pastilha e grade preta no limite do lote, com portão aberto na frente da escada
+      const fz2 = Math.max(3.2, best.d - 1);
+      const Lw = Math.min(best.L - 1, 26);
+      const gate = 1.9;
+      const lowM = std({ color: 0xe8e8e2 });
+      const bars: [number, number][] = [];
+      for (const s of [-1, 1]) {
+        const w = Lw / 2 - gate;
+        const cx = s * (gate + w / 2);
+        add(new THREE.Mesh(keep(new THREE.BoxGeometry(w, 0.9, 0.35)), lowM), cx, 0.45, fz2);
+        for (let x = gate + 0.1; x < Lw / 2; x += 0.14) bars.push([s * x, fz2]);
+        add(new THREE.Mesh(keep(new THREE.BoxGeometry(w, 0.05, 0.05)), dark), cx, 2.4, fz2);
+      }
+      if (bars.length) {
+        const im = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(0.03, 1.5, 0.03)), dark, bars.length);
+        const m4 = new THREE.Matrix4();
+        bars.forEach(([x, z], i) => im.setMatrixAt(i, m4.makeTranslation(x, 1.65, z)));
+        g.add(im);
+      }
+      // canteiros com plantas
+      for (const s of [-1, 1]) {
+        const pl = new THREE.Mesh(keep(new THREE.SphereGeometry(0.9, 8, 6)), std({ color: 0x3f7a2c, flatShading: true }));
+        pl.scale.set(1.3, 0.8, 1);
+        add(pl, s * 4.4, 0.8, 1.2);
+      }
+      group.add(g);
     }
   }
   // Mercadão: faixa colorida na fachada mais comprida voltada para a rua principal

@@ -377,3 +377,141 @@ export const skyTex = () =>
     31,
     false,
   );
+
+/**
+ * Fachada do templo da PIB de Madureira (fotos): pastilha branca, faixa de vidro escuro entre aletas brancas
+ * em "dobra". Largura 8 m por repetição; a altura inteira do prédio (14 m) cabe em uma volta.
+ */
+export const churchHallTex = () =>
+  tex(1024, 1024, (c, r) => {
+    c.fillStyle = "#f3f3ee";
+    c.fillRect(0, 0, 1024, 1024);
+    c.strokeStyle = "rgba(140,140,132,0.3)";
+    for (let x = 0; x < 1024; x += 12.8) {
+      c.beginPath();
+      c.moveTo(x, 0);
+      c.lineTo(x, 1024);
+      c.stroke();
+    }
+    for (let y = 0; y < 1024; y += 7.3) {
+      c.beginPath();
+      c.moveTo(0, y);
+      c.lineTo(1024, y);
+      c.stroke();
+    }
+    noise(c, r, 1024, 1024, 5000, 0.08);
+    const top = 118;
+    const bot = 735;
+    // vidro escuro com reflexo
+    const g = c.createLinearGradient(0, top, 0, bot);
+    g.addColorStop(0, "#1a232b");
+    g.addColorStop(0.5, "#27343e");
+    g.addColorStop(1, "#141b21");
+    c.fillStyle = g;
+    c.fillRect(0, top, 1024, bot - top);
+    // caixilhos
+    c.strokeStyle = "rgba(10,12,14,0.9)";
+    c.lineWidth = 2;
+    for (let x = 0; x < 1024; x += 64) {
+      c.beginPath();
+      c.moveTo(x, top);
+      c.lineTo(x, bot);
+      c.stroke();
+    }
+    for (let y = top + 50; y < bot; y += 120) {
+      c.beginPath();
+      c.moveTo(0, y);
+      c.lineTo(1024, y);
+      c.stroke();
+    }
+    c.fillStyle = "rgba(160,190,205,0.12)";
+    for (let i = 0; i < 6; i++) c.fillRect(r() * 1024, top + r() * 300, 30 + r() * 120, 120 + r() * 200);
+    // aletas brancas penduradas: largas em cima, pontudas embaixo
+    for (let x = 0; x < 1024; x += 256) {
+      for (const [dx, w] of [
+        [0, 52],
+        [130, 52],
+      ]) {
+        const x0 = x + dx;
+        const fg = c.createLinearGradient(x0, 0, x0 + w, 0);
+        fg.addColorStop(0, "#ffffff");
+        fg.addColorStop(1, "#c9cbc8");
+        c.fillStyle = fg;
+        c.beginPath();
+        c.moveTo(x0, top - 8);
+        c.lineTo(x0 + w, top - 8);
+        c.lineTo(x0 + w * 0.55, bot + 28);
+        c.closePath();
+        c.fill();
+      }
+    }
+    // beiral e sombra
+    c.fillStyle = "rgba(0,0,0,0.18)";
+    c.fillRect(0, bot + 6, 1024, 8);
+    c.fillStyle = "rgba(0,0,0,0.1)";
+    c.fillRect(0, top - 14, 1024, 6);
+  }, 41);
+
+/** Prédio anexo: pastilha branca com fileiras de janelas. 8 m x 8 m por repetição. */
+export const churchAnnexTex = () =>
+  tex(512, 512, (c, r) => {
+    c.fillStyle = "#efeee8";
+    c.fillRect(0, 0, 512, 512);
+    c.strokeStyle = "rgba(140,140,132,0.28)";
+    for (let i = 0; i < 512; i += 6.4) {
+      c.beginPath();
+      c.moveTo(i, 0);
+      c.lineTo(i, 512);
+      c.stroke();
+      c.beginPath();
+      c.moveTo(0, i);
+      c.lineTo(512, i);
+      c.stroke();
+    }
+    noise(c, r, 512, 512, 3000, 0.08);
+    for (let fy = 0; fy < 2; fy++)
+      for (let fx = 0; fx < 2; fx++) {
+        const x = fx * 256 + 40;
+        const y = fy * 256 + 60;
+        c.fillStyle = "#cfd3d3";
+        c.fillRect(x - 5, y - 5, 186, 106);
+        c.fillStyle = "#33414b";
+        c.fillRect(x, y, 176, 96);
+        c.fillStyle = "rgba(170,200,215,0.3)";
+        c.fillRect(x, y, 176, 36);
+        c.fillStyle = "#cfd3d3";
+        c.fillRect(x + 86, y, 4, 96);
+      }
+  }, 42);
+
+/** Porta dupla de madeira do templo. */
+export const churchDoorTex = () =>
+  tex(
+    256,
+    256,
+    (c, r) => {
+      c.fillStyle = "#6e3b22";
+      c.fillRect(0, 0, 256, 256);
+      for (let x = 0; x < 256; x += 8) {
+        c.fillStyle = `rgba(${r() < 0.5 ? 0 : 255},${r() < 0.5 ? 0 : 200},0,${r() * 0.07})`;
+        c.fillRect(x, 0, 8, 256);
+      }
+      c.strokeStyle = "rgba(30,15,8,0.85)";
+      c.lineWidth = 4;
+      c.strokeRect(6, 6, 244, 244);
+      c.beginPath();
+      c.moveTo(128, 0);
+      c.lineTo(128, 256);
+      c.stroke();
+      c.lineWidth = 2;
+      for (const x of [16, 138]) {
+        c.strokeRect(x, 20, 102, 100);
+        c.strokeRect(x, 134, 102, 104);
+      }
+      c.fillStyle = "#c9a55a";
+      c.fillRect(116, 120, 6, 24);
+      c.fillRect(134, 120, 6, 24);
+    },
+    1,
+    false,
+  );
