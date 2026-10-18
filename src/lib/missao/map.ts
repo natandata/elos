@@ -113,6 +113,11 @@ export class Collider {
     }
   }
 
+  /** Acrescenta um sólido (polígono) depois da construção: muros e grades que só existem na cena. */
+  addSolid(flat: number[]) {
+    this.addPoly(flat);
+  }
+
   private near(x: number, z: number): Seg[] {
     const cx = Math.floor(x / CELL);
     const cz = Math.floor(z / CELL);

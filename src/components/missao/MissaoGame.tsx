@@ -5,6 +5,8 @@ import * as THREE from "three";
 import { Collider, buildLanes, loadMap, pts, type MapData } from "@/lib/missao/map";
 import { PASS, SUGGESTIONS, judge, type Verdict } from "@/lib/missao/gospel";
 import { buildCity } from "./city";
+import { buildExtras } from "./extras";
+import { buildChurchInterior, type Interior } from "./interior";
 import { Crowd, PeopleKit, YES, lerpAngle, play, type Actor, type Npc } from "./people";
 
 // Missão Madureira: 3 minutos para evangelizar o máximo de pessoas pelas ruas de Madureira.
@@ -29,7 +31,7 @@ export function MissaoGame({ avatar, onEnd, onExit }: { avatar: number; onEnd: (
   const mini = useRef<HTMLCanvasElement>(null);
   const [loading, setLoading] = useState<{ step: string; p: number } | null>({ step: "Carregando o mapa de Madureira…", p: 0 });
   const [error, setError] = useState<string | null>(null);
-  const [hud, setHud] = useState({ left: ROUND_SECS, saved: 0, near: null as string | null, place: "" });
+  const [hud, setHud] = useState({ left: ROUND_SECS, saved: 0, near: null as string | null, place: "", inChurch: true, started: false });
   const [talk, setTalk] = useState<Talk | null>(null);
   const [over, setOver] = useState(false);
   const [touch] = useState(() => typeof window !== "undefined" && matchMedia("(pointer: coarse)").matches);
@@ -66,6 +68,12 @@ export function MissaoGame({ avatar, onEnd, onExit }: { avatar: number; onEnd: (
     let crowd: Crowd | null = null;
     let player: Actor | null = null;
     let city: ReturnType<typeof buildCity> | null = null;
+    let extras: ReturnType<typeof buildExtras> | null = null;
+    let interior: Interior | null = null;
+    const intActors: Actor[] = [];
+    // a missão começa dentro do templo; o relógio só corre depois que o jogador sai pela porta do fundo
+    let inChurch = true;
+    let started = false;
     const keys = new Set<string>();
     let camYaw = 0;
     let camPitch = 0.32;
@@ -242,7 +250,7 @@ export function MissaoGame({ avatar, onEnd, onExit }: { avatar: number; onEnd: (
       if (!map || !col || !player || !crowd || !city) return;
 
       // relógio (corre também durante a conversa)
-      if (!ended) {
+      if (!ended && started) {
         left -= dt;
         if (left <= 0) {
           left = 0;
@@ -274,7 +282,7 @@ export function MissaoGame({ avatar, onEnd, onExit }: { avatar: number; onEnd: (
         mx /= L;
         mz /= L;
         const sp = (run ? 5.4 : 2.3) * (touch ? Math.max(0.4, mag) : 1);
-        [px, pz] = col.resolve(px + mx * sp * dt, pz + mz * sp * dt, 0.32);
+        [px, pz] = inChurch && interior ? interior.resolve(px + mx * sp * dt, pz + mz * sp * dt, 0.32) : col.resolve(px + mx * sp * dt, pz + mz * sp * dt, 0.32);
         pyaw = lerpAngle(pyaw, Math.atan2(mx, mz), 0.2);
         play(player, run ? "Run" : "Walk", 0.2, run ? 1 : Math.max(0.6, mag));
       } else {
@@ -284,11 +292,33 @@ export function MissaoGame({ avatar, onEnd, onExit }: { avatar: number; onEnd: (
       player.root.rotation.y = pyaw;
       player.mixer.update(dt);
 
+      // porta do templo: saindo começa a rodada; entrando de novo volta ao salão
+      if (interior && city.door) {
+        const dr = city.door;
+        if (inChurch && interior.atDoor(px, pz) && !ended) {
+          inChurch = false;
+          started = true;
+          px = dr.x + dr.nx * 3;
+          pz = dr.z + dr.nz * 3;
+          pyaw = Math.atan2(dr.nx, dr.nz);
+          camYaw = pyaw;
+          setHud((h) => ({ ...h, inChurch: false, started: true }));
+        } else if (!inChurch && Math.hypot(px - dr.x, pz - dr.z) < 1.0 && !talkRef.current) {
+          inChurch = true;
+          px = interior.entry.x;
+          pz = interior.entry.z;
+          pyaw = interior.entry.yaw;
+          camYaw = interior.entry.yaw;
+          setHud((h) => ({ ...h, inChurch: true }));
+        }
+      }
+      if (inChurch) for (const a of intActors) a.mixer.update(dt);
+
       // pedestres
-      crowd.update(dt, px, pz);
+      if (!inChurch) crowd.update(dt, px, pz);
       near = null;
       let nd = 2.7;
-      for (const n of crowd.npcs) {
+      for (const n of inChurch ? [] : crowd.npcs) {
         if (n.saved || n.fails >= 2 || n.state === "saved") continue;
         const d = Math.hypot(n.x - px, n.z - pz);
         if (d < nd) {
@@ -312,12 +342,15 @@ export function MissaoGame({ avatar, onEnd, onExit }: { avatar: number; onEnd: (
       const back = Math.cos(camPitch) * camDist;
       let cx = tx - Math.sin(camYaw) * back;
       let cz = tz - Math.cos(camYaw) * back;
-      const hit = col.firstHit(tx, tz, cx, cz);
-      if (hit < 1) {
-        cx = tx + (cx - tx) * Math.max(0.25, hit);
-        cz = tz + (cz - tz) * Math.max(0.25, hit);
+      if (inChurch && interior) [cx, cz] = interior.clampCam(cx, cz);
+      else {
+        const hit = col.firstHit(tx, tz, cx, cz);
+        if (hit < 1) {
+          cx = tx + (cx - tx) * Math.max(0.25, hit);
+          cz = tz + (cz - tz) * Math.max(0.25, hit);
+        }
       }
-      camera.position.set(cx, ty + Math.sin(camPitch) * camDist, cz);
+      camera.position.set(cx, Math.min(inChurch ? 9 : 99, ty + Math.sin(camPitch) * camDist), cz);
       camera.lookAt(tx, ty, tz);
 
       // sol e céu acompanham
@@ -340,7 +373,7 @@ export function MissaoGame({ avatar, onEnd, onExit }: { avatar: number; onEnd: (
             place = d < 120 ? `Perto: ${LANDMARK_NAMES[k] ?? k}` : "";
           }
         }
-        setHud({ left: Math.ceil(left), saved, near: near && !talkRef.current ? near.name : null, place });
+        setHud({ left: Math.ceil(left), saved, near: near && !talkRef.current ? near.name : null, place: inChurch ? "" : place, inChurch, started });
         drawMini();
       }
     };
@@ -352,6 +385,18 @@ export function MissaoGame({ avatar, onEnd, onExit }: { avatar: number; onEnd: (
       if (!c) return;
       const W = cv.width;
       const [X0, Z0] = map.bounds;
+      if (inChurch) {
+        c.clearRect(0, 0, W, W);
+        c.fillStyle = "rgba(15,23,42,0.85)";
+        c.beginPath();
+        c.arc(W / 2, W / 2, W / 2 - 2, 0, Math.PI * 2);
+        c.fill();
+        c.fillStyle = "#fff";
+        c.font = "bold 14px system-ui";
+        c.textAlign = "center";
+        c.fillText("Templo", W / 2, W / 2 + 5);
+        return;
+      }
       c.save();
       c.clearRect(0, 0, W, W);
       c.beginPath();
@@ -466,6 +511,10 @@ export function MissaoGame({ avatar, onEnd, onExit }: { avatar: number; onEnd: (
         col = new Collider(map);
         city = buildCity(map, col, { low });
         scene.add(city.group);
+        extras = buildExtras(map, col, { low });
+        scene.add(extras.group);
+        interior = buildChurchInterior({ low });
+        scene.add(interior.group);
         buildMini(map);
         setLoading({ step: "Chamando o povo de Madureira…", p: 0.55 });
         const kit = new PeopleKit();
@@ -473,16 +522,26 @@ export function MissaoGame({ avatar, onEnd, onExit }: { avatar: number; onEnd: (
         if (disposed) return;
         player = kit.make(avatar, 7, !low);
         scene.add(player.root);
-        px = map.spawn.x;
-        pz = map.spawn.z;
-        // de costas para a igreja, olhando para a rua (a igreja aparece na frente da câmera)
-        pyaw = map.spawn.yaw + Math.PI;
-        camYaw = map.spawn.yaw;
+        // começa dentro do templo, de frente para a porta dos fundos
+        px = interior.spawn.x;
+        pz = interior.spawn.z;
+        pyaw = interior.spawn.yaw;
+        camYaw = interior.spawn.yaw;
         const lanes = buildLanes(map, col);
         crowd = new Crowd(kit, lanes, col, scene, !low);
-        crowd.spawn(low ? 34 : 60, px, pz, Date.now() % 100000);
+        crowd.spawn(low ? 34 : 60, map.spawn.x, map.spawn.z, Date.now() % 100000);
+        // louvor no palco e congregação em pé entre os bancos
+        interior.people.forEach((sp, i) => {
+          const a = kit.make(sp.model, 900 + i * 7, false);
+          a.root.position.set(sp.x, sp.y, sp.z);
+          a.root.rotation.y = sp.yaw;
+          play(a, sp.stage || i % 3 === 0 ? "Clapping" : "Idle");
+          a.mixer.setTime(i * 0.37);
+          scene.add(a.root);
+          intActors.push(a);
+        });
         setLoading(null);
-        if (process.env.NODE_ENV !== "production") (window as unknown as { __missao: unknown }).__missao = { get p() { return { px, pz, camYaw }; }, tp: (x: number, z: number) => ((px = x), (pz = z)), cam: (y: number, p: number, d: number) => ((camYaw = y), (camPitch = p), (camDist = d)), crowd, map, renderer, scene, camera, tick: (dt: number) => tick(dt, performance.now()), keys };
+        if (process.env.NODE_ENV !== "production") (window as unknown as { __missao: unknown }).__missao = { get p() { return { px, pz, camYaw }; }, tp: (x: number, z: number) => ((px = x), (pz = z)), cam: (y: number, p: number, d: number) => ((camYaw = y), (camPitch = p), (camDist = d)), crowd, map, renderer, scene, camera, interior, city, go: (inside: boolean) => { inChurch = inside; started = true; if (inside && interior) { px = interior.entry.x; pz = interior.entry.z; pyaw = interior.entry.yaw; camYaw = interior.entry.yaw; } }, tick: (dt: number) => tick(dt, performance.now()), keys };
         last = performance.now();
         loop();
       } catch (err) {
@@ -499,6 +558,9 @@ export function MissaoGame({ avatar, onEnd, onExit }: { avatar: number; onEnd: (
       removeEventListener("keyup", ku);
       crowd?.dispose();
       city?.dispose();
+      extras?.dispose();
+      interior?.dispose();
+      for (const a of intActors) a.mixer.stopAllAction();
       renderer.dispose();
       renderer.domElement.remove();
     };
@@ -539,6 +601,14 @@ export function MissaoGame({ avatar, onEnd, onExit }: { avatar: number; onEnd: (
           <p className="mt-1 text-xs font-bold text-amber-300">✝️ {hud.saved} evangelizado{hud.saved === 1 ? "" : "s"}</p>
         </div>
       </div>
+      {hud.inChurch && !hud.started && !loading ? (
+        <div className="pointer-events-none absolute inset-x-0 top-24 z-10 flex justify-center px-4">
+          <div className="max-w-md rounded-2xl bg-black/60 px-4 py-3 text-center text-sm font-bold ring-1 ring-white/20 backdrop-blur">
+            <p className="text-amber-300">“Ide, portanto, fazei discípulos de todas as nações.” (Mt 28:19)</p>
+            <p className="mt-1 text-white/90">Atravesse a porta do fundo do templo para sair pelas ruas de Madureira. O relógio só começa quando você sair.</p>
+          </div>
+        </div>
+      ) : null}
       <canvas ref={mini} width={150} height={150} className={`pointer-events-none absolute z-10 ${touch ? "right-3 top-3 h-[110px] w-[110px]" : "bottom-4 left-4 h-[150px] w-[150px]"}`} />
       {hud.place ? <p className={`pointer-events-none absolute z-10 rounded-full bg-black/50 px-3 py-1 text-xs font-bold ${touch ? "right-3 top-[124px]" : "bottom-[172px] left-4"}`}>{hud.place}</p> : null}
       <button type="button" onClick={onExit} className={`absolute z-10 rounded-full bg-black/55 px-3 py-1.5 text-xs font-bold ring-1 ring-white/20 ${touch ? "left-3 top-[86px]" : "right-3 top-3"}`}>

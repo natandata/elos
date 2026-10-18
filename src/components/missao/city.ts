@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { pointInPoly, pts, roadIndex, type Collider, type MapData } from "@/lib/missao/map";
+import { pillarTex } from "./textures2";
 import { asphaltTex, ballastTex, churchAnnexTex, churchDoorTex, churchHallTex, grassTex, houseTex, metalTex, roofTex, shopTex, sidewalkTex, signTex, skyTex, upperTex } from "./textures";
 
 // Monta Madureira em 3D a partir do mapa: chão, calçadas, prédios (fundidos por pedaço do mapa para pesar pouco),
@@ -111,7 +112,7 @@ function walls(a: Acc, flat: number[], y0: number, y1: number, period: number, v
   }
 }
 
-const PALETTE = ["#f3e2c7", "#e8d5b5", "#f6efe2", "#e9c9b0", "#d9e4cf", "#cfe0ea", "#f0d1d6", "#e7e1d3", "#d8c3a5", "#f5e6a8", "#c9d6df", "#efe3d0", "#e3cfc0", "#f7f3ea"];
+const PALETTE = ["#f3e2c7", "#e8d5b5", "#f6efe2", "#e9c9b0", "#d9e4cf", "#cfe0ea", "#f0d1d6", "#e7e1d3", "#d8c3a5", "#f5e6a8", "#c9d6df", "#efe3d0", "#e3cfc0", "#f7f3ea", "#e8b44a", "#dc8a45", "#9fd4c4", "#bfd88f", "#e8a39a", "#bcd6cc", "#d7a77a", "#c5cdbf", "#f3c969"];
 const rgb = (hex: string) => {
   const c = new THREE.Color(hex);
   return [c.r, c.g, c.b];
@@ -130,6 +131,8 @@ function hash(n: number) {
 const COMMERCIAL = new Set(["primary", "secondary", "tertiary", "busway", "pedestrian", "primary_link", "secondary_link"]);
 
 export type City = {
+  /** porta da frente da igreja (mundo) e a normal que aponta para a rua */
+  door: { x: number; z: number; nx: number; nz: number } | null;
   group: THREE.Group;
   sun: THREE.DirectionalLight;
   sky: THREE.Mesh;
@@ -301,6 +304,7 @@ export function buildCity(map: MapData, col: Collider, opts: { low: boolean }): 
   };
   const commercial = roadIndex(map, COMMERCIAL);
   const tanks: [number, number, number][] = [];
+  let churchDoor: City["door"] = null;
   map.bld.forEach((b, i) => {
     const p = pts(b.p);
     let cx = 0;
@@ -566,7 +570,7 @@ export function buildCity(map: MapData, col: Collider, opts: { low: boolean }): 
         const ha = hAt(cum[i - 1]);
         const hb = hAt(cum[i]);
         // pista
-        quad(deck, [[ax - nx * w, ha, az - nz * w], [bx - nx * w, hb, bz - nz * w], [bx + nx * w, hb, bz + nz * w], [ax + nx * w, ha, az + nz * w]], [0, 1, 0], [[0, 0], [1, 0], [1, 1], [0, 1]], [0.42, 0.42, 0.44]);
+        quad(deck, [[ax - nx * w, ha, az - nz * w], [bx - nx * w, hb, bz - nz * w], [bx + nx * w, hb, bz + nz * w], [ax + nx * w, ha, az + nz * w]], [0, 1, 0], [[0, 0], [1, 0], [1, 1], [0, 1]], [0.33, 0.33, 0.35]);
         // laterais (mureta de concreto) e fundo
         for (const s of [-1, 1]) {
           const ox = nx * w * s;
@@ -575,9 +579,9 @@ export function buildCity(map: MapData, col: Collider, opts: { low: boolean }): 
           const pts4 = s > 0
             ? [[ax + ox, ha - 1.1, az + oz], [bx + ox, hb - 1.1, bz + oz], [bx + ox, hb + 1.0, bz + oz], [ax + ox, ha + 1.0, az + oz]]
             : [[bx + ox, hb - 1.1, bz + oz], [ax + ox, ha - 1.1, az + oz], [ax + ox, ha + 1.0, az + oz], [bx + ox, hb + 1.0, bz + oz]];
-          quad(deck, pts4, n, [[0, 0], [1, 0], [1, 1], [0, 1]], [0.78, 0.77, 0.74]);
+          quad(deck, pts4, n, [[0, 0], [1, 0], [1, 1], [0, 1]], [0.6, 0.59, 0.56]);
         }
-        quad(deck, [[ax + nx * w, ha - 1.1, az + nz * w], [bx + nx * w, hb - 1.1, bz + nz * w], [bx - nx * w, hb - 1.1, bz - nz * w], [ax - nx * w, ha - 1.1, az - nz * w]], [0, -1, 0], [[0, 0], [1, 0], [1, 1], [0, 1]], [0.55, 0.55, 0.55]);
+        quad(deck, [[ax + nx * w, ha - 1.1, az + nz * w], [bx + nx * w, hb - 1.1, bz + nz * w], [bx - nx * w, hb - 1.1, bz - nz * w], [ax - nx * w, ha - 1.1, az - nz * w]], [0, -1, 0], [[0, 0], [1, 0], [1, 1], [0, 1]], [0.38, 0.38, 0.38]);
         for (let s = Math.ceil((cum[i - 1] - lastPier) / 18) * 18 + lastPier; s < cum[i]; s += 18) {
           if (s - lastPier < 17) continue;
           const t = (s - cum[i - 1]) / L;
@@ -591,7 +595,7 @@ export function buildCity(map: MapData, col: Collider, opts: { low: boolean }): 
     if (pierPos.length) {
       const g = keep(new THREE.CylinderGeometry(0.8, 0.9, 1, 10));
       g.translate(0, 0.5, 0);
-      const im = new THREE.InstancedMesh(g, std({ color: 0xb5b0a6 }), pierPos.length);
+      const im = new THREE.InstancedMesh(g, std({ map: keep(pillarTex()) }), pierPos.length);
       const m4 = new THREE.Matrix4();
       pierPos.forEach(([x, h, z], i) => im.setMatrixAt(i, m4.compose(new THREE.Vector3(x, 0, z), new THREE.Quaternion(), new THREE.Vector3(1, h, 1))));
       group.add(shadow(im as unknown as THREE.Mesh));
@@ -699,6 +703,7 @@ export function buildCity(map: MapData, col: Collider, opts: { low: boolean }): 
   // ---------------------------------------------------------------- árvores, palmeiras e postes ao longo das ruas
   const palms: [number, number, number][] = [];
   const leafy: [number, number, number][] = [];
+  const saplings: [number, number, number][] = [];
   const lamps: [number, number, number][] = [];
   const taken: [number, number][] = [];
   const free = (x: number, z: number, r: number) => {
@@ -761,7 +766,7 @@ export function buildCity(map: MapData, col: Collider, opts: { low: boolean }): 
         const jx = x + (hash(k * 31) - 0.5) * 7;
         const jz = z + (hash(k * 57) - 0.5) * 7;
         if (pointInPoly(jx, jz, pk) && free(jx, jz, 4)) {
-          (hash(k) < 0.6 ? palms : leafy).push([jx, jz, hash(k * 3)]);
+          (hash(k) < 0.25 ? palms : saplings).push([jx, jz, hash(k * 3)]);
           taken.push([jx, jz]);
         }
       }
@@ -803,6 +808,29 @@ export function buildCity(map: MapData, col: Collider, opts: { low: boolean }): 
     });
     group.add(shadow(tm as unknown as THREE.Mesh));
     group.add(shadow(cm as unknown as THREE.Mesh));
+  }
+  if (saplings.length) {
+    // mudas finas de tronco pintado de branco (o Parque Madureira é aberto e baixo)
+    const trunk = keep(new THREE.CylinderGeometry(0.06, 0.08, 3.2, 6));
+    trunk.translate(0, 1.6, 0);
+    const paint = keep(new THREE.CylinderGeometry(0.085, 0.095, 1.1, 6));
+    paint.translate(0, 0.55, 0);
+    const crown = keep(new THREE.IcosahedronGeometry(0.95, 1));
+    crown.translate(0, 3.5, 0);
+    crown.scale(1, 0.9, 1);
+    const tm = new THREE.InstancedMesh(trunk, std({ color: 0x6b5338 }), saplings.length);
+    const pm = new THREE.InstancedMesh(paint, std({ color: 0xf3f1ea }), saplings.length);
+    const cm = new THREE.InstancedMesh(crown, std({ color: 0x5a9a3a, flatShading: true }), saplings.length);
+    saplings.forEach(([x, z, h], i) => {
+      const sc = 0.85 + h * 0.5;
+      q4.setFromEuler(new THREE.Euler(0, h * 6.28, 0));
+      m4.compose(v3.set(x, 0.17, z), q4, s3.set(sc, sc, sc));
+      tm.setMatrixAt(i, m4);
+      pm.setMatrixAt(i, m4);
+      cm.setMatrixAt(i, m4);
+      cm.setColorAt(i, new THREE.Color().setHSL(0.25 + h * 0.07, 0.5, 0.33 + h * 0.1));
+    });
+    for (const m of [tm, pm, cm]) group.add(shadow(m as unknown as THREE.Mesh));
   }
   if (lamps.length) {
     // poste preto com braço e luminária (estilo do Rio antigo)
@@ -921,6 +949,7 @@ export function buildCity(map: MapData, col: Collider, opts: { low: boolean }): 
         pl.scale.set(1.3, 0.8, 1);
         add(pl, s * 4.4, 0.8, 1.2);
       }
+      churchDoor = { x: best.x, z: best.z, nx: Math.sin(best.ang), nz: Math.cos(best.ang) };
       group.add(g);
     }
   }
@@ -1028,6 +1057,7 @@ export function buildCity(map: MapData, col: Collider, opts: { low: boolean }): 
   }
 
   return {
+    door: churchDoor,
     group,
     sun,
     sky,

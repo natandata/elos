@@ -3,7 +3,7 @@ import * as THREE from "three";
 // Texturas desenhadas em canvas (sem arquivos): fachadas de Madureira, chão, placas dos pontos marcantes.
 // Sementes fixas: o bairro sai igual toda vez.
 
-function rnd(seed: number) {
+export function rnd(seed: number) {
   let s = seed >>> 0;
   return () => {
     s = (s + 0x6d2b79f5) >>> 0;
@@ -14,7 +14,7 @@ function rnd(seed: number) {
   };
 }
 
-function tex(w: number, h: number, draw: (c: CanvasRenderingContext2D, r: () => number) => void, seed = 1, repeat = true): THREE.CanvasTexture {
+export function tex(w: number, h: number, draw: (c: CanvasRenderingContext2D, r: () => number) => void, seed = 1, repeat = true): THREE.CanvasTexture {
   const cv = document.createElement("canvas");
   cv.width = w;
   cv.height = h;
@@ -30,7 +30,7 @@ function tex(w: number, h: number, draw: (c: CanvasRenderingContext2D, r: () => 
   return t;
 }
 
-function noise(c: CanvasRenderingContext2D, r: () => number, w: number, h: number, n: number, a: number, light = false) {
+export function noise(c: CanvasRenderingContext2D, r: () => number, w: number, h: number, n: number, a: number, light = false) {
   for (let i = 0; i < n; i++) {
     const v = light ? 255 : 0;
     c.fillStyle = `rgba(${v},${v},${v},${r() * a})`;
@@ -304,6 +304,19 @@ export const upperTex = () =>
           }
         }
       }
+    // reboco caído com tijolo aparente e manchas de umidade (como nos sobrados antigos do bairro)
+    for (let i = 0; i < 7; i++) {
+      const bx = r() * 480;
+      const by = r() * 480;
+      c.fillStyle = "rgba(168,92,66,0.85)";
+      c.fillRect(bx, by, 14 + r() * 40, 10 + r() * 28);
+      c.strokeStyle = "rgba(90,50,36,0.6)";
+      for (let k = 0; k < 4; k++) c.strokeRect(bx, by + k * 7, 14 + r() * 40, 7);
+    }
+    for (let i = 0; i < 10; i++) {
+      c.fillStyle = `rgba(${r() < 0.5 ? 70 : 120},${r() < 0.5 ? 100 : 80},${r() < 0.5 ? 60 : 50},${0.08 + r() * 0.1})`;
+      c.fillRect(r() * 512, r() * 512, 20 + r() * 90, 14 + r() * 60);
+    }
     // manchas de chuva
     for (let i = 0; i < 18; i++) {
       const g = c.createLinearGradient(0, 0, 0, 120);
