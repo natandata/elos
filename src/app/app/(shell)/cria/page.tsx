@@ -20,7 +20,7 @@ import { todayBR } from "@/lib/games/engine";
 import { liveGameStreak, todaysPlays } from "@/lib/games/status";
 import { MissionSpotlight, type SpotlightMission } from "@/components/missions/MissionSpotlight";
 import { StoriesTray } from "@/components/profile/StoriesTray";
-import { ElogramAnnouncementCard } from "@/components/elogram/ElogramAnnouncementCard";
+import { BibleAnnouncementCard } from "@/components/bible/BibleAnnouncementCard";
 import { getEloStoriesTray } from "@/lib/stories";
 import { statusDayCutoffUTC } from "@/lib/auth";
 import { formatDate, formatXp, type CareMeeting } from "@/lib/types";
@@ -230,7 +230,7 @@ export default async function CriaDashboard() {
 
   return (
     <>
-      <ElogramAnnouncementCard />
+      <BibleAnnouncementCard role="cria" />
       <PageHeader title={`Olá, ${(profile.full_name || "Cria").split(" ")[0]}!`} subtitle={eloName} />
 
       <WeeklyPushNudge eligible={showPushNudge} />

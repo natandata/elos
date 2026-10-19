@@ -10,9 +10,14 @@ export const todayBR = (): string => new Date().toLocaleDateString("en-CA", { ti
 
 export type BibleGate = { locked: boolean; seconds: number };
 
+/** Leitura de hoje (segundos e se já completou os 5 min), para cria e líder. */
+export async function readingToday(supabase: SupabaseClient, userId: string): Promise<{ seconds: number; done: boolean }> {
+  const { data } = await supabase.from("bible_reading_daily").select("seconds, unlocked_at").eq("user_id", userId).eq("day", todayBR()).maybeSingle<{ seconds: number; unlocked_at: string | null }>();
+  return { seconds: Math.min(BIBLE_GATE_SECONDS, data?.seconds ?? 0), done: !!data?.unlocked_at };
+}
+
 export async function bibleGateFor(supabase: SupabaseClient, profile: { id: string; role: string }): Promise<BibleGate> {
   if (profile.role !== "cria") return { locked: false, seconds: BIBLE_GATE_SECONDS };
-  const { data } = await supabase.from("bible_reading_daily").select("seconds, unlocked_at").eq("user_id", profile.id).eq("day", todayBR()).maybeSingle<{ seconds: number; unlocked_at: string | null }>();
-  const seconds = Math.min(BIBLE_GATE_SECONDS, data?.seconds ?? 0);
-  return { locked: !data?.unlocked_at, seconds };
+  const today = await readingToday(supabase, profile.id);
+  return { locked: !today.done, seconds: today.seconds };
 }

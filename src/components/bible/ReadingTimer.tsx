@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { pingBibleReading, type ReadingPing } from "@/lib/actions/bibleReading";
 
-// Timer no topo da Bíblia: o cria precisa de 5 min de leitura no dia para liberar a Sala de Jogos.
+// Timer no topo da Bíblia: 5 min de leitura no dia dão +1 XP e, para o cria, liberam a Sala de Jogos.
 // Só conta com a aba visível e com algum toque/rolagem nos últimos 90 s; o tempo que vale é o do servidor.
 
 const IDLE_MS = 90_000;
@@ -12,9 +12,10 @@ const PING_MS = 15_000;
 
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
-export function ReadingTimer({ initialSeconds, required }: { initialSeconds: number; required: number }) {
+export function ReadingTimer({ initialSeconds, required, role }: { initialSeconds: number; required: number; role: "cria" | "leader" }) {
   const [secs, setSecs] = useState(initialSeconds);
   const [done, setDone] = useState(initialSeconds >= required);
+  const [justEarned, setJustEarned] = useState(false);
   const [active, setActive] = useState(true);
   const [confirming, setConfirming] = useState(false);
   const last = useRef(0);
@@ -45,6 +46,7 @@ export function ReadingTimer({ initialSeconds, required }: { initialSeconds: num
       if (r.unlocked) {
         setDone(true);
         setConfirming(false);
+        if (r.xp > 0) setJustEarned(true);
       }
     };
     const ping = async () => {
@@ -97,20 +99,25 @@ export function ReadingTimer({ initialSeconds, required }: { initialSeconds: num
   if (done) {
     return (
       <div className="sticky top-2 z-30 mb-4 flex items-center justify-between gap-3 rounded-2xl border border-emerald-400 bg-emerald-50 px-4 py-3 text-emerald-900 shadow-md">
-        <p className="text-sm font-black">🎮 Sala de Jogos liberada hoje!</p>
-        <Link href="/app/jogos" className="btn btn-primary !px-3 !py-1.5 text-sm">
-          Ir jogar
-        </Link>
+        <p className="text-sm font-black">
+          {justEarned ? "✅ Leitura do dia completa: +1 XP!" : "✅ Leitura do dia completa"}
+          {role === "cria" ? " 🎮 Sala de Jogos liberada." : ""}
+        </p>
+        {role === "cria" ? (
+          <Link href="/app/jogos" className="btn btn-primary !px-3 !py-1.5 text-sm">
+            Ir jogar
+          </Link>
+        ) : null}
       </div>
     );
   }
 
+  const goal = role === "cria" ? "para liberar os jogos e ganhar +1 XP" : "para ganhar +1 XP hoje";
+
   return (
     <div className="sticky top-2 z-30 mb-4 rounded-2xl border border-[var(--line)] bg-[var(--card)] px-4 py-3 text-[var(--ink)] shadow-md" role="status" aria-live="polite">
       <div className="flex items-center justify-between gap-3">
-        <p className="min-w-0 text-sm font-black">
-          📖 {confirming ? "Confirmando sua leitura…" : active ? "Leia a Bíblia para liberar os jogos" : "Contagem pausada: role a tela ou toque para continuar"}
-        </p>
+        <p className="min-w-0 text-sm font-black">📖 {confirming ? "Confirmando sua leitura…" : active ? `Leia a Bíblia ${goal}` : "Contagem pausada: role a tela ou toque para continuar"}</p>
         <p className="shrink-0 text-lg font-black tabular-nums">{mmss(left)}</p>
       </div>
       <div className="mt-2 h-2 overflow-hidden rounded-full bg-[var(--accent-soft)]">

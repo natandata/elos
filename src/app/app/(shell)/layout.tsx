@@ -86,6 +86,7 @@ const NAV: Record<string, NavItem[]> = {
       icon: "📅",
       children: [{ href: "/app/eventos", label: "Eventos", icon: "🎬" }],
     },
+    { href: "/app/biblia", label: "Bíblia", icon: "📕" },
     { href: "/app/elogram", label: "Elogram", icon: "📸" },
     { href: "/app/jogos", label: "Jogos", icon: "🎮" },
   ],
