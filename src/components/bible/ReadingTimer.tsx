@@ -38,7 +38,8 @@ export function ReadingTimer({ initialSeconds, required, role }: { initialSecond
     };
     const evs = ["pointerdown", "keydown", "scroll", "touchstart", "wheel", "mousemove"] as const;
     for (const e of evs) addEventListener(e, touch, { passive: true });
-    const isActive = () => document.visibilityState === "visible" && Date.now() - last.current < IDLE_MS;
+    const recentlyActive = () => Date.now() - last.current < IDLE_MS;
+    const isActive = () => document.visibilityState === "visible" && recentlyActive();
 
     const apply = (r: ReadingPing) => {
       if (!r) return;
@@ -49,11 +50,12 @@ export function ReadingTimer({ initialSeconds, required, role }: { initialSecond
         if (r.xp > 0) setJustEarned(true);
       }
     };
-    const ping = async () => {
-      if (busy.current || doneRef.current) return;
+    // resume: acabou de entrar/voltar (sem crédito pelo tempo fora); force: último aviso antes de sair
+    const ping = async (resume = false, force = false) => {
+      if ((busy.current && !force) || doneRef.current) return;
       busy.current = true;
       try {
-        apply(await pingBibleReading());
+        apply(await pingBibleReading(resume));
       } catch {
         // sem rede: tenta no próximo ciclo
       } finally {
@@ -61,7 +63,7 @@ export function ReadingTimer({ initialSeconds, required, role }: { initialSecond
       }
     };
 
-    void ping(); // abre a contagem assim que a pessoa entra na Bíblia
+    void ping(true); // abre a contagem assim que a pessoa entra na Bíblia
     const tick = setInterval(() => {
       const a = isActive();
       setActive(a);
@@ -80,11 +82,21 @@ export function ReadingTimer({ initialSeconds, required, role }: { initialSecond
     const fast = setInterval(() => {
       if (confirmingRef.current) void ping();
     }, 4000);
+    // saiu da aba: credita os últimos segundos lidos e pausa; voltou: retoma de onde parou
+    const flush = () => {
+      if (recentlyActive() && !doneRef.current) void ping(false, true);
+    };
     const vis = () => {
-      if (document.visibilityState === "visible") void ping();
+      if (document.visibilityState === "visible") {
+        last.current = Date.now();
+        void ping(true);
+      } else flush();
     };
     document.addEventListener("visibilitychange", vis);
+    addEventListener("pagehide", flush);
     return () => {
+      flush(); // saiu da tela da Bíblia (a barra some e a contagem para; ao voltar continua do que o servidor guardou)
+      removeEventListener("pagehide", flush);
       for (const e of evs) removeEventListener(e, touch);
       clearInterval(tick);
       clearInterval(net);
