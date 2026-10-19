@@ -24,6 +24,8 @@ const ACTIVITY_LABEL: Record<string, { icon: string; verb: string }> = {
   arena_match: { icon: "🏰", verb: "jogou na Arena dos Heróis" },
   arena_pvp: { icon: "🛡️", verb: "jogou um 1x1 na Arena" },
   arena_duo: { icon: "👥", verb: "jogou em duplas na Arena" },
+  bible_reading: { icon: "📖", verb: "está lendo a Bíblia" },
+  bible_reading_done: { icon: "✅", verb: "completou a leitura do dia" },
 };
 
 /** Ícone e verbo de cada atividade. "game:<chave>" vale para qualquer jogo do catálogo (inclusive os futuros). */
@@ -56,6 +58,7 @@ export default async function AdminDashboard() {
     activityRes,
     gameActivityRes,
     gameExtraRes,
+    bibleRes,
   ] = await Promise.all([
     supabase.from("profiles").select("id", { count: "exact", head: true }),
     supabase.from("profiles").select("id", { count: "exact", head: true }).eq("role", "cria"),
@@ -79,9 +82,10 @@ export default async function AdminDashboard() {
     supabase.rpc("admin_recent_activity", { p_exclude_user: profile.id }),
     supabase.rpc("admin_recent_game_activity", { p_exclude_user: profile.id }),
     supabase.rpc("admin_recent_game_activity_extra", { p_exclude_user: profile.id }),
+    supabase.rpc("admin_recent_bible_activity", { p_exclude_user: profile.id }),
   ]);
 
-  const activity = ([...((activityRes.data ?? []) as unknown[]), ...((gameActivityRes.data ?? []) as unknown[]), ...((gameExtraRes.data ?? []) as unknown[])] as {
+  const activity = ([...((activityRes.data ?? []) as unknown[]), ...((gameActivityRes.data ?? []) as unknown[]), ...((gameExtraRes.data ?? []) as unknown[]), ...((bibleRes.data ?? []) as unknown[])] as {
     actor_id: string;
     actor_name: string;
     actor_role: string;

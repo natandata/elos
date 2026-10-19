@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { BIBLE_BOOKS } from "@/lib/bible/books";
 import { pingBibleReading, type ReadingPing } from "@/lib/actions/bibleReading";
 
 // Timer no topo da Bíblia: 5 min de leitura no dia dão +1 XP e, para o cria, liberam a Sala de Jogos.
@@ -9,6 +11,14 @@ import { pingBibleReading, type ReadingPing } from "@/lib/actions/bibleReading";
 
 const IDLE_MS = 90_000;
 const PING_MS = 15_000;
+
+/** "/app/biblia/JHN/3" -> "João 3" (para o admin ver o que a pessoa está lendo). */
+function refFromPath(path: string): string | undefined {
+  const m = path.match(/^\/app\/biblia\/([A-Za-z0-9]{3})(?:\/(\d+))?/);
+  if (!m) return undefined;
+  const b = BIBLE_BOOKS.find((x) => x.id === m[1].toUpperCase());
+  return b ? (m[2] ? `${b.name} ${m[2]}` : b.name) : undefined;
+}
 
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
@@ -22,6 +32,12 @@ export function ReadingTimer({ initialSeconds, required, role }: { initialSecond
   const busy = useRef(false);
   const doneRef = useRef(done);
   const confirmingRef = useRef(false);
+  const pathname = usePathname();
+  const refRef = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    refRef.current = refFromPath(pathname);
+  }, [pathname]);
 
   useEffect(() => {
     doneRef.current = done;
@@ -55,7 +71,7 @@ export function ReadingTimer({ initialSeconds, required, role }: { initialSecond
       if ((busy.current && !force) || doneRef.current) return;
       busy.current = true;
       try {
-        apply(await pingBibleReading(resume));
+        apply(await pingBibleReading(resume, refRef.current));
       } catch {
         // sem rede: tenta no próximo ciclo
       } finally {
