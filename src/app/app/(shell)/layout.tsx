@@ -109,6 +109,7 @@ const NAV: Record<string, NavItem[]> = {
       ],
     },
     { href: "/app/agenda", label: "Agenda", icon: "📅" },
+    { href: "/app/biblia", label: "Bíblia", icon: "📕" },
     { href: "/app/elogram", label: "Elogram", icon: "📸" },
     { href: "/app/jogos", label: "Jogos", icon: "🎮" },
   ],

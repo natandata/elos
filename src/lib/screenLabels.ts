@@ -17,6 +17,7 @@ const SCREEN_LABEL: Record<string, string> = {
   "/app/cria/missoes": "Missões",
   "/app/ranking": "Meu Elo",
   "/app/agenda": "Agenda",
+  "/app/biblia": "Bíblia",
   "/app/chat": "Chat",
   "/app/notificacoes": "Notificações",
   "/app/perfil": "Perfil",
