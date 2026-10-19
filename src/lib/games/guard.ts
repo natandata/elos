@@ -6,10 +6,13 @@ import { getEarlyAccess, getVisibilities, isHiddenFor } from "./releaseServer";
 import { logGameActivity } from "./activity";
 import { GAME_CATALOG } from "./catalog";
 import { lockedGames } from "./storeAccess";
+import { bibleGateFor } from "./bibleGate";
 
 /** Trava de rota: se o admin escondeu o jogo, quem não é admin volta para a Sala de Jogos. */
 export async function guardGame(game: GameKey): Promise<void> {
   const { profile } = await requireProfile();
+  // crias só jogam depois de ler a Bíblia 5 minutos no dia (a Sala de Jogos explica e leva para a Bíblia)
+  if (profile.role === "cria" && (await bibleGateFor(await createClient(), profile)).locked) redirect("/app/jogos");
   const vis = await getVisibilities();
   if (isHiddenFor(vis[game], profile.role, (await getEarlyAccess(profile.id)).has(game))) redirect("/app/jogos");
   // à venda na Loja: só entra quem comprou

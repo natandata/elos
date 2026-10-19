@@ -18,6 +18,8 @@ import { XpExchange } from "@/components/games/XpExchange";
 import { StoreGallery } from "@/components/games/StoreGallery";
 import { STORE_COLUMNS, type StoreItem } from "@/lib/games/store";
 import { gameOpenFor, getEarlyAccess, getVisibilities, isHiddenFor } from "@/lib/games/releaseServer";
+import { bibleGateFor } from "@/lib/games/bibleGate";
+import { BibleGameLock } from "@/components/games/BibleGameLock";
 
 type Tile = { href: string; game: string; emoji: string; title: string; hint: string; tone: string };
 
@@ -31,6 +33,9 @@ const TILES: Tile[] = [
 export default async function JogosPage() {
   const { profile } = await requireRole("cria", "leader", "admin");
   const supabase = await createClient();
+  // trava do dia: cria só entra na Sala de Jogos depois de ler a Bíblia 5 minutos
+  const gate = await bibleGateFor(supabase, profile);
+  if (gate.locked) return <BibleGameLock seconds={gate.seconds} />;
 
   const [plays, cardsRes, duelsRes, weekRes, boardRes, storeRes, walletRes, ownedRes, xpRes, rateRes] = await Promise.all([
     todaysPlays(supabase, profile.id),
