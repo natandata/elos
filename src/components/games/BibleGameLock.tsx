@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { PageHeader } from "@/components/ui";
 import { BIBLE_GATE_SECONDS } from "@/lib/games/bibleGate";
 
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
@@ -10,7 +9,10 @@ export function BibleGameLock({ seconds }: { seconds: number }) {
   const left = Math.max(0, BIBLE_GATE_SECONDS - seconds);
   return (
     <>
-      <PageHeader title="Jogos" subtitle="A Sala de Jogos abre depois da leitura do dia." />
+      <header className="mb-5 pt-1 text-center">
+        <h1 className="gr-title">Sala de Jogos</h1>
+        <p className="mx-auto mt-2 max-w-sm text-sm font-semibold text-white/85">A Sala de Jogos abre depois da leitura do dia.</p>
+      </header>
       <div className="card mx-auto max-w-md p-6 text-center">
         <p className="text-5xl" aria-hidden>
           🔒

@@ -1990,3 +1990,196 @@ input[type="datetime-local"] {
 .qd-theme .text-emerald-700 { color: #6ff0a0; }
 .qd-theme .text-rose-700 { color: #ff8fb0; }
 .qd-theme details > summary { color: #c4c1ff; }
+
+
+/* ------------------------------------------------------------------------------------------------
+   Sala de Jogos: fundo de fliperama (céu estrelado, emojis de jogos subindo, piso neon). Tudo em CSS,
+   sem imagem. O fundo fica "preso" na tela enquanto a página rola (sticky) e para de animar para quem
+   prefere menos movimento.
+   ------------------------------------------------------------------------------------------------ */
+.gr-room {
+  position: relative;
+  isolation: isolate;
+  overflow: clip;
+  border-radius: 1.75rem;
+  padding: 0.9rem;
+  color: #fff;
+  background: #170b46;
+}
+.gr-bg {
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  margin: -0.9rem -0.9rem -100dvh;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 70% at 50% -8%, #7c3aed 0%, rgba(124, 58, 237, 0) 62%),
+    radial-gradient(90% 60% at 100% 55%, rgba(236, 72, 153, 0.42) 0%, rgba(236, 72, 153, 0) 70%),
+    radial-gradient(90% 60% at 0% 70%, rgba(34, 211, 238, 0.28) 0%, rgba(34, 211, 238, 0) 70%),
+    linear-gradient(180deg, #1b0d55 0%, #12083a 55%, #0b0526 100%);
+}
+.gr-stars,
+.gr-stars2 {
+  position: absolute;
+  inset: 0;
+  background-repeat: repeat;
+}
+.gr-stars {
+  background-image: radial-gradient(1.6px 1.6px at 20px 30px, #fff 50%, transparent 52%), radial-gradient(1.2px 1.2px at 90px 80px, #ffe9a8 50%, transparent 52%),
+    radial-gradient(1.4px 1.4px at 150px 20px, #c4b5fd 50%, transparent 52%), radial-gradient(1px 1px at 60px 140px, #fff 50%, transparent 52%);
+  background-size: 180px 170px;
+  opacity: 0.85;
+  animation: gr-twinkle 4.5s ease-in-out infinite;
+}
+.gr-stars2 {
+  background-image: radial-gradient(1.8px 1.8px at 40px 60px, #fff 50%, transparent 52%), radial-gradient(1.2px 1.2px at 120px 120px, #fbcfe8 50%, transparent 52%);
+  background-size: 230px 210px;
+  opacity: 0.6;
+  animation: gr-twinkle 6.5s ease-in-out infinite reverse;
+}
+.gr-floor {
+  position: absolute;
+  left: -60%;
+  right: -60%;
+  bottom: -6%;
+  height: 46%;
+  background-image: linear-gradient(rgba(255, 90, 214, 0.6) 1.5px, transparent 1.5px), linear-gradient(90deg, rgba(129, 140, 248, 0.6) 1.5px, transparent 1.5px);
+  background-size: 56px 56px;
+  transform: perspective(260px) rotateX(64deg);
+  transform-origin: 50% 0;
+  -webkit-mask-image: linear-gradient(to top, #000 8%, transparent 92%);
+  mask-image: linear-gradient(to top, #000 8%, transparent 92%);
+  animation: gr-floor 2.6s linear infinite;
+}
+.gr-f {
+  position: absolute;
+  bottom: -12%;
+  left: var(--x);
+  font-size: var(--s);
+  line-height: 1;
+  opacity: 0.55;
+  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.35));
+  animation: gr-rise var(--d) linear infinite;
+  animation-delay: var(--dl);
+}
+.gr-content {
+  position: relative;
+  z-index: 1;
+}
+.gr-title {
+  font-size: clamp(2rem, 8vw, 3rem);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #fff;
+  text-shadow: 0 0 18px rgba(236, 72, 153, 0.9), 0 0 40px rgba(124, 58, 237, 0.9), 0 3px 0 #4c1d95;
+}
+.gr-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  backdrop-filter: blur(6px);
+}
+.gr-cat {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: 1.5rem;
+  padding: 3px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18), 0 14px 40px -12px rgba(0, 0, 0, 0.7);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.gr-cat:hover {
+  transform: translateY(-3px) scale(1.01);
+}
+.gr-cat:active {
+  transform: scale(0.985);
+}
+.gr-cat-inner {
+  position: relative;
+  height: 100%;
+  border-radius: 1.3rem;
+  padding: 1rem;
+  background: linear-gradient(160deg, rgba(20, 10, 60, 0.92), rgba(12, 6, 38, 0.96));
+}
+.gr-cat-fun {
+  background: linear-gradient(135deg, #fb7185, #f59e0b, #fde047, #fb7185);
+  background-size: 300% 300%;
+  animation: gr-shift 6s ease infinite;
+}
+.gr-cat-edu {
+  background: linear-gradient(135deg, #22d3ee, #6366f1, #34d399, #22d3ee);
+  background-size: 300% 300%;
+  animation: gr-shift 7s ease infinite;
+}
+.gr-pop {
+  animation: gr-bob 3.2s ease-in-out infinite;
+}
+.gr-sec {
+  margin-bottom: 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.82);
+}
+.gr-seg {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 3px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+.gr-seg a {
+  border-radius: 999px;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.8rem;
+  font-weight: 900;
+  color: rgba(255, 255, 255, 0.85);
+}
+.gr-seg a[data-on="true"] {
+  color: #1b0d55;
+  background: #fff;
+  box-shadow: 0 0 14px rgba(255, 255, 255, 0.6);
+}
+@keyframes gr-twinkle {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.95; }
+}
+@keyframes gr-floor {
+  to { background-position: 0 56px; }
+}
+@keyframes gr-rise {
+  0% { transform: translateY(0) rotate(-8deg); opacity: 0; }
+  10% { opacity: 0.55; }
+  90% { opacity: 0.55; }
+  100% { transform: translateY(-125dvh) rotate(14deg); opacity: 0; }
+}
+@keyframes gr-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes gr-bob {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50% { transform: translateY(-5px) rotate(3deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gr-stars, .gr-stars2, .gr-floor, .gr-f, .gr-cat-fun, .gr-cat-edu, .gr-pop { animation: none; }
+  .gr-f { display: none; }
+}
+
+/* cartões claros dentro da Sala (ranking, retrospectiva...) mantêm o texto escuro do app */
+.gr-room .card {
+  color: var(--ink);
+}

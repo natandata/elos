@@ -88,7 +88,7 @@ const NAV: Record<string, NavItem[]> = {
     },
     { href: "/app/biblia", label: "Bíblia", icon: "📕" },
     { href: "/app/elogram", label: "Elogram", icon: "📸" },
-    { href: "/app/jogos", label: "Jogos", icon: "🎮" },
+    { href: "/app/jogos", label: "Sala de Jogos", icon: "🎮" },
   ],
   cria: [
     {
@@ -112,7 +112,7 @@ const NAV: Record<string, NavItem[]> = {
     { href: "/app/agenda", label: "Agenda", icon: "📅" },
     { href: "/app/biblia", label: "Bíblia", icon: "📕" },
     { href: "/app/elogram", label: "Elogram", icon: "📸" },
-    { href: "/app/jogos", label: "Jogos", icon: "🎮" },
+    { href: "/app/jogos", label: "Sala de Jogos", icon: "🎮" },
   ],
   guardian: [
     { href: "/app/elogram", label: "Elogram", icon: "📸" },

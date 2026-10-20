@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -16,5 +17,8 @@ export async function pingBibleReading(resume = false, ref?: string): Promise<Re
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("record_bible_reading", { p_resume: resume, p_ref: ref ? ref.slice(0, 60) : null });
   if (error || !data) return null;
-  return data as { seconds: number; required: number; unlocked: boolean; xp: number };
+  const r = data as { seconds: number; required: number; unlocked: boolean; xp: number };
+  // acabou de liberar: limpa a cópia guardada da Sala de Jogos (ela é pré-carregada) para não mostrar a tela "travada"
+  if (r.unlocked && r.xp > 0) revalidatePath("/app/jogos");
+  return r;
 }

@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Avatar } from "@/components/Avatar";
 import { ChestButton } from "@/components/games/ChestButton";
-import { PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import { CARDS } from "@/lib/games/cards";
 import { difficultyChip } from "@/lib/games/difficulty";
@@ -20,6 +19,8 @@ import { STORE_COLUMNS, type StoreItem } from "@/lib/games/store";
 import { gameOpenFor, getEarlyAccess, getVisibilities, isHiddenFor } from "@/lib/games/releaseServer";
 import { bibleGateFor } from "@/lib/games/bibleGate";
 import { BibleGameLock } from "@/components/games/BibleGameLock";
+import { RoomBackdrop } from "@/components/games/room/RoomBackdrop";
+import { CategoryBar, CategoryCards, RoomHero } from "@/components/games/room/RoomParts";
 
 type Tile = { href: string; game: string; emoji: string; title: string; hint: string; tone: string };
 
@@ -30,12 +31,20 @@ const TILES: Tile[] = [
   { href: "/app/jogos/ordem", game: "order", emoji: "⏳", title: "Ordene os Fatos", hint: "até +2 XP", tone: "bg-emerald-100 text-emerald-900 border-emerald-300" },
 ];
 
-export default async function JogosPage() {
+export default async function JogosPage({ searchParams }: { searchParams: Promise<{ cat?: string }> }) {
   const { profile } = await requireRole("cria", "leader", "admin");
+  const { cat: catParam } = await searchParams;
+  const cat = catParam === "divertidos" || catParam === "educativos" ? catParam : null;
   const supabase = await createClient();
   // trava do dia: cria só entra na Sala de Jogos depois de ler a Bíblia 5 minutos
   const gate = await bibleGateFor(supabase, profile);
-  if (gate.locked) return <BibleGameLock seconds={gate.seconds} />;
+  if (gate.locked) {
+    return (
+      <RoomBackdrop>
+        <BibleGameLock seconds={gate.seconds} />
+      </RoomBackdrop>
+    );
+  }
 
   const [plays, cardsRes, duelsRes, weekRes, boardRes, storeRes, walletRes, ownedRes, xpRes, rateRes] = await Promise.all([
     todaysPlays(supabase, profile.id),
@@ -72,6 +81,18 @@ export default async function JogosPage() {
   const tiles = TILES.filter(showTile);
   // O lançamento mais recente fica no topo: já abertos por data (mais novo primeiro), depois os que abrem em breve
   // (o mais próximo primeiro), depois os sem data (em construção) e, por fim, os clássicos.
+  // quantos jogos divertidos aparecem para esta pessoa (o mesmo critério das capas abaixo)
+  const funCount = [
+    !hide("arena"),
+    !hide("memory"),
+    !hide("dress") && (dressOpen || !!GAME_TEASER.dress),
+    !hide("minearena") && (mineOpen || !!GAME_TEASER.minearena),
+    !hide("arenasoccer") && soccerOpen,
+    !hide("biblerush") && rushOpen,
+    !hide("missao") && missaoOpen,
+    !hide("ultimatribo") && triboOpen,
+    !hide("quemdesenha") && qdOpen,
+  ].filter(Boolean).length;
   const order = gameCoverOrder(dates);
   const streak = liveGameStreak(profile.game_streak ?? 0, profile.game_streak_date ?? null);
   const doneCount = tiles.filter((t) => plays.get(t.game)?.finished).length;
@@ -102,9 +123,77 @@ export default async function JogosPage() {
   }[];
 
   return (
-    <>
-      <PageHeader title="🎮 Jogos" subtitle="Aprenda a Bíblia jogando, ganhe XP e junte cartas." />
+    <RoomBackdrop>
+      {cat === null ? (
+        <>
+          <RoomHero streak={streak} doneToday={doneCount} totalToday={tiles.length} coins={coinBalance} />
+          <CategoryCards funCount={funCount} eduCount={tiles.length} eduDone={doneCount} eduTotal={tiles.length} />
 
+      <section className="mb-5">
+        <ChestButton opened={chestOpened} />
+      </section>
+
+          <div className="mb-5 rounded-3xl bg-[var(--bg)] p-3 text-[var(--ink)]">
+      <StoreGallery items={storeItems.map((i) => (i.status === "scheduled" && i.game_key && i.game_key in dates ? { ...i, release_at: dates[i.game_key as keyof typeof dates] } : i))} balance={coinBalance} ownedIds={ownedAll} />
+      <XpExchange availableXp={availableXp} rate={xpRate} early={earlyExchange} />
+          </div>
+
+      <section className="mb-5">
+        <h2 className="gr-sec">🏆 Elo vs Elo — semana</h2>
+        <div className="card p-3">
+          {week.length === 0 ? (
+            <p className="p-2 text-sm text-[var(--muted)]">Ninguém jogou ainda essa semana. Seja o primeiro!</p>
+          ) : (
+            <ol className="space-y-1">
+              {week.slice(0, 5).map((w, i) => (
+                <li
+                  key={w.elo_id}
+                  className={`flex items-center justify-between rounded-xl px-3 py-2 text-sm ${
+                    w.elo_id === profile.elo_id ? "bg-[var(--accent-soft)] font-black text-[var(--accent-strong)]" : "font-semibold"
+                  }`}
+                >
+                  <span className="truncate">
+                    {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}º`} {w.elo_name}
+                  </span>
+                  <span className="tabular-nums">{Number(w.points)} pts</span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+      </section>
+
+      {board.length > 0 ? (
+        <section className="mb-5">
+          <h2 className="gr-sec">Quem já jogou hoje no seu Elo</h2>
+          <div className="card divide-y divide-[var(--line)] p-1">
+            {board.map((b) => (
+              <div key={b.user_id} className="flex items-center gap-3 px-3 py-2">
+                <Avatar url={b.avatar_url} name={b.full_name || "Sem nome"} size={32} />
+                <span className="min-w-0 flex-1 truncate text-sm font-bold">
+                  {b.user_id === profile.id ? "Você" : b.full_name || "Sem nome"}
+                </span>
+                <span className="text-xs font-bold text-[var(--muted)]">
+                  {b.today_done > 0 ? `✅ ${b.today_done} hoje` : "ainda não jogou"}
+                </span>
+                <span className="w-14 text-right text-sm font-black tabular-nums">{Number(b.week_points)} pts</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <Link href="/app/retrospectiva" className="card mb-5 block p-4 text-center">
+        <p className="text-base font-black">📅 Sua retrospectiva do mês</p>
+        <p className="text-sm font-semibold text-[var(--muted)]">Veja tudo o que você conquistou no ELOS →</p>
+      </Link>
+        </>
+      ) : (
+        <>
+          <CategoryBar current={cat} />
+          <h1 className="gr-title mb-4 text-center !text-3xl">{cat === "divertidos" ? "🎉 Jogos Divertidos" : "📚 Jogos Educativos"}</h1>
+          {cat === "divertidos" ? (
+            <>
       <div className="flex flex-col">
       <div key="quemdesenha" style={{ order: order["quemdesenha"] }}>
         {hide("quemdesenha") || !qdOpen ? null : (
@@ -241,29 +330,9 @@ export default async function JogosPage() {
         )}
       </div>
       </div>
-
-      <StoreGallery items={storeItems.map((i) => (i.status === "scheduled" && i.game_key && i.game_key in dates ? { ...i, release_at: dates[i.game_key as keyof typeof dates] } : i))} balance={coinBalance} ownedIds={ownedAll} />
-      <XpExchange availableXp={availableXp} rate={xpRate} early={earlyExchange} />
-
-      <section className="mb-5 grid grid-cols-2 gap-3">
-        <div className="rounded-2xl bg-[var(--accent)] p-4 text-[var(--accent-ink)]">
-          <p className="text-3xl" aria-hidden>
-            🔥
-          </p>
-          <p className="mt-1 text-3xl font-black tabular-nums leading-none">{streak}</p>
-          <p className="mt-1 text-xs font-bold opacity-90">{streak === 1 ? "dia seguido" : "dias seguidos"} jogando</p>
-        </div>
-        <div className="card p-4">
-          <p className="text-3xl" aria-hidden>
-            ✅
-          </p>
-          <p className="mt-1 text-3xl font-black tabular-nums leading-none">
-            {doneCount}/{tiles.length}
-          </p>
-          <p className="mt-1 text-xs font-bold text-[var(--muted)]">jogos feitos hoje</p>
-        </div>
-      </section>
-
+            </>
+          ) : (
+            <>
       <section className="mb-5 grid grid-cols-2 gap-3">
         {tiles.map((t) => {
           const play = plays.get(t.game);
@@ -329,60 +398,10 @@ export default async function JogosPage() {
         </Link>
         )}
       </section>
-
-      <section className="mb-5">
-        <ChestButton opened={chestOpened} />
-      </section>
-
-      <section className="mb-5">
-        <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">🏆 Elo vs Elo — semana</h2>
-        <div className="card p-3">
-          {week.length === 0 ? (
-            <p className="p-2 text-sm text-[var(--muted)]">Ninguém jogou ainda essa semana. Seja o primeiro!</p>
-          ) : (
-            <ol className="space-y-1">
-              {week.slice(0, 5).map((w, i) => (
-                <li
-                  key={w.elo_id}
-                  className={`flex items-center justify-between rounded-xl px-3 py-2 text-sm ${
-                    w.elo_id === profile.elo_id ? "bg-[var(--accent-soft)] font-black text-[var(--accent-strong)]" : "font-semibold"
-                  }`}
-                >
-                  <span className="truncate">
-                    {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}º`} {w.elo_name}
-                  </span>
-                  <span className="tabular-nums">{Number(w.points)} pts</span>
-                </li>
-              ))}
-            </ol>
+            </>
           )}
-        </div>
-      </section>
-
-      {board.length > 0 ? (
-        <section className="mb-5">
-          <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">Quem já jogou hoje no seu Elo</h2>
-          <div className="card divide-y divide-[var(--line)] p-1">
-            {board.map((b) => (
-              <div key={b.user_id} className="flex items-center gap-3 px-3 py-2">
-                <Avatar url={b.avatar_url} name={b.full_name || "Sem nome"} size={32} />
-                <span className="min-w-0 flex-1 truncate text-sm font-bold">
-                  {b.user_id === profile.id ? "Você" : b.full_name || "Sem nome"}
-                </span>
-                <span className="text-xs font-bold text-[var(--muted)]">
-                  {b.today_done > 0 ? `✅ ${b.today_done} hoje` : "ainda não jogou"}
-                </span>
-                <span className="w-14 text-right text-sm font-black tabular-nums">{Number(b.week_points)} pts</span>
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      <Link href="/app/retrospectiva" className="card mb-5 block p-4 text-center">
-        <p className="text-base font-black">📅 Sua retrospectiva do mês</p>
-        <p className="text-sm font-semibold text-[var(--muted)]">Veja tudo o que você conquistou no ELOS →</p>
-      </Link>
-    </>
+        </>
+      )}
+    </RoomBackdrop>
   );
 }
