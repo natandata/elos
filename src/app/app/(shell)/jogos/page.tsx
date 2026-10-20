@@ -17,7 +17,7 @@ import { XpExchange } from "@/components/games/XpExchange";
 import { StoreGallery } from "@/components/games/StoreGallery";
 import { STORE_COLUMNS, type StoreItem } from "@/lib/games/store";
 import { gameOpenFor, getEarlyAccess, getVisibilities, isHiddenFor } from "@/lib/games/releaseServer";
-import { bibleGateFor } from "@/lib/games/bibleGate";
+import { bibleGateFor, todayBR } from "@/lib/games/bibleGate";
 import { BibleGameLock } from "@/components/games/BibleGameLock";
 import { RoomBackdrop } from "@/components/games/room/RoomBackdrop";
 import { CategoryBar, CategoryCards, RoomHero } from "@/components/games/room/RoomParts";
@@ -71,7 +71,7 @@ export default async function JogosPage({ searchParams }: { searchParams: Promis
   const storeItems = (storeRes.data ?? []) as StoreItem[];
 
   const dates = await getReleaseDates();
-  const [dressOpen, mineOpen, rushOpen, soccerOpen, triboOpen, qdOpen, missaoOpen, vis] = await Promise.all([gameOpenFor("dress", profile.id), gameOpenFor("minearena", profile.id), gameOpenFor("biblerush", profile.id), gameOpenFor("arenasoccer", profile.id), gameOpenFor("ultimatribo", profile.id), gameOpenFor("quemdesenha", profile.id), gameOpenFor("missao", profile.id), getVisibilities()]);
+  const [dressOpen, mineOpen, rushOpen, soccerOpen, triboOpen, qdOpen, missaoOpen, englishOpen, vis] = await Promise.all([gameOpenFor("dress", profile.id), gameOpenFor("minearena", profile.id), gameOpenFor("biblerush", profile.id), gameOpenFor("arenasoccer", profile.id), gameOpenFor("ultimatribo", profile.id), gameOpenFor("quemdesenha", profile.id), gameOpenFor("missao", profile.id), gameOpenFor("english", profile.id), getVisibilities()]);
   const locked = await lockedGames(supabase, profile.id, profile.role);
   const early = await getEarlyAccess(profile.id);
   // quem tem acesso antecipado recebe o jogo da Loja de graça: aparece como já adquirido
@@ -95,7 +95,12 @@ export default async function JogosPage({ searchParams }: { searchParams: Promis
   ].filter(Boolean).length;
   const order = gameCoverOrder(dates);
   const streak = liveGameStreak(profile.game_streak ?? 0, profile.game_streak_date ?? null);
-  const doneCount = tiles.filter((t) => plays.get(t.game)?.finished).length;
+  // Inglês em Ação (educativo): aparece quando aberto para esta pessoa; "feito hoje" = completou lição ou conversa hoje
+  const englishVisible = englishOpen && !hide("english");
+  const engProf = englishVisible ? (await supabase.from("english_profile").select("last_done_date").eq("user_id", profile.id).maybeSingle<{ last_done_date: string | null }>()).data : null;
+  const englishDone = englishVisible && engProf?.last_done_date === todayBR();
+  const eduTotal = tiles.length + (englishVisible ? 1 : 0);
+  const doneCount = tiles.filter((t) => plays.get(t.game)?.finished).length + (englishDone ? 1 : 0);
   const chestOpened = plays.get("chest")?.finished === true;
 
   const duels = (duelsRes.data ?? []) as {
@@ -126,8 +131,8 @@ export default async function JogosPage({ searchParams }: { searchParams: Promis
     <RoomBackdrop>
       {cat === null ? (
         <>
-          <RoomHero streak={streak} doneToday={doneCount} totalToday={tiles.length} coins={coinBalance} />
-          <CategoryCards funCount={funCount} eduCount={tiles.length} eduDone={doneCount} eduTotal={tiles.length} />
+          <RoomHero streak={streak} doneToday={doneCount} totalToday={eduTotal} coins={coinBalance} />
+          <CategoryCards funCount={funCount} eduCount={eduTotal} eduDone={doneCount} eduTotal={eduTotal} />
 
       <section className="mb-5">
         <ChestButton opened={chestOpened} />
@@ -359,6 +364,18 @@ export default async function JogosPage({ searchParams }: { searchParams: Promis
             </Link>
           );
         })}
+        {englishVisible ? (
+          <Link href="/app/jogos/ingles" className={`relative flex aspect-square flex-col justify-between rounded-2xl border-2 border-sky-300 bg-sky-100 p-4 text-sky-900 transition active:scale-[0.98] ${englishDone ? "opacity-80" : ""}`}>
+            <span className="text-5xl" aria-hidden>
+              🗣️
+            </span>
+            <div>
+              <p className="text-lg font-black leading-tight">Inglês em Ação</p>
+              <p className="mt-1 text-xs font-bold opacity-80">{englishDone ? "✔ Feito hoje · continue treinando" : "Lições e conversas · até +5 XP/dia"}</p>
+              <p className="mt-0.5 text-[11px] font-black uppercase tracking-wide opacity-70">Novo</p>
+            </div>
+          </Link>
+        ) : null}
       </section>
 
       <section className="mb-5 grid grid-cols-2 gap-3">

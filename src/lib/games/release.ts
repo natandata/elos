@@ -19,10 +19,12 @@ export const GAME_RELEASES = {
   madureira: "2099-01-01T00:00:00-03:00",
   /** Missão Madureira (mundo aberto no bairro de Madureira, evangelismo): em construção, oculto. Só admin e acesso antecipado. */
   missao: "2099-01-01T00:00:00-03:00",
+  /** Inglês em Ação (jogo educativo de inglês, estilo trilha, com conversas): em construção, oculto. Só admin e acesso antecipado. */
+  english: "2099-01-01T00:00:00-03:00",
 } as const;
 
 /** Antes da data, aparece um cartão "em breve" para os jogadores? O Bible Rush fica invisível até abrir. */
-export const GAME_TEASER: Record<keyof typeof GAME_RELEASES, boolean> = { dress: true, minearena: true, biblerush: false, arenasoccer: false, arenacampanha: false, ultimatribo: false, quemdesenha: false, madureira: false, missao: false };
+export const GAME_TEASER: Record<keyof typeof GAME_RELEASES, boolean> = { dress: true, minearena: true, biblerush: false, arenasoccer: false, arenacampanha: false, ultimatribo: false, quemdesenha: false, madureira: false, missao: false, english: false };
 
 export type ReleasedGame = keyof typeof GAME_RELEASES;
 
