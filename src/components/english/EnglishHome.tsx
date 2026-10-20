@@ -7,7 +7,7 @@ import { XP_DAILY_LESSONS } from "@/lib/english/grade";
 // Trilha do Inglês em Ação: meta do dia, próxima lição, unidades (lições, conversa e nível lendário) e treino.
 
 function Node({ href, icon, title, sub, state, stars }: { href?: string; icon: string; title: string; sub?: string; state: "done" | "next" | "open" | "locked"; stars?: number }) {
-  const tone = state === "done" ? "border-emerald-300 bg-emerald-50 text-emerald-950" : state === "next" ? "border-[var(--accent)] bg-[var(--accent-soft)] ring-2 ring-[var(--accent)]" : state === "open" ? "border-[var(--line)] bg-[var(--card)]" : "border-[var(--line)] bg-[var(--card)] opacity-55";
+  const tone = state === "done" ? "border-emerald-300 bg-emerald-50 text-emerald-950" : state === "next" ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[#1d1535] ring-2 ring-[var(--accent)]" : state === "open" ? "border-[var(--line)] bg-[var(--card)]" : "border-[var(--line)] bg-[var(--card)] opacity-55";
   const body = (
     <div className={`flex items-center gap-3 rounded-2xl border-2 px-3 py-3 transition active:scale-[0.99] ${tone}`}>
       <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-2xl ${state === "locked" ? "bg-[var(--line)]" : "bg-white/80"}`} aria-hidden>

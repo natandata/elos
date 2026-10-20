@@ -141,12 +141,12 @@ export function RoleplayPlayer({ rp, backHref, nextHref }: { rp: Roleplay; backH
           </p>
           <h2 className="mt-1 text-xl font-black">Conversa concluída!</h2>
           <div className="mt-3 grid grid-cols-2 gap-3 text-left">
-            <div className="rounded-2xl bg-[var(--accent-soft)] p-3">
-              <p className="text-xs font-bold text-[var(--muted)]">Precisão</p>
+            <div className="rounded-2xl bg-[var(--accent-soft)] p-3 text-[#1d1535]">
+              <p className="text-xs font-bold text-[#5a5070]">Precisão</p>
               <p className="text-3xl font-black tabular-nums">{report.accuracy}%</p>
             </div>
-            <div className="rounded-2xl bg-[var(--accent-soft)] p-3">
-              <p className="text-xs font-bold text-[var(--muted)]">Complexidade</p>
+            <div className="rounded-2xl bg-[var(--accent-soft)] p-3 text-[#1d1535]">
+              <p className="text-xs font-bold text-[#5a5070]">Complexidade</p>
               <p className="text-3xl font-black tabular-nums">{report.complexity}%</p>
             </div>
           </div>
@@ -170,7 +170,7 @@ export function RoleplayPlayer({ rp, backHref, nextHref }: { rp: Roleplay; backH
           <p className="text-sm font-black">🗣️ Frases para levar</p>
           <ul className="mt-1 space-y-2">
             {report.phrases.map((p) => (
-              <li key={p} className="flex items-center justify-between gap-2 rounded-xl bg-[var(--accent-soft)] px-3 py-2 text-sm font-bold">
+              <li key={p} className="flex items-center justify-between gap-2 rounded-xl bg-[var(--accent-soft)] px-3 py-2 text-sm font-bold text-[#1d1535]">
                 <span>{p}</span>
                 {canSpeak() ? (
                   <button type="button" onClick={() => speak(p)} aria-label={`Ouvir: ${p}`}>

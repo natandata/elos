@@ -17,7 +17,7 @@ type Outcome = { ok: boolean; typo?: boolean; expected?: string; chosen?: number
 const EMOJI = /^[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}️]+$/u;
 
 function Speaker({ text, label = "Ouvir" }: { text: string; label?: string }) {
-  if (!canSpeak()) return <p className="rounded-xl bg-[var(--accent-soft)] px-3 py-2 text-sm font-bold">🔇 Sem áudio neste aparelho. Frase: “{text}”</p>;
+  if (!canSpeak()) return <p className="rounded-xl bg-[var(--accent-soft)] px-3 py-2 text-sm font-bold text-[#1d1535]">🔇 Sem áudio neste aparelho. Frase: “{text}”</p>;
   return (
     <div className="flex items-center justify-center gap-2">
       <button type="button" onClick={() => speak(text, 0.9)} className="btn btn-primary !px-5 !py-3 text-base" aria-label={label}>
@@ -48,7 +48,7 @@ function McView({ ex, onSubmit }: { ex: McEx & { id: string }; onSubmit: (o: Out
       ) : null}
       <div className="mt-4 grid gap-2">
         {ex.opts.map((o, i) => (
-          <button key={i} type="button" onClick={() => setSel(i)} className={`rounded-2xl border-2 px-4 py-3 text-left text-base font-bold transition active:scale-[0.99] ${sel === i ? "border-[var(--accent)] bg-[var(--accent-soft)]" : "border-[var(--line)] bg-[var(--card)]"}`}>
+          <button key={i} type="button" onClick={() => setSel(i)} className={`rounded-2xl border-2 px-4 py-3 text-left text-base font-bold transition active:scale-[0.99] ${sel === i ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[#1d1535]" : "border-[var(--line)] bg-[var(--card)]"}`}>
             {o}
           </button>
         ))}
@@ -71,7 +71,7 @@ function TrView({ ex, onSubmit }: { ex: TrEx & { id: string }; onSubmit: (o: Out
       <div className="mt-4 flex min-h-[3.5rem] flex-wrap items-center gap-2 rounded-2xl border-2 border-dashed border-[var(--line)] p-2">
         {picked.length === 0 ? <span className="px-1 text-sm text-[var(--muted)]">Toque nas palavras abaixo</span> : null}
         {picked.map((bi, k) => (
-          <button key={k} type="button" onClick={() => setPicked((p) => p.filter((_, j) => j !== k))} className="rounded-xl bg-[var(--accent-soft)] px-3 py-2 text-base font-bold">
+          <button key={k} type="button" onClick={() => setPicked((p) => p.filter((_, j) => j !== k))} className="rounded-xl bg-[var(--accent-soft)] px-3 py-2 text-base font-bold text-[#1d1535]">
             {bank[bi]}
           </button>
         ))}
@@ -167,14 +167,14 @@ function MtView({ ex, onSubmit }: { ex: MtEx & { id: string }; onSubmit: (o: Out
       <div className="mt-4 grid grid-cols-2 gap-3">
         <div className="grid gap-2">
           {ex.pairs.map((p, i) => (
-            <button key={i} type="button" disabled={matched.includes(i)} onClick={() => { setLeft(i); speak(p[0]); }} className={`rounded-2xl border-2 px-3 py-3 text-base font-bold transition ${matched.includes(i) ? "border-emerald-300 bg-emerald-50 text-emerald-800 opacity-60" : left === i ? "border-[var(--accent)] bg-[var(--accent-soft)]" : "border-[var(--line)] bg-[var(--card)]"}`}>
+            <button key={i} type="button" disabled={matched.includes(i)} onClick={() => { setLeft(i); speak(p[0]); }} className={`rounded-2xl border-2 px-3 py-3 text-base font-bold transition ${matched.includes(i) ? "border-emerald-300 bg-emerald-50 text-emerald-800 opacity-60" : left === i ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[#1d1535]" : "border-[var(--line)] bg-[var(--card)]"}`}>
               {p[0]}
             </button>
           ))}
         </div>
         <div className="grid gap-2">
           {right.map((ri) => (
-            <button key={ri} type="button" disabled={matched.includes(ri)} onClick={() => pickRight(ri)} className={`rounded-2xl border-2 px-3 py-3 text-base font-bold transition ${matched.includes(ri) ? "border-emerald-300 bg-emerald-50 text-emerald-800 opacity-60" : bad === ri ? "border-rose-400 bg-rose-50" : "border-[var(--line)] bg-[var(--card)]"}`}>
+            <button key={ri} type="button" disabled={matched.includes(ri)} onClick={() => pickRight(ri)} className={`rounded-2xl border-2 px-3 py-3 text-base font-bold transition ${matched.includes(ri) ? "border-emerald-300 bg-emerald-50 text-emerald-800 opacity-60" : bad === ri ? "border-rose-400 bg-rose-50 text-rose-900" : "border-[var(--line)] bg-[var(--card)]"}`}>
               {ex.pairs[ri][1]}
             </button>
           ))}
@@ -304,7 +304,7 @@ export function LessonPlayer({ mode, keyId, title, exercises, backHref, nextHref
         <p className="mt-2 text-sm font-bold text-[var(--muted)]">
           {correctCount}/{total} certos de primeira
         </p>
-        {startU ? <p className="mt-3 rounded-2xl bg-[var(--accent-soft)] px-4 py-3 text-base font-black">Você começa na Unidade {startU}</p> : null}
+        {startU ? <p className="mt-3 rounded-2xl bg-[var(--accent-soft)] px-4 py-3 text-base font-black text-[#1d1535]">Você começa na Unidade {startU}</p> : null}
         {saving ? <p className="mt-3 text-sm text-[var(--muted)]">Salvando…</p> : null}
         {res?.error ? <p className="mt-3 rounded-2xl bg-rose-50 px-3 py-2 text-sm font-bold text-rose-900">{res.error}</p> : null}
         {res && !res.error ? (
