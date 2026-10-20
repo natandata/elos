@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { finishEnglish, reportEnglishContent, type EnglishResult } from "@/lib/actions/english";
 import { gradeBank, gradeTyped, lessonStars, requeue, seededShuffle } from "@/lib/english/grade";
 import { placementUnit } from "@/lib/english/content";
-import { canSpeak, speak, stopSpeaking } from "@/lib/english/speak";
+import { canSpeak, prepareVoices, speak, stopSpeaking } from "@/lib/english/speak";
 import type { Exercise, LsEx, McEx, MtEx, TrEx, TyEx } from "@/lib/english/types";
 
 // Jogador de lições: trilha, nível lendário (sem errar), treino de erros/palavras/ouvir e teste de nivelamento.
@@ -17,15 +17,43 @@ type Outcome = { ok: boolean; typo?: boolean; expected?: string; chosen?: number
 const EMOJI = /^[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}️]+$/u;
 
 function Speaker({ text, label = "Ouvir" }: { text: string; label?: string }) {
-  if (!canSpeak()) return <p className="rounded-xl bg-[var(--accent-soft)] px-3 py-2 text-sm font-bold text-[#1d1535]">🔇 Sem áudio neste aparelho. Frase: “{text}”</p>;
+  const [failed, setFailed] = useState(false);
+  const [showText, setShowText] = useState(false);
+  // o servidor não sabe se o aparelho tem voz: começa "com voz" (igual nos dois lados) e confere depois de montar
+  const [supported, setSupported] = useState(true);
+  useEffect(() => {
+    prepareVoices();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSupported(canSpeak());
+  }, []);
+  const play = (rate: number) => speak(text, rate, (ok) => setFailed(!ok));
+  if (!supported) return <p className="rounded-xl bg-[var(--accent-soft)] px-3 py-2 text-sm font-bold text-[#1d1535]">🔇 Sem áudio neste aparelho. Frase: “{text}”</p>;
   return (
-    <div className="flex items-center justify-center gap-2">
-      <button type="button" onClick={() => speak(text, 0.9)} className="btn btn-primary !px-5 !py-3 text-base" aria-label={label}>
-        🔊 {label}
-      </button>
-      <button type="button" onClick={() => speak(text, 0.55)} className="btn btn-soft !px-4 !py-3 text-base" aria-label="Ouvir devagar">
-        🐢 Devagar
-      </button>
+    <div>
+      <div className="flex items-center justify-center gap-2">
+        <button type="button" onClick={() => play(0.9)} className="btn btn-primary !px-5 !py-3 text-base" aria-label={label}>
+          🔊 {label}
+        </button>
+        <button type="button" onClick={() => play(0.55)} className="btn btn-soft !px-4 !py-3 text-base text-[#1d1535]" aria-label="Ouvir devagar">
+          🐢 Devagar
+        </button>
+      </div>
+      {failed ? (
+        <div className="mt-3 rounded-2xl bg-amber-50 px-3 py-2 text-sm text-amber-950">
+          <p className="font-bold">Não saiu som. Confira:</p>
+          <ul className="mt-1 list-disc pl-5 text-xs font-semibold">
+            <li>o volume do aparelho e se o iPhone não está no modo silencioso (botão ao lado);</li>
+            <li>toque de novo em “{label}” (o navegador só toca depois de um toque seu).</li>
+          </ul>
+          {showText ? (
+            <p className="mt-2 rounded-xl bg-white px-3 py-2 text-base font-black">“{text}”</p>
+          ) : (
+            <button type="button" onClick={() => setShowText(true)} className="mt-2 text-xs font-black underline">
+              Ver a frase por escrito
+            </button>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }
