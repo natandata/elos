@@ -19,7 +19,7 @@ export const GAME_RELEASES = {
   madureira: "2099-01-01T00:00:00-03:00",
   /** Missão Madureira (mundo aberto no bairro de Madureira, evangelismo): em construção, oculto. Só admin e acesso antecipado. */
   missao: "2099-01-01T00:00:00-03:00",
-  /** Inglês em Ação (jogo educativo de inglês, estilo trilha, com conversas): em construção, oculto. Só admin e acesso antecipado. */
+  /** Inglês de CRIA (jogo educativo de inglês, estilo trilha, com conversas): em construção, oculto. Só admin e acesso antecipado. */
   english: "2099-01-01T00:00:00-03:00",
 } as const;
 

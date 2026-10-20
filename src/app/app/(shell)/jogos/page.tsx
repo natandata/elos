@@ -95,7 +95,7 @@ export default async function JogosPage({ searchParams }: { searchParams: Promis
   ].filter(Boolean).length;
   const order = gameCoverOrder(dates);
   const streak = liveGameStreak(profile.game_streak ?? 0, profile.game_streak_date ?? null);
-  // Inglês em Ação (educativo): aparece quando aberto para esta pessoa; "feito hoje" = completou lição ou conversa hoje
+  // Inglês de CRIA (educativo): aparece quando aberto para esta pessoa; "feito hoje" = completou lição ou conversa hoje
   const englishVisible = englishOpen && !hide("english");
   const engProf = englishVisible ? (await supabase.from("english_profile").select("last_done_date").eq("user_id", profile.id).maybeSingle<{ last_done_date: string | null }>()).data : null;
   const englishDone = englishVisible && engProf?.last_done_date === todayBR();
@@ -370,7 +370,7 @@ export default async function JogosPage({ searchParams }: { searchParams: Promis
               🗣️
             </span>
             <div>
-              <p className="text-lg font-black leading-tight">Inglês em Ação</p>
+              <p className="text-lg font-black leading-tight">Inglês de CRIA</p>
               <p className="mt-1 text-xs font-bold opacity-80">{englishDone ? "✔ Feito hoje · continue treinando" : "Lições e conversas · até +5 XP/dia"}</p>
               <p className="mt-0.5 text-[11px] font-black uppercase tracking-wide opacity-70">Novo</p>
             </div>

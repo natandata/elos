@@ -1,6 +1,6 @@
 import type { Exercise, Lesson, RawExercise, Roleplay, Unit } from "./types";
 
-// Conteúdo do Inglês em Ação, fase 1: nível A1 (unidades 1 a 4). Escrito para o ELOS (adolescentes brasileiros);
+// Conteúdo do Inglês de CRIA, fase 1: nível A1 (unidades 1 a 4). Escrito para o ELOS (adolescentes brasileiros);
 // não reproduz lições de nenhum outro curso. Explicações e instruções em português; o que se aprende, em inglês.
 
 const mc = (q: string, opts: string[], a: number, ex: string, why?: (string | null)[], say?: string): RawExercise => ({ k: "mc", q, opts, a, ex, why, say });

@@ -39,7 +39,7 @@ const GAME_NAME: Record<string, string> = {
   minearena: "MineArena",
   ultimatribo: "A Última Tribo",
   missao: "Missão Madureira",
-  english: "Inglês em Ação",
+  english: "Inglês de CRIA",
   arenasoccer: "ArenaSoccer",
   biblerush: "Bible Rush",
   arenacampanha: "Campanha da Arena",

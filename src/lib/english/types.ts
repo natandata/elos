@@ -1,4 +1,4 @@
-// Inglês em Ação: tipos do conteúdo e das conversas. Client-safe (nada de banco aqui).
+// Inglês de CRIA: tipos do conteúdo e das conversas. Client-safe (nada de banco aqui).
 // Os textos ensinados são em inglês; as instruções e explicações são em português (pt-BR).
 
 /** Escolha: ler a pergunta (use ___ para lacuna) e tocar na opção certa. Com `say`, o aluno ouve a frase em vez de ler. */
