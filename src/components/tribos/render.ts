@@ -46,6 +46,7 @@ export function loadTribosAssets(): Promise<void> {
     ...CAMPO_IMGS.map((n): [string, string] => [`c/${n}`, `/arena/campo/${n}.webp`]),
     ...TRIBE_LIST.map((t): [string, string] => [`e/${t}`, emblemUrl(t)]),
     ["k/rei", "/tribos/rei.webp"] as [string, string],
+    ["o/ciclo", "/tribos/obreiros/ciclo.webp"] as [string, string],
     ...POSES.map((n): [string, string] => [`o/${n}`, `/tribos/obreiros/${n}.webp`]),
     ...TRIBE_LIST.map((t): [string, string] => [`k/castelo-${t}`, `/tribos/castelo-${t}.webp`]),
   ];

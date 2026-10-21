@@ -323,6 +323,10 @@ export class Crew {
   }
 }
 
+const CELL_W = 200;
+const CELL_H = 236;
+const BASE_Y = 226;
+
 // Tamanho em que cada pose aparece (altura em px do mundo) — todas na mesma escala de personagem.
 const POSE_H: Record<string, number> = { parado: 100, costas: 92, cesto: 78, tora: 88, minerar: 82, carrinho: 72, colhe: 78, foice: 68 };
 
@@ -348,6 +352,24 @@ function drawWorker(ctx: CanvasRenderingContext2D, w: Worker, tribe: TribeKey, t
   void t;
   const [wx, wy] = toWorld(w.x, w.y);
   const walking = w.path.length > 0;
+  // obreiro andando sem carga: ciclo de corrida em 6 quadros (marreta para obra, picareta para coleta)
+  const cycle = sprite("o/ciclo");
+  if (cycle && walking && !w.carry && w.i % 2 === 0) {
+    const col = Math.floor(w.phase * 0.95) % 6;
+    const row = w.mode === "build" ? 0 : 2;
+    const dh = 104;
+    const dw = (dh * CELL_W) / CELL_H;
+    ctx.save();
+    ctx.translate(wx, wy + 5);
+    ctx.fillStyle = "rgba(0,0,0,0.28)";
+    ctx.beginPath();
+    ctx.ellipse(0, 0, dw * 0.3, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.scale(w.face, 1);
+    ctx.drawImage(cycle, col * CELL_W, row * CELL_H, CELL_W, CELL_H, -dw / 2, -dh * (BASE_Y / CELL_H), dw, dh);
+    ctx.restore();
+    return;
+  }
   const pose = poseFor(w, walking);
   const im = sprite(`o/${pose}`);
   if (!im) return;
