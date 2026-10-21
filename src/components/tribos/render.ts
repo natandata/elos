@@ -31,7 +31,8 @@ export function applyCam(ctx: CanvasRenderingContext2D, cam: Cam, w: number, h: 
 
 // ---------------------------------------------------------------- imagens
 
-const ICONS = ["castelo", "bau-ouro", "picareta", "tenda", "barril", "gota", "moeda", "martelo", "ampulheta", "diamante"] as const;
+const ICONS = ["moeda", "gota", "martelo", "ampulheta", "diamante"] as const;
+const OBRAS = ["mina-ouro", "poco-mana", "cofre-ouro", "reservatorio-mana"] as const;
 const CAMPO_IMGS = ["arvore", "arvore-seca", "palmeira", "pedras", "rochedo", "arbusto", "seixos", "capim", "cogumelos"] as const;
 const POSES = ["parado", "costas", "cesto", "tora", "minerar", "carrinho", "colhe", "foice"] as const;
 const TRIBE_LIST: TribeKey[] = ["feras", "bravos", "reliquias"];
@@ -48,7 +49,8 @@ export function loadTribosAssets(): Promise<void> {
     ["k/rei", "/tribos/rei.webp"] as [string, string],
     ["o/ciclo", "/tribos/obreiros/ciclo.webp"] as [string, string],
     ...POSES.map((n): [string, string] => [`o/${n}`, `/tribos/obreiros/${n}.webp`]),
-    ...TRIBE_LIST.map((t): [string, string] => [`k/castelo-${t}`, `/tribos/castelo-${t}.webp`]),
+    ...OBRAS.map((n): [string, string] => [`k/${n}`, `/tribos/obras/${n}.webp`]),
+    ...TRIBE_LIST.flatMap((t): [string, string][] => [[`k/salao-${t}`, `/tribos/obras/salao-${t}.webp`], [`k/cabana-${t}`, `/tribos/obras/cabana-${t}.webp`], [`k/bandeira-${t}`, `/tribos/obras/bandeira-${t}.webp`]]),
   ];
   loading ??= Promise.all(
     list.map(
@@ -328,19 +330,22 @@ export type DrawOpts = {
   fmtLeft: (secs: number) => string;
 };
 
-function banner(ctx: CanvasRenderingContext2D, px: number, py: number, tribe: TribeKey, t: number, height = 62): void {
-  ctx.strokeStyle = "#3a2a14";
-  ctx.lineWidth = 3;
+/** Terreno batido (mancha de terra macia) sob a construção. */
+function patch(ctx: CanvasRenderingContext2D, cx: number, cy: number, s: number, tribe: TribeKey): void {
+  const rx = s * TW * 0.46;
+  const g = ctx.createRadialGradient(cx, cy + s * 4, 4, cx, cy + s * 4, rx);
+  const c = TRIBES[tribe].terrain.cliff;
+  g.addColorStop(0, c + "99");
+  g.addColorStop(0.7, c + "44");
+  g.addColorStop(1, c + "00");
+  ctx.fillStyle = g;
+  ctx.save();
+  ctx.translate(cx, cy + s * 4);
+  ctx.scale(1, 0.52);
   ctx.beginPath();
-  ctx.moveTo(px, py);
-  ctx.lineTo(px, py - height);
-  ctx.stroke();
-  const e = img(`e/${tribe}`);
-  if (!e) return;
-  const sway = Math.sin(t / 420) * 2;
-  const w = 30;
-  const h = (w * e.naturalHeight) / e.naturalWidth;
-  ctx.drawImage(e, px + 2 + sway * 0.3, py - height - 2, w, h);
+  ctx.arc(0, 0, rx, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
 }
 
 export function drawBuilding(ctx: CanvasRenderingContext2D, b: TBuilding, o: DrawOpts): void {
@@ -364,25 +369,28 @@ export function drawBuilding(ctx: CanvasRenderingContext2D, b: TBuilding, o: Dra
   const lvl = Math.max(1, b.level);
   if (selected) outline(ctx, b.x, b.y, s, o.t);
 
-  if (kind !== "hq") slab(ctx, b.x, b.y, s, foundation ? 4 : kind === "hut" ? 3 : 6, "#a39a84", foundation ? "#bcae8b" : "#c4bba3");
+  // terreno batido sob a construção (a laje de obra só aparece na fundação)
+  if (foundation) slab(ctx, b.x, b.y, s, 4, "#a39a84", "#bcae8b");
+  else patch(ctx, cx, cy, s, o.tribe);
   const base = cy + s * 5;
   let top = base - 60;
   if (!foundation) {
     if (kind === "hq") {
-      // castelo 3D na cor da tribo (a imagem já traz a plataforma de pedra)
-      const w = 272 + Math.min(5, lvl) * 6;
+      // torre-rei da Arena nas cores da tribo, com o brasão da tribo no lugar da coroa
+      const w = 292 + Math.min(5, lvl) * 6;
       const bottom = cy + 62;
-      spr(ctx, `k/castelo-${o.tribe}`, cx, bottom, w);
-      const ch = img(`k/castelo-${o.tribe}`);
+      spr(ctx, `k/salao-${o.tribe}`, cx, bottom, w);
+      const ch = img(`k/salao-${o.tribe}`);
       const hgt = ch ? (w * ch.naturalHeight) / ch.naturalWidth : w;
       top = bottom - hgt;
-      // emblema da tribo sobre a janela central
       const em = img(`e/${o.tribe}`);
       if (em) {
-        const ew = 30;
+        const ew = 36;
         const eh = (ew * em.naturalHeight) / em.naturalWidth;
-        ctx.drawImage(em, cx - (0.016 * w) - ew / 2, bottom - hgt * 0.465 - eh / 2, ew, eh);
+        ctx.drawImage(em, cx - ew / 2, bottom - hgt * 0.36 - eh / 2, ew, eh);
       }
+      const [fx, fy] = toWorld(b.x + s - 0.1, b.y + s - 0.1);
+      spr(ctx, `k/bandeira-${o.tribe}`, fx - 4, fy + 4, 46);
       // o líder da tribo, de guarda na frente do Salão
       const king = img("k/rei");
       if (king) {
@@ -391,7 +399,7 @@ export function drawBuilding(ctx: CanvasRenderingContext2D, b: TBuilding, o: Dra
         const breathe = Math.sin(o.t / 650) * 0.012;
         const look = Math.sin(o.t / 3400) > 0.55 ? -1 : 1;
         ctx.save();
-        ctx.translate(cx + 66, cy + 66);
+        ctx.translate(cx + 92, cy + 70);
         ctx.fillStyle = "rgba(0,0,0,0.28)";
         ctx.beginPath();
         ctx.ellipse(0, 1, kw * 0.36, 5, 0, 0, Math.PI * 2);
@@ -401,31 +409,45 @@ export function drawBuilding(ctx: CanvasRenderingContext2D, b: TBuilding, o: Dra
         ctx.restore();
       }
     } else if (kind === "gold_mine") {
-      spr(ctx, "c/rochedo", cx + 4, base + 6, 118);
-      spr(ctx, "i/picareta", cx - 30, base + 4, 50);
-      for (const [ox, oy] of [[26, 8], [40, 2], [34, 16]] as const) spr(ctx, "i/moeda", cx + ox, base + oy, 17);
-      top = base - 92;
+      spr(ctx, "k/mina-ouro", cx, base + 8, 142);
+      top = base - 100;
+      // brilhos no minério
+      for (const [ox, oy, ph] of [[-22, -38, 0], [18, -56, 2], [36, -22, 4]] as const) {
+        const a = Math.max(0, Math.sin(o.t / 380 + ph));
+        if (a < 0.2) continue;
+        ctx.strokeStyle = `rgba(255,250,200,${a})`;
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(cx + ox - 5, base + oy);
+        ctx.lineTo(cx + ox + 5, base + oy);
+        ctx.moveTo(cx + ox, base + oy - 5);
+        ctx.lineTo(cx + ox, base + oy + 5);
+        ctx.stroke();
+      }
     } else if (kind === "mana_pump") {
-      const glow = ctx.createRadialGradient(cx, base - 18, 4, cx, base - 18, 56);
-      glow.addColorStop(0, `rgba(80,200,255,${0.5 + Math.sin(o.t / 300) * 0.12})`);
-      glow.addColorStop(1, "rgba(80,200,255,0)");
+      const glow = ctx.createRadialGradient(cx, base - 14, 6, cx, base - 14, 78);
+      glow.addColorStop(0, `rgba(90,200,255,${0.42 + Math.sin(o.t / 320) * 0.12})`);
+      glow.addColorStop(1, "rgba(90,200,255,0)");
       ctx.fillStyle = glow;
-      ctx.fillRect(cx - 60, base - 80, 120, 120);
-      spr(ctx, "i/gota", cx, base + 4 + Math.sin(o.t / 500) * 2, 82);
-      top = base - 82;
-    } else if (kind === "gold_store") {
-      spr(ctx, "i/bau-ouro", cx, base + 8, 118);
+      ctx.fillRect(cx - 80, base - 90, 160, 150);
+      spr(ctx, "k/poco-mana", cx, base + 8, 128);
       top = base - 96;
+    } else if (kind === "gold_store") {
+      spr(ctx, "k/cofre-ouro", cx, base + 12, 104);
+      top = base - 110;
     } else if (kind === "mana_store") {
-      spr(ctx, "i/barril", cx, base - 4, 62);
-      spr(ctx, "i/barril", cx - 28, base + 8, 62);
-      spr(ctx, "i/barril", cx + 28, base + 10, 62);
-      top = base - 66;
+      const glow = ctx.createRadialGradient(cx, base - 4, 6, cx, base - 4, 84);
+      glow.addColorStop(0, `rgba(80,190,255,${0.28 + Math.sin(o.t / 500) * 0.08})`);
+      glow.addColorStop(1, "rgba(80,190,255,0)");
+      ctx.fillStyle = glow;
+      ctx.fillRect(cx - 90, base - 60, 180, 110);
+      spr(ctx, "k/reservatorio-mana", cx, base + 14, 136);
+      top = base - 70;
     } else if (kind === "hut") {
-      spr(ctx, "i/tenda", cx, base + 6, 92);
-      const [bx, by] = toWorld(b.x + s - 0.3, b.y + s - 0.3);
-      banner(ctx, bx, by, o.tribe, o.t, 34);
-      top = base - 80;
+      spr(ctx, `k/cabana-${o.tribe}`, cx, base + 10, 104);
+      const [bx, by] = toWorld(b.x + s - 0.2, b.y + s - 0.2);
+      spr(ctx, `k/bandeira-${o.tribe}`, bx, by + 6, 34);
+      top = base - 88;
     }
   }
 

@@ -19,14 +19,14 @@ export function ResIcon({ res, className = "h-4 w-4" }: { res: Res; className?: 
   return <TIcon name={RES_ICON[res]} className={className} />;
 }
 
-/** Ícone de cada construção ou obstáculo (imagem da Arena). */
+/** Ícone de cada construção ou obstáculo (mesma arte do campo da Arena). */
 export const KIND_ICON: Record<Kind, string> = {
-  hq: iconSrc("castelo"),
-  gold_mine: iconSrc("picareta"),
-  mana_pump: iconSrc("gota"),
-  gold_store: iconSrc("bau-ouro"),
-  mana_store: iconSrc("barril"),
-  hut: iconSrc("tenda"),
+  hq: "/tribos/obras/salao-reliquias.webp",
+  gold_mine: "/tribos/obras/mina-ouro.webp",
+  mana_pump: "/tribos/obras/poco-mana.webp",
+  gold_store: "/tribos/obras/cofre-ouro.webp",
+  mana_store: "/tribos/obras/reservatorio-mana.webp",
+  hut: "/tribos/obras/cabana-bravos.webp",
   bush: "/arena/campo/arbusto.webp",
   tree: "/arena/campo/arvore.webp",
   rock: "/arena/campo/rochedo.webp",
