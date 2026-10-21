@@ -1,7 +1,9 @@
 // Clash of Tribos: desenho isométrico da vila em canvas. Tudo em coordenadas do mundo; a câmera vira uma transformação.
+// Os desenhos das construções reaproveitam as imagens da Arena dos Heróis (ícones e adereços do campo).
 
-import { BUILDINGS, GRID, OBSTACLES, TRIBES, isBuild, isObstacle, levelDef, type TribeKey } from "@/lib/tribos/data";
-import { footprint, inProgress, kindEmoji, produced, type TBuilding } from "@/lib/tribos/state";
+import { BUILDINGS, GRID, OBSTACLES, TRIBES, isBuild, isObstacle, levelDef, type BuildKind, type ObstacleKind, type TribeKey } from "@/lib/tribos/data";
+import { footprint, inProgress, produced, type TBuilding } from "@/lib/tribos/state";
+import { emblemUrl } from "./emblems";
 
 export const TW = 64;
 export const TH = 32;
@@ -27,22 +29,62 @@ export function applyCam(ctx: CanvasRenderingContext2D, cam: Cam, w: number, h: 
   ctx.setTransform(dpr * cam.z, 0, 0, dpr * cam.z, dpr * (w / 2 - cam.x * cam.z), dpr * (h / 2 - cam.y * cam.z));
 }
 
+// ---------------------------------------------------------------- imagens
+
+const ICONS = ["castelo", "bau-ouro", "picareta", "tenda", "barril", "gota", "moeda", "martelo", "ampulheta", "diamante"] as const;
+const CAMPO_IMGS = ["arvore", "arvore-seca", "palmeira", "pedras", "rochedo", "arbusto", "seixos", "capim", "cogumelos"] as const;
+const TRIBE_LIST: TribeKey[] = ["feras", "bravos", "reliquias"];
+const imgs = new Map<string, HTMLImageElement>();
+let loading: Promise<void> | null = null;
+
+/** Baixa as imagens uma vez só; resolve quando acabou (mesmo que alguma falhe). */
+export function loadTribosAssets(): Promise<void> {
+  if (typeof window === "undefined") return Promise.resolve();
+  const list: [string, string][] = [
+    ...ICONS.map((n): [string, string] => [`i/${n}`, `/arena/icones/${n}.webp`]),
+    ...CAMPO_IMGS.map((n): [string, string] => [`c/${n}`, `/arena/campo/${n}.webp`]),
+    ...TRIBE_LIST.map((t): [string, string] => [`e/${t}`, emblemUrl(t)]),
+  ];
+  loading ??= Promise.all(
+    list.map(
+      ([k, src]) =>
+        new Promise<void>((res) => {
+          const im = new Image();
+          im.onload = () => res();
+          im.onerror = () => res();
+          im.src = src;
+          imgs.set(k, im);
+        }),
+    ),
+  ).then(() => undefined);
+  return loading;
+}
+
+const img = (k: string): HTMLImageElement | null => {
+  const im = imgs.get(k);
+  return im && im.complete && im.naturalWidth > 0 ? im : null;
+};
+
+/** Desenha a imagem com a base centrada em (cx, baseY) e largura w. */
+function spr(ctx: CanvasRenderingContext2D, key: string, cx: number, baseY: number, w: number, alpha = 1): void {
+  const im = img(key);
+  if (!im) return;
+  const h = (w * im.naturalHeight) / im.naturalWidth;
+  if (alpha !== 1) ctx.globalAlpha = alpha;
+  ctx.drawImage(im, cx - w / 2, baseY - h, w, h);
+  if (alpha !== 1) ctx.globalAlpha = 1;
+}
+
+// ---------------------------------------------------------------- terreno
+
 const GX = GRID * (TW / 2) + 160;
 const GY = 120;
 const GW = GRID * TW + 320;
 const GH = GRID * TH + 320;
 
-function shade(hex: string, f: number): string {
-  const n = parseInt(hex.slice(1), 16);
-  const r = Math.max(0, Math.min(255, Math.round(((n >> 16) & 255) * f)));
-  const g = Math.max(0, Math.min(255, Math.round(((n >> 8) & 255) * f)));
-  const b = Math.max(0, Math.min(255, Math.round((n & 255) * f)));
-  return `rgb(${r},${g},${b})`;
-}
-
 const groundCache: Partial<Record<TribeKey, HTMLCanvasElement>> = {};
 
-/** Terreno pré-desenhado (grama com tabuleiro suave, borda de rocha e pontinhos de vegetação). */
+/** Terreno pré-desenhado: grama (Bravos), areia (Feras) ou terra árida (Relíquias), com bordas e detalhes. */
 export function ground(tribe: TribeKey): HTMLCanvasElement {
   const hit = groundCache[tribe];
   if (hit) return hit;
@@ -51,12 +93,11 @@ export function ground(tribe: TribeKey): HTMLCanvasElement {
   c.height = GH;
   const g = c.getContext("2d")!;
   g.translate(GX, GY);
-  const t = TRIBES[tribe];
-  // base rochosa embaixo do terreno
+  const T = TRIBES[tribe].terrain;
   const [lx, ly] = toWorld(0, GRID);
   const [bx, by] = toWorld(GRID, GRID);
   const [rx, ry] = toWorld(GRID, 0);
-  g.fillStyle = "#3b3a2f";
+  g.fillStyle = T.cliff;
   g.beginPath();
   g.moveTo(lx, ly);
   g.lineTo(bx, by);
@@ -64,7 +105,7 @@ export function ground(tribe: TribeKey): HTMLCanvasElement {
   g.lineTo(lx, ly + 26);
   g.closePath();
   g.fill();
-  g.fillStyle = "#2a291f";
+  g.fillStyle = T.cliffDark;
   g.beginPath();
   g.moveTo(bx, by);
   g.lineTo(rx, ry);
@@ -72,14 +113,13 @@ export function ground(tribe: TribeKey): HTMLCanvasElement {
   g.lineTo(bx, by + 26);
   g.closePath();
   g.fill();
-  let seed = 7;
+  let seed = 7 + TRIBE_LIST.indexOf(tribe) * 13;
   const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
   for (let y = 0; y < GRID; y++) {
     for (let x = 0; x < GRID; x++) {
       const [wx, wy] = toWorld(x, y);
       const edge = x < 2 || y < 2 || x >= GRID - 2 || y >= GRID - 2;
-      const base = (x + y) % 2 === 0 ? "#6dac4a" : "#65a444";
-      g.fillStyle = edge ? "#5a8f3d" : base;
+      g.fillStyle = edge ? T.edge : (x + y) % 2 === 0 ? T.a : T.b;
       g.beginPath();
       g.moveTo(wx, wy);
       g.lineTo(wx + TW / 2, wy + TH / 2);
@@ -87,16 +127,67 @@ export function ground(tribe: TribeKey): HTMLCanvasElement {
       g.lineTo(wx - TW / 2, wy + TH / 2);
       g.closePath();
       g.fill();
-      // toque da tribo: manchas de cor bem suaves
-      if (rnd() < 0.06) {
-        g.fillStyle = t.tint + "55";
-        g.beginPath();
-        g.ellipse(wx + (rnd() - 0.5) * 20, wy + TH / 2 + (rnd() - 0.5) * 8, 7, 3.5, 0, 0, Math.PI * 2);
-        g.fill();
-      }
-      if (rnd() < 0.1) {
-        g.fillStyle = "#4f8a36";
-        g.fillRect(wx + (rnd() - 0.5) * 30, wy + TH / 2 + (rnd() - 0.5) * 12, 2, 4);
+      const px = wx + (rnd() - 0.5) * 34;
+      const py = wy + TH / 2 + (rnd() - 0.5) * 12;
+      if (tribe === "bravos") {
+        // tufos de grama e florzinhas
+        if (rnd() < 0.18) {
+          g.strokeStyle = T.speck;
+          g.lineWidth = 1.6;
+          g.beginPath();
+          g.moveTo(px - 3, py + 2);
+          g.lineTo(px - 4, py - 3);
+          g.moveTo(px, py + 2);
+          g.lineTo(px, py - 5);
+          g.moveTo(px + 3, py + 2);
+          g.lineTo(px + 4, py - 3);
+          g.stroke();
+        }
+        if (rnd() < 0.025) {
+          g.fillStyle = "#fff3a0";
+          g.beginPath();
+          g.arc(px, py, 1.8, 0, Math.PI * 2);
+          g.fill();
+        }
+      } else if (tribe === "feras") {
+        // ondulações de duna e pedrinhas
+        if (rnd() < 0.16) {
+          g.strokeStyle = "#f8e7ad";
+          g.lineWidth = 1.6;
+          g.beginPath();
+          g.ellipse(px, py, 9, 2.4, 0, Math.PI * 1.05, Math.PI * 1.95);
+          g.stroke();
+          g.strokeStyle = T.speck;
+          g.beginPath();
+          g.ellipse(px + 2, py + 3, 9, 2.4, 0, Math.PI * 0.05, Math.PI * 0.95);
+          g.stroke();
+        }
+        if (rnd() < 0.05) {
+          g.fillStyle = "#b99a55";
+          g.beginPath();
+          g.ellipse(px, py, 2.2, 1.4, 0, 0, Math.PI * 2);
+          g.fill();
+        }
+      } else {
+        // rachaduras de terra seca e cascalho escuro
+        if (rnd() < 0.13) {
+          g.strokeStyle = T.speck;
+          g.lineWidth = 1.4;
+          g.beginPath();
+          g.moveTo(px - 8, py);
+          g.lineTo(px - 2, py + 2);
+          g.lineTo(px + 1, py - 2);
+          g.lineTo(px + 8, py + 1);
+          g.moveTo(px - 2, py + 2);
+          g.lineTo(px - 3, py + 6);
+          g.stroke();
+        }
+        if (rnd() < 0.06) {
+          g.fillStyle = "#6e3019";
+          g.beginPath();
+          g.ellipse(px, py, 2.4, 1.5, 0, 0, Math.PI * 2);
+          g.fill();
+        }
       }
     }
   }
@@ -107,6 +198,10 @@ export function ground(tribe: TribeKey): HTMLCanvasElement {
 export function drawGround(ctx: CanvasRenderingContext2D, tribe: TribeKey): void {
   ctx.drawImage(ground(tribe), -GX, -GY);
 }
+
+export const voidColor = (tribe: TribeKey): string => TRIBES[tribe].terrain.void;
+
+// ---------------------------------------------------------------- formas
 
 function diamond(ctx: CanvasRenderingContext2D, x: number, y: number, s: number, lift = 0): void {
   const [tx, ty] = toWorld(x, y);
@@ -131,11 +226,19 @@ export function drawFootprint(ctx: CanvasRenderingContext2D, x: number, y: numbe
   ctx.stroke();
 }
 
-function box(ctx: CanvasRenderingContext2D, x: number, y: number, s: number, h: number, base: string, topColor: string): void {
+function shade(hex: string, f: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  const r = Math.max(0, Math.min(255, Math.round(((n >> 16) & 255) * f)));
+  const g = Math.max(0, Math.min(255, Math.round(((n >> 8) & 255) * f)));
+  const b = Math.max(0, Math.min(255, Math.round((n & 255) * f)));
+  return `rgb(${r},${g},${b})`;
+}
+
+/** Laje baixa de pedra sob a construção. */
+function slab(ctx: CanvasRenderingContext2D, x: number, y: number, s: number, h: number, base: string, topColor: string): void {
   const [lx, ly] = toWorld(x, y + s);
   const [bx, by] = toWorld(x + s, y + s);
   const [rx, ry] = toWorld(x + s, y);
-  // sombra no chão
   ctx.fillStyle = "rgba(0,0,0,0.22)";
   diamond(ctx, x - 0.1, y - 0.1, s + 0.35);
   ctx.fill();
@@ -163,132 +266,51 @@ function box(ctx: CanvasRenderingContext2D, x: number, y: number, s: number, h: 
   ctx.stroke();
 }
 
-const WALL: Record<string, { base: string; top: string; h: number }> = {
-  hq: { base: "#d5c9a6", top: "#e7dcc0", h: 52 },
-  gold_mine: { base: "#8d6b3d", top: "#f2c230", h: 22 },
-  mana_pump: { base: "#5870b8", top: "#4cc9f0", h: 26 },
-  gold_store: { base: "#a68c55", top: "#f6d365", h: 32 },
-  mana_store: { base: "#4a5b9c", top: "#74d7f7", h: 32 },
-  hut: { base: "#a97c50", top: "#b8895b", h: 18 },
-};
-
-/** Telhado de duas águas sobre uma base de altura h (a cumeeira corre ao longo de x). */
-function gable(ctx: CanvasRenderingContext2D, x: number, y: number, s: number, h: number, peak: number, roof: string, roofDark: string, wall: string): void {
-  const [Tx, Ty] = toWorld(x, y);
-  const [Rx, Ry] = toWorld(x + s, y);
-  const [Bx, By] = toWorld(x + s, y + s);
-  const [Lx, Ly] = toWorld(x, y + s);
-  const over = 0.12;
-  const [Mx0, My0] = toWorld(x - over, y + s / 2);
-  const [Mx1, My1] = toWorld(x + s + over, y + s / 2);
-  const mh = h + peak;
-  // face de trás
-  ctx.fillStyle = shade(roof, 0.95);
-  ctx.beginPath();
-  ctx.moveTo(Tx, Ty - h);
-  ctx.lineTo(Rx, Ry - h);
-  ctx.lineTo(Mx1, My1 - mh);
-  ctx.lineTo(Mx0, My0 - mh);
-  ctx.closePath();
-  ctx.fill();
-  // empenas (paredes triangulares das pontas)
-  ctx.fillStyle = shade(wall, 0.8);
-  ctx.beginPath();
-  ctx.moveTo(Lx, Ly - h);
-  ctx.lineTo(Tx, Ty - h);
-  ctx.lineTo(Mx0, My0 - mh);
-  ctx.closePath();
-  ctx.fill();
-  ctx.fillStyle = shade(wall, 0.92);
-  ctx.beginPath();
-  ctx.moveTo(Bx, By - h);
-  ctx.lineTo(Rx, Ry - h);
-  ctx.lineTo(Mx1, My1 - mh);
-  ctx.closePath();
-  ctx.fill();
-  // face da frente
-  ctx.fillStyle = roofDark;
-  ctx.beginPath();
-  ctx.moveTo(Lx, Ly - h);
-  ctx.lineTo(Bx, By - h);
-  ctx.lineTo(Mx1, My1 - mh);
-  ctx.lineTo(Mx0, My0 - mh);
-  ctx.closePath();
-  ctx.fill();
-  ctx.strokeStyle = "rgba(0,0,0,0.3)";
-  ctx.lineWidth = 1;
-  ctx.stroke();
-}
-
-function drawObstacle(ctx: CanvasRenderingContext2D, b: TBuilding, t: number, selected: boolean): void {
-  const kind = b.kind;
-  if (!isObstacle(kind)) return;
-  const s = OBSTACLES[kind].size;
-  const [cx, cy] = toWorld(b.x + s / 2, b.y + s / 2);
-  ctx.fillStyle = "rgba(0,0,0,0.2)";
-  ctx.beginPath();
-  ctx.ellipse(cx, cy + 4, 14 * s, 7 * s, 0, 0, Math.PI * 2);
-  ctx.fill();
-  const sway = Math.sin(t / 900 + b.x) * 1.2;
-  if (kind === "bush") {
-    ctx.fillStyle = "#3f8a3a";
-    ctx.beginPath();
-    ctx.arc(cx - 5, cy - 4, 8, 0, Math.PI * 2);
-    ctx.arc(cx + 5, cy - 3, 9, 0, Math.PI * 2);
-    ctx.arc(cx, cy - 10, 8, 0, Math.PI * 2);
-    ctx.fill();
-  } else if (kind === "tree") {
-    ctx.fillStyle = "#6b4a2b";
-    ctx.fillRect(cx - 4, cy - 22, 8, 26);
-    ctx.fillStyle = "#2f7d32";
-    ctx.beginPath();
-    ctx.arc(cx + sway, cy - 36, 20, 0, Math.PI * 2);
-    ctx.arc(cx - 13 + sway, cy - 26, 14, 0, Math.PI * 2);
-    ctx.arc(cx + 14 + sway, cy - 27, 14, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#3f9b43";
-    ctx.beginPath();
-    ctx.arc(cx - 5 + sway, cy - 42, 10, 0, Math.PI * 2);
-    ctx.fill();
-  } else {
-    ctx.fillStyle = "#8c8f94";
-    ctx.beginPath();
-    ctx.moveTo(cx - 24, cy + 2);
-    ctx.lineTo(cx - 14, cy - 22);
-    ctx.lineTo(cx + 2, cy - 30);
-    ctx.lineTo(cx + 20, cy - 16);
-    ctx.lineTo(cx + 26, cy + 2);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = "#a9adb3";
-    ctx.beginPath();
-    ctx.moveTo(cx - 14, cy - 22);
-    ctx.lineTo(cx + 2, cy - 30);
-    ctx.lineTo(cx + 8, cy - 14);
-    ctx.lineTo(cx - 6, cy - 8);
-    ctx.closePath();
-    ctx.fill();
-  }
-  if (selected) outline(ctx, b.x, b.y, s, t);
-}
-
 function outline(ctx: CanvasRenderingContext2D, x: number, y: number, s: number, t: number): void {
   const a = 0.55 + 0.35 * Math.sin(t / 220);
   drawFootprint(ctx, x, y, s, `rgba(255,236,120,${0.18 * a})`, `rgba(255,214,0,${a})`);
 }
 
-function pill(ctx: CanvasRenderingContext2D, cx: number, cy: number, text: string, bg: string, fg = "#fff"): void {
+function pill(ctx: CanvasRenderingContext2D, cx: number, cy: number, text: string, bg: string, icon?: string): void {
   ctx.font = "800 11px system-ui, sans-serif";
-  const w = ctx.measureText(text).width + 12;
+  const ic = icon ? img(icon) : null;
+  const w = ctx.measureText(text).width + 12 + (ic ? 15 : 0);
   ctx.fillStyle = bg;
   ctx.beginPath();
   ctx.roundRect(cx - w / 2, cy - 9, w, 18, 9);
   ctx.fill();
-  ctx.fillStyle = fg;
+  ctx.fillStyle = "#fff";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(text, cx, cy + 0.5);
+  if (ic) {
+    ctx.drawImage(ic, cx - w / 2 + 5, cy - 7, 14, 14);
+    ctx.fillText(text, cx + 8, cy + 0.5);
+  } else ctx.fillText(text, cx, cy + 0.5);
 }
+
+// ---------------------------------------------------------------- obstáculos
+
+const OBST_SPRITE: Record<TribeKey, Record<ObstacleKind, [string, number]>> = {
+  bravos: { bush: ["c/arbusto", 44], tree: ["c/arvore", 96], rock: ["c/rochedo", 92] },
+  feras: { bush: ["c/seixos", 46], tree: ["c/palmeira", 78], rock: ["c/pedras", 92] },
+  reliquias: { bush: ["c/seixos", 44], tree: ["c/arvore-seca", 84], rock: ["c/pedras", 90] },
+};
+
+function drawObstacle(ctx: CanvasRenderingContext2D, b: TBuilding, tribe: TribeKey, t: number, selected: boolean): void {
+  if (!isObstacle(b.kind)) return;
+  const s = OBSTACLES[b.kind].size;
+  const [cx, cy] = toWorld(b.x + s / 2, b.y + s / 2);
+  ctx.fillStyle = "rgba(0,0,0,0.2)";
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + 4, 13 * s, 6.5 * s, 0, 0, Math.PI * 2);
+  ctx.fill();
+  const [key, w] = OBST_SPRITE[tribe][b.kind];
+  const sway = b.kind === "tree" ? Math.sin(t / 900 + b.x) * 1.5 : 0;
+  spr(ctx, key, cx + sway, cy + 10, w);
+  if (selected) outline(ctx, b.x, b.y, s, t);
+}
+
+// ---------------------------------------------------------------- construções
 
 export type DrawOpts = {
   tribe: TribeKey;
@@ -296,203 +318,134 @@ export type DrawOpts = {
   /** tempo em ms para animações */
   t: number;
   selectedId: string | null;
-  /** construção escondida enquanto se arrasta o fantasma */
   hiddenId: string | null;
   fmtLeft: (secs: number) => string;
 };
 
+function banner(ctx: CanvasRenderingContext2D, px: number, py: number, tribe: TribeKey, t: number, height = 62): void {
+  ctx.strokeStyle = "#3a2a14";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(px, py);
+  ctx.lineTo(px, py - height);
+  ctx.stroke();
+  const e = img(`e/${tribe}`);
+  if (!e) return;
+  const sway = Math.sin(t / 420) * 2;
+  const w = 30;
+  const h = (w * e.naturalHeight) / e.naturalWidth;
+  ctx.drawImage(e, px + 2 + sway * 0.3, py - height - 2, w, h);
+}
+
 export function drawBuilding(ctx: CanvasRenderingContext2D, b: TBuilding, o: DrawOpts): void {
   const selected = o.selectedId === b.id;
   if (isObstacle(b.kind)) {
-    drawObstacle(ctx, b, o.t, selected);
+    drawObstacle(ctx, b, o.tribe, o.t, selected);
     if (inProgress(b, o.now) && b.upEnds) {
       const [cx, cy] = toWorld(b.x + OBSTACLES[b.kind].size / 2, b.y + OBSTACLES[b.kind].size / 2);
-      pill(ctx, cx, cy - 44, o.fmtLeft((b.upEnds - o.now) / 1000), "rgba(20,20,20,0.82)");
+      pill(ctx, cx, cy - 70, o.fmtLeft((b.upEnds - o.now) / 1000), "rgba(20,20,20,0.82)", "i/martelo");
     }
     return;
   }
   if (!isBuild(b.kind)) return;
-  const def = BUILDINGS[b.kind];
+  const kind: BuildKind = b.kind;
+  const def = BUILDINGS[kind];
   const s = def.size;
-  const w = WALL[b.kind];
   const building = inProgress(b, o.now);
-  if (selected) outline(ctx, b.x, b.y, s, o.t);
+  const foundation = building && b.level < 1;
   const tribeColor = TRIBES[o.tribe].color;
-  const tribeDark = TRIBES[o.tribe].dark;
   const [cx, cy] = toWorld(b.x + s / 2, b.y + s / 2);
   const lvl = Math.max(1, b.level);
-  // em obra nova: só a fundação
-  const foundation = building && b.level < 1;
-  let h = foundation ? 8 : w.h;
-  if (b.kind === "hq") h = foundation ? 8 : 34 + Math.min(10, lvl * 2);
-  if (b.kind === "hut") h = foundation ? 8 : 14;
-  if (b.kind === "gold_mine") h = foundation ? 8 : 12;
-  box(ctx, b.x, b.y, s, h, foundation ? "#8a7b5a" : w.base, foundation ? "#a39573" : w.top);
-  let emojiY = cy - h - 4;
+  if (selected) outline(ctx, b.x, b.y, s, o.t);
+
+  slab(ctx, b.x, b.y, s, foundation ? 4 : kind === "hut" ? 3 : 6, "#a39a84", foundation ? "#bcae8b" : "#c4bba3");
+  const base = cy + s * 5;
+  let top = base - 60;
   if (!foundation) {
-    const [Lx, Ly] = toWorld(b.x, b.y + s);
-    const [Bx, By] = toWorld(b.x + s, b.y + s);
-    const [Rx, Ry] = toWorld(b.x + s, b.y);
-    if (b.kind === "hq" || b.kind === "hut") {
-      const peak = b.kind === "hq" ? 30 : 16;
-      gable(ctx, b.x, b.y, s, h, peak, tribeColor, tribeDark, w.base);
-      emojiY = cy - h - peak - 6;
-      if (b.kind === "hq") {
-        // bandeira da tribo no topo
-        ctx.strokeStyle = "#3a2a14";
-        ctx.lineWidth = 2;
-        const [mx, my] = toWorld(b.x + s - 0.2, b.y + s / 2);
-        ctx.beginPath();
-        ctx.moveTo(mx, my - h - peak + 6);
-        ctx.lineTo(mx, my - h - peak - 22);
-        ctx.stroke();
-        ctx.fillStyle = tribeColor;
-        const wave = Math.sin(o.t / 260) * 2;
-        ctx.beginPath();
-        ctx.moveTo(mx, my - h - peak - 22);
-        ctx.lineTo(mx + 16, my - h - peak - 17 + wave);
-        ctx.lineTo(mx, my - h - peak - 11);
-        ctx.closePath();
-        ctx.fill();
-        // escudo com o mascote na parede da frente
-        const sx = (Lx + Bx) / 2;
-        const sy = (Ly + By) / 2 - h * 0.45;
-        ctx.fillStyle = "#fff";
-        ctx.beginPath();
-        ctx.arc(sx, sy, 15, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.lineWidth = 3;
-        ctx.strokeStyle = tribeColor;
-        ctx.stroke();
-        ctx.font = '19px system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(TRIBES[o.tribe].mascot, sx, sy + 1);
-        // porta
-        ctx.fillStyle = "#4a3320";
-        const [dx, dy] = toWorld(b.x + s * 0.5, b.y + s);
-        ctx.beginPath();
-        ctx.roundRect(dx - 7 + 14, dy - 22 - 2, 14, 22, [7, 7, 0, 0]);
-        ctx.fill();
-        emojiY = -9999;
-      }
-    } else if (b.kind === "gold_mine") {
-      // pilha de pepitas e vigas de madeira
-      ctx.fillStyle = "#6b4a2b";
-      ctx.fillRect(cx - 18, cy - h - 20, 4, 20);
-      ctx.fillRect(cx + 14, cy - h - 20, 4, 20);
-      ctx.fillRect(cx - 18, cy - h - 22, 36, 4);
-      ctx.fillStyle = "#ffd23f";
-      for (const [ox, oy, r] of [[-8, 2, 6], [2, 4, 7], [10, 0, 5], [-1, -3, 6], [5, -4, 4]] as const) {
-        ctx.beginPath();
-        ctx.arc(cx + ox, cy - h + oy, r, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      emojiY = cy - h - 30;
-    } else if (b.kind === "mana_pump") {
-      // tanque redondo com água brilhante
-      const r = s * 11;
-      ctx.fillStyle = "#3b4f97";
-      ctx.beginPath();
-      ctx.ellipse(cx, cy - 2, r, r * 0.5, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillRect(cx - r, cy - h - 4, r * 2, h + 2);
-      ctx.beginPath();
-      ctx.ellipse(cx, cy - h - 4, r, r * 0.5, 0, 0, Math.PI * 2);
-      ctx.fillStyle = "#6fd9ff";
-      ctx.fill();
-      ctx.strokeStyle = "#e6faff";
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      const sh = Math.sin(o.t / 400) * 0.1;
-      ctx.fillStyle = `rgba(255,255,255,${0.35 + sh})`;
-      ctx.beginPath();
-      ctx.ellipse(cx - r * 0.3, cy - h - 6, r * 0.35, r * 0.12, 0, 0, Math.PI * 2);
-      ctx.fill();
-      emojiY = cy - h - 26;
-    } else if (b.kind === "gold_store" || b.kind === "mana_store") {
-      // faixa da tribo e porta do cofre
-      const [rx2, ry2] = toWorld(b.x + s, b.y);
-      for (const [ax, ay, bx2, by2] of [[Lx, Ly, Bx, By], [Bx, By, rx2, ry2]] as const) {
-        ctx.fillStyle = tribeColor;
-        ctx.beginPath();
-        ctx.moveTo(ax, ay - h + 8);
-        ctx.lineTo(bx2, by2 - h + 8);
-        ctx.lineTo(bx2, by2 - h + 14);
-        ctx.lineTo(ax, ay - h + 14);
-        ctx.closePath();
-        ctx.fill();
-      }
-      ctx.fillStyle = "#2b2b2b";
-      const px = Bx + (Rx - Bx) * 0.5;
-      const py = By + (Ry - By) * 0.5;
-      ctx.beginPath();
-      ctx.moveTo(px - 10, py + 5 - 2);
-      ctx.lineTo(px + 10, py - 5 - 2);
-      ctx.lineTo(px + 10, py - 5 - 20);
-      ctx.lineTo(px - 10, py + 5 - 20);
-      ctx.closePath();
-      ctx.fill();
-      emojiY = cy - h - 4;
+    if (kind === "hq") {
+      const w = 188 + Math.min(5, lvl) * 7;
+      spr(ctx, "i/castelo", cx, base + 12, w);
+      top = base + 12 - w;
+      const [bx, by] = toWorld(b.x + s - 0.4, b.y + s - 0.4);
+      banner(ctx, bx, by, o.tribe, o.t, 70);
+    } else if (kind === "gold_mine") {
+      spr(ctx, "c/rochedo", cx + 4, base + 6, 118);
+      spr(ctx, "i/picareta", cx - 30, base + 4, 50);
+      for (const [ox, oy] of [[26, 8], [40, 2], [34, 16]] as const) spr(ctx, "i/moeda", cx + ox, base + oy, 17);
+      top = base - 92;
+    } else if (kind === "mana_pump") {
+      const glow = ctx.createRadialGradient(cx, base - 18, 4, cx, base - 18, 56);
+      glow.addColorStop(0, `rgba(80,200,255,${0.5 + Math.sin(o.t / 300) * 0.12})`);
+      glow.addColorStop(1, "rgba(80,200,255,0)");
+      ctx.fillStyle = glow;
+      ctx.fillRect(cx - 60, base - 80, 120, 120);
+      spr(ctx, "i/gota", cx, base + 4 + Math.sin(o.t / 500) * 2, 82);
+      top = base - 82;
+    } else if (kind === "gold_store") {
+      spr(ctx, "i/bau-ouro", cx, base + 8, 118);
+      top = base - 96;
+    } else if (kind === "mana_store") {
+      spr(ctx, "i/barril", cx, base - 4, 62);
+      spr(ctx, "i/barril", cx - 28, base + 8, 62);
+      spr(ctx, "i/barril", cx + 28, base + 10, 62);
+      top = base - 66;
+    } else if (kind === "hut") {
+      spr(ctx, "i/tenda", cx, base + 6, 92);
+      const [bx, by] = toWorld(b.x + s - 0.3, b.y + s - 0.3);
+      banner(ctx, bx, by, o.tribe, o.t, 34);
+      top = base - 80;
     }
-  }
-  // símbolo
-  if (emojiY > -9000 && !foundation) {
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.font = `${s >= 3 ? 26 : 20}px system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
-    ctx.fillText(kindEmoji(b.kind), cx, emojiY);
   }
 
   if (building) {
     // andaime listrado e relógio
     ctx.save();
-    diamond(ctx, b.x, b.y, s, h);
+    diamond(ctx, b.x, b.y, s, foundation ? 4 : 6);
     ctx.clip();
-    ctx.strokeStyle = "rgba(255,170,0,0.55)";
+    ctx.strokeStyle = "rgba(255,170,0,0.6)";
     ctx.lineWidth = 6;
     for (let i = -8; i < 12; i++) {
       ctx.beginPath();
-      ctx.moveTo(cx - 60 + i * 14, cy - h - 30);
-      ctx.lineTo(cx + 20 + i * 14, cy - h + 40);
+      ctx.moveTo(cx - 60 + i * 14, cy - 30);
+      ctx.lineTo(cx + 20 + i * 14, cy + 40);
       ctx.stroke();
     }
     ctx.restore();
+    if (foundation) spr(ctx, "i/martelo", cx, cy + 8 + Math.sin(o.t / 180) * 3, 40);
     if (b.upEnds && b.upStarted) {
       const total = Math.max(1, b.upEnds - b.upStarted);
       const f = Math.max(0, Math.min(1, (o.now - b.upStarted) / total));
-      const py = cy - h - 52;
+      const py = Math.min(top, cy - 30) - 14;
       ctx.fillStyle = "rgba(20,20,20,0.85)";
       ctx.beginPath();
       ctx.roundRect(cx - 34, py - 7, 68, 14, 7);
       ctx.fill();
       ctx.fillStyle = tribeColor;
       ctx.beginPath();
-      ctx.roundRect(cx - 32, py - 5, 64 * f, 10, 5);
+      ctx.roundRect(cx - 32, py - 5, Math.max(4, 64 * f), 10, 5);
       ctx.fill();
-      pill(ctx, cx, py - 18, `🔨 ${o.fmtLeft((b.upEnds - o.now) / 1000)}`, "rgba(20,20,20,0.82)");
+      pill(ctx, cx, py - 18, o.fmtLeft((b.upEnds - o.now) / 1000), "rgba(20,20,20,0.82)", "i/ampulheta");
     }
-  } else if (b.level >= 1 && (def.levels.length > 1 || b.kind === "hq")) {
-    pill(ctx, cx, cy + (s * TH) / 2 + 8, `Nv ${b.level}`, "rgba(20,20,20,0.7)");
+  } else if (b.level >= 1 && (def.levels.length > 1 || kind === "hq")) {
+    pill(ctx, cx, cy + (s * TH) / 2 + 12, `Nv ${b.level}`, "rgba(20,20,20,0.72)");
   }
 
   // coletor com recurso pronto: balão que sobe e desce
   if (def.makes && !building) {
     const amount = produced(b, o.now);
-    const cap = levelDef(b.kind, b.level)?.cap ?? 1;
+    const cap = levelDef(kind, b.level)?.cap ?? 1;
     if (amount >= Math.min(40, cap * 0.1)) {
       const bob = Math.sin(o.t / 260 + b.x) * 3;
-      const py = cy - h - 36 + bob;
+      const py = top - 14 + bob;
       ctx.fillStyle = def.makes === "gold" ? "#f6c52b" : "#35b8ee";
       ctx.beginPath();
-      ctx.arc(cx, py, 13, 0, Math.PI * 2);
+      ctx.arc(cx, py, 15, 0, Math.PI * 2);
       ctx.fill();
       ctx.strokeStyle = "#fff";
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2.5;
       ctx.stroke();
-      ctx.font = "15px system-ui, 'Apple Color Emoji', 'Segoe UI Emoji', sans-serif";
-      ctx.fillStyle = "#fff";
-      ctx.fillText(def.makes === "gold" ? "🪙" : "💧", cx, py + 1);
+      const ic = img(def.makes === "gold" ? "i/moeda" : "i/gota");
+      if (ic) ctx.drawImage(ic, cx - 11, py - 11, 22, 22);
     }
   }
 }

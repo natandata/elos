@@ -1,3 +1,4 @@
+import { TribeEmblem } from "@/components/tribos/ui";
 import Link from "next/link";
 import { Avatar } from "@/components/Avatar";
 import { ChestButton } from "@/components/games/ChestButton";
@@ -324,7 +325,12 @@ export default async function JogosPage({ searchParams }: { searchParams: Promis
       <div key="tribos" style={{ order: order["tribos"] }}>
         {hide("tribos") || !tribosOpen ? null : (
           <Link href="/app/jogos/tribos" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-lime-400 bg-gradient-to-br from-[#14532d] via-[#f5b301] to-[#e0443e] p-4 shadow-lg transition active:scale-[0.99]">
-            <p className="text-2xl font-black tracking-wide text-white [text-shadow:0_2px_0_#0b2a14]">🏕️ CLASH OF TRIBOS</p>
+            <div className="mb-1 flex items-center gap-1.5">
+              <TribeEmblem tribe="feras" className="h-9 w-auto" />
+              <TribeEmblem tribe="bravos" className="h-9 w-auto" />
+              <TribeEmblem tribe="reliquias" className="h-9 w-auto" />
+            </div>
+            <p className="text-2xl font-black tracking-wide text-white [text-shadow:0_2px_0_#0b2a14]">CLASH OF TRIBOS</p>
             <p className="mt-0.5 text-sm font-bold text-white/95">Escolha sua tribo, construa a vila e enfrente as outras.</p>
             <span className="mt-2 inline-block rounded-full bg-rose-700 px-3 py-0.5 text-[10px] font-black text-white">SÓ ADMIN · EM CONSTRUÇÃO</span>
           </Link>

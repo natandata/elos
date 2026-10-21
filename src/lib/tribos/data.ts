@@ -3,10 +3,21 @@
 
 export type TribeKey = "feras" | "bravos" | "reliquias";
 
-export const TRIBES: Record<TribeKey, { name: string; mascot: string; animal: string; color: string; dark: string; tint: string; blurb: string }> = {
-  feras: { name: "Feras", mascot: "🐆", animal: "Onça", color: "#f5b301", dark: "#a87500", tint: "#e9d9a0", blurb: "Rápidas e ferozes. Atacam primeiro e não pedem licença." },
-  bravos: { name: "Bravos", mascot: "🦈", animal: "Tubarão", color: "#22a559", dark: "#127038", tint: "#b9e0c0", blurb: "Frios e persistentes. Quem entra no mar deles não sai." },
-  reliquias: { name: "Relíquias", mascot: "🐼", animal: "Panda", color: "#e0443e", dark: "#9b231f", tint: "#ecc0b8", blurb: "Guardiãs de tesouros antigos. Calmas, mas inabaláveis." },
+export type Terrain = { a: string; b: string; edge: string; cliff: string; cliffDark: string; void: string; speck: string; name: string };
+
+export const TRIBES: Record<TribeKey, { name: string; mascot: string; animal: string; color: string; dark: string; tint: string; blurb: string; terrain: Terrain }> = {
+  feras: {
+    name: "Feras", mascot: "🐆", animal: "Onça", color: "#f5b301", dark: "#a87500", tint: "#e9d9a0", blurb: "Rápidas e ferozes. Dominam as dunas e atacam primeiro.",
+    terrain: { name: "Areia", a: "#ecd488", b: "#e3c777", edge: "#cfb260", cliff: "#b8953f", cliffDark: "#8c6f2c", void: "#33270f", speck: "#c9a94f" },
+  },
+  bravos: {
+    name: "Bravos", mascot: "🦈", animal: "Tubarão", color: "#22a559", dark: "#127038", tint: "#b9e0c0", blurb: "Frios e persistentes. Quem entra no campo deles não sai.",
+    terrain: { name: "Grama", a: "#6dac4a", b: "#65a444", edge: "#5a8f3d", cliff: "#3b3a2f", cliffDark: "#2a291f", void: "#16241a", speck: "#4f8a36" },
+  },
+  reliquias: {
+    name: "Relíquias", mascot: "🐼", animal: "Panda", color: "#e0443e", dark: "#9b231f", tint: "#ecc0b8", blurb: "Guardiãs de tesouros antigos. Calmas, mas inabaláveis.",
+    terrain: { name: "Terra árida", a: "#c9683a", b: "#bd5e32", edge: "#a54c28", cliff: "#7a3a22", cliffDark: "#552615", void: "#2b120c", speck: "#8f3f21" },
+  },
 };
 export const TRIBE_KEYS = Object.keys(TRIBES) as TribeKey[];
 export const isTribe = (v: unknown): v is TribeKey => typeof v === "string" && (TRIBE_KEYS as string[]).includes(v);
