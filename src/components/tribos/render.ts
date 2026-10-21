@@ -385,7 +385,7 @@ export function drawBuilding(ctx: CanvasRenderingContext2D, b: TBuilding, o: Dra
       // o líder da tribo, de guarda na frente do Salão
       const king = img("k/rei");
       if (king) {
-        const kh = 86;
+        const kh = 98;
         const kw = (kh * king.naturalWidth) / king.naturalHeight;
         const breathe = Math.sin(o.t / 650) * 0.012;
         const look = Math.sin(o.t / 3400) > 0.55 ? -1 : 1;
