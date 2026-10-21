@@ -10,6 +10,8 @@ import {
 } from "@/lib/tribos/state";
 import { TH, applyCam, drawBuilding, drawFootprint, drawGround, loadTribosAssets, screenToTile, sortForDraw, toWorld, voidColor, type Cam } from "./render";
 import { KindIcon, ResIcon, TIcon, TribeEmblem } from "./ui";
+import { Crew } from "./workers";
+import { footprint as fp } from "@/lib/tribos/state";
 
 type Ghost = { kind: Kind; id: string | null; x: number; y: number };
 
@@ -80,6 +82,8 @@ export function TribosVillage({ initial, demo = false }: { initial: TState; demo
   const refs = useRef({ st: initial, sel: null as string | null, ghost: null as Ghost | null });
   const refreshing = useRef(false);
   const zoomed = useRef(false);
+  const crew = useRef(new Crew());
+  const lastT = useRef(0);
 
   const tribe = TRIBES[st.player.tribe];
 
@@ -175,10 +179,20 @@ export function TribosVillage({ initial, demo = false }: { initial: TState; demo
       applyCam(ctx, cam.current, w, h, dpr);
       drawGround(ctx, s.player.tribe);
       const opts = { tribe: s.player.tribe, now, t, selectedId: selId, hiddenId: gh?.id ?? null, fmtLeft: fmtDuration };
-      for (const b of sortForDraw(s.buildings)) {
+      const last = lastT.current || t;
+      lastT.current = t;
+      crew.current.update((t - last) / 1000, now, s.buildings);
+      // construções e obreiros juntos, do fundo para a frente
+      const items: { depth: number; draw: () => void }[] = [];
+      for (const b of s.buildings) {
         if (gh?.id === b.id) continue;
-        drawBuilding(ctx, b, opts);
+        const f = fp(b.kind, b.x, b.y);
+        items.push({ depth: f.x1 + f.y1, draw: () => drawBuilding(ctx, b, opts) });
       }
+      for (const it of crew.current.items(s.player.tribe)) items.push({ depth: it.depth, draw: () => it.draw(ctx, t) });
+      items.sort((a, b) => a.depth - b.depth);
+      for (const it of items) it.draw();
+      crew.current.drawParticles(ctx);
       if (gh) {
         const ok = canPlace(s.buildings, gh.kind, gh.x, gh.y, gh.id ?? undefined);
         const sz = isBuild(gh.kind) ? BUILDINGS[gh.kind].size : 1;

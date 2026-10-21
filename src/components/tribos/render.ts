@@ -60,6 +60,7 @@ export function loadTribosAssets(): Promise<void> {
   return loading;
 }
 
+export const sprite = (k: string): HTMLImageElement | null => img(k);
 const img = (k: string): HTMLImageElement | null => {
   const im = imgs.get(k);
   return im && im.complete && im.naturalWidth > 0 ? im : null;
