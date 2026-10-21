@@ -45,6 +45,7 @@ export function loadTribosAssets(): Promise<void> {
     ...CAMPO_IMGS.map((n): [string, string] => [`c/${n}`, `/arena/campo/${n}.webp`]),
     ...TRIBE_LIST.map((t): [string, string] => [`e/${t}`, emblemUrl(t)]),
     ["k/rei", "/tribos/rei.webp"] as [string, string],
+    ...TRIBE_LIST.map((t): [string, string] => [`k/castelo-${t}`, `/tribos/castelo-${t}.webp`]),
   ];
   loading ??= Promise.all(
     list.map(
@@ -360,25 +361,34 @@ export function drawBuilding(ctx: CanvasRenderingContext2D, b: TBuilding, o: Dra
   const lvl = Math.max(1, b.level);
   if (selected) outline(ctx, b.x, b.y, s, o.t);
 
-  slab(ctx, b.x, b.y, s, foundation ? 4 : kind === "hut" ? 3 : 6, "#a39a84", foundation ? "#bcae8b" : "#c4bba3");
+  if (kind !== "hq") slab(ctx, b.x, b.y, s, foundation ? 4 : kind === "hut" ? 3 : 6, "#a39a84", foundation ? "#bcae8b" : "#c4bba3");
   const base = cy + s * 5;
   let top = base - 60;
   if (!foundation) {
     if (kind === "hq") {
-      const w = 188 + Math.min(5, lvl) * 7;
-      spr(ctx, "i/castelo", cx, base + 12, w);
-      top = base + 12 - w;
-      const [bx, by] = toWorld(b.x + s - 0.4, b.y + s - 0.4);
-      banner(ctx, bx, by, o.tribe, o.t, 70);
+      // castelo 3D na cor da tribo (a imagem já traz a plataforma de pedra)
+      const w = 272 + Math.min(5, lvl) * 6;
+      const bottom = cy + 62;
+      spr(ctx, `k/castelo-${o.tribe}`, cx, bottom, w);
+      const ch = img(`k/castelo-${o.tribe}`);
+      const hgt = ch ? (w * ch.naturalHeight) / ch.naturalWidth : w;
+      top = bottom - hgt;
+      // emblema da tribo sobre a janela central
+      const em = img(`e/${o.tribe}`);
+      if (em) {
+        const ew = 30;
+        const eh = (ew * em.naturalHeight) / em.naturalWidth;
+        ctx.drawImage(em, cx - (0.016 * w) - ew / 2, bottom - hgt * 0.465 - eh / 2, ew, eh);
+      }
       // o líder da tribo, de guarda na frente do Salão
       const king = img("k/rei");
       if (king) {
-        const kh = 104;
+        const kh = 86;
         const kw = (kh * king.naturalWidth) / king.naturalHeight;
         const breathe = Math.sin(o.t / 650) * 0.012;
         const look = Math.sin(o.t / 3400) > 0.55 ? -1 : 1;
         ctx.save();
-        ctx.translate(cx + 46, cy + 62);
+        ctx.translate(cx + 66, cy + 66);
         ctx.fillStyle = "rgba(0,0,0,0.28)";
         ctx.beginPath();
         ctx.ellipse(0, 1, kw * 0.36, 5, 0, 0, Math.PI * 2);

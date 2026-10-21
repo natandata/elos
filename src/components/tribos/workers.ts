@@ -317,86 +317,249 @@ export class Crew {
   }
 }
 
+const SKIN = ["#f0c79a", "#dba577", "#b97c52", "#f5d5b4", "#94603c"];
+const HAIR = ["#4a2c17", "#241509", "#7a4a22", "#161616", "#a0551f"];
+
+function shadeHex(hex: string, f: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  const c = (v: number) => Math.max(0, Math.min(255, Math.round(v * f)));
+  return `rgb(${c((n >> 16) & 255)},${c((n >> 8) & 255)},${c(n & 255)})`;
+}
+
+/** Obreiro no estilo do líder da tribo: cabeça grande, olhos grandes, túnica com acabamento dourado, capacete com gema. */
 function drawWorker(ctx: CanvasRenderingContext2D, w: Worker, tribe: TribeKey, t: number): void {
   void t;
   const T = TRIBES[tribe];
   const [wx, wy] = toWorld(w.x, w.y);
   const walking = w.path.length > 0;
-  const bob = walking ? Math.abs(Math.sin(w.phase)) * 2.2 : w.step === "work" ? Math.abs(Math.sin(w.phase)) * 1.2 : 0;
-  const leg = walking ? Math.sin(w.phase) * 4 : 0;
+  const bob = walking ? Math.abs(Math.sin(w.phase)) * 2 : w.step === "work" ? Math.abs(Math.sin(w.phase)) * 1.1 : Math.sin(w.phase * 0.5) * 0.4;
+  const leg = walking ? Math.sin(w.phase) * 3.6 : 0;
+  const skin = SKIN[w.i % SKIN.length];
+  const hair = HAIR[(w.i * 2 + 1) % HAIR.length];
+  const beard = w.i % 3; // 0 barba, 1 bigode, 2 sem
   ctx.save();
   ctx.translate(wx, wy + 4);
-  ctx.scale(2.2, 2.2);
-  ctx.fillStyle = "rgba(0,0,0,0.25)";
+  ctx.scale(1.45, 1.45);
+  ctx.fillStyle = "rgba(0,0,0,0.27)";
   ctx.beginPath();
-  ctx.ellipse(0, 1, 8, 3.2, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 1, 9, 3.4, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.scale(w.face, 1);
-  // pernas
-  ctx.strokeStyle = "#3a2a1a";
-  ctx.lineWidth = 3;
-  ctx.lineCap = "round";
-  ctx.beginPath();
-  ctx.moveTo(-2.5, -6 - bob);
-  ctx.lineTo(-2.5 + leg, 0);
-  ctx.moveTo(2.5, -6 - bob);
-  ctx.lineTo(2.5 - leg, 0);
-  ctx.stroke();
   const by = -bob;
+
   // saco nas costas
   if (w.carry) {
-    ctx.fillStyle = w.carry.color;
-    ctx.strokeStyle = w.carry.dark;
-    ctx.lineWidth = 1.5;
+    const g = ctx.createRadialGradient(-10, -20 + by, 1, -9, -18 + by, 8);
+    g.addColorStop(0, shadeHex(w.carry.color, 1.25));
+    g.addColorStop(1, w.carry.dark);
+    ctx.fillStyle = g;
+    ctx.strokeStyle = "rgba(0,0,0,0.45)";
+    ctx.lineWidth = 0.9;
     ctx.beginPath();
-    ctx.ellipse(-7, -17 + by, 6.5, 6, 0.3, 0, Math.PI * 2);
+    ctx.ellipse(-9, -17 + by, 6.2, 7, 0.25, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
-    ctx.fillStyle = w.carry.dark;
-    ctx.fillRect(-9, -23 + by, 4, 2.5);
+    ctx.fillStyle = "#5a3b1e";
+    ctx.fillRect(-11, -25 + by, 4, 2.4);
   }
-  // corpo (túnica na cor da tribo)
-  ctx.fillStyle = T.color;
-  ctx.strokeStyle = T.dark;
-  ctx.lineWidth = 1.6;
+
+  // pernas e sandálias
+  ctx.lineCap = "round";
+  for (const side of [-1, 1] as const) {
+    const off = side * leg;
+    ctx.strokeStyle = shadeHex(skin, 0.9);
+    ctx.lineWidth = 3.4;
+    ctx.beginPath();
+    ctx.moveTo(side * 2.8, -8 + by);
+    ctx.lineTo(side * 2.8 + off * 0.5, -1.5);
+    ctx.stroke();
+    ctx.fillStyle = "#6a4222";
+    ctx.beginPath();
+    ctx.ellipse(side * 2.8 + off * 0.5 + 0.6, -0.8, 3.1, 1.7, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // túnica (cor da tribo) com volume
+  const tg = ctx.createLinearGradient(-8, -28, 8, -8);
+  tg.addColorStop(0, shadeHex(T.color, 1.18));
+  tg.addColorStop(0.55, T.color);
+  tg.addColorStop(1, T.dark);
+  ctx.fillStyle = tg;
+  ctx.strokeStyle = "rgba(40,20,0,0.5)";
+  ctx.lineWidth = 0.9;
   ctx.beginPath();
-  ctx.roundRect(-5.5, -19 + by, 11, 14, 4);
+  ctx.moveTo(-6.5, -26 + by);
+  ctx.quadraticCurveTo(0, -29 + by, 6.5, -26 + by);
+  ctx.lineTo(8.2, -7.5 + by);
+  ctx.quadraticCurveTo(0, -5.5 + by, -8.2, -7.5 + by);
+  ctx.closePath();
   ctx.fill();
   ctx.stroke();
-  ctx.fillStyle = "#5a3b1e";
-  ctx.fillRect(-5.5, -10 + by, 11, 2);
-  // cabeça e chapéu
-  ctx.fillStyle = "#f0c79a";
+  // acabamento dourado na gola e na barra
+  ctx.strokeStyle = "#e6b422";
+  ctx.lineWidth = 1.3;
   ctx.beginPath();
-  ctx.arc(0, -24 + by, 5.4, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = T.dark;
+  ctx.moveTo(-6, -26 + by);
+  ctx.quadraticCurveTo(0, -23 + by, 6, -26 + by);
+  ctx.moveTo(-8, -8.2 + by);
+  ctx.quadraticCurveTo(0, -6.2 + by, 8, -8.2 + by);
+  ctx.stroke();
+  // tira de couro e cinto com fivela
+  ctx.strokeStyle = "#7a4a22";
+  ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.arc(0, -26 + by, 5.8, Math.PI, 0);
+  ctx.moveTo(-5, -25 + by);
+  ctx.lineTo(5, -12 + by);
+  ctx.stroke();
+  ctx.fillStyle = "#6b4423";
+  ctx.fillRect(-7.8, -15 + by, 15.6, 3.2);
+  ctx.fillStyle = "#f2c230";
+  ctx.beginPath();
+  ctx.arc(0, -13.4 + by, 2.1, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillRect(-7.2, -26.4 + by, 14.4, 2);
-  ctx.fillStyle = "#2a1a0e";
-  ctx.fillRect(2.2, -24.5 + by, 1.6, 1.6);
-  // ferramenta na mão
+  ctx.strokeStyle = "#8a5a00";
+  ctx.lineWidth = 0.6;
+  ctx.stroke();
+
+  // braço da frente com a ferramenta
+  const shX = 7;
+  const shY = -23 + by;
+  let hx = 9.5;
+  let hy = -13 + by;
+  const swing = Math.sin(w.phase);
   if (w.step === "work" && !walking) {
-    const im = sprite(w.tool === "hammer" ? "i/martelo" : "i/picareta");
-    const swing = Math.sin(w.phase);
-    if (im) {
-      ctx.save();
-      ctx.translate(6, -14 + by);
-      ctx.rotate(-1.1 + (swing + 1) * 0.85);
-      ctx.drawImage(im, -3, -19, 22, 22);
-      ctx.restore();
-    }
-  } else if (!w.carry && walking && w.tool === "pick") {
-    const im = sprite("i/picareta");
-    if (im) {
-      ctx.save();
-      ctx.translate(6, -14 + by);
-      ctx.rotate(0.5);
-      ctx.drawImage(im, -3, -19, 20, 20);
-      ctx.restore();
-    }
+    const a = -1.9 + (swing + 1) * 1.15;
+    hx = shX + Math.cos(a) * 9;
+    hy = shY + Math.sin(a) * 9;
+  } else if (walking) {
+    hx = 9.5 + Math.sin(w.phase + 1) * 1.5;
+    hy = -13 + by;
   }
+  ctx.strokeStyle = T.dark;
+  ctx.lineWidth = 4.2;
+  ctx.beginPath();
+  ctx.moveTo(shX, shY);
+  ctx.lineTo((shX + hx) / 2 + 0.2, (shY + hy) / 2);
+  ctx.stroke();
+  ctx.strokeStyle = skin;
+  ctx.lineWidth = 3.3;
+  ctx.beginPath();
+  ctx.moveTo((shX + hx) / 2, (shY + hy) / 2);
+  ctx.lineTo(hx, hy);
+  ctx.stroke();
+  ctx.fillStyle = "#e6b422";
+  ctx.beginPath();
+  ctx.arc((shX + hx) / 2 + (hx - shX) * 0.12, (shY + hy) / 2 + (hy - shY) * 0.12, 1.9, 0, Math.PI * 2);
+  ctx.fill();
+  const toolIm = sprite(w.tool === "hammer" ? "i/martelo" : "i/picareta");
+  if (toolIm && (w.step === "work" || (!w.carry && walking))) {
+    ctx.save();
+    ctx.translate(hx, hy);
+    ctx.rotate(w.step === "work" && !walking ? -1.1 + (swing + 1) * 0.85 : 0.5);
+    ctx.drawImage(toolIm, -3.5, -20, 22, 22);
+    ctx.restore();
+  }
+
+  // cabeça grande, como o líder
+  const hy0 = -34 + by;
+  ctx.fillStyle = shadeHex(skin, 0.82);
+  ctx.beginPath();
+  ctx.arc(-8.2, hy0 + 1, 2.2, 0, Math.PI * 2);
+  ctx.arc(8.2, hy0 + 1, 2.2, 0, Math.PI * 2);
+  ctx.fill();
+  const hg = ctx.createRadialGradient(-2.5, hy0 - 3, 1, 0, hy0, 10);
+  hg.addColorStop(0, shadeHex(skin, 1.1));
+  hg.addColorStop(1, shadeHex(skin, 0.86));
+  ctx.fillStyle = hg;
+  ctx.strokeStyle = "rgba(50,25,5,0.55)";
+  ctx.lineWidth = 0.9;
+  ctx.beginPath();
+  ctx.ellipse(0, hy0, 8.6, 8.2, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  // cabelo nas laterais
+  ctx.fillStyle = hair;
+  ctx.beginPath();
+  ctx.ellipse(-7.3, hy0 - 1.5, 2, 4, 0.2, 0, Math.PI * 2);
+  ctx.ellipse(7.3, hy0 - 1.5, 2, 4, -0.2, 0, Math.PI * 2);
+  ctx.fill();
+  // bochechas, olhos, sobrancelhas, nariz
+  ctx.fillStyle = "rgba(230,110,100,0.35)";
+  ctx.beginPath();
+  ctx.ellipse(-4.8, hy0 + 2.4, 2, 1.4, 0, 0, Math.PI * 2);
+  ctx.ellipse(4.8, hy0 + 2.4, 2, 1.4, 0, 0, Math.PI * 2);
+  ctx.fill();
+  const look = w.face * 0.5;
+  for (const ex of [-3.2, 3.2]) {
+    ctx.fillStyle = "#fff";
+    ctx.beginPath();
+    ctx.ellipse(ex, hy0 - 0.4, 2.2, 2.6, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#2a1a0e";
+    ctx.beginPath();
+    ctx.arc(ex + look, hy0 - 0.1, 1.25, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.strokeStyle = hair;
+  ctx.lineWidth = 1.1;
+  ctx.beginPath();
+  ctx.moveTo(-5.4, hy0 - 3.6);
+  ctx.lineTo(-1.6, hy0 - 3.9);
+  ctx.moveTo(1.6, hy0 - 3.9);
+  ctx.lineTo(5.4, hy0 - 3.6);
+  ctx.stroke();
+  ctx.fillStyle = shadeHex(skin, 0.88);
+  ctx.beginPath();
+  ctx.ellipse(0, hy0 + 2, 1.6, 1.3, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // barba ou bigode
+  ctx.fillStyle = hair;
+  if (beard === 0) {
+    ctx.beginPath();
+    ctx.moveTo(-7, hy0 + 2);
+    ctx.quadraticCurveTo(-6, hy0 + 10.5, 0, hy0 + 11);
+    ctx.quadraticCurveTo(6, hy0 + 10.5, 7, hy0 + 2);
+    ctx.quadraticCurveTo(4, hy0 + 4.6, 0, hy0 + 4.2);
+    ctx.quadraticCurveTo(-4, hy0 + 4.6, -7, hy0 + 2);
+    ctx.fill();
+  } else if (beard === 1) {
+    ctx.beginPath();
+    ctx.ellipse(-2, hy0 + 4.1, 2.6, 1.1, 0.3, 0, Math.PI * 2);
+    ctx.ellipse(2, hy0 + 4.1, 2.6, 1.1, -0.3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.strokeStyle = "#7a2a1a";
+  ctx.lineWidth = 0.9;
+  ctx.beginPath();
+  ctx.moveTo(-1.5, hy0 + 5.6);
+  ctx.quadraticCurveTo(0, hy0 + 6.6, 1.5, hy0 + 5.6);
+  ctx.stroke();
+
+  // capacete na cor da tribo, com aro dourado e gema
+  const cg = ctx.createLinearGradient(-8, hy0 - 12, 8, hy0 - 3);
+  cg.addColorStop(0, shadeHex(T.color, 1.25));
+  cg.addColorStop(1, T.dark);
+  ctx.fillStyle = cg;
+  ctx.strokeStyle = "rgba(40,20,0,0.6)";
+  ctx.lineWidth = 0.9;
+  ctx.beginPath();
+  ctx.moveTo(-8.8, hy0 - 3.6);
+  ctx.bezierCurveTo(-9, hy0 - 13.5, 9, hy0 - 13.5, 8.8, hy0 - 3.6);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = "#f2c230";
+  ctx.beginPath();
+  ctx.roundRect(-9.4, hy0 - 5.2, 18.8, 2.8, 1.4);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = "#3b6fd8";
+  ctx.beginPath();
+  ctx.arc(0, hy0 - 3.8, 1.3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,0.35)";
+  ctx.beginPath();
+  ctx.ellipse(-3.5, hy0 - 9, 2.6, 1.2, -0.5, 0, Math.PI * 2);
+  ctx.fill();
   ctx.restore();
 }
