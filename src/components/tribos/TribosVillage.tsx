@@ -398,7 +398,7 @@ export function TribosVillage({ initial, demo = false }: { initial: TState; demo
     return (
       <>
         <p className="flex items-center gap-2 pr-6 text-base font-black leading-tight">
-          {b.kind === "hq" ? <TribeEmblem tribe={st.player.tribe} className="h-9 w-auto" /> : <KindIcon kind={b.kind} className="h-9 w-9" />}
+          {b.kind === "hq" ? /* eslint-disable-next-line @next/next/no-img-element */ <img src="/tribos/rei.webp" alt="" draggable={false} className="h-14 w-auto" /> : <KindIcon kind={b.kind} className="h-9 w-9" />}
           <span>{name} <span className="block text-[11px] font-bold opacity-70">Nível {Math.max(b.level, 1)}{running && b.upTo ? ` → ${b.upTo}` : ""}</span></span>
         </p>
         <p className="mt-1 text-xs opacity-80">{def.desc}</p>

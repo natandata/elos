@@ -44,6 +44,7 @@ export function loadTribosAssets(): Promise<void> {
     ...ICONS.map((n): [string, string] => [`i/${n}`, `/arena/icones/${n}.webp`]),
     ...CAMPO_IMGS.map((n): [string, string] => [`c/${n}`, `/arena/campo/${n}.webp`]),
     ...TRIBE_LIST.map((t): [string, string] => [`e/${t}`, emblemUrl(t)]),
+    ["k/rei", "/tribos/rei.webp"] as [string, string],
   ];
   loading ??= Promise.all(
     list.map(
@@ -369,6 +370,23 @@ export function drawBuilding(ctx: CanvasRenderingContext2D, b: TBuilding, o: Dra
       top = base + 12 - w;
       const [bx, by] = toWorld(b.x + s - 0.4, b.y + s - 0.4);
       banner(ctx, bx, by, o.tribe, o.t, 70);
+      // o líder da tribo, de guarda na frente do Salão
+      const king = img("k/rei");
+      if (king) {
+        const kh = 104;
+        const kw = (kh * king.naturalWidth) / king.naturalHeight;
+        const breathe = Math.sin(o.t / 650) * 0.012;
+        const look = Math.sin(o.t / 3400) > 0.55 ? -1 : 1;
+        ctx.save();
+        ctx.translate(cx + 46, cy + 62);
+        ctx.fillStyle = "rgba(0,0,0,0.28)";
+        ctx.beginPath();
+        ctx.ellipse(0, 1, kw * 0.36, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.scale(look, 1 + breathe);
+        ctx.drawImage(king, -kw / 2, -kh, kw, kh);
+        ctx.restore();
+      }
     } else if (kind === "gold_mine") {
       spr(ctx, "c/rochedo", cx + 4, base + 6, 118);
       spr(ctx, "i/picareta", cx - 30, base + 4, 50);
