@@ -115,6 +115,16 @@ export const BUILDINGS: Record<BuildKind, BuildDef> = {
 };
 export const BUILD_KINDS = Object.keys(BUILDINGS) as BuildKind[];
 
+/** Tempo de obra: os 10 primeiros níveis levam no máximo 3 minutos (o Salão da Tribo também). */
+const BUILD_SECS = [10, 20, 30, 45, 60, 80, 100, 130, 155, 180];
+const HQ_SECS = [0, 30, 60, 120, 180];
+for (const k of BUILD_KINDS) {
+  if (k === "hut") continue;
+  BUILDINGS[k].levels.forEach((l, i) => {
+    l.secs = k === "hq" ? (HQ_SECS[i] ?? 180) : (BUILD_SECS[i] ?? 180);
+  });
+}
+
 /** Obreiros: começam com 2; a 3ª, 4ª e 5ª cabanas custam gemas. */
 export const START_BUILDERS = 2;
 export const HUT_GEM_COST = [0, 0, 250, 500, 1000];

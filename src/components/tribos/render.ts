@@ -33,6 +33,7 @@ export function applyCam(ctx: CanvasRenderingContext2D, cam: Cam, w: number, h: 
 
 const ICONS = ["castelo", "bau-ouro", "picareta", "tenda", "barril", "gota", "moeda", "martelo", "ampulheta", "diamante"] as const;
 const CAMPO_IMGS = ["arvore", "arvore-seca", "palmeira", "pedras", "rochedo", "arbusto", "seixos", "capim", "cogumelos"] as const;
+const POSES = ["parado", "costas", "cesto", "tora", "minerar", "carrinho", "colhe", "foice"] as const;
 const TRIBE_LIST: TribeKey[] = ["feras", "bravos", "reliquias"];
 const imgs = new Map<string, HTMLImageElement>();
 let loading: Promise<void> | null = null;
@@ -45,6 +46,7 @@ export function loadTribosAssets(): Promise<void> {
     ...CAMPO_IMGS.map((n): [string, string] => [`c/${n}`, `/arena/campo/${n}.webp`]),
     ...TRIBE_LIST.map((t): [string, string] => [`e/${t}`, emblemUrl(t)]),
     ["k/rei", "/tribos/rei.webp"] as [string, string],
+    ...POSES.map((n): [string, string] => [`o/${n}`, `/tribos/obreiros/${n}.webp`]),
     ...TRIBE_LIST.map((t): [string, string] => [`k/castelo-${t}`, `/tribos/castelo-${t}.webp`]),
   ];
   loading ??= Promise.all(

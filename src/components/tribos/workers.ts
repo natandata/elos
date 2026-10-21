@@ -2,7 +2,7 @@
 // quem tem obra vai até ela e martela; quem está livre vai quebrar pedra, cortar árvore, buscar ouro e maná
 // e carrega o recurso até o cofre. Só visual (não muda o jogo): vive no aparelho.
 
-import { BUILDINGS, GRID, TRIBES, isBuild, isObstacle, type TribeKey } from "@/lib/tribos/data";
+import { BUILDINGS, GRID, isBuild, isObstacle, type TribeKey } from "@/lib/tribos/data";
 import { footprint, inProgress, type TBuilding } from "@/lib/tribos/state";
 import { sprite, toWorld } from "./render";
 
@@ -29,6 +29,8 @@ type Worker = {
   hidden: boolean;
   tool: Tool;
   hit: boolean;
+  /** andando para cima na tela (mostra o personagem de costas) */
+  up: boolean;
 };
 
 type Particle = { x: number; y: number; vx: number; vy: number; life: number; max: number; color: string; size: number; icon?: string };
@@ -118,7 +120,7 @@ export class Crew {
 
   private spawn(i: number, hut: TBuilding): Worker {
     const spot = this.edgeSpot(hut, hut.x, hut.y + 2) ?? [hut.x, hut.y];
-    return { i, x: spot[0] + 0.5, y: spot[1] + 0.5, path: [], mode: "gather", step: "rest", timer: rnd(0.2, 1.5), target: null, spark: "dust", carry: null, dropAt: null, face: 1, phase: Math.random() * 6, hidden: false, tool: "pick", hit: false };
+    return { i, x: spot[0] + 0.5, y: spot[1] + 0.5, path: [], mode: "gather", step: "rest", timer: rnd(0.2, 1.5), target: null, spark: "dust", carry: null, dropAt: null, face: 1, phase: Math.random() * 6, hidden: false, tool: "pick", hit: false, up: false };
   }
 
   private pickGather(w: Worker, bs: TBuilding[], now: number): void {
@@ -184,7 +186,7 @@ export class Crew {
   }
 
   update(dt: number, now: number, bs: TBuilding[]): void {
-    dt = Math.min(0.06, dt);
+    dt = Math.min(0.25, dt);
     if (bs !== this.lastBs) {
       this.rebuild(bs);
       this.lastBs = bs;
@@ -212,6 +214,7 @@ export class Crew {
         w.tool = "pick";
       }
       const prevX = w.x;
+      const prevY = w.y;
 
       // andar
       if (w.path.length) {
@@ -230,7 +233,10 @@ export class Crew {
           w.y += (dy / d) * step;
         }
         w.phase += dt * 9;
-        const wsx = toWorld(w.x, w.y)[0] - toWorld(prevX, w.y)[0];
+        const [cx1, cy1] = toWorld(w.x, w.y);
+        const [cx0, cy0] = toWorld(prevX, prevY);
+        const wsx = cx1 - cx0;
+        if (Math.abs(cy1 - cy0) > 0.01) w.up = cy1 < cy0;
         if (Math.abs(wsx) > 0.01) w.face = wsx > 0 ? 1 : -1;
         if (!w.path.length) this.arrive(w);
         continue;
@@ -317,249 +323,51 @@ export class Crew {
   }
 }
 
-const SKIN = ["#f0c79a", "#dba577", "#b97c52", "#f5d5b4", "#94603c"];
-const HAIR = ["#4a2c17", "#241509", "#7a4a22", "#161616", "#a0551f"];
+// Tamanho em que cada pose aparece (altura em px do mundo) — todas na mesma escala de personagem.
+const POSE_H: Record<string, number> = { parado: 100, costas: 92, cesto: 78, tora: 88, minerar: 82, carrinho: 72, colhe: 78, foice: 68 };
 
-function shadeHex(hex: string, f: number): string {
-  const n = parseInt(hex.slice(1), 16);
-  const c = (v: number) => Math.max(0, Math.min(255, Math.round(v * f)));
-  return `rgb(${c((n >> 16) & 255)},${c((n >> 8) & 255)},${c(n & 255)})`;
+function poseFor(w: Worker, walking: boolean): string {
+  const female = w.i % 2 === 1;
+  if (w.step === "work" && !walking) {
+    if (w.mode === "build") return female ? "foice" : "parado";
+    return female ? "foice" : "minerar";
+  }
+  if (w.carry) {
+    if (female) return "colhe";
+    if (w.carry === CARRY.gold) return "cesto";
+    if (w.carry === CARRY.wood) return "tora";
+    return "carrinho";
+  }
+  if (female) return "colhe";
+  return walking && w.up ? "costas" : "parado";
 }
 
-/** Obreiro no estilo do líder da tribo: cabeça grande, olhos grandes, túnica com acabamento dourado, capacete com gema. */
+/** Obreiros com a arte da folha de personagens: cada estado usa uma pose (andando, carregando, minerando, martelando). */
 function drawWorker(ctx: CanvasRenderingContext2D, w: Worker, tribe: TribeKey, t: number): void {
+  void tribe;
   void t;
-  const T = TRIBES[tribe];
   const [wx, wy] = toWorld(w.x, w.y);
   const walking = w.path.length > 0;
-  const bob = walking ? Math.abs(Math.sin(w.phase)) * 2 : w.step === "work" ? Math.abs(Math.sin(w.phase)) * 1.1 : Math.sin(w.phase * 0.5) * 0.4;
-  const leg = walking ? Math.sin(w.phase) * 3.6 : 0;
-  const skin = SKIN[w.i % SKIN.length];
-  const hair = HAIR[(w.i * 2 + 1) % HAIR.length];
-  const beard = w.i % 3; // 0 barba, 1 bigode, 2 sem
+  const pose = poseFor(w, walking);
+  const im = sprite(`o/${pose}`);
+  if (!im) return;
+  const h = POSE_H[pose] ?? 64;
+  const wd = (h * im.naturalWidth) / im.naturalHeight;
+  const working = w.step === "work" && !walking;
+  const sw = Math.sin(w.phase);
+  // andando: pulinho e balanço; trabalhando: golpe (afunda e levanta); parado: respira
+  const hop = walking ? Math.abs(Math.sin(w.phase)) * 4 : 0;
+  const tilt = walking ? Math.sin(w.phase) * 0.06 : working ? sw * 0.07 : 0;
+  const squash = working ? 1 - Math.max(0, sw) * 0.05 : 1 + Math.sin(w.phase * 0.5) * 0.01;
   ctx.save();
-  ctx.translate(wx, wy + 4);
-  ctx.scale(1.45, 1.45);
-  ctx.fillStyle = "rgba(0,0,0,0.27)";
+  ctx.translate(wx, wy + 5);
+  ctx.fillStyle = "rgba(0,0,0,0.28)";
   ctx.beginPath();
-  ctx.ellipse(0, 1, 9, 3.4, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 0, wd * 0.34, 5, 0, 0, Math.PI * 2);
   ctx.fill();
-  ctx.scale(w.face, 1);
-  const by = -bob;
-
-  // saco nas costas
-  if (w.carry) {
-    const g = ctx.createRadialGradient(-10, -20 + by, 1, -9, -18 + by, 8);
-    g.addColorStop(0, shadeHex(w.carry.color, 1.25));
-    g.addColorStop(1, w.carry.dark);
-    ctx.fillStyle = g;
-    ctx.strokeStyle = "rgba(0,0,0,0.45)";
-    ctx.lineWidth = 0.9;
-    ctx.beginPath();
-    ctx.ellipse(-9, -17 + by, 6.2, 7, 0.25, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = "#5a3b1e";
-    ctx.fillRect(-11, -25 + by, 4, 2.4);
-  }
-
-  // pernas e sandálias
-  ctx.lineCap = "round";
-  for (const side of [-1, 1] as const) {
-    const off = side * leg;
-    ctx.strokeStyle = shadeHex(skin, 0.9);
-    ctx.lineWidth = 3.4;
-    ctx.beginPath();
-    ctx.moveTo(side * 2.8, -8 + by);
-    ctx.lineTo(side * 2.8 + off * 0.5, -1.5);
-    ctx.stroke();
-    ctx.fillStyle = "#6a4222";
-    ctx.beginPath();
-    ctx.ellipse(side * 2.8 + off * 0.5 + 0.6, -0.8, 3.1, 1.7, 0, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  // túnica (cor da tribo) com volume
-  const tg = ctx.createLinearGradient(-8, -28, 8, -8);
-  tg.addColorStop(0, shadeHex(T.color, 1.18));
-  tg.addColorStop(0.55, T.color);
-  tg.addColorStop(1, T.dark);
-  ctx.fillStyle = tg;
-  ctx.strokeStyle = "rgba(40,20,0,0.5)";
-  ctx.lineWidth = 0.9;
-  ctx.beginPath();
-  ctx.moveTo(-6.5, -26 + by);
-  ctx.quadraticCurveTo(0, -29 + by, 6.5, -26 + by);
-  ctx.lineTo(8.2, -7.5 + by);
-  ctx.quadraticCurveTo(0, -5.5 + by, -8.2, -7.5 + by);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-  // acabamento dourado na gola e na barra
-  ctx.strokeStyle = "#e6b422";
-  ctx.lineWidth = 1.3;
-  ctx.beginPath();
-  ctx.moveTo(-6, -26 + by);
-  ctx.quadraticCurveTo(0, -23 + by, 6, -26 + by);
-  ctx.moveTo(-8, -8.2 + by);
-  ctx.quadraticCurveTo(0, -6.2 + by, 8, -8.2 + by);
-  ctx.stroke();
-  // tira de couro e cinto com fivela
-  ctx.strokeStyle = "#7a4a22";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(-5, -25 + by);
-  ctx.lineTo(5, -12 + by);
-  ctx.stroke();
-  ctx.fillStyle = "#6b4423";
-  ctx.fillRect(-7.8, -15 + by, 15.6, 3.2);
-  ctx.fillStyle = "#f2c230";
-  ctx.beginPath();
-  ctx.arc(0, -13.4 + by, 2.1, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = "#8a5a00";
-  ctx.lineWidth = 0.6;
-  ctx.stroke();
-
-  // braço da frente com a ferramenta
-  const shX = 7;
-  const shY = -23 + by;
-  let hx = 9.5;
-  let hy = -13 + by;
-  const swing = Math.sin(w.phase);
-  if (w.step === "work" && !walking) {
-    const a = -1.9 + (swing + 1) * 1.15;
-    hx = shX + Math.cos(a) * 9;
-    hy = shY + Math.sin(a) * 9;
-  } else if (walking) {
-    hx = 9.5 + Math.sin(w.phase + 1) * 1.5;
-    hy = -13 + by;
-  }
-  ctx.strokeStyle = T.dark;
-  ctx.lineWidth = 4.2;
-  ctx.beginPath();
-  ctx.moveTo(shX, shY);
-  ctx.lineTo((shX + hx) / 2 + 0.2, (shY + hy) / 2);
-  ctx.stroke();
-  ctx.strokeStyle = skin;
-  ctx.lineWidth = 3.3;
-  ctx.beginPath();
-  ctx.moveTo((shX + hx) / 2, (shY + hy) / 2);
-  ctx.lineTo(hx, hy);
-  ctx.stroke();
-  ctx.fillStyle = "#e6b422";
-  ctx.beginPath();
-  ctx.arc((shX + hx) / 2 + (hx - shX) * 0.12, (shY + hy) / 2 + (hy - shY) * 0.12, 1.9, 0, Math.PI * 2);
-  ctx.fill();
-  const toolIm = sprite(w.tool === "hammer" ? "i/martelo" : "i/picareta");
-  if (toolIm && (w.step === "work" || (!w.carry && walking))) {
-    ctx.save();
-    ctx.translate(hx, hy);
-    ctx.rotate(w.step === "work" && !walking ? -1.1 + (swing + 1) * 0.85 : 0.5);
-    ctx.drawImage(toolIm, -3.5, -20, 22, 22);
-    ctx.restore();
-  }
-
-  // cabeça grande, como o líder
-  const hy0 = -34 + by;
-  ctx.fillStyle = shadeHex(skin, 0.82);
-  ctx.beginPath();
-  ctx.arc(-8.2, hy0 + 1, 2.2, 0, Math.PI * 2);
-  ctx.arc(8.2, hy0 + 1, 2.2, 0, Math.PI * 2);
-  ctx.fill();
-  const hg = ctx.createRadialGradient(-2.5, hy0 - 3, 1, 0, hy0, 10);
-  hg.addColorStop(0, shadeHex(skin, 1.1));
-  hg.addColorStop(1, shadeHex(skin, 0.86));
-  ctx.fillStyle = hg;
-  ctx.strokeStyle = "rgba(50,25,5,0.55)";
-  ctx.lineWidth = 0.9;
-  ctx.beginPath();
-  ctx.ellipse(0, hy0, 8.6, 8.2, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-  // cabelo nas laterais
-  ctx.fillStyle = hair;
-  ctx.beginPath();
-  ctx.ellipse(-7.3, hy0 - 1.5, 2, 4, 0.2, 0, Math.PI * 2);
-  ctx.ellipse(7.3, hy0 - 1.5, 2, 4, -0.2, 0, Math.PI * 2);
-  ctx.fill();
-  // bochechas, olhos, sobrancelhas, nariz
-  ctx.fillStyle = "rgba(230,110,100,0.35)";
-  ctx.beginPath();
-  ctx.ellipse(-4.8, hy0 + 2.4, 2, 1.4, 0, 0, Math.PI * 2);
-  ctx.ellipse(4.8, hy0 + 2.4, 2, 1.4, 0, 0, Math.PI * 2);
-  ctx.fill();
-  const look = w.face * 0.5;
-  for (const ex of [-3.2, 3.2]) {
-    ctx.fillStyle = "#fff";
-    ctx.beginPath();
-    ctx.ellipse(ex, hy0 - 0.4, 2.2, 2.6, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#2a1a0e";
-    ctx.beginPath();
-    ctx.arc(ex + look, hy0 - 0.1, 1.25, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.strokeStyle = hair;
-  ctx.lineWidth = 1.1;
-  ctx.beginPath();
-  ctx.moveTo(-5.4, hy0 - 3.6);
-  ctx.lineTo(-1.6, hy0 - 3.9);
-  ctx.moveTo(1.6, hy0 - 3.9);
-  ctx.lineTo(5.4, hy0 - 3.6);
-  ctx.stroke();
-  ctx.fillStyle = shadeHex(skin, 0.88);
-  ctx.beginPath();
-  ctx.ellipse(0, hy0 + 2, 1.6, 1.3, 0, 0, Math.PI * 2);
-  ctx.fill();
-  // barba ou bigode
-  ctx.fillStyle = hair;
-  if (beard === 0) {
-    ctx.beginPath();
-    ctx.moveTo(-7, hy0 + 2);
-    ctx.quadraticCurveTo(-6, hy0 + 10.5, 0, hy0 + 11);
-    ctx.quadraticCurveTo(6, hy0 + 10.5, 7, hy0 + 2);
-    ctx.quadraticCurveTo(4, hy0 + 4.6, 0, hy0 + 4.2);
-    ctx.quadraticCurveTo(-4, hy0 + 4.6, -7, hy0 + 2);
-    ctx.fill();
-  } else if (beard === 1) {
-    ctx.beginPath();
-    ctx.ellipse(-2, hy0 + 4.1, 2.6, 1.1, 0.3, 0, Math.PI * 2);
-    ctx.ellipse(2, hy0 + 4.1, 2.6, 1.1, -0.3, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.strokeStyle = "#7a2a1a";
-  ctx.lineWidth = 0.9;
-  ctx.beginPath();
-  ctx.moveTo(-1.5, hy0 + 5.6);
-  ctx.quadraticCurveTo(0, hy0 + 6.6, 1.5, hy0 + 5.6);
-  ctx.stroke();
-
-  // capacete na cor da tribo, com aro dourado e gema
-  const cg = ctx.createLinearGradient(-8, hy0 - 12, 8, hy0 - 3);
-  cg.addColorStop(0, shadeHex(T.color, 1.25));
-  cg.addColorStop(1, T.dark);
-  ctx.fillStyle = cg;
-  ctx.strokeStyle = "rgba(40,20,0,0.6)";
-  ctx.lineWidth = 0.9;
-  ctx.beginPath();
-  ctx.moveTo(-8.8, hy0 - 3.6);
-  ctx.bezierCurveTo(-9, hy0 - 13.5, 9, hy0 - 13.5, 8.8, hy0 - 3.6);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-  ctx.fillStyle = "#f2c230";
-  ctx.beginPath();
-  ctx.roundRect(-9.4, hy0 - 5.2, 18.8, 2.8, 1.4);
-  ctx.fill();
-  ctx.stroke();
-  ctx.fillStyle = "#3b6fd8";
-  ctx.beginPath();
-  ctx.arc(0, hy0 - 3.8, 1.3, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = "rgba(255,255,255,0.35)";
-  ctx.beginPath();
-  ctx.ellipse(-3.5, hy0 - 9, 2.6, 1.2, -0.5, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.translate(0, -hop);
+  ctx.rotate(tilt);
+  ctx.scale(w.face, squash);
+  ctx.drawImage(im, -wd / 2, -h, wd, h);
   ctx.restore();
 }
