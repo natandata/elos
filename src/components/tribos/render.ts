@@ -376,18 +376,25 @@ export function drawBuilding(ctx: CanvasRenderingContext2D, b: TBuilding, o: Dra
   let top = base - 60;
   if (!foundation) {
     if (kind === "hq") {
-      // torre-rei da Arena nas cores da tribo, com o brasão da tribo no lugar da coroa
-      const w = 292 + Math.min(5, lvl) * 6;
-      const bottom = cy + 62;
-      spr(ctx, `k/salao-${o.tribe}`, cx, bottom, w);
+      // torre-rei da Arena nas cores da tribo, com a fachada voltada para a diagonal inferior direita (sudeste)
+      const w = 246 + Math.min(5, lvl) * 5;
       const ch = img(`k/salao-${o.tribe}`);
       const hgt = ch ? (w * ch.naturalHeight) / ch.naturalWidth : w;
-      top = bottom - hgt;
+      // meio da borda sudeste da área da construção: é ali que a fachada se apoia
+      const [mx, my] = toWorld(b.x + s - 0.35, b.y + s / 2 - 0.15);
+      if (ch) {
+        ctx.save();
+        ctx.translate(mx, my + 8);
+        ctx.transform(0.92, -0.46, 0, 1, 0, 0);
+        ctx.drawImage(ch, -w / 2, -hgt, w, hgt);
+        ctx.restore();
+      }
+      top = my + 8 - hgt;
       const em = img(`e/${o.tribe}`);
       if (em) {
-        const ew = 36;
+        const ew = 34;
         const eh = (ew * em.naturalHeight) / em.naturalWidth;
-        ctx.drawImage(em, cx - ew / 2, bottom - hgt * 0.36 - eh / 2, ew, eh);
+        ctx.drawImage(em, mx - ew / 2, my + 8 - hgt * 0.36 - eh / 2, ew, eh);
       }
       const [fx, fy] = toWorld(b.x + s - 0.1, b.y + s - 0.1);
       spr(ctx, `k/bandeira-${o.tribe}`, fx - 4, fy + 4, 46);
@@ -399,7 +406,7 @@ export function drawBuilding(ctx: CanvasRenderingContext2D, b: TBuilding, o: Dra
         const breathe = Math.sin(o.t / 650) * 0.012;
         const look = Math.sin(o.t / 3400) > 0.55 ? -1 : 1;
         ctx.save();
-        ctx.translate(cx + 92, cy + 70);
+        ctx.translate(mx + 40, my + 34);
         ctx.fillStyle = "rgba(0,0,0,0.28)";
         ctx.beginPath();
         ctx.ellipse(0, 1, kw * 0.36, 5, 0, 0, Math.PI * 2);
