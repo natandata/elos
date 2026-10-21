@@ -11,7 +11,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { ArenaDifficulty } from "@/components/games/ArenaDifficulty";
 import { loadArenaDifficulty } from "@/lib/arena/difficultyServer";
 
-const RELEASE_TITLES: Record<ReleasedGame, string> = { dress: "👗 Vista o Herói (inclui a Passarela)", minearena: "⛏️ MineArena", biblerush: "🛶 Bible Rush", arenasoccer: "⚽ ArenaSoccer", arenacampanha: "🛡️ Campanha da Arena", ultimatribo: "🪓 A Última Tribo", quemdesenha: "🎨 Quem Desenha?", madureira: "🛍️ Shopping Elos" , missao: "✝️ Missão Madureira", english: "🗣️ Inglês de CRIA" };
+const RELEASE_TITLES: Record<ReleasedGame, string> = { dress: "👗 Vista o Herói (inclui a Passarela)", minearena: "⛏️ MineArena", biblerush: "🛶 Bible Rush", arenasoccer: "⚽ ArenaSoccer", arenacampanha: "🛡️ Campanha da Arena", ultimatribo: "🪓 A Última Tribo", quemdesenha: "🎨 Quem Desenha?", madureira: "🛍️ Shopping Elos" , missao: "✝️ Missão Madureira", english: "🗣️ Inglês de CRIA", tribos: "🏕️ Clash of Tribos" };
 
 type Game = { href: string; emoji: string; title: string; hint: string; release?: keyof typeof GAME_RELEASES; needsElo?: boolean };
 
@@ -34,6 +34,7 @@ const GAMES: Game[] = [
   { href: "/app/jogos/arenasoccer", emoji: "⚽", title: "ArenaSoccer", hint: "Futebol arcade 2D de física, 1x1 a 4x4 contra o computador (vendido na Loja)", release: "arenasoccer" },
   { href: "/app/jogos/ultimatribo", emoji: "🪓", title: "A Última Tribo", hint: "Sobrevivência 3D pós-arrebatamento (em construção, oculto)", release: "ultimatribo" },
   { href: "/app/jogos/missao", emoji: "✝️", title: "Missão Madureira", hint: "Mundo aberto em Madureira: evangelize o máximo de pessoas em 3 min (em construção, oculto)", release: "missao" },
+  { href: "/app/jogos/tribos", emoji: "🏕️", title: "Clash of Tribos", hint: "Construir a vila, treinar heróis e atacar outras tribos (em construção, oculto)", release: "tribos" },
   { href: "/app/jogos/ingles", emoji: "🗣️", title: "Inglês de CRIA", hint: "Trilha de inglês com conversas roteirizadas, estilo Duolingo (em construção, oculto)", release: "english" },
   { href: "/app/jogos/quemdesenha", emoji: "🎨", title: "Quem Desenha?", hint: "Desenho e adivinhação bíblicos em sala", release: "quemdesenha" },
   { href: "/app/jogos/vestir/shopping", emoji: "🛍️", title: "Shopping Elos", hint: "Mundo aberto do Vista o Herói: 3 andares, lojas, praça de alimentação (aparece como Em breve até a data)", release: "madureira" },

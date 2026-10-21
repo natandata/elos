@@ -71,7 +71,7 @@ export default async function JogosPage({ searchParams }: { searchParams: Promis
   const storeItems = (storeRes.data ?? []) as StoreItem[];
 
   const dates = await getReleaseDates();
-  const [dressOpen, mineOpen, rushOpen, soccerOpen, triboOpen, qdOpen, missaoOpen, englishOpen, vis] = await Promise.all([gameOpenFor("dress", profile.id), gameOpenFor("minearena", profile.id), gameOpenFor("biblerush", profile.id), gameOpenFor("arenasoccer", profile.id), gameOpenFor("ultimatribo", profile.id), gameOpenFor("quemdesenha", profile.id), gameOpenFor("missao", profile.id), gameOpenFor("english", profile.id), getVisibilities()]);
+  const [dressOpen, mineOpen, rushOpen, soccerOpen, triboOpen, qdOpen, missaoOpen, englishOpen, tribosOpen, vis] = await Promise.all([gameOpenFor("dress", profile.id), gameOpenFor("minearena", profile.id), gameOpenFor("biblerush", profile.id), gameOpenFor("arenasoccer", profile.id), gameOpenFor("ultimatribo", profile.id), gameOpenFor("quemdesenha", profile.id), gameOpenFor("missao", profile.id), gameOpenFor("english", profile.id), gameOpenFor("tribos", profile.id), getVisibilities()]);
   const locked = await lockedGames(supabase, profile.id, profile.role);
   const early = await getEarlyAccess(profile.id);
   // quem tem acesso antecipado recebe o jogo da Loja de graça: aparece como já adquirido
@@ -92,6 +92,7 @@ export default async function JogosPage({ searchParams }: { searchParams: Promis
     !hide("missao") && missaoOpen,
     !hide("ultimatribo") && triboOpen,
     !hide("quemdesenha") && qdOpen,
+    !hide("tribos") && tribosOpen,
   ].filter(Boolean).length;
   const order = gameCoverOrder(dates);
   const streak = liveGameStreak(profile.game_streak ?? 0, profile.game_streak_date ?? null);
@@ -315,6 +316,16 @@ export default async function JogosPage({ searchParams }: { searchParams: Promis
           <Link href="/app/jogos/missao" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-amber-400 bg-gradient-to-br from-[#0f2747] via-[#1d4ed8] to-[#f59e0b] p-4 shadow-lg transition active:scale-[0.99]">
             <p className="text-2xl font-black tracking-wide text-white [text-shadow:0_2px_0_#0b1a33]">MISSÃO MADUREIRA</p>
             <p className="mt-0.5 text-sm font-bold text-white/90">3 minutos para falar de Jesus pelas ruas de Madureira.</p>
+            <span className="mt-2 inline-block rounded-full bg-rose-700 px-3 py-0.5 text-[10px] font-black text-white">SÓ ADMIN · EM CONSTRUÇÃO</span>
+          </Link>
+        )}
+      </div>
+
+      <div key="tribos" style={{ order: order["tribos"] }}>
+        {hide("tribos") || !tribosOpen ? null : (
+          <Link href="/app/jogos/tribos" className="relative mb-5 block overflow-hidden rounded-2xl border-[3px] border-lime-400 bg-gradient-to-br from-[#14532d] via-[#f5b301] to-[#e0443e] p-4 shadow-lg transition active:scale-[0.99]">
+            <p className="text-2xl font-black tracking-wide text-white [text-shadow:0_2px_0_#0b2a14]">🏕️ CLASH OF TRIBOS</p>
+            <p className="mt-0.5 text-sm font-bold text-white/95">Escolha sua tribo, construa a vila e enfrente as outras.</p>
             <span className="mt-2 inline-block rounded-full bg-rose-700 px-3 py-0.5 text-[10px] font-black text-white">SÓ ADMIN · EM CONSTRUÇÃO</span>
           </Link>
         )}
