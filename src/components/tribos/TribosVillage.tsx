@@ -2,15 +2,16 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { buildNew, collect, getTribos, moveBuilding, removeObstacle, speedUp, upgradeBuilding, type TribosResult } from "@/lib/actions/tribos";
-import { BUILDINGS, BUILD_KINDS, GRID, MAX_TH, TRIBES, fmtDuration, fmtNum, isBuild, isObstacle, levelDef, playerLevel, xpForLevel, type BuildKind, type Kind, type Res } from "@/lib/tribos/data";
+import { buildNew, buyBag, collect, getTribos, moveBuilding, removeObstacle, speedUp, upgradeBuilding, type TribosResult } from "@/lib/actions/tribos";
+import { BUILDINGS, GRID, TRIBES, fmtDuration, fmtNum, isBuild, isObstacle, levelDef, playerLevel, xpForLevel, type BuildKind, type Kind, type Res } from "@/lib/tribos/data";
 import {
-  builderCount, busyCount, canPlace, capacity, footprint, inProgress, kindName, produced, quoteBuild, quoteRemove, quoteUpgrade, speedUpGems, thLevel,
+  builderCount, busyCount, canPlace, capacity, footprint, inProgress, kindName, produced, quoteBuild, quoteRemove, quoteUpgrade, speedUpGems,
   type Quote, type TBuilding, type TState,
 } from "@/lib/tribos/state";
 import { TH, applyCam, drawBuilding, drawFootprint, drawGround, loadTribosAssets, screenToTile, sortForDraw, toWorld, voidColor, type Cam } from "./render";
 import { KindIcon, ResIcon, TIcon, TribeEmblem } from "./ui";
 import { Crew } from "./workers";
+import { TribosShop } from "./TribosShop";
 import { footprint as fp } from "@/lib/tribos/state";
 
 type Ghost = { kind: Kind; id: string | null; x: number; y: number };
@@ -318,7 +319,6 @@ export function TribosVillage({ initial, demo = false }: { initial: TState; demo
   }, []);
 
   const selected = st.buildings.find((b) => b.id === sel) ?? null;
-  const th = thLevel(st.buildings);
   const builders = builderCount(st.buildings);
   const busyB = busyCount(st.buildings, nowUi);
   const capGold = capacity(st.buildings, "gold");
@@ -479,28 +479,9 @@ export function TribosVillage({ initial, demo = false }: { initial: TState; demo
           <button onClick={() => setSel(null)} aria-label="Fechar" className="absolute right-2 top-2 text-lg font-black opacity-70">✕</button>
           {panel(selected)}
         </div>
-      ) : shop ? (
-        <div className={`${sheet} w-[min(420px,56vw)]`}>
-          <button onClick={() => setShop(false)} aria-label="Fechar" className="absolute right-2 top-2 text-lg font-black opacity-70">✕</button>
-          <p className="flex items-center gap-1.5 text-sm font-black"><TIcon name="casa" className="h-5 w-5" /> Loja da vila</p>
-          <div className="mt-2 grid max-h-[62dvh] grid-cols-3 gap-2 overflow-y-auto">
-            {BUILD_KINDS.filter((k) => k !== "hq").map((k) => {
-              const d = BUILDINGS[k];
-              const have = st.buildings.filter((b) => b.kind === k).length;
-              const max = d.count[Math.min(MAX_TH, th) - 1];
-              const q = quoteBuild(st, k, nowUi);
-              return (
-                <button key={k} disabled={!q.ok} onClick={() => startPlace(k)} className="rounded-xl bg-white/10 p-2 text-left text-white disabled:opacity-45">
-                  <KindIcon kind={k} className="h-10 w-10" />
-                  <p className="text-[11px] font-black leading-tight">{d.name}</p>
-                  <p className="text-[10px] opacity-75">{have}/{max}</p>
-                  <p className="mt-0.5 text-[10px] font-bold">{q.ok ? <Cost q={q} /> : <span className="text-rose-300">{q.error?.slice(0, 40)}</span>}</p>
-                </button>
-              );
-            })}
-          </div>
-        </div>
       ) : null}
+
+      {shop ? <TribosShop st={st} now={nowUi} busy={busy} onClose={() => setShop(false)} onPlace={startPlace} onBag={(res, pct) => void run(() => buyBag(res, pct))} /> : null}
 
       {/* barra de baixo */}
       {!ghost ? (
@@ -516,7 +497,7 @@ export function TribosVillage({ initial, demo = false }: { initial: TState; demo
           </button>
         </div>
       ) : null}
-      {!ghost && !selected && !shop ? (
+      {!ghost && !selected ? (
         <button disabled title="Em breve" className="absolute bottom-2 right-2 flex h-14 items-center gap-2 rounded-2xl bg-rose-700/80 px-5 text-sm font-black opacity-60">
           <TIcon name="espadas" className="h-9 w-9" />
           <span className="text-left leading-tight">Atacar<br /><small className="font-bold">em breve</small></span>

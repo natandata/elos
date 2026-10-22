@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { logGameActivity } from "@/lib/games/activity";
 import { gameOpenFor } from "@/lib/games/releaseServer";
-import { BUILDINGS, isBuild, isObstacle, isTribe } from "@/lib/tribos/data";
+import { BUILDINGS, gemsForResource, isBuild, isObstacle, isTribe } from "@/lib/tribos/data";
 import { createVillage, loadState, type Admin } from "@/lib/tribos/server";
 import { canPlace, capacity, inProgress, produced, quoteBuild, quoteRemove, quoteUpgrade, speedUpGems, type Quote, type TState } from "@/lib/tribos/state";
 
@@ -205,4 +205,30 @@ export async function collect(id: string): Promise<TribosResult> {
   const state = await loadState(c.admin, c.userId);
   if (!state) return fail("Vila não encontrada.");
   return { state, note: full ? "Os cofres encheram. Melhore os cofres ou gaste recursos." : got ? undefined : "Nada para coletar." };
+}
+
+/** Compra uma bolsa de ouro ou maná com gemas: enche uma parte do cofre (25%, 50% ou o que couber). */
+export async function buyBag(res: string, pct: number): Promise<TribosResult> {
+  const c = await ctx();
+  if ("error" in c) return fail(c.error);
+  if (res !== "gold" && res !== "mana") return fail("Esta bolsa chega em breve.");
+  if (![25, 50, 100].includes(pct)) return fail("Tamanho inválido.");
+  const s = await loadState(c.admin, c.userId);
+  if (!s) return fail("Escolha sua tribo primeiro.");
+  const cap = capacity(s.buildings, res);
+  const have = res === "gold" ? s.player.gold : s.player.mana;
+  const amount = Math.min(Math.floor((cap * pct) / 100), Math.max(0, cap - have));
+  if (amount <= 0) return fail("O cofre já está cheio.");
+  const gems = gemsForResource(amount);
+  const { data: ok } = await c.admin.rpc("tribos_spend", { p_user: c.userId, p_gold: 0, p_mana: 0, p_gems: gems });
+  if (!ok) return fail("Gemas insuficientes.");
+  const { data: took } = await c.admin.rpc("tribos_collect", { p_user: c.userId, p_res: res, p_amount: amount, p_cap: cap });
+  const added = Number(took ?? 0);
+  if (added < amount) {
+    // alguém encheu o cofre no meio do caminho: devolve as gemas do que não coube
+    await c.admin.rpc("tribos_add", { p_user: c.userId, p_gold: 0, p_mana: 0, p_gems: gems - gemsForResource(added), p_xp: 0 });
+  }
+  await logGameActivity(c.userId, "tribos", "play", `Clash of Tribos: comprou bolsa de ${res === "gold" ? "ouro" : "maná"} (+${added})`, 10);
+  const state = await loadState(c.admin, c.userId);
+  return state ? { state, note: `+${added.toLocaleString("pt-BR")} ${res === "gold" ? "de ouro" : "de maná"}` } : fail("Vila não encontrada.");
 }
