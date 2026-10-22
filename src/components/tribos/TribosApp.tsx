@@ -47,7 +47,7 @@ function RotateNotice() {
   );
 }
 
-export function TribosApp({ initial, unavailable }: { initial: TState | null; unavailable: boolean }) {
+export function TribosApp({ initial, unavailable, name = "" }: { initial: TState | null; unavailable: boolean; name?: string }) {
   const [state, setState] = useState<TState | null>(initial);
   const portrait = usePortraitPhone();
   if (unavailable) {
@@ -62,7 +62,7 @@ export function TribosApp({ initial, unavailable }: { initial: TState | null; un
   }
   return (
     <>
-      {!state ? <TribosChoose onDone={setState} /> : <TribosVillage initial={state} />}
+      {!state ? <TribosChoose onDone={setState} /> : <TribosVillage initial={state} name={name} />}
       {portrait ? <RotateNotice /> : null}
     </>
   );

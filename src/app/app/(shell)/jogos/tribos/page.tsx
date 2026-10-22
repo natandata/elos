@@ -9,5 +9,5 @@ export default async function TribosPage() {
   const { profile } = await requireRole("cria", "leader", "admin");
   const admin = createAdminClient();
   const state = admin ? await loadState(admin, profile.id) : null;
-  return <TribosApp initial={state} unavailable={!admin} />;
+  return <TribosApp initial={state} unavailable={!admin} name={profile.full_name?.split(" ")[0] ?? ""} />;
 }

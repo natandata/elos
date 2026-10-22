@@ -1,15 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { buildNew, buyBag, collect, getTribos, moveBuilding, removeObstacle, speedUp, upgradeBuilding, type TribosResult } from "@/lib/actions/tribos";
-import { BUILDINGS, GRID, TRIBES, fmtDuration, fmtNum, isBuild, isObstacle, levelDef, playerLevel, xpForLevel, type BuildKind, type Kind, type Res } from "@/lib/tribos/data";
+import { BUILDINGS, GRID, TRIBES, fmtDuration, fmtNum, isBuild, isObstacle, levelDef, playerLevel, xpForLevel, type BuildKind, type Kind } from "@/lib/tribos/data";
 import {
   builderCount, busyCount, canPlace, capacity, footprint, inProgress, kindName, produced, quoteBuild, quoteRemove, quoteUpgrade, speedUpGems,
   type Quote, type TBuilding, type TState,
 } from "@/lib/tribos/state";
 import { TH, applyCam, drawBuilding, drawFootprint, drawGround, loadTribosAssets, screenToTile, sortForDraw, toWorld, voidColor, type Cam } from "./render";
-import { KindIcon, ResIcon, TIcon, TribeEmblem } from "./ui";
+import { BigButton, BuilderChip, CostPill, NameBanner, Outlined, PlayerCard, ResourceBar, RoundButton, StoneButton } from "./TribosHud";
+import { TribeEmblem, type IconName } from "./ui";
 import { Crew } from "./workers";
 import { TribosShop } from "./TribosShop";
 import { footprint as fp } from "@/lib/tribos/state";
@@ -30,44 +31,7 @@ function findSpot(bs: TBuilding[], kind: string, cx: number, cy: number): [numbe
   return [Math.round(cx), Math.round(cy)];
 }
 
-function Cost({ q }: { q: Quote }) {
-  return (
-    <span className="inline-flex items-center gap-1">
-      <ResIcon res={q.pay} className="h-4 w-4" />
-      {fmtNum(q.cost)}
-      {q.secs > 0 ? (
-        <>
-          <span className="opacity-50">·</span>
-          <TIcon name="ampulheta" className="h-4 w-4" />
-          {fmtDuration(q.secs)}
-        </>
-      ) : null}
-    </span>
-  );
-}
-
-function Gems({ n, prefix }: { n: number; prefix?: string }) {
-  return (
-    <span className="inline-flex items-center gap-1">
-      {prefix}
-      <ResIcon res="gems" className="h-4 w-4" />
-      {fmtNum(n)}
-    </span>
-  );
-}
-
-function TopRes({ res, v, cap, color }: { res: Res; v: number; cap: number; color: string }) {
-  const full = cap > 0 && v >= cap;
-  return (
-    <span className="relative flex min-w-[118px] items-center justify-end gap-1.5 overflow-hidden rounded-full bg-black/60 py-1 pl-2 pr-1.5 text-right text-xs font-black">
-      <span className="absolute inset-y-0 left-0 opacity-50" style={{ width: `${cap > 0 ? Math.min(100, (v / Math.max(1, cap)) * 100) : 0}%`, background: color }} />
-      <span className="relative">{fmtNum(v)}{full ? " (cheio)" : ""}</span>
-      <ResIcon res={res} className="relative h-5 w-5" />
-    </span>
-  );
-}
-
-export function TribosVillage({ initial, demo = false }: { initial: TState; demo?: boolean }) {
+export function TribosVillage({ initial, demo = false, name = "" }: { initial: TState; demo?: boolean; name?: string }) {
   const [st, setSt] = useState<TState>(initial);
   const [nowUi, setNowUi] = useState(initial.serverNow);
   const [sel, setSel] = useState<string | null>(null);
@@ -75,6 +39,7 @@ export function TribosVillage({ initial, demo = false }: { initial: TState; demo
   const [shop, setShop] = useState(false);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [menu, setMenu] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
   const cv = useRef<HTMLCanvasElement>(null);
   const cam = useRef<Cam>({ x: 0, y: 640, z: 0.7 });
@@ -162,7 +127,7 @@ export function TribosVillage({ initial, demo = false }: { initial: TState; demo
       c.height = Math.round(r.height * dpr);
       if (!zoomed.current && r.width > 0) {
         zoomed.current = true;
-        cam.current.z = Math.max(0.45, Math.min(0.9, Math.min(r.width / 1000, r.height / 560)));
+        cam.current.z = Math.max(0.4, Math.min(0.85, Math.min(r.width / 1150, r.height / 700)));
       }
     });
     ro.observe(box);
@@ -351,87 +316,62 @@ export function TribosVillage({ initial, demo = false }: { initial: TState; demo
     else void run(() => buildNew(g.kind, g.x, g.y, (ghostQuote?.missing ?? 0) > 0), () => setGhost(null));
   };
 
-  const upgradeLabel = (q: Quote, verb: string) =>
-    !q.ok ? (
-      q.error
-    ) : q.missing > 0 ? (
-      <span className="inline-flex flex-wrap items-center justify-center gap-1">
-        {verb} · usar <Gems n={q.gemsForMissing} /> <small className="inline-flex items-center gap-0.5 opacity-80">(faltam {fmtNum(q.missing)} <ResIcon res={q.pay} className="h-3 w-3" />)</small>
-      </span>
-    ) : (
-      <span className="inline-flex flex-wrap items-center justify-center gap-1">
-        {verb} · <Cost q={q} />
-      </span>
-    );
+  type Act = { key: string; label: string; icon: IconName | ReactNode; tone: "green" | "red" | "gold" | "violet" | "stone"; sub?: ReactNode; disabled?: boolean; onClick: () => void };
 
-  const panel = (b: TBuilding) => {
-    const name = kindName(b.kind);
+  /** Título, linha de informação e botões de ação da construção selecionada (no estilo do Clash of Clans). */
+  const selection = (b: TBuilding): { title: string; sub?: string; info: string; acts: Act[] } => {
+    const title = kindName(b.kind);
     const running = inProgress(b, nowUi);
-    const speed = (
-      <button disabled={busy} onClick={() => run(() => speedUp(b.id))} className="btn btn-primary w-full !py-2">
-        <Gems n={speedUpGems(b, nowUi)} prefix="⚡ Terminar agora · " />
-      </button>
-    );
+    const acts: Act[] = [];
+    const speed: Act | null = running
+      ? { key: "speed", label: "Acelerar", icon: "raio", tone: "violet", sub: <CostPill res="gems" n={speedUpGems(b, nowUi)} />, disabled: busy, onClick: () => void run(() => speedUp(b.id)) }
+      : null;
+
     if (isObstacle(b.kind)) {
       const q = quoteRemove(st, b, nowUi);
-      return (
-        <>
-          <p className="flex items-center gap-2 pr-6 text-base font-black"><KindIcon kind={b.kind} className="h-9 w-9" />{name}</p>
-          <p className="mt-1 text-xs opacity-80">Ocupa espaço na vila. Remover custa ouro, usa um obreiro e rende XP e, às vezes, gemas.</p>
-          <div className="mt-2 grid gap-2">
-            {running ? speed : (
-              <button disabled={busy || !q.ok} onClick={() => run(() => removeObstacle(b.id, q.missing > 0), () => setSel(null))} className="btn btn-primary w-full !py-2">
-                {upgradeLabel(q, "Remover")}
-              </button>
-            )}
-          </div>
-        </>
-      );
+      if (speed) acts.push(speed);
+      else {
+        acts.push({
+          key: "remove", label: "Remover", icon: "martelo", tone: "green",
+          sub: q.ok ? (q.missing > 0 ? <CostPill res="gems" n={q.gemsForMissing} /> : <CostPill res={q.pay} n={q.cost} />) : undefined,
+          disabled: busy || !q.ok, onClick: () => void run(() => removeObstacle(b.id, q.missing > 0), () => setSel(null)),
+        });
+      }
+      return { title, info: q.ok ? "Atrapalha o espaço. Remover rende XP e, às vezes, gemas." : (q.error ?? ""), acts };
     }
-    if (!isBuild(b.kind)) return null;
+    if (!isBuild(b.kind)) return { title, info: "", acts };
+
     const def = BUILDINGS[b.kind];
     const ld = levelDef(b.kind, Math.max(1, b.level));
-    const q = quoteUpgrade(st, b, nowUi);
-    const amount = def.makes ? Math.floor(produced(b, nowUi)) : 0;
     const next = levelDef(b.kind, b.level + 1);
-    const resIcon = def.makes ?? def.stores;
-    return (
-      <>
-        <p className="flex items-center gap-2 pr-6 text-base font-black leading-tight">
-          {b.kind === "hq" ? /* eslint-disable-next-line @next/next/no-img-element */ <img src="/tribos/rei.webp" alt="" draggable={false} className="h-14 w-auto" /> : <KindIcon kind={b.kind} className="h-9 w-9" />}
-          <span>{name} <span className="block text-[11px] font-bold opacity-70">Nível {Math.max(b.level, 1)}{running && b.upTo ? ` → ${b.upTo}` : ""}</span></span>
-        </p>
-        <p className="mt-1 text-xs opacity-80">{def.desc}</p>
-        {def.makes && ld ? (
-          <p className="mt-1 flex flex-wrap items-center gap-1 text-xs font-bold">
-            <ResIcon res={def.makes} className="h-4 w-4" /> {fmtNum(amount)} / {fmtNum(ld.cap ?? 0)} · {fmtNum(ld.rate ?? 0)}/h{next?.rate ? <span className="opacity-70"> (próximo: {fmtNum(next.rate)}/h)</span> : null}
-          </p>
-        ) : null}
-        {def.stores && ld ? (
-          <p className="mt-1 flex flex-wrap items-center gap-1 text-xs font-bold">
-            Guarda {fmtNum(ld.cap ?? 0)} {resIcon ? <ResIcon res={resIcon} className="h-4 w-4" /> : null}{next?.cap ? <span className="opacity-70"> (próximo: {fmtNum(next.cap)})</span> : null}
-          </p>
-        ) : null}
-        {b.kind === "hq" && ld ? <p className="mt-1 text-xs font-bold">Guarda {fmtNum(ld.cap ?? 0)} de ouro e de maná · libera novas construções e níveis</p> : null}
-        <div className="mt-2 grid gap-1.5">
-          {running ? speed : null}
-          {def.makes && amount >= 1 && !running ? (
-            <button disabled={busy} onClick={() => run(() => collect(b.id))} className="btn btn-soft w-full !py-2">
-              <span className="inline-flex items-center gap-1">Coletar {fmtNum(amount)} <ResIcon res={def.makes} className="h-4 w-4" /></span>
-            </button>
-          ) : null}
-          {!running && b.kind !== "hut" ? (
-            <button disabled={busy || !q.ok} onClick={() => run(() => upgradeBuilding(b.id, q.missing > 0))} className="btn btn-primary w-full !py-2">
-              {upgradeLabel(q, `Melhorar para Nv ${q.to}`)}
-            </button>
-          ) : null}
-          <button disabled={busy} onClick={() => startMove(b)} className="btn btn-ghost w-full !py-1.5">✥ Mover</button>
-        </div>
-      </>
-    );
+    const amount = def.makes ? Math.floor(produced(b, nowUi)) : 0;
+    let info = def.desc;
+    if (def.makes && ld) info = `${fmtNum(amount)} de ${fmtNum(ld.cap ?? 0)} guardados · ${fmtNum(ld.rate ?? 0)} por hora`;
+    else if (def.stores && ld) info = `Guarda ${fmtNum(ld.cap ?? 0)}${next?.cap ? ` (no próximo nível: ${fmtNum(next.cap)})` : ""}`;
+    else if (b.kind === "hq" && ld) info = `Guarda ${fmtNum(ld.cap ?? 0)} de ouro e de maná · libera novas construções`;
+
+    if (speed) acts.push(speed);
+    if (def.makes && amount >= 1 && !running) {
+      acts.push({ key: "collect", label: "Coletar", icon: "bolsa", tone: "gold", sub: <CostPill res={def.makes} n={amount} />, disabled: busy, onClick: () => void run(() => collect(b.id)) });
+    }
+    if (!running && b.kind !== "hut") {
+      const q = quoteUpgrade(st, b, nowUi);
+      if (!q.ok) info = q.error ?? info;
+      else if (q.secs > 0) info = `${info} · Melhoria: ${fmtDuration(q.secs)}`;
+      acts.push({
+        key: "upgrade", label: "Melhorar", icon: "seta-cima", tone: "green",
+        sub: q.ok ? (q.missing > 0 ? <CostPill res="gems" n={q.gemsForMissing} /> : <CostPill res={q.pay} n={q.cost} />) : undefined,
+        disabled: busy || !q.ok, onClick: () => void run(() => upgradeBuilding(b.id, q.missing > 0)),
+      });
+    }
+    acts.push({ key: "move", label: "Mover", icon: <Outlined className="text-[30px] leading-none">✥</Outlined>, tone: "stone", disabled: busy, onClick: () => startMove(b) });
+    return { title, sub: `Nível ${Math.max(b.level, 1)}${running && b.upTo ? ` → ${b.upTo}` : ""}`, info, acts };
   };
 
-  const sheet = "absolute bottom-2 right-2 w-[min(330px,46vw)] rounded-2xl bg-black/80 p-3 text-white backdrop-blur-sm";
+  const sel2 = selected ? selection(selected) : null;
+  const t = tribe;
+  const free = builders - busyB;
+  const playerName = name || "Chefe";
 
   return (
     <div className="fixed inset-0 z-[70] select-none overflow-hidden font-sans text-white" style={{ touchAction: "none", background: voidColor(st.player.tribe) }}>
@@ -439,69 +379,99 @@ export function TribosVillage({ initial, demo = false }: { initial: TState; demo
         <canvas ref={cv} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onWheel={onWheel} className="block h-full w-full touch-none" />
       </div>
 
-      {/* topo: tribo, nível e recursos */}
+      {/* topo: jogador à esquerda, obreiros ao centro, recursos à direita */}
       <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-2">
-        <div className="pointer-events-auto flex items-center gap-2">
-          <Link href="/app/jogos" aria-label="Sair" className="grid h-9 w-9 place-items-center rounded-full bg-black/60 text-lg font-black">✕</Link>
-          <div className="flex items-center gap-2 rounded-xl bg-black/60 py-1 pl-1.5 pr-3">
-            <TribeEmblem tribe={st.player.tribe} className="h-9 w-auto" />
-            <div>
-              <p className="text-xs font-black leading-tight">{tribe.name} · Nível {lvl}</p>
-              <div className="mt-1 h-1.5 w-24 overflow-hidden rounded-full bg-white/20"><div className="h-full" style={{ width: `${xpPct}%`, background: tribe.color }} /></div>
-            </div>
-          </div>
-          <span className="flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-xs font-black"><TIcon name="martelo" className="h-4 w-4" /> {builders - busyB}/{builders}</span>
+        <PlayerCard name={playerName} level={lvl} xpPct={xpPct} trophies={st.player.trophies} tribe={st.player.tribe} />
+        <div className="absolute left-1/2 top-2 -translate-x-1/2">
+          <BuilderChip free={free} total={builders} />
         </div>
-        <div className="pointer-events-auto flex flex-col items-end gap-1">
-          <TopRes res="gold" v={st.player.gold} cap={capGold} color="#f6c52b" />
-          <TopRes res="mana" v={st.player.mana} cap={capMana} color="#35b8ee" />
-          <TopRes res="gems" v={st.player.gems} cap={0} color="#7aa7ff" />
+        <div className="flex flex-col items-end gap-1.5 pr-1">
+          <ResourceBar res="gold" value={st.player.gold} max={capGold} fill="#f2c230" />
+          <ResourceBar res="mana" value={st.player.mana} max={capMana} fill="#3fb6ee" />
+          <ResourceBar res="gems" value={st.player.gems} fill="#4fa8ff" />
         </div>
       </div>
 
-      {toast ? <p className="pointer-events-none absolute inset-x-0 top-3 mx-auto w-fit max-w-[60%] rounded-full bg-black/85 px-4 py-2 text-center text-xs font-black">{toast}</p> : null}
+      {toast ? (
+        <p className="pointer-events-none absolute inset-x-0 top-14 mx-auto w-fit max-w-[60%] rounded-xl border-2 border-black/70 bg-[#2a2118]/90 px-4 py-1.5 text-center">
+          <Outlined className="text-[13px]">{toast}</Outlined>
+        </p>
+      ) : null}
 
-      {/* fantasma: confirmar ou cancelar */}
-      {ghost ? (
-        <div className="absolute inset-x-0 bottom-2 mx-auto w-[min(420px,70vw)] rounded-2xl bg-black/80 p-2.5 text-center text-white">
-          <p className="flex items-center justify-center gap-2 text-sm font-black"><KindIcon kind={ghost.kind} className="h-7 w-7" />{kindName(ghost.kind)}</p>
-          <p className="text-[11px] opacity-80">Arraste para o lugar certo. {ghost.id ? "" : ghostQuote?.ok ? "" : ghostQuote?.error}</p>
-          {ghostQuote?.ok ? (
-            <p className="mt-0.5 flex items-center justify-center gap-2 text-xs font-bold"><Cost q={ghostQuote} />{ghostQuote.missing > 0 ? <Gems n={ghostQuote.gemsForMissing} prefix="usa " /> : null}</p>
+      {/* laterais: conquistas à esquerda; engrenagem e tribo à direita */}
+      {!ghost && !selected ? (
+        <>
+          <div className="pointer-events-none absolute bottom-[104px] left-2 flex flex-col gap-2">
+            <StoneButton icon="trofeu" label="Conquistas" onClick={() => say("As conquistas chegam em breve.")} />
+          </div>
+          <div className="pointer-events-none absolute bottom-[104px] right-2 flex flex-col gap-2">
+            <StoneButton icon="engrenagem" label="Configurações" onClick={() => setMenu((v) => !v)} />
+            <StoneButton icon="dupla" label="Tribo" onClick={() => say("O chat e as guerras da tribo chegam em breve.")} />
+          </div>
+          {menu ? (
+            <div className="absolute bottom-[104px] right-[68px] w-[190px] rounded-xl border-[3px] border-[#3b372d] p-2" style={{ background: "linear-gradient(180deg,#e0dbc7,#a39d87)", boxShadow: "0 4px 0 #1c1a15" }}>
+              <p className="mb-1 flex items-center gap-1.5 text-[12px] font-black text-[#2a2118]"><TribeEmblem tribe={st.player.tribe} className="h-6 w-auto" /> Tribo {t.name}</p>
+              <Link href="/app/jogos" className="block rounded-lg bg-[#c43d3d] px-2 py-1.5 text-center text-[12px] font-black text-white shadow-[0_2px_0_#6b1c1c]">Sair do jogo</Link>
+              <button type="button" onClick={() => setMenu(false)} className="mt-1.5 block w-full rounded-lg bg-black/15 px-2 py-1 text-center text-[11px] font-bold text-[#2a2118]">Fechar</button>
+            </div>
           ) : null}
-          <div className="mt-1.5 flex gap-2">
-            <button onClick={() => setGhost(null)} className="btn btn-ghost flex-1 !py-2">✖ Cancelar</button>
-            <button disabled={busy || !ghostOk || (!ghost.id && !ghostQuote?.ok)} onClick={confirmGhost} className="btn btn-primary flex-1 !py-2">✔ Confirmar</button>
+        </>
+      ) : null}
+
+      {/* colocar ou mover: nome, preço e os botões redondos de cancelar e confirmar */}
+      {ghost ? (
+        <div className="pointer-events-none absolute inset-x-0 bottom-2 flex flex-col items-center gap-1">
+          <NameBanner title={kindName(ghost.kind)} />
+          <Outlined className="max-w-[60%] text-center text-[11px] leading-tight">
+            {ghost.id ? "Arraste para o novo lugar." : ghostQuote?.ok ? "Arraste para o lugar certo." : (ghostQuote?.error ?? "")}
+          </Outlined>
+          <div className="flex items-center gap-4">
+            <RoundButton kind="cancel" label="Cancelar" onClick={() => setGhost(null)} />
+            {ghostQuote?.ok ? (
+              <span className="flex flex-col items-center gap-0.5">
+                <CostPill res={ghostQuote.pay} n={ghostQuote.cost} />
+                {ghostQuote.missing > 0 ? <CostPill res="gems" n={ghostQuote.gemsForMissing} /> : null}
+                {ghostQuote.secs > 0 ? <Outlined className="text-[11px]">⏱ {fmtDuration(ghostQuote.secs)}</Outlined> : null}
+              </span>
+            ) : null}
+            <RoundButton kind="ok" label="Confirmar" disabled={busy || !ghostOk || (!ghost.id && !ghostQuote?.ok)} onClick={confirmGhost} />
           </div>
         </div>
-      ) : selected ? (
-        <div className={sheet}>
-          <button onClick={() => setSel(null)} aria-label="Fechar" className="absolute right-2 top-2 text-lg font-black opacity-70">✕</button>
-          {panel(selected)}
+      ) : null}
+
+      {/* construção selecionada: faixa com o nome e botões de ação */}
+      {selected && sel2 && !ghost ? (
+        <div className="pointer-events-none absolute inset-x-0 bottom-2 flex flex-col items-center gap-1">
+          <button type="button" onClick={() => setSel(null)} aria-label="Fechar" className="pointer-events-auto absolute right-3 top-0 grid h-8 w-8 place-items-center rounded-full border-2 border-black/70 bg-[#2a2118]/85">
+            <Outlined className="text-[14px]">✕</Outlined>
+          </button>
+          <NameBanner title={sel2.title} sub={sel2.sub} />
+          <Outlined className="max-w-[70%] text-center text-[11px] leading-tight">{sel2.info}</Outlined>
+          <div className="mt-0.5 flex items-end justify-center gap-2">
+            {sel2.acts.map((a) => (
+              <BigButton key={a.key} icon={a.icon} label={a.label} sub={a.sub} tone={a.tone === "stone" ? "stone" : a.tone} tribe={st.player.tribe} disabled={a.disabled} onClick={a.onClick} width={84} height={82} />
+            ))}
+          </div>
         </div>
       ) : null}
 
       {shop ? <TribosShop st={st} now={nowUi} busy={busy} onClose={() => setShop(false)} onPlace={startPlace} onBag={(res, pct) => void run(() => buyBag(res, pct))} /> : null}
 
-      {/* barra de baixo */}
-      {!ghost ? (
-        <div className="pointer-events-none absolute bottom-2 left-2 flex items-end gap-2">
-          <button onClick={() => { setSel(null); setShop((v) => !v); }} className="pointer-events-auto grid h-14 w-14 place-items-center rounded-2xl shadow-lg" style={{ background: tribe.color }} aria-label="Loja">
-            <TIcon name="casa" className="h-9 w-9" />
-          </button>
-          <button disabled title="Em breve" className="pointer-events-auto grid h-14 w-14 place-items-center rounded-2xl bg-black/60 opacity-60" aria-label="Exército (em breve)">
-            <TIcon name="capacete" className="h-9 w-9" />
-          </button>
-          <button disabled={busy || !readyAll} onClick={() => run(() => collect("all"))} className="pointer-events-auto flex h-14 items-center gap-1.5 rounded-2xl bg-black/65 px-3 text-xs font-black disabled:opacity-40">
-            <TIcon name="bolsa" className="h-8 w-8" /> Coletar tudo
-          </button>
-        </div>
-      ) : null}
+      {/* base da tela: Loja e atalhos à esquerda, Atacar à direita */}
       {!ghost && !selected ? (
-        <button disabled title="Em breve" className="absolute bottom-2 right-2 flex h-14 items-center gap-2 rounded-2xl bg-rose-700/80 px-5 text-sm font-black opacity-60">
-          <TIcon name="espadas" className="h-9 w-9" />
-          <span className="text-left leading-tight">Atacar<br /><small className="font-bold">em breve</small></span>
-        </button>
+        <>
+          <div className="pointer-events-none absolute bottom-2 left-2 flex items-end gap-2">
+            <BigButton icon="bau-ouro" label="Loja" tone="tribe" tribe={st.player.tribe} width={96} height={88} onClick={() => { setSel(null); setMenu(false); setShop((v) => !v); }} />
+            <div className="relative">
+              <StoneButton icon="bolsa" label="Coletar tudo" size={54} disabled={busy || !readyAll} onClick={() => void run(() => collect("all"))} />
+              {readyAll ? <span className="absolute -right-1 -top-1 h-3.5 w-3.5 rounded-full border-2 border-black bg-[#ff5a3c]" /> : null}
+            </div>
+            <StoneButton icon="capacete" label="Exército (em breve)" size={54} disabled />
+          </div>
+          <div className="pointer-events-none absolute bottom-2 right-2">
+            <BigButton icon="espadas" label="Atacar" tone="red" tribe={st.player.tribe} width={104} height={88} disabled badge="Em breve" />
+          </div>
+        </>
       ) : null}
     </div>
   );

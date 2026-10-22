@@ -5,7 +5,7 @@ import { emblemUrl } from "./emblems";
 // Pequenas peças de interface do Clash of Tribos: ícones (reaproveitados dos jogos da plataforma) e emblemas.
 
 export type IconName =
-  | "moeda" | "gota" | "diamante" | "castelo" | "bau-ouro" | "picareta" | "tenda" | "barril" | "martelo" | "espadas" | "capacete" | "bolsa" | "ampulheta" | "trofeu" | "escudo" | "casa" | "torre" | "seta-baixo" | "x" | "certo" | "coroa" | "pomba" | "pedra" | "estrela";
+  | "moeda" | "gota" | "diamante" | "castelo" | "bau-ouro" | "picareta" | "tenda" | "barril" | "martelo" | "espadas" | "capacete" | "bolsa" | "ampulheta" | "trofeu" | "escudo" | "casa" | "torre" | "seta-baixo" | "x" | "certo" | "coroa" | "pomba" | "pedra" | "estrela" | "raio" | "dupla" | "engrenagem" | "seta-cima";
 
 export const iconSrc = (n: IconName): string => `/arena/icones/${n}.webp`;
 
