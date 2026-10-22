@@ -109,19 +109,19 @@ export function TribosShop({
 
         <div className="flex min-h-0 flex-1 gap-2 p-2">
           {/* abas */}
-          <nav className="flex w-[96px] shrink-0 flex-col gap-1.5 sm:w-[140px]" aria-label="Seções da loja">
+          <nav className="flex w-[104px] shrink-0 flex-col gap-1.5" aria-label="Seções da loja">
             {SHOP_TABS.map((t) => {
               const on = tab === t.key;
               return (
                 <button
                   key={t.key}
                   onClick={() => setTab(t.key)}
-                  className={`flex flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl border-2 px-0.5 py-1 text-[10px] font-black uppercase transition sm:flex-row sm:justify-start sm:gap-2 sm:px-3 sm:text-xs sm:tracking-wide ${on ? "border-[#ffe59a] text-white shadow-[0_0_0_2px_#3a2208,0_0_14px_rgba(255,214,102,0.5)]" : "border-[#2a1b0e] text-white/75"}`}
+                  className={`flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 overflow-hidden rounded-2xl border-2 px-1 py-1 text-center text-[10px] font-black uppercase leading-none tracking-tight transition ${on ? "border-[#ffe59a] text-white shadow-[0_0_0_2px_#3a2208,0_0_14px_rgba(255,214,102,0.5)]" : "border-[#2a1b0e] text-white/75"}`}
                   style={{ background: on ? `linear-gradient(160deg, ${tribe.color}, ${tribe.dark})` : "linear-gradient(160deg, #5a3d22, #3a2614)" }}
                   aria-pressed={on}
                 >
                   <TIcon name={t.icon as IconName} className={on ? "h-7 w-7 drop-shadow" : "h-6 w-6 opacity-85"} />
-                  <span>{t.label}</span>
+                  <span className="block max-w-full truncate">{t.label}</span>
                 </button>
               );
             })}
