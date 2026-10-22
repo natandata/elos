@@ -376,28 +376,15 @@ export function drawBuilding(ctx: CanvasRenderingContext2D, b: TBuilding, o: Dra
   let top = base - 60;
   if (!foundation) {
     if (kind === "hq") {
-      // torre-rei da Arena nas cores da tribo, com a fachada voltada para a diagonal inferior direita (sudeste)
-      const w = 246 + Math.min(5, lvl) * 5;
+      // salão isométrico 3D na cor da tribo, com o portão voltado para a diagonal inferior direita (sudeste)
+      const w = 262 + Math.min(5, lvl) * 5;
+      const bottom = cy + 68;
+      spr(ctx, `k/salao-${o.tribe}`, cx, bottom, w);
       const ch = img(`k/salao-${o.tribe}`);
       const hgt = ch ? (w * ch.naturalHeight) / ch.naturalWidth : w;
-      // meio da borda sudeste da área da construção: é ali que a fachada se apoia
-      const [mx, my] = toWorld(b.x + s - 0.35, b.y + s / 2 - 0.15);
-      if (ch) {
-        ctx.save();
-        ctx.translate(mx, my + 8);
-        ctx.transform(0.92, -0.46, 0, 1, 0, 0);
-        ctx.drawImage(ch, -w / 2, -hgt, w, hgt);
-        ctx.restore();
-      }
-      top = my + 8 - hgt;
-      const em = img(`e/${o.tribe}`);
-      if (em) {
-        const ew = 34;
-        const eh = (ew * em.naturalHeight) / em.naturalWidth;
-        ctx.drawImage(em, mx - ew / 2, my + 8 - hgt * 0.36 - eh / 2, ew, eh);
-      }
-      const [fx, fy] = toWorld(b.x + s - 0.1, b.y + s - 0.1);
-      spr(ctx, `k/bandeira-${o.tribe}`, fx - 4, fy + 4, 46);
+      top = bottom - hgt;
+      const mx = cx + 20;
+      const my = cy + 22;
       // o líder da tribo, de guarda na frente do Salão
       const king = img("k/rei");
       if (king) {
@@ -406,7 +393,7 @@ export function drawBuilding(ctx: CanvasRenderingContext2D, b: TBuilding, o: Dra
         const breathe = Math.sin(o.t / 650) * 0.012;
         const look = Math.sin(o.t / 3400) > 0.55 ? -1 : 1;
         ctx.save();
-        ctx.translate(mx + 40, my + 34);
+        ctx.translate(mx + 64, my + 40);
         ctx.fillStyle = "rgba(0,0,0,0.28)";
         ctx.beginPath();
         ctx.ellipse(0, 1, kw * 0.36, 5, 0, 0, Math.PI * 2);
