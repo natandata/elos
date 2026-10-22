@@ -32,7 +32,7 @@ export function applyCam(ctx: CanvasRenderingContext2D, cam: Cam, w: number, h: 
 // ---------------------------------------------------------------- imagens
 
 const ICONS = ["moeda", "gota", "martelo", "ampulheta", "diamante"] as const;
-const OBRAS = ["mina-ouro", "poco-mana", "cofre-ouro", "reservatorio-mana"] as const;
+const OBRAS = ["mina-iso", "poco-iso", "cofre-iso", "reservatorio-iso"] as const;
 const CAMPO_IMGS = ["arvore", "arvore-seca", "palmeira", "pedras", "rochedo", "arbusto", "seixos", "capim", "cogumelos"] as const;
 const POSES = ["parado", "costas", "cesto", "tora", "minerar", "carrinho", "colhe", "foice"] as const;
 const TRIBE_LIST: TribeKey[] = ["feras", "bravos", "reliquias"];
@@ -50,7 +50,7 @@ export function loadTribosAssets(): Promise<void> {
     ["o/ciclo", "/tribos/obreiros/ciclo.webp"] as [string, string],
     ...POSES.map((n): [string, string] => [`o/${n}`, `/tribos/obreiros/${n}.webp`]),
     ...OBRAS.map((n): [string, string] => [`k/${n}`, `/tribos/obras/${n}.webp`]),
-    ...TRIBE_LIST.flatMap((t): [string, string][] => [[`k/salao-${t}`, `/tribos/obras/salao-${t}.webp`], [`k/cabana-${t}`, `/tribos/obras/cabana-${t}.webp`], [`k/bandeira-${t}`, `/tribos/obras/bandeira-${t}.webp`]]),
+    ...TRIBE_LIST.flatMap((t): [string, string][] => [[`k/salao-${t}`, `/tribos/obras/salao-${t}.webp`], [`k/cabana-iso-${t}`, `/tribos/obras/cabana-iso-${t}.webp`]]),
   ];
   loading ??= Promise.all(
     list.map(
@@ -330,24 +330,6 @@ export type DrawOpts = {
   fmtLeft: (secs: number) => string;
 };
 
-/** Terreno batido (mancha de terra macia) sob a construção. */
-function patch(ctx: CanvasRenderingContext2D, cx: number, cy: number, s: number, tribe: TribeKey): void {
-  const rx = s * TW * 0.46;
-  const g = ctx.createRadialGradient(cx, cy + s * 4, 4, cx, cy + s * 4, rx);
-  const c = TRIBES[tribe].terrain.cliff;
-  g.addColorStop(0, c + "99");
-  g.addColorStop(0.7, c + "44");
-  g.addColorStop(1, c + "00");
-  ctx.fillStyle = g;
-  ctx.save();
-  ctx.translate(cx, cy + s * 4);
-  ctx.scale(1, 0.52);
-  ctx.beginPath();
-  ctx.arc(0, 0, rx, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-}
-
 export function drawBuilding(ctx: CanvasRenderingContext2D, b: TBuilding, o: DrawOpts): void {
   const selected = o.selectedId === b.id;
   if (isObstacle(b.kind)) {
@@ -371,7 +353,6 @@ export function drawBuilding(ctx: CanvasRenderingContext2D, b: TBuilding, o: Dra
 
   // terreno batido sob a construção (a laje de obra só aparece na fundação)
   if (foundation) slab(ctx, b.x, b.y, s, 4, "#a39a84", "#bcae8b");
-  else patch(ctx, cx, cy, s, o.tribe);
   const base = cy + s * 5;
   let top = base - 60;
   if (!foundation) {
@@ -402,46 +383,14 @@ export function drawBuilding(ctx: CanvasRenderingContext2D, b: TBuilding, o: Dra
         ctx.drawImage(king, -kw / 2, -kh, kw, kh);
         ctx.restore();
       }
-    } else if (kind === "gold_mine") {
-      spr(ctx, "k/mina-ouro", cx, base + 8, 142);
-      top = base - 100;
-      // brilhos no minério
-      for (const [ox, oy, ph] of [[-22, -38, 0], [18, -56, 2], [36, -22, 4]] as const) {
-        const a = Math.max(0, Math.sin(o.t / 380 + ph));
-        if (a < 0.2) continue;
-        ctx.strokeStyle = `rgba(255,250,200,${a})`;
-        ctx.lineWidth = 1.6;
-        ctx.beginPath();
-        ctx.moveTo(cx + ox - 5, base + oy);
-        ctx.lineTo(cx + ox + 5, base + oy);
-        ctx.moveTo(cx + ox, base + oy - 5);
-        ctx.lineTo(cx + ox, base + oy + 5);
-        ctx.stroke();
-      }
-    } else if (kind === "mana_pump") {
-      const glow = ctx.createRadialGradient(cx, base - 14, 6, cx, base - 14, 78);
-      glow.addColorStop(0, `rgba(90,200,255,${0.42 + Math.sin(o.t / 320) * 0.12})`);
-      glow.addColorStop(1, "rgba(90,200,255,0)");
-      ctx.fillStyle = glow;
-      ctx.fillRect(cx - 80, base - 90, 160, 150);
-      spr(ctx, "k/poco-mana", cx, base + 8, 128);
-      top = base - 96;
-    } else if (kind === "gold_store") {
-      spr(ctx, "k/cofre-ouro", cx, base + 12, 104);
-      top = base - 110;
-    } else if (kind === "mana_store") {
-      const glow = ctx.createRadialGradient(cx, base - 4, 6, cx, base - 4, 84);
-      glow.addColorStop(0, `rgba(80,190,255,${0.28 + Math.sin(o.t / 500) * 0.08})`);
-      glow.addColorStop(1, "rgba(80,190,255,0)");
-      ctx.fillStyle = glow;
-      ctx.fillRect(cx - 90, base - 60, 180, 110);
-      spr(ctx, "k/reservatorio-mana", cx, base + 14, 136);
-      top = base - 70;
-    } else if (kind === "hut") {
-      spr(ctx, `k/cabana-${o.tribe}`, cx, base + 10, 104);
-      const [bx, by] = toWorld(b.x + s - 0.2, b.y + s - 0.2);
-      spr(ctx, `k/bandeira-${o.tribe}`, bx, by + 6, 34);
-      top = base - 88;
+    } else {
+      // demais construções: sprites isométricos 3D, todas com a frente voltada para o sudeste
+      const key = kind === "gold_mine" ? "k/mina-iso" : kind === "mana_pump" ? "k/poco-iso" : kind === "gold_store" ? "k/cofre-iso" : kind === "mana_store" ? "k/reservatorio-iso" : `k/cabana-iso-${o.tribe}`;
+      const w = kind === "hut" ? 128 : kind === "mana_store" ? 138 : kind === "gold_store" ? 176 : 190;
+      const bottom = cy + s * 16 + 8;
+      spr(ctx, key, cx, bottom, w);
+      const im = img(key);
+      top = bottom - (im ? (w * im.naturalHeight) / im.naturalWidth : w) * 0.92;
     }
   }
 

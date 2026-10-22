@@ -148,12 +148,12 @@ export const kindEmoji = (k: Kind): string => (isBuild(k) ? BUILDINGS[k].emoji :
 /** Posição inicial da vila de quem acabou de escolher a tribo. */
 export const START_LAYOUT: { kind: BuildKind; x: number; y: number }[] = [
   { kind: "hq", x: 18, y: 18 },
-  { kind: "hut", x: 15, y: 14 },
-  { kind: "hut", x: 23, y: 14 },
-  { kind: "gold_mine", x: 11, y: 19 },
-  { kind: "mana_pump", x: 26, y: 19 },
-  { kind: "gold_store", x: 15, y: 24 },
-  { kind: "mana_store", x: 22, y: 24 },
+  { kind: "hut", x: 15, y: 12 },
+  { kind: "hut", x: 23, y: 12 },
+  { kind: "gold_mine", x: 10, y: 17 },
+  { kind: "mana_pump", x: 27, y: 17 },
+  { kind: "gold_store", x: 12, y: 23 },
+  { kind: "mana_store", x: 24, y: 24 },
 ];
 
 /** Gerador pseudo-aleatório simples (determinístico por semente). */
