@@ -1,6 +1,6 @@
 import { GAME_CATALOG } from "@/lib/games/catalog";
 import { Bar, Card, PageHeader, StatCard } from "@/components/ui";
-import { BibleAnnouncementCard } from "@/components/bible/BibleAnnouncementCard";
+import { HomeHighlights } from "@/components/home/HomeHighlights";
 import { needsWeeklyPushNudge, requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { WeeklyPushNudge } from "@/components/push/WeeklyPushNudge";
@@ -127,7 +127,7 @@ export default async function AdminDashboard() {
 
   return (
     <>
-      <BibleAnnouncementCard role="admin" />
+      <HomeHighlights />
       <PageHeader title="Dashboard" subtitle="Visão geral dos ELOS." />
 
       <WeeklyPushNudge eligible={showPushNudge} />

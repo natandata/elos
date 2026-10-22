@@ -15,7 +15,7 @@ import { EventCountdown } from "@/components/EventCountdown";
 import { CriaDaSemana } from "@/components/CriaDaSemana";
 import { OpenChallengeBanner } from "@/components/OpenChallengeBanner";
 import { StoriesTray } from "@/components/profile/StoriesTray";
-import { BibleAnnouncementCard } from "@/components/bible/BibleAnnouncementCard";
+import { HomeHighlights } from "@/components/home/HomeHighlights";
 import { getEloStoriesTray } from "@/lib/stories";
 import { statusDayCutoffUTC } from "@/lib/auth";
 import {
@@ -223,7 +223,7 @@ export default async function LiderDashboard() {
 
   return (
     <>
-      <BibleAnnouncementCard role="leader" />
+      <HomeHighlights />
       <PageHeader
         title={`Olá, ${(profile.full_name || "Líder").split(" ")[0]}!`}
         subtitle={`${eloName} · ${crias.length} cria(s) sob sua responsabilidade.`}
