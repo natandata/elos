@@ -97,7 +97,7 @@ const ROWS: Row[] = [
   ["roboao", "Roboão", "1 Reis 12", "Eu era filho de um rei muito sábio.", "Ouvi o conselho dos jovens em vez dos anciãos.", "Disse que o meu dedo mínimo era mais grosso que a cintura do meu pai.", "Meu reino se dividiu em dois.", 2],
   ["jeroboao", "Jeroboão", "1 Reis 12", "Fui oficial de Salomão.", "Dez tribos me escolheram como rei.", "Fiz dois bezerros de ouro e os coloquei em Betel e Dã.", "Fui o primeiro rei do reino do norte.", 2],
   ["nabote", "Nabote", "1 Reis 21", "Eu tinha uma vinha ao lado do palácio.", "Não quis vendê-la, pois era herança dos meus pais.", "Fui acusado falsamente por duas testemunhas.", "Fui morto por ordem da rainha Jezabel.", 2],
-  ["giezi", "Giezi", "2 Reis 5:20-27", "Eu era servo de um grande profeta.", "Corri atrás de um general curado.", "Pedi talentos de prata e roupas a ele, escondido do meu senhor.", "Fiquei com a lepra que era do general.", 2],
+  ["giezi", "Geazi", "2 Reis 5:20-27", "Eu era servo de um grande profeta.", "Corri atrás de um general curado.", "Pedi talentos de prata e roupas a ele, escondido do meu senhor.", "Fiquei com a lepra que era do general.", 2],
   ["ezequias", "Ezequias", "2 Reis 18–20", "Fui rei de Judá.", "Orei com uma carta aberta diante do Senhor.", "Deus acrescentou quinze anos à minha vida.", "Fiz um túnel para levar água a Jerusalém.", 1],
   ["josias", "Josias", "2 Reis 22–23", "Comecei a reinar com 8 anos de idade.", "Mandei reformar o templo.", "O sumo sacerdote achou o Livro da Lei.", "Rasguei as minhas vestes e fiz um grande avivamento.", 1],
   ["hulda", "Hulda", "2 Reis 22:14-20", "Eu era profetisa em Jerusalém.", "Moro no segundo bairro da cidade.", "O rei me mandou consultar.", "Confirmei o que o Livro da Lei dizia.", 2],
@@ -168,7 +168,7 @@ const ROWS: Row[] = [
   // ------------------------------------------------------------------ difícil
   ["sem", "Sem", "Gênesis 9–11", "Sou filho de Noé.", "Estava na arca.", "Cobri meu pai com uma capa, sem olhar.", "Dos meus descendentes veio Abraão.", 3],
   ["jafe", "Jafé", "Gênesis 9–10", "Sou filho de Noé.", "Estive na arca.", "Cobri meu pai com uma capa.", "Meus descendentes se espalharam pelas ilhas.", 3],
-  ["cao", "Cão", "Gênesis 9:20-25", "Sou um dos três filhos de Noé.", "Vi meu pai numa situação constrangedora.", "Contei aos meus irmãos em vez de cobrir meu pai.", "Meu filho Canaã foi amaldiçoado.", 3],
+  ["cao", "Cam", "Gênesis 9:20-25", "Sou um dos três filhos de Noé.", "Vi meu pai numa situação constrangedora.", "Contei aos meus irmãos em vez de cobrir meu pai.", "Meu filho Canaã foi amaldiçoado.", 3],
   ["tera", "Terá", "Gênesis 11:26-32", "Eu tinha três filhos: Abrão, Naor e Harã.", "Saí de Ur dos caldeus.", "Fui até Harã e fiquei por lá.", "Sou o pai de Abraão.", 3],
   ["abimeleque", "Abimeleque", "Gênesis 20; 26", "Fui rei de Gerar.", "Levei uma mulher bonita para o meu palácio, achando que era solteira.", "Deus me avisou em sonho.", "Fui enganado pela mentira de Abraão sobre sua esposa.", 3],
   ["melquisedeque", "Melquisedeque", "Gênesis 14; Hebreus 7", "Fui rei de Salém.", "Fui também sacerdote do Deus Altíssimo.", "Levei pão e vinho a Abrão.", "Abrão me deu o dízimo de tudo.", 3],
