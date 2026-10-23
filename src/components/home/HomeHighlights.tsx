@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Avatar } from "@/components/Avatar";
 import { createClient } from "@/lib/supabase/server";
+import { HomeVideos } from "@/components/home/HomeVideos";
 
 export type Highlights = {
   elo: { name: string; points: number } | null;
@@ -29,11 +30,16 @@ function Tile({ tone, icon, label, children }: { tone: string; icon: string; lab
   );
 }
 
-/** Destaques no topo do Início: Elo nº 1, maior ofensiva de devocional e quem mais leu a Bíblia. */
+/** Destaques no topo do Início (Elo nº 1, ofensiva, Bíblia) e, logo abaixo, o card de vídeos do dia. */
 export async function HomeHighlights() {
   const supabase = await createClient();
   const { data } = await supabase.rpc("home_highlights");
-  return <HighlightsView h={(data ?? null) as Highlights} />;
+  return (
+    <>
+      <HighlightsView h={(data ?? null) as Highlights} />
+      <HomeVideos />
+    </>
+  );
 }
 
 export function HighlightsView({ h }: { h: Highlights }) {
