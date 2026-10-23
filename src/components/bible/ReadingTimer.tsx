@@ -7,6 +7,7 @@ import { BIBLE_BOOKS } from "@/lib/bible/books";
 import { pingBibleReading, type ReadingPing } from "@/lib/actions/bibleReading";
 
 // Timer no topo da Bíblia: 5 min de leitura no dia dão +1 XP e, para o cria, liberam a Sala de Jogos.
+// Depois dos 5 min do dia a contagem segue em silêncio (alimenta o total de minutos lidos).
 // Só conta com a aba visível e com algum toque/rolagem nos últimos 90 s; o tempo que vale é o do servidor.
 
 const IDLE_MS = 90_000;
@@ -47,7 +48,6 @@ export function ReadingTimer({ initialSeconds, required, role }: { initialSecond
   }, [confirming]);
 
   useEffect(() => {
-    if (initialSeconds >= required) return;
     last.current = Date.now();
     const touch = () => {
       last.current = Date.now();
@@ -68,7 +68,7 @@ export function ReadingTimer({ initialSeconds, required, role }: { initialSecond
     };
     // resume: acabou de entrar/voltar (sem crédito pelo tempo fora); force: último aviso antes de sair
     const ping = async (resume = false, force = false) => {
-      if ((busy.current && !force) || doneRef.current) return;
+      if (busy.current && !force) return;
       busy.current = true;
       try {
         apply(await pingBibleReading(resume, refRef.current));
@@ -100,7 +100,7 @@ export function ReadingTimer({ initialSeconds, required, role }: { initialSecond
     }, 4000);
     // saiu da aba: credita os últimos segundos lidos e pausa; voltou: retoma de onde parou
     const flush = () => {
-      if (recentlyActive() && !doneRef.current) void ping(false, true);
+      if (recentlyActive()) void ping(false, true);
     };
     const vis = () => {
       if (document.visibilityState === "visible") {
