@@ -31,6 +31,7 @@ const ACTIVITY_LABEL: Record<string, { icon: string; verb: string }> = {
 /** Ícone e verbo de cada atividade. "game:<chave>" vale para qualquer jogo do catálogo (inclusive os futuros). */
 function activityMeta(action: string): { icon: string; verb: string } {
   if (ACTIVITY_LABEL[action]) return ACTIVITY_LABEL[action];
+  if (action === "game:conteudo") return { icon: "▶️", verb: "abriu um vídeo em Conteúdo relevante" };
   if (action === "game:store") return { icon: "🛍️", verb: "comprou na Loja de Jogos" };
   if (action.startsWith("game:")) {
     const g = GAME_CATALOG.find((x) => x.key === action.slice(5));

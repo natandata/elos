@@ -1,15 +1,9 @@
 /* eslint-disable @next/next/no-img-element */
+import { VideoLink } from "@/components/home/VideoLink";
+import { VIDEO_SOURCE_LABEL, type VideoSource } from "@/lib/home/videos";
 import { createClient } from "@/lib/supabase/server";
 
-export type DailyVideo = { source: "subira" | "jesuscopy" | "luca" | "hub" | "dunamis"; video_id: string; title: string };
-
-const SOURCE_LABEL: Record<DailyVideo["source"], string> = {
-  subira: "Israel Subira",
-  jesuscopy: "Cortes Jesuscopy Podcast",
-  luca: "Luca Martini",
-  hub: "Cortes HUB Podcast",
-  dunamis: "Dunamis Hangout",
-};
+export type DailyVideo = { source: VideoSource; video_id: string; title: string };
 
 /** Card "Conteúdo relevante para a sua vida": 3 vídeos escolhidos a dedo, que trocam todo dia à meia-noite (Brasília). */
 export async function HomeVideos() {
@@ -30,12 +24,7 @@ export function VideosView({ videos }: { videos: DailyVideo[] | null }) {
         <ul className="mt-3 grid gap-2.5 sm:grid-cols-3">
           {videos.map((v) => (
             <li key={v.video_id}>
-              <a
-                href={`https://www.youtube.com/watch?v=${v.video_id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group block overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--bg)] transition active:scale-[0.99]"
-              >
+              <VideoLink videoId={v.video_id}>
                 <span className="relative block aspect-video overflow-hidden bg-black">
                   <img src={`https://i.ytimg.com/vi/${v.video_id}/hqdefault.jpg`} alt="" loading="lazy" className="h-full w-full object-cover transition group-hover:scale-105" />
                   <span className="absolute inset-0 grid place-items-center bg-black/10" aria-hidden>
@@ -43,10 +32,10 @@ export function VideosView({ videos }: { videos: DailyVideo[] | null }) {
                   </span>
                 </span>
                 <span className="block p-3">
-                  <span className="block text-[10px] font-black uppercase tracking-wider text-[var(--accent-strong)]">{SOURCE_LABEL[v.source]}</span>
+                  <span className="block text-[10px] font-black uppercase tracking-wider text-[var(--accent-strong)]">{VIDEO_SOURCE_LABEL[v.source]}</span>
                   <span className="mt-1 line-clamp-3 block text-sm font-bold leading-snug text-[var(--ink)]">{v.title}</span>
                 </span>
-              </a>
+              </VideoLink>
             </li>
           ))}
         </ul>
