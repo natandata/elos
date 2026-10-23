@@ -1,7 +1,9 @@
 -- ELOS — o tempo de leitura da Bíblia segue contando depois dos 5 min do dia (antes parava ao liberar).
 -- Assim o destaque "mais minutos lendo a Bíblia" soma toda a leitura desde o lançamento. XP e liberação continuam uma vez por dia.
 
-create or replace function public.record_bible_reading(p_resume boolean default false)
+drop function if exists public.record_bible_reading(boolean);
+
+create or replace function public.record_bible_reading(p_resume boolean default false, p_ref text default null)
 returns jsonb language plpgsql security definer set search_path = public as $fn$
 declare
   v_day date := (now() at time zone 'America/Sao_Paulo')::date;
@@ -12,6 +14,7 @@ declare
   v_add int := 0;
   v_total int;
   v_xp int := 0;
+  v_ref text := nullif(left(regexp_replace(coalesce(p_ref, ''), '[^[:alnum:] .]', '', 'g'), 40), '');
 begin
   select role into v_role from public.profiles where id = auth.uid();
   if v_role is null or v_role not in ('cria', 'leader') then
@@ -30,6 +33,7 @@ begin
   update public.bible_reading_daily
      set seconds = v_total,
          last_ping = now(),
+         last_ref = coalesce(v_ref, last_ref),
          unlocked_at = case when v_total >= v_need then coalesce(unlocked_at, now()) else null end
    where user_id = auth.uid() and day = v_day;
 
@@ -40,5 +44,5 @@ begin
 
   return jsonb_build_object('seconds', v_total, 'required', v_need, 'unlocked', v_total >= v_need, 'xp', v_xp);
 end $fn$;
-revoke execute on function public.record_bible_reading(boolean) from anon, public;
-grant execute on function public.record_bible_reading(boolean) to authenticated;
+revoke execute on function public.record_bible_reading(boolean, text) from anon, public;
+grant execute on function public.record_bible_reading(boolean, text) to authenticated;
