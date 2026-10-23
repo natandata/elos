@@ -127,8 +127,8 @@ export default async function AdminDashboard() {
 
   return (
     <>
-      <HomeHighlights />
       <PageHeader title="Dashboard" subtitle="Visão geral dos ELOS." />
+      <HomeHighlights />
 
       <WeeklyPushNudge eligible={showPushNudge} />
 

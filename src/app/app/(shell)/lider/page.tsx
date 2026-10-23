@@ -223,11 +223,11 @@ export default async function LiderDashboard() {
 
   return (
     <>
-      <HomeHighlights />
       <PageHeader
         title={`Olá, ${(profile.full_name || "Líder").split(" ")[0]}!`}
         subtitle={`${eloName} · ${crias.length} cria(s) sob sua responsabilidade.`}
       />
+      <HomeHighlights />
 
       <WeeklyPushNudge eligible={showPushNudge} />
 

@@ -230,8 +230,8 @@ export default async function CriaDashboard() {
 
   return (
     <>
-      <HomeHighlights />
       <PageHeader title={`Olá, ${(profile.full_name || "Cria").split(" ")[0]}!`} subtitle={eloName} />
+      <HomeHighlights />
 
       <WeeklyPushNudge eligible={showPushNudge} />
 
