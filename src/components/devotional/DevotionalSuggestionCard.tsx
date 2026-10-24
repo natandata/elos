@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { GradientCard } from "@/components/home/GradientCard";
 import { createClient } from "@/lib/supabase/server";
 import { suggestionFor } from "@/lib/devotionalSuggestions";
 import { todayBrasilia } from "@/lib/birthday";
@@ -15,7 +16,8 @@ export async function DevotionalSuggestionCard() {
   const praise = praises.length ? praises[day % praises.length] : null;
 
   return (
-    <details className="card group mb-4 px-3 py-2 text-sm" aria-label="Devocional de 15 minutos">
+    <GradientCard tone="ocean" ariaLabel="Devocional de 15 minutos">
+    <details className="group text-sm">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-2">
         <span className="min-w-0 truncate">
           <b>📖 Devocional de 15 min</b> <span className="text-[var(--muted)]">· {s.theme} · {s.ref}</span>
@@ -47,5 +49,6 @@ export async function DevotionalSuggestionCard() {
         Registrar meu devocional →
       </Link>
     </details>
+    </GradientCard>
   );
 }

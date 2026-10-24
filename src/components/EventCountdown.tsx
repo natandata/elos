@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { GradientCard } from "@/components/home/GradientCard";
 
 /** Dias entre hoje e a data do evento (Brasília), sem passar por fuso horário
  *  — mesmo truque de "YYYY-MM-DD" + T00:00:00 usado no resto do app. */
@@ -33,19 +33,18 @@ export function EventCountdown({ title, eventDate }: { title: string; eventDate:
     );
 
   return (
-    <Link
-      href="/app/agenda"
-      className="mb-5 flex items-center justify-between gap-3 rounded-2xl bg-[var(--accent-soft)] px-5 py-4 text-base font-bold text-[var(--accent-strong)]"
-    >
-      <span className="flex items-center gap-2">
-        <span className="text-xl" aria-hidden>
-          🔥
+    <GradientCard tone="aurora" href="/app/agenda" ariaLabel="Próximo evento">
+      <div className="flex items-center justify-between gap-3 text-base font-bold">
+        <span className="flex items-center gap-2">
+          <span className="text-xl" aria-hidden>
+            🔥
+          </span>
+          <span>{label}</span>
         </span>
-        {label}
-      </span>
-      <span className="text-xl" aria-hidden>
-        →
-      </span>
-    </Link>
+        <span className="text-xl text-[var(--accent-strong)]" aria-hidden>
+          →
+        </span>
+      </div>
+    </GradientCard>
   );
 }

@@ -1,4 +1,5 @@
 import { Avatar } from "@/components/Avatar";
+import { GradientCard } from "@/components/home/GradientCard";
 import { formatXp } from "@/lib/types";
 
 /**
@@ -18,18 +19,19 @@ export function CriaDaSemana({
   isMe: boolean;
 }) {
   return (
-    <div className="mb-5 flex items-center gap-3 rounded-2xl border-2 border-amber-200 bg-amber-50 px-5 py-4">
-      <span className="text-3xl" aria-hidden>
-        👑
-      </span>
-      <Avatar url={avatarUrl} name={name} size={40} />
-      <div className="min-w-0 flex-1">
-        <p className="text-base font-black leading-snug text-amber-900">
-          {isMe ? "Você é" : name}{" "}
-          <span className="font-semibold text-amber-800">a cria da semana no seu Elo</span>
-        </p>
-        <p className="text-sm font-bold text-amber-700">+{formatXp(weeklyXp)} XP essa semana</p>
+    <GradientCard tone="gold" ariaLabel="Cria da semana">
+      <div className="flex items-center gap-3">
+        <span className="text-3xl" aria-hidden>
+          👑
+        </span>
+        <Avatar url={avatarUrl} name={name} size={40} />
+        <div className="min-w-0 flex-1">
+          <p className="text-base font-black leading-snug">
+            {isMe ? "Você é" : name} <span className="font-semibold text-[var(--muted)]">a cria da semana no seu Elo</span>
+          </p>
+          <p className="text-sm font-bold text-[var(--accent-strong)]">+{formatXp(weeklyXp)} XP essa semana</p>
+        </div>
       </div>
-    </div>
+    </GradientCard>
   );
 }

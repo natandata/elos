@@ -4,7 +4,8 @@ import { EbdAnnouncement } from "@/components/games/EbdAnnouncement";
 import { DevotionalSuggestionCard } from "@/components/devotional/DevotionalSuggestionCard";
 import { BirthdayCard } from "@/components/BirthdayCard";
 import { DailyPraiseSection } from "@/components/praise/DailyPraiseSection";
-import { Card, EmptyState, PageHeader, StatCard } from "@/components/ui";
+import { PageHeader } from "@/components/ui";
+import { GradientCard, SoftTile } from "@/components/home/GradientCard";
 import { Avatar } from "@/components/Avatar";
 import { needsWeeklyPushNudge, requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -274,228 +275,169 @@ export default async function LiderDashboard() {
       ) : null}
 
       {badCrias.length > 0 ? (
-        <Link
-          href="/app/lider/status-crias"
-          className="mb-4 flex items-center gap-3 rounded-2xl border-2 border-red-700 bg-red-600 px-4 py-3 text-white shadow-lg shadow-red-600/20"
-        >
-          <span className="text-2xl" aria-hidden>
-            🚨
-          </span>
-          <span className="flex-1">
-            <span className="block font-black">
-              {badCrias.length === 1
-                ? `${badCrias[0].full_name || "Um cria"} respondeu "Mal" no status`
-                : `${badCrias.length} crias responderam "Mal" no status`}
+        <GradientCard tone="alarm" href="/app/lider/status-crias" ariaLabel="Alerta de status">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl" aria-hidden>
+              🚨
             </span>
-            <span className="block text-sm opacity-90">Toque para ver e agir agora.</span>
-          </span>
-          <span aria-hidden className="text-xl">
-            →
-          </span>
-        </Link>
+            <span className="min-w-0 flex-1">
+              <span className="block font-black">
+                {badCrias.length === 1
+                  ? `${badCrias[0].full_name || "Um cria"} respondeu "Mal" no status`
+                  : `${badCrias.length} crias responderam "Mal" no status`}
+              </span>
+              <span className="block text-sm text-[var(--muted)]">Toque para ver e agir agora.</span>
+            </span>
+            <span aria-hidden className="text-xl text-[var(--accent-strong)]">
+              →
+            </span>
+          </div>
+        </GradientCard>
       ) : null}
 
       {awaiting > 0 ? (
-        <Link
-          href="/app/lider/missoes"
-          className="mb-4 flex items-center justify-between rounded-2xl bg-[var(--accent)] px-4 py-3 text-[var(--accent-ink)]"
-        >
-          <span className="font-bold">
-            {awaiting} missão(ões) aguardando aprovação
-          </span>
-          <span aria-hidden>→</span>
-        </Link>
+        <GradientCard tone="indigo" href="/app/lider/missoes" ariaLabel="Missões aguardando aprovação">
+          <div className="flex items-center justify-between gap-3">
+            <span className="font-bold">
+              <span aria-hidden>✅ </span>
+              {awaiting} missão(ões) aguardando aprovação
+            </span>
+            <span aria-hidden className="text-xl text-[var(--accent-strong)]">
+              →
+            </span>
+          </div>
+        </GradientCard>
       ) : null}
 
-      <section data-tour="xp-card" className="mb-4 rounded-2xl bg-[var(--accent)] p-5 text-[var(--accent-ink)]">
-        <p className="text-xs font-bold uppercase tracking-wide opacity-80">Seu XP de liderança</p>
-        <p className="mt-1 text-4xl font-black tabular-nums">{formatXp(profile.xp)}</p>
+      <GradientCard tone="indigo" title="Seu XP de liderança" dataTour="xp-card">
+        <p className="text-4xl font-black tabular-nums">{formatXp(profile.xp)}</p>
         <div className="mt-3 max-w-sm">
-          <XpBar xp={profile.xp} tone="onAccent" />
+          <XpBar xp={profile.xp} />
         </div>
-      </section>
+      </GradientCard>
 
-      <section className="mb-6 grid gap-3 md:grid-cols-2">
-        {/* posição do líder — badge sólido de acento (mesma combinação segura
-            do card de XP acima: --accent + --accent-ink, idêntica em claro/escuro) */}
-        <Card>
-          <p className="text-[11px] font-bold uppercase tracking-widest text-[var(--muted)]">
-            Sua posição entre os líderes
-          </p>
-          <div className="mt-2 flex items-center gap-3">
-            <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[var(--accent)] text-3xl font-black tabular-nums text-[var(--accent-ink)]">
-              {myLeaderPos || "—"}
-            </span>
-            <span className="text-sm text-[var(--muted)]">
-              {leaderRanking.length > 0 ? `de ${leaderRanking.length} líder(es)` : ""}
-            </span>
-          </div>
-          <div className="mt-4 grid grid-cols-3 gap-2 border-t border-[var(--line)] pt-3 text-center">
-            <div>
-              <p className="text-lg font-bold tabular-nums">{myLeaderStats?.missions_created ?? 0}</p>
-              <p className="text-[10px] uppercase tracking-wide text-[var(--muted)]">criadas</p>
-            </div>
-            <div>
-              <p className="text-lg font-bold tabular-nums">{formatXp(myLeaderStats?.missions_xp ?? 0)}</p>
-              <p className="text-[10px] uppercase tracking-wide text-[var(--muted)]">XP em missões</p>
-            </div>
-            <div>
-              <p className="text-lg font-bold tabular-nums">{myLeaderStats?.missions_completed ?? 0}</p>
-              <p className="text-[10px] uppercase tracking-wide text-[var(--muted)]">concluídas</p>
-            </div>
-          </div>
-          <Link href="/app/ranking" className="mt-4 block text-center text-xs font-semibold text-[var(--accent-strong)]">
-            ver ranking completo →
-          </Link>
-        </Card>
+      <GradientCard tone="aurora" title="Sua posição entre os líderes" action={{ href: "/app/ranking", label: "ver ranking completo →" }}>
+        <div className="flex items-center gap-3">
+          <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[var(--accent)] text-3xl font-black tabular-nums text-[var(--accent-ink)]">
+            {myLeaderPos || "—"}
+          </span>
+          <span className="text-sm text-[var(--muted)]">{leaderRanking.length > 0 ? `de ${leaderRanking.length} líder(es)` : ""}</span>
+        </div>
+        <div className="mt-3 grid grid-cols-3 gap-2.5">
+          <SoftTile tone="yellow" icon="🎯">
+            <p className="text-xl font-black tabular-nums">{myLeaderStats?.missions_created ?? 0}</p>
+            <p className="text-[10px] font-black uppercase tracking-wide text-[#4a3f66]">criadas</p>
+          </SoftTile>
+          <SoftTile tone="blue" icon="⭐">
+            <p className="text-xl font-black tabular-nums">{formatXp(myLeaderStats?.missions_xp ?? 0)}</p>
+            <p className="text-[10px] font-black uppercase tracking-wide text-[#4a3f66]">XP em missões</p>
+          </SoftTile>
+          <SoftTile tone="green" icon="✅">
+            <p className="text-xl font-black tabular-nums">{myLeaderStats?.missions_completed ?? 0}</p>
+            <p className="text-[10px] font-black uppercase tracking-wide text-[#4a3f66]">concluídas</p>
+          </SoftTile>
+        </div>
+      </GradientCard>
 
-        {/* ranking do Elo — pódio com o mesmo par bg-[--accent-soft]/text-[--accent-strong]
-            usado em todo o resto do app pra linha em destaque (seguro em claro/escuro) */}
-        <Card>
-          <p className="text-[11px] font-bold uppercase tracking-widest text-[var(--muted)]">
-            Ranking do seu Elo
-          </p>
-          {crias.length === 0 ? (
-            <p className="mt-3 text-sm text-[var(--muted)]">
-              Nenhum cria vinculado ainda. Fale com a administração.
-            </p>
-          ) : (
-            <ol className="mt-3 space-y-1">
-              {crias.slice(0, 5).map((c, i) => {
-                const medal = ["bg-amber-400 text-amber-950", "bg-slate-300 text-slate-800", "bg-orange-400 text-orange-950"][i];
-                return (
-                  <li
-                    key={c.id}
-                    className={`flex items-center justify-between gap-3 rounded-xl px-2 py-2 ${
-                      i === 0 ? "bg-[var(--accent-soft)] text-[var(--accent-strong)]" : ""
-                    }`}
-                  >
-                    <span className="flex min-w-0 items-center gap-2.5">
-                      <span
-                        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-black tabular-nums ${
-                          medal ?? "bg-[var(--bg)] text-[var(--muted)]"
-                        }`}
-                      >
-                        {i + 1}
-                      </span>
-                      <Avatar url={c.avatar_url} name={c.full_name} size={30} />
-                      <span className={`truncate ${i === 0 ? "text-base font-bold" : "text-sm font-medium"}`}>
-                        {c.full_name || "Sem nome"}
-                      </span>
+      <GradientCard tone="sunrise" title="Ranking do seu Elo" action={crias.length > 5 ? { href: "/app/ranking", label: "ver todos →" } : undefined}>
+        {crias.length === 0 ? (
+          <p className="text-sm text-[var(--muted)]">Nenhum cria vinculado ainda. Fale com a administração.</p>
+        ) : (
+          <ol className="space-y-1">
+            {crias.slice(0, 5).map((c, i) => {
+              const medal = ["bg-amber-400 text-amber-950", "bg-slate-300 text-slate-800", "bg-orange-400 text-orange-950"][i];
+              return (
+                <li
+                  key={c.id}
+                  className={`flex items-center justify-between gap-3 rounded-xl px-2 py-2 ${i === 0 ? "bg-[var(--accent-soft)] text-[var(--accent-strong)]" : ""}`}
+                >
+                  <span className="flex min-w-0 items-center gap-2.5">
+                    <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-black tabular-nums ${medal ?? "bg-[var(--bg)] text-[var(--muted)]"}`}>
+                      {i + 1}
                     </span>
-                    <span
-                      className={`shrink-0 tabular-nums ${
-                        i === 0 ? "text-sm font-bold" : "text-xs text-[var(--muted)]"
-                      }`}
-                    >
-                      {formatXp(c.xp)} XP
-                    </span>
-                  </li>
-                );
-              })}
-            </ol>
-          )}
-          {crias.length > 5 ? (
-            <Link href="/app/ranking" className="mt-3 block text-center text-xs font-semibold text-[var(--accent-strong)]">
-              ver todos →
-            </Link>
-          ) : null}
-        </Card>
-      </section>
+                    <Avatar url={c.avatar_url} name={c.full_name} size={30} />
+                    <span className={`truncate ${i === 0 ? "text-base font-bold" : "text-sm font-medium"}`}>{c.full_name || "Sem nome"}</span>
+                  </span>
+                  <span className={`shrink-0 tabular-nums ${i === 0 ? "text-sm font-bold" : "text-xs text-[var(--muted)]"}`}>{formatXp(c.xp)} XP</span>
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </GradientCard>
 
-      <section className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="Crias" value={crias.length} />
-        <StatCard label="XP médio" value={formatXp(avgXp)} />
-        <StatCard
-          label="Ranking do Elo"
-          value={myRank ? `${myRank.rank_position}º` : "—"}
-          hint={myRank ? `${formatXp(Number(myRank.total_xp))} XP no total` : undefined}
-        />
-        <StatCard label="Missões aprovadas" value={approvedRes.count ?? 0} />
-      </section>
+      <GradientCard tone="ocean" title="Resumo do seu Elo">
+        <div className="grid grid-cols-2 gap-2.5">
+          <SoftTile tone="blue" icon="👥" label="Crias">
+            <p className="text-3xl font-black tabular-nums leading-none">{crias.length}</p>
+          </SoftTile>
+          <SoftTile tone="yellow" icon="⭐" label="XP médio">
+            <p className="text-3xl font-black tabular-nums leading-none">{formatXp(avgXp)}</p>
+          </SoftTile>
+          <SoftTile tone="peach" icon="🏆" label="Ranking do Elo">
+            <p className="text-3xl font-black tabular-nums leading-none">{myRank ? `${myRank.rank_position}º` : "—"}</p>
+            {myRank ? <p className="mt-1 text-xs font-bold text-[#4a3f66]">{formatXp(Number(myRank.total_xp))} XP no total</p> : null}
+          </SoftTile>
+          <SoftTile tone="green" icon="✅" label="Missões aprovadas">
+            <p className="text-3xl font-black tabular-nums leading-none">{approvedRes.count ?? 0}</p>
+          </SoftTile>
+        </div>
+      </GradientCard>
 
-      <section className="mb-6 grid gap-3 md:grid-cols-2">
-        <Card>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-bold">Status dos crias</h2>
-            <Link href="/app/lider/status-crias" className="text-xs font-semibold text-[var(--accent-strong)]">
-              ver tudo
-            </Link>
-          </div>
-          {crias.length === 0 ? (
-            <p className="text-sm text-[var(--muted)]">
-              Nenhum cria vinculado ainda. Fale com a administração.
-            </p>
-          ) : (
-            <ul className="space-y-2">
-              {[...crias]
-                .sort((a, b) => Number(hasBadStatus(byUser.get(b.id))) - Number(hasBadStatus(byUser.get(a.id))))
-                .slice(0, 5)
-                .map((c) => {
-                const s = byUser.get(c.id);
-                const bad = hasBadStatus(s);
+      <GradientCard tone="aurora" title="Status dos crias" action={{ href: "/app/lider/status-crias", label: "ver tudo" }}>
+        {crias.length === 0 ? (
+          <p className="text-sm text-[var(--muted)]">Nenhum cria vinculado ainda. Fale com a administração.</p>
+        ) : (
+          <ul className="space-y-2">
+            {[...crias]
+              .sort((a, b) => Number(hasBadStatus(byUser.get(b.id))) - Number(hasBadStatus(byUser.get(a.id))))
+              .slice(0, 5)
+              .map((c) => {
+                const st = byUser.get(c.id);
+                const bad = hasBadStatus(st);
                 return (
-                  <li
-                    key={c.id}
-                    className={`flex items-center justify-between gap-2 rounded-xl px-2 py-1.5 text-sm ${
-                      bad ? "bg-red-50 ring-1 ring-red-300" : ""
-                    }`}
-                  >
-                    <span className="truncate font-medium">
+                  <li key={c.id} className={`flex items-center justify-between gap-2 rounded-xl px-2 py-1.5 text-sm ${bad ? "bg-red-50 ring-1 ring-red-300" : ""}`}>
+                    <span className={`truncate font-medium ${bad ? "text-red-900" : ""}`}>
                       {bad ? <span aria-hidden>🚨 </span> : null}
                       {c.full_name || "Sem nome"}
                     </span>
-                    {s ? (
+                    {st ? (
                       <span className="flex shrink-0 gap-1">
-                        <span className={`chip ${STATUS_TONE[s.emotional_status]}`}>
-                          {STATUS_LABEL[s.emotional_status]}
-                        </span>
-                        <span className={`chip ${STATUS_TONE[s.spiritual_status]}`}>
-                          {STATUS_LABEL[s.spiritual_status]}
-                        </span>
+                        <span className={`chip ${STATUS_TONE[st.emotional_status]}`}>{STATUS_LABEL[st.emotional_status]}</span>
+                        <span className={`chip ${STATUS_TONE[st.spiritual_status]}`}>{STATUS_LABEL[st.spiritual_status]}</span>
                       </span>
                     ) : (
-                      <span className="chip border-[var(--line)] text-[var(--muted)]">
-                        sem resposta
-                      </span>
+                      <span className="chip border-[var(--line)] text-[var(--muted)]">sem resposta</span>
                     )}
                   </li>
                 );
               })}
-            </ul>
-          )}
-        </Card>
-
-        <Card>
-          <h2 className="mb-3 text-sm font-bold">Missões</h2>
-          <ul className="space-y-2 text-sm">
-            <li className="flex justify-between">
-              <span className="text-[var(--muted)]">Ativas</span>
-              <strong className="tabular-nums">{activeRes.count ?? 0}</strong>
-            </li>
-            <li className="flex justify-between">
-              <span className="text-[var(--muted)]">Aguardando aprovação</span>
-              <strong className="tabular-nums">{awaiting}</strong>
-            </li>
-            <li className="flex justify-between">
-              <span className="text-[var(--muted)]">Concluídas</span>
-              <strong className="tabular-nums">{approvedRes.count ?? 0}</strong>
-            </li>
           </ul>
-          <Link href="/app/lider/missoes" className="btn btn-ghost mt-4 w-full !py-2 !text-sm">
-            Gerenciar missões
-          </Link>
-        </Card>
-      </section>
+        )}
+      </GradientCard>
+
+      <GradientCard tone="indigo" title="Missões" action={{ href: "/app/lider/missoes", label: "Gerenciar missões →" }}>
+        <div className="grid grid-cols-3 gap-2.5">
+          <SoftTile tone="blue" icon="🎯">
+            <p className="text-2xl font-black tabular-nums leading-none">{activeRes.count ?? 0}</p>
+            <p className="mt-1 text-[10px] font-black uppercase tracking-wide text-[#4a3f66]">ativas</p>
+          </SoftTile>
+          <SoftTile tone="yellow" icon="⏳">
+            <p className="text-2xl font-black tabular-nums leading-none">{awaiting}</p>
+            <p className="mt-1 text-[10px] font-black uppercase tracking-wide text-[#4a3f66]">aguardando</p>
+          </SoftTile>
+          <SoftTile tone="green" icon="✅">
+            <p className="text-2xl font-black tabular-nums leading-none">{approvedRes.count ?? 0}</p>
+            <p className="mt-1 text-[10px] font-black uppercase tracking-wide text-[#4a3f66]">concluídas</p>
+          </SoftTile>
+        </div>
+      </GradientCard>
 
       <DevotionalSuggestionCard />
 
-      <section>
-        <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">
-          Próximos eventos
-        </h2>
+      <GradientCard tone="sunrise" title="Próximos eventos">
         {(eventsRes.data ?? []).length === 0 ? (
-          <EmptyState>Nenhum evento agendado.</EmptyState>
+          <p className="text-sm text-[var(--muted)]">Nenhum evento agendado.</p>
         ) : (
           <div className="space-y-2">
             {((eventsRes.data ?? []) as {
@@ -504,19 +446,19 @@ export default async function LiderDashboard() {
               event_date: string;
               event_time: string | null;
               location: string | null;
-            }[]).map((e) => (
-              <Card key={e.id}>
-                <p className="font-semibold">{e.title}</p>
-                <p className="text-xs text-[var(--muted)]">
+            }[]).map((e, i) => (
+              <SoftTile key={e.id} tone={(["peach", "yellow", "pink", "blue"] as const)[i % 4]} icon="📅">
+                <p className="font-black">{e.title}</p>
+                <p className="text-xs font-semibold text-[#4a3f66]">
                   {formatDate(e.event_date)}
                   {e.event_time ? ` · ${e.event_time.slice(0, 5)}` : ""}
                   {e.location ? ` · ${e.location}` : ""}
                 </p>
-              </Card>
+              </SoftTile>
             ))}
           </div>
         )}
-      </section>
+      </GradientCard>
 
       <p className="mt-6 text-xs text-[var(--muted)]">
         Última resposta de status dos crias atualizada {relativeDay(statuses[0]?.created_at ?? null).toLowerCase()}.

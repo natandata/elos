@@ -1,3 +1,5 @@
+import { GradientCard } from "@/components/home/GradientCard";
+
 export function OpenChallengeBanner({
   title,
   description,
@@ -8,19 +10,17 @@ export function OpenChallengeBanner({
   bonusXp: number;
 }) {
   return (
-    <div className="mb-5 rounded-2xl border-2 border-amber-300 bg-amber-50 px-5 py-4">
-      <p className="flex items-center gap-2 text-base font-black text-amber-900">
+    <GradientCard tone="gold" title="Desafio entre os Elos">
+      <p className="flex items-center gap-2 text-base font-black">
         <span className="text-xl" aria-hidden>
           🏆
         </span>{" "}
-        Desafio entre os Elos: {title}
+        {title}
       </p>
-      {description ? <p className="mt-1.5 text-sm font-semibold text-amber-800">{description}</p> : null}
+      {description ? <p className="mt-1.5 text-sm font-semibold text-[var(--muted)]">{description}</p> : null}
       {bonusXp > 0 ? (
-        <p className="mt-1.5 text-sm font-bold text-amber-700">
-          +{bonusXp} XP pra cada cria do Elo vencedor
-        </p>
+        <p className="mt-1.5 text-sm font-bold text-[var(--accent-strong)]">+{bonusXp} XP pra cada cria do Elo vencedor</p>
       ) : null}
-    </div>
+    </GradientCard>
   );
 }
