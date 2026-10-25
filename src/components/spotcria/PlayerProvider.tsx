@@ -161,7 +161,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setDuration(0);
     recordedRef.current = null;
     if (readyRef.current && playerRef.current) playerRef.current.loadVideoById(track.video_id);
-    else pendingRef.current = track.video_id;
+    else {
+      pendingRef.current = track.video_id;
+      // se o player do YouTube não carregar (internet ruim ou bloqueio), avisa em vez de ficar parado
+      window.setTimeout(() => {
+        if (!readyRef.current) setError("O player do YouTube não carregou. Confira a internet e tente de novo.");
+      }, 12000);
+    }
   }, []);
 
   // cria o player uma vez
