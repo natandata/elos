@@ -296,6 +296,25 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [playing, current]);
 
   // vários espaços podem existir por instantes durante uma troca de tela: vale o mais recente que ainda está na página
+  // ao voltar para o app, retoma a música que estava tocando (se a pessoa não pausou)
+  const wasPlayingRef = useRef(false);
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === "hidden") {
+        wasPlayingRef.current = playingRef.current && !userPausedRef.current;
+      } else if (wasPlayingRef.current && !userPausedRef.current) {
+        wasPlayingRef.current = false;
+        [0, 400, 1500].forEach((ms) =>
+          window.setTimeout(() => {
+            if (!userPausedRef.current && !playingRef.current) playerRef.current?.playVideo();
+          }, ms),
+        );
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, []);
+
   const registerSlot = useCallback((kind: "mini" | "full", el: HTMLElement) => {
     const list = slotsRef.current[kind];
     if (!list.includes(el)) list.push(el);
