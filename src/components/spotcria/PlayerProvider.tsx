@@ -27,6 +27,29 @@ declare global {
   }
 }
 
+/** 1 s de silêncio (WAV 8 kHz, 8 bits) em loop: o sistema passa a tratar a página como um player de mídia (controles na tela de bloqueio) e não a congela em segundo plano. */
+function silentWavUrl(): string {
+  const rate = 8000;
+  const data = new Uint8Array(rate).fill(128);
+  const head = new ArrayBuffer(44);
+  const v = new DataView(head);
+  const w = (o: number, t: string) => [...t].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  w(0, "RIFF");
+  v.setUint32(4, 36 + data.length, true);
+  w(8, "WAVE");
+  w(12, "fmt ");
+  v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true);
+  v.setUint16(22, 1, true);
+  v.setUint32(24, rate, true);
+  v.setUint32(28, rate, true);
+  v.setUint16(32, 1, true);
+  v.setUint16(34, 8, true);
+  w(36, "data");
+  v.setUint32(40, data.length, true);
+  return URL.createObjectURL(new Blob([head, data], { type: "audio/wav" }));
+}
+
 function loadYouTubeApi(): Promise<void> {
   return new Promise((resolve) => {
     if (window.YT?.Player) return resolve();
@@ -103,6 +126,26 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const userPausedRef = useRef(false);
   const slotsRef = useRef<Slots>({ mini: [], full: [] });
   const playingRef = useRef(false);
+  const wantPlayRef = useRef(false);
+  const prevRef = useRef<() => void>(() => undefined);
+  const keepRef = useRef<HTMLAudioElement | null>(null);
+
+  const startKeepAlive = useCallback(() => {
+    try {
+      if (!keepRef.current) {
+        const a = new Audio(silentWavUrl());
+        a.loop = true;
+        a.setAttribute("playsinline", "");
+        keepRef.current = a;
+      }
+      void keepRef.current.play().catch(() => undefined);
+    } catch {
+      // sem áudio de apoio: o resto continua funcionando
+    }
+  }, []);
+  const stopKeepAlive = useCallback(() => {
+    keepRef.current?.pause();
+  }, []);
 
   useEffect(() => {
     queueRef.current = queue;
@@ -112,6 +155,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const load = useCallback((track: SpotTrack) => {
     userPausedRef.current = false;
+    wantPlayRef.current = true;
     setError(null);
     setPosition(0);
     setDuration(0);
@@ -141,6 +185,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             if (e.data === 1) {
               setPlaying(true);
               playingRef.current = true;
+              if (!userPausedRef.current) startKeepAlive();
               const t = queueRef.current[indexRef.current];
               if (t && recordedRef.current !== t.id) {
                 recordedRef.current = t.id;
@@ -153,7 +198,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               setPlaying(false);
               // o navegador pausou sozinho (app em segundo plano / tela bloqueada): tenta continuar, já que a pessoa não pausou
               if (!userPausedRef.current && playingRef.current && document.visibilityState === "hidden") {
-                [250, 1200, 3000].forEach((ms) =>
+                [150, 600, 1500, 3000, 6000].forEach((ms) =>
                   window.setTimeout(() => {
                     if (!userPausedRef.current) playerRef.current?.playVideo();
                   }, ms),
@@ -177,7 +222,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [startKeepAlive]);
 
   // progresso
   useEffect(() => {
@@ -215,9 +260,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     else if (repeatRef.current === "all" && q.length > 0) goTo(0);
     else {
       setPlaying(false);
+      wantPlayRef.current = false;
+      stopKeepAlive();
       playerRef.current?.pauseVideo();
     }
-  }, [goTo]);
+  }, [goTo, stopKeepAlive]);
   useEffect(() => {
     advanceRef.current = next;
     endedRef.current = () => {
@@ -243,9 +290,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     goTo(Math.max(0, indexRef.current - 1));
   }, [goTo, position]);
 
+  useEffect(() => {
+    prevRef.current = prev;
+  }, [prev]);
+
   const play = useCallback(
     (track: SpotTrack, q?: SpotTrack[]) => {
       userPausedRef.current = false;
+      startKeepAlive();
       const list = q && q.length ? q : [track];
       const i = Math.max(0, list.findIndex((t) => t.id === track.id));
       setQueue(list);
@@ -254,7 +306,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       indexRef.current = i;
       load(track);
     },
-    [load],
+    [load, startKeepAlive],
   );
 
   const toggle = useCallback(() => {
@@ -262,12 +314,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (!p || !current) return;
     if (playing) {
       userPausedRef.current = true;
+      wantPlayRef.current = false;
+      stopKeepAlive();
       p.pauseVideo();
     } else {
       userPausedRef.current = false;
+      wantPlayRef.current = true;
+      startKeepAlive();
       p.playVideo();
     }
-  }, [playing, current]);
+  }, [playing, current, startKeepAlive, stopKeepAlive]);
 
   const seek = useCallback((s: number) => {
     playerRef.current?.seekTo(s, true);
@@ -281,17 +337,35 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   // controles na tela de bloqueio / fones (quando o navegador permite)
   useEffect(() => {
     if (!current || typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
-    navigator.mediaSession.metadata = new MediaMetadata({ title: current.title, artist: current.channel, artwork: [{ src: thumb(current.video_id, "hq"), sizes: "480x360", type: "image/jpeg" }] });
-    navigator.mediaSession.setActionHandler("play", () => {
+    navigator.mediaSession.metadata = new MediaMetadata({ title: current.title, artist: current.channel, album: "Spot Cria · ELOS", artwork: [{ src: thumb(current.video_id, "hq"), sizes: "480x360", type: "image/jpeg" }] });
+    const ms = navigator.mediaSession;
+    ms.setActionHandler("play", () => {
       userPausedRef.current = false;
+      wantPlayRef.current = true;
+      startKeepAlive();
       playerRef.current?.playVideo();
     });
-    navigator.mediaSession.setActionHandler("pause", () => {
+    ms.setActionHandler("pause", () => {
       userPausedRef.current = true;
+      wantPlayRef.current = false;
+      stopKeepAlive();
       playerRef.current?.pauseVideo();
     });
-    navigator.mediaSession.setActionHandler("nexttrack", () => advanceRef.current());
-  }, [current]);
+    ms.setActionHandler("nexttrack", () => advanceRef.current());
+    ms.setActionHandler("previoustrack", () => prevRef.current());
+    ms.setActionHandler("seekto", (d) => {
+      if (typeof d.seekTime === "number") playerRef.current?.seekTo(d.seekTime, true);
+    });
+  }, [current, startKeepAlive, stopKeepAlive]);
+  // barra de progresso na tela de bloqueio
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator) || !duration) return;
+    try {
+      navigator.mediaSession.setPositionState({ duration, position: Math.min(position, duration), playbackRate: 1 });
+    } catch {
+      // alguns navegadores não aceitam
+    }
+  }, [position, duration]);
   useEffect(() => {
     if (typeof navigator !== "undefined" && "mediaSession" in navigator) navigator.mediaSession.playbackState = playing ? "playing" : current ? "paused" : "none";
   }, [playing, current]);
@@ -314,6 +388,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
     document.addEventListener("visibilitychange", onVis);
     return () => document.removeEventListener("visibilitychange", onVis);
+  }, []);
+
+  // em segundo plano: se a pessoa não pausou e o navegador parou o vídeo, tenta retomar a cada 2 s
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (document.visibilityState !== "hidden" || !wantPlayRef.current || userPausedRef.current) return;
+      const p = playerRef.current;
+      if (p && readyRef.current && !playingRef.current) p.playVideo();
+    }, 2000);
+    return () => window.clearInterval(id);
   }, []);
 
   const registerSlot = useCallback((kind: "mini" | "full", el: HTMLElement) => {
