@@ -87,7 +87,7 @@ const EV: Ev[] = [
   [4, "Absalão se rebela contra Davi", "2 Samuel 15"],
   [4, "Salomão pede sabedoria a Deus", "1 Reis 3"],
   [4, "O templo é construído", "1 Reis 6", 1],
-  [4, "A rainha de Sebá visita Salomão", "1 Reis 10"],
+  [4, "A rainha de Sabá visita Salomão", "1 Reis 10"],
   [4, "O reino se divide em dois", "1 Reis 12"],
 
   [5, "Elias é sustentado pela viúva de Sarepta", "1 Reis 17"],

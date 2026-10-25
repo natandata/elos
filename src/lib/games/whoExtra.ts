@@ -93,7 +93,7 @@ const ROWS: Row[] = [
   ["joabe", "Joabe", "2 Samuel 2–20", "Eu comandava um exército.", "Era sobrinho do rei.", "Matei Abner e Absalão.", "Fui o general de Davi.", 1],
   ["nata", "Natã", "2 Samuel 12", "Fui profeta na corte do rei.", "Contei uma parábola sobre uma ovelhinha.", "O rei se indignou com o homem da história.", "Disse a Davi: Tu és o homem!", 1],
   ["urias", "Urias, o heteu", "2 Samuel 11", "Eu era soldado fiel.", "Não quis ir para casa enquanto meus companheiros estavam no campo de batalha.", "Levei uma carta que era a minha própria sentença.", "Fui marido de Bate-Seba.", 2],
-  ["rainha-seba", "Rainha de Sebá", "1 Reis 10", "Eu era rainha de uma terra distante.", "Viajei com camelos carregados de especiarias e ouro.", "Fiz perguntas difíceis a um rei famoso.", "Fiquei admirada com a sabedoria de Salomão.", 2],
+  ["rainha-seba", "Rainha de Sabá", "1 Reis 10", "Eu era rainha de uma terra distante.", "Viajei com camelos carregados de especiarias e ouro.", "Fiz perguntas difíceis a um rei famoso.", "Fiquei admirada com a sabedoria de Salomão.", 2],
   ["roboao", "Roboão", "1 Reis 12", "Eu era filho de um rei muito sábio.", "Ouvi o conselho dos jovens em vez dos anciãos.", "Disse que o meu dedo mínimo era mais grosso que a cintura do meu pai.", "Meu reino se dividiu em dois.", 2],
   ["jeroboao", "Jeroboão", "1 Reis 12", "Fui oficial de Salomão.", "Dez tribos me escolheram como rei.", "Fiz dois bezerros de ouro e os coloquei em Betel e Dã.", "Fui o primeiro rei do reino do norte.", 2],
   ["nabote", "Nabote", "1 Reis 21", "Eu tinha uma vinha ao lado do palácio.", "Não quis vendê-la, pois era herança dos meus pais.", "Fui acusado falsamente por duas testemunhas.", "Fui morto por ordem da rainha Jezabel.", 2],
