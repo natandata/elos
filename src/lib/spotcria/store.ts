@@ -68,7 +68,7 @@ function mapTracks(node: unknown, id: string, patch: AnyRec): unknown {
 }
 
 /** Atualiza uma faixa em todas as telas em cache (curtir aparece na hora em todo lugar). */
-export function patchSpotTrack(id: string, patch: Partial<{ liked: boolean; like_count: number }>) {
+export function patchSpotTrack(id: string, patch: Partial<{ liked: boolean; like_count: number; play_count: number }>) {
   cache.forEach((e, k) => cache.set(k, { ...e, data: mapTracks(e.data, id, patch) }));
   emit();
 }

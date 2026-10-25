@@ -1,7 +1,8 @@
 "use client";
 
 /* eslint-disable @next/next/no-img-element */
-import { createContext, useContext, useEffect, useState, useTransition, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useSyncExternalStore, useTransition, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { Avatar } from "@/components/Avatar";
 import { addSpotTrack, addToSpotPlaylist, createSpotPlaylist, myPlaylists, removeFromSpotPlaylist, removeSpotTrack, toggleSpotLike } from "@/lib/actions/spotcria";
 import { invalidateSpot, patchSpotTrack } from "@/lib/spotcria/store";
@@ -58,6 +59,8 @@ export function MyAvatar({ size = 36 }: { size?: number }) {
 }
 export const useSpotMeta = () => useContext(MetaContext);
 
+export const playsLabel = (n: number) => `${n} ${n === 1 ? "reprodução" : "reproduções"}`;
+
 /** Curtir/descurtir na hora (em todas as telas em cache e na fila) e confirmar no servidor por trás. */
 export async function likeOptimistic(track: SpotTrack, patchQueue: (id: string, patch: Partial<SpotTrack>) => void): Promise<void> {
   const liked = !track.liked;
@@ -111,6 +114,16 @@ function Bars() {
   );
 }
 
+/** Joga o conteúdo para o <body>: assim as folhas ficam acima do player (que mora na raiz do app). */
+export function Portal({ children }: { children: ReactNode }) {
+  const mounted = useSyncExternalStore(
+    () => () => undefined,
+    () => true,
+    () => false,
+  );
+  return mounted ? createPortal(children, document.body) : null;
+}
+
 function Sheet({ title, onClose, children }: { title?: string; onClose: () => void; children: ReactNode }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -118,6 +131,7 @@ function Sheet({ title, onClose, children }: { title?: string; onClose: () => vo
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
   return (
+    <Portal>
     <div className="spot-fade fixed inset-0 z-[120] flex items-end justify-center bg-black/70" onClick={onClose} role="dialog" aria-modal="true">
       <div className="spot-up w-full max-w-2xl rounded-t-3xl bg-[#282828] p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] text-white" onClick={(e) => e.stopPropagation()}>
         <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/25" />
@@ -125,6 +139,7 @@ function Sheet({ title, onClose, children }: { title?: string; onClose: () => vo
         {children}
       </div>
     </div>
+    </Portal>
   );
 }
 
@@ -195,7 +210,7 @@ export function PlaylistPicker({ track, onClose, onDone }: { track: SpotTrack; o
 }
 
 /** Colar um link do YouTube e guardar na biblioteca do ELOS. */
-export function AddTrackSheet({ onClose }: { onClose: () => void }) {
+export function AddTrackSheet({ onClose, playlistId, playlistName }: { onClose: () => void; playlistId?: string; playlistName?: string }) {
   const [link, setLink] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, start] = useTransition();
@@ -203,15 +218,21 @@ export function AddTrackSheet({ onClose }: { onClose: () => void }) {
   const save = () =>
     start(async () => {
       const r = await addSpotTrack(link);
-      if (r.error) return setMsg({ ok: false, text: r.error });
-      setMsg({ ok: true, text: r.existed ? `“${r.track?.title}” já estava na biblioteca.` : `“${r.track?.title}” entrou na biblioteca!` });
+      if (r.error || !r.track) return setMsg({ ok: false, text: r.error ?? "Não foi possível adicionar." });
+      if (playlistId) {
+        const a = await addToSpotPlaylist(playlistId, r.track.id);
+        if (a.error) return setMsg({ ok: false, text: a.error });
+        setMsg({ ok: true, text: a.already ? `“${r.track.title}” já estava em “${playlistName}”.` : `“${r.track.title}” foi adicionada a “${playlistName}”!` });
+      } else {
+        setMsg({ ok: true, text: r.existed ? `“${r.track.title}” já estava na biblioteca.` : `“${r.track.title}” entrou na biblioteca!` });
+      }
       setLink("");
       void invalidateSpot();
     });
 
   return (
-    <Sheet title="Adicionar música" onClose={onClose}>
-      <p className="mb-2 text-xs text-[#a7a7a7]">Cole o link de um louvor ou música do YouTube. Ela fica salva para todo o ELOS ouvir.</p>
+    <Sheet title={playlistId ? `Adicionar à playlist “${playlistName}”` : "Adicionar música"} onClose={onClose}>
+      <p className="mb-2 text-xs text-[#a7a7a7]">{playlistId ? "Cole o link de um vídeo do YouTube: ele entra na playlist e fica salvo na biblioteca do ELOS. Pode colar um por vez." : "Cole o link de um louvor ou música do YouTube. Ela fica salva para todo o ELOS ouvir."}</p>
       <input value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" inputMode="url" className="w-full rounded-xl bg-[#2a2a2a] px-3 py-3 text-sm text-white placeholder:text-[#a7a7a7]" aria-label="Link da música no YouTube" />
       {msg ? <p className={`mt-2 text-xs font-bold ${msg.ok ? "text-emerald-300" : "text-rose-400"}`}>{msg.text}</p> : null}
       <div className="mt-3 grid grid-cols-2 gap-2">
@@ -304,6 +325,7 @@ export function TrackRow({ track, queue, playlistId, index }: { track: SpotTrack
           <span className="block truncate text-xs text-[#a7a7a7]">
             {track.liked ? <span aria-hidden>💜 </span> : null}
             {track.channel}
+            {` · ${playsLabel(track.play_count)}`}
             {track.added_by_name ? ` · por ${track.added_by_name}` : ""}
           </span>
         </span>
@@ -351,6 +373,7 @@ export function TrackCard({ track, queue }: { track: SpotTrack; queue: SpotTrack
         <span className="mt-2 block text-xs text-[#a7a7a7]">Música</span>
         <span className={`line-clamp-2 block text-sm font-bold leading-snug ${active ? "text-[#c4a0ff]" : "text-white"}`}>{track.title}</span>
         <span className="line-clamp-1 block text-xs text-[#a7a7a7]">{track.channel}</span>
+        <span className="block text-xs text-[#a7a7a7]">▶ {playsLabel(track.play_count)}</span>
       </button>
     </li>
   );
@@ -400,6 +423,7 @@ export function TrackListView({
         <div className="mx-auto w-40">{cover}</div>
         <h1 className="mt-4 text-2xl font-black leading-tight">{title}</h1>
         <p className="mt-1 text-xs text-[#d0d0d0]">{subtitle}</p>
+        {actions ? <div className="mt-3 flex flex-wrap items-center gap-2">{actions}</div> : null}
         <div className="mt-4 flex items-center gap-3">
           <button type="button" onClick={shuffle} disabled={tracks.length === 0} aria-label="Tocar em ordem aleatória" className="rounded-full bg-white/10 px-4 py-2.5 text-sm font-black disabled:opacity-40">
             🔀 Aleatório
@@ -407,7 +431,6 @@ export function TrackListView({
           <button type="button" onClick={() => tracks[0] && play(tracks[0], tracks)} disabled={tracks.length === 0} aria-label="Tocar tudo" className="ml-auto grid h-14 w-14 place-items-center rounded-full bg-[#a855f7] text-2xl text-white shadow-lg disabled:opacity-40">
             ▶
           </button>
-          {actions}
         </div>
       </div>
       {tracks.length === 0 ? (

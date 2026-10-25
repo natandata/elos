@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { recordSpotPlay } from "@/lib/actions/spotcria";
+import { patchSpotTrack } from "@/lib/spotcria/store";
 import { thumb, type SpotTrack } from "@/lib/spotcria/types";
 
 // Player do Spot Cria: um único player do YouTube (IFrame API) que não é desmontado ao navegar entre as telas,
@@ -62,13 +63,19 @@ type Ctx = {
   prev: () => void;
   seek: (seconds: number) => void;
   patchTrack: (id: string, patch: Partial<SpotTrack>) => void;
+  registerSlot: (kind: "mini" | "full", el: HTMLElement) => void;
+  unregisterSlot: (kind: "mini" | "full", el: HTMLElement) => void;
 };
+
+const MINI_BASE_W = 356;
+
+type Slots = { mini: HTMLElement[]; full: HTMLElement[] };
 
 const PlayerContext = createContext<Ctx | null>(null);
 
 export function useSpotPlayer(): Ctx {
   const c = useContext(PlayerContext);
-  if (!c) throw new Error("useSpotPlayer fora do SpotShell");
+  if (!c) throw new Error("useSpotPlayer fora do SpotPlayerRoot");
   return c;
 }
 
@@ -93,6 +100,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const endedRef = useRef<() => void>(() => undefined);
   const shuffleRef = useRef(false);
   const repeatRef = useRef<"off" | "all" | "one">("off");
+  const userPausedRef = useRef(false);
+  const slotsRef = useRef<Slots>({ mini: [], full: [] });
+  const playingRef = useRef(false);
 
   useEffect(() => {
     queueRef.current = queue;
@@ -129,12 +139,27 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           onStateChange: (e: { data: number }) => {
             if (e.data === 1) {
               setPlaying(true);
+              playingRef.current = true;
               const t = queueRef.current[indexRef.current];
               if (t && recordedRef.current !== t.id) {
                 recordedRef.current = t.id;
                 void recordSpotPlay(t.id, t.title).catch(() => null);
+                // a contagem sobe na hora para todo mundo que está vendo a faixa
+                patchSpotTrack(t.id, { play_count: t.play_count + 1 });
+                setQueue((q) => q.map((x) => (x.id === t.id ? { ...x, play_count: x.play_count + 1 } : x)));
               }
-            } else if (e.data === 2) setPlaying(false);
+            } else if (e.data === 2) {
+              setPlaying(false);
+              // o navegador pausou sozinho (app em segundo plano / tela bloqueada): tenta continuar, já que a pessoa não pausou
+              if (!userPausedRef.current && playingRef.current && document.visibilityState === "hidden") {
+                [250, 1200, 3000].forEach((ms) =>
+                  window.setTimeout(() => {
+                    if (!userPausedRef.current) playerRef.current?.playVideo();
+                  }, ms),
+                );
+              }
+              playingRef.current = false;
+            }
             else if (e.data === 0) {
               setPlaying(false);
               endedRef.current();
@@ -219,6 +244,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const play = useCallback(
     (track: SpotTrack, q?: SpotTrack[]) => {
+      userPausedRef.current = false;
       const list = q && q.length ? q : [track];
       const i = Math.max(0, list.findIndex((t) => t.id === track.id));
       setQueue(list);
@@ -233,8 +259,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const toggle = useCallback(() => {
     const p = playerRef.current;
     if (!p || !current) return;
-    if (playing) p.pauseVideo();
-    else p.playVideo();
+    if (playing) {
+      userPausedRef.current = true;
+      p.pauseVideo();
+    } else {
+      userPausedRef.current = false;
+      p.playVideo();
+    }
   }, [playing, current]);
 
   const seek = useCallback((s: number) => {
@@ -250,40 +281,121 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!current || typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
     navigator.mediaSession.metadata = new MediaMetadata({ title: current.title, artist: current.channel, artwork: [{ src: thumb(current.video_id, "hq"), sizes: "480x360", type: "image/jpeg" }] });
-    navigator.mediaSession.setActionHandler("play", () => playerRef.current?.playVideo());
-    navigator.mediaSession.setActionHandler("pause", () => playerRef.current?.pauseVideo());
+    navigator.mediaSession.setActionHandler("play", () => {
+      userPausedRef.current = false;
+      playerRef.current?.playVideo();
+    });
+    navigator.mediaSession.setActionHandler("pause", () => {
+      userPausedRef.current = true;
+      playerRef.current?.pauseVideo();
+    });
     navigator.mediaSession.setActionHandler("nexttrack", () => advanceRef.current());
   }, [current]);
+  useEffect(() => {
+    if (typeof navigator !== "undefined" && "mediaSession" in navigator) navigator.mediaSession.playbackState = playing ? "playing" : current ? "paused" : "none";
+  }, [playing, current]);
+
+  // vários espaços podem existir por instantes durante uma troca de tela: vale o mais recente que ainda está na página
+  const registerSlot = useCallback((kind: "mini" | "full", el: HTMLElement) => {
+    const list = slotsRef.current[kind];
+    if (!list.includes(el)) list.push(el);
+  }, []);
+  const unregisterSlot = useCallback((kind: "mini" | "full", el: HTMLElement) => {
+    slotsRef.current[kind] = slotsRef.current[kind].filter((x) => x !== el);
+  }, []);
 
   const value = useMemo<Ctx>(
-    () => ({ current, queue, index, playing, position, duration, error, expanded, setExpanded, shuffle, repeat, toggleShuffle, cycleRepeat, play, toggle, next, prev, seek, patchTrack }),
-    [current, queue, index, playing, position, duration, error, expanded, shuffle, repeat, toggleShuffle, cycleRepeat, play, toggle, next, prev, seek, patchTrack],
+    () => ({ current, queue, index, playing, position, duration, error, expanded, setExpanded, shuffle, repeat, toggleShuffle, cycleRepeat, play, toggle, next, prev, seek, patchTrack, registerSlot, unregisterSlot }),
+    [current, queue, index, playing, position, duration, error, expanded, shuffle, repeat, toggleShuffle, cycleRepeat, play, toggle, next, prev, seek, patchTrack, registerSlot, unregisterSlot],
   );
 
-  return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
+  return (
+    <PlayerContext.Provider value={value}>
+      {children}
+      <PlayerHost slotsRef={slotsRef} />
+    </PlayerContext.Provider>
+  );
 }
 
-/** O elemento onde o player do YouTube mora. Fica sempre montado (dentro do quadro do Spot Cria) e só muda de lugar/tamanho. */
-export function PlayerHost() {
-  const { current, expanded } = useSpotPlayer();
+/**
+ * O elemento onde o player do YouTube mora. Fica sempre montado na raiz do app (por isso a música continua ao navegar pelo ELOS)
+ * e acompanha, quadro a quadro, a posição do espaço ("slot") da tela atual: o mini player ou a tela "Tocando agora".
+ */
+function PlayerHost({ slotsRef }: { slotsRef: React.RefObject<Slots> }) {
+  const { current } = useContext(PlayerContext) as Ctx;
+  const hostRef = useRef<HTMLDivElement>(null);
+  const [full, setFull] = useState(false);
+
+  useEffect(() => {
+    if (!current) return;
+    let raf = 0;
+    const tick = () => {
+      const host = hostRef.current;
+      const slots = slotsRef.current;
+      if (host && slots) {
+        const last = (list: HTMLElement[]) => [...list].reverse().find((x) => x.isConnected) ?? null;
+        const fullEl = last(slots.full);
+        const el = fullEl ?? last(slots.mini);
+        if (!el) {
+          host.style.transform = "translate(-9999px, 0)";
+        } else {
+          const r = el.getBoundingClientRect();
+          host.style.left = `${r.left}px`;
+          host.style.top = `${r.top}px`;
+          host.style.transformOrigin = "0 0";
+          if (fullEl) {
+            host.style.width = `${r.width}px`;
+            host.style.height = `${r.height}px`;
+            host.style.transform = "none";
+          } else {
+            // o YouTube não toca em players pequenos: o player mantém 356x200 e é só encolhido na tela
+            host.style.width = `${MINI_BASE_W}px`;
+            host.style.height = `${(MINI_BASE_W * 9) / 16}px`;
+            host.style.transform = `scale(${r.width / MINI_BASE_W})`;
+          }
+          host.style.pointerEvents = fullEl ? "auto" : "none";
+          host.style.borderRadius = fullEl ? "8px" : "14px";
+          setFull((f) => (f === !!fullEl ? f : !!fullEl));
+        }
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [current, slotsRef]);
+
   return (
     <div
       id="spot-yt-host"
-      className={
-        !current
-          ? "pointer-events-none absolute -left-[9999px] top-0 h-[200px] w-[200px]"
-          : expanded
-            ? "spot-up absolute inset-x-5 top-20 z-[85] aspect-square overflow-hidden rounded-lg bg-black shadow-2xl"
-            : "pointer-events-none absolute bottom-[calc(env(safe-area-inset-bottom)+58px+2px+7px)] left-4 z-[85] h-[54px] w-24 overflow-hidden rounded bg-black"
-      }
+      ref={hostRef}
+      className="fixed z-[85] overflow-hidden bg-black"
+      style={{ left: -9999, top: 0, width: MINI_BASE_W, height: (MINI_BASE_W * 9) / 16 }}
     >
-      {expanded && current ? (
+      {full && current ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={thumb(current.video_id, "hq")} alt="" className="absolute inset-0 h-full w-full scale-150 object-cover opacity-70 blur-2xl" draggable={false} />
       ) : null}
-      <div className={expanded ? "absolute inset-x-0 top-1/2 aspect-video -translate-y-1/2" : "absolute inset-0"}>
+      <div className={full ? "absolute inset-x-0 top-1/2 aspect-video -translate-y-1/2" : "absolute inset-0"}>
         <div id="spot-yt-target" />
       </div>
     </div>
+  );
+}
+
+/** Ref de callback para marcar um espaço da tela onde o player deve aparecer. */
+export function useSlot(kind: "mini" | "full") {
+  const { registerSlot, unregisterSlot } = useSpotPlayer();
+  const attached = useRef<HTMLElement | null>(null);
+  return useCallback(
+    (el: HTMLElement | null) => {
+      if (el) {
+        attached.current = el;
+        registerSlot(kind, el);
+      } else if (attached.current) {
+        unregisterSlot(kind, attached.current);
+        attached.current = null;
+      }
+    },
+    [registerSlot, unregisterSlot, kind],
   );
 }

@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { createSpotPlaylist, deleteSpotPlaylist, renameSpotPlaylist, searchSpot } from "@/lib/actions/spotcria";
 import { invalidateSpot } from "@/lib/spotcria/store";
 import type { SpotTrack } from "@/lib/spotcria/types";
-import { Icon, MyAvatar, TrackRow } from "./ui";
+import { AddTrackSheet, Icon, MyAvatar, Portal, TrackRow } from "./ui";
 
 const TILES = [
   { href: "/app/spotcria/lista/recent", label: "Novas no ELOS", color: "#dc148c", emoji: "🆕" },
@@ -121,6 +121,7 @@ export function NewPlaylistSheet({ onClose }: { onClose: () => void }) {
     });
 
   return (
+    <Portal>
     <div className="spot-fade fixed inset-0 z-[120] flex items-end justify-center bg-black/70" onClick={onClose}>
       <div className="spot-up w-full max-w-2xl rounded-t-3xl bg-[#282828] p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] text-white" onClick={(e) => e.stopPropagation()}>
         <p className="mb-3 text-sm font-black">Dê um nome à sua playlist</p>
@@ -136,6 +137,7 @@ export function NewPlaylistSheet({ onClose }: { onClose: () => void }) {
         </div>
       </div>
     </div>
+    </Portal>
   );
 }
 
@@ -156,8 +158,13 @@ export function NewPlaylistButton() {
 export function PlaylistActions({ id, name }: { id: string; name: string }) {
   const router = useRouter();
   const [, start] = useTransition();
+  const [adding, setAdding] = useState(false);
   return (
-    <div className="flex gap-1">
+    <>
+      <button type="button" onClick={() => setAdding(true)} className="rounded-full bg-[#a855f7] px-4 py-2 text-sm font-black text-white">
+        + Adicionar do YouTube
+      </button>
+      {adding ? <AddTrackSheet playlistId={id} playlistName={name} onClose={() => setAdding(false)} /> : null}
       <button
         type="button"
         aria-label="Renomear playlist"
@@ -187,6 +194,6 @@ export function PlaylistActions({ id, name }: { id: string; name: string }) {
       >
         🗑️
       </button>
-    </div>
+    </>
   );
 }

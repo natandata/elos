@@ -2,13 +2,14 @@
 
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useRef, useState, type ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { invalidateSpot, seedSpot } from "@/lib/spotcria/store";
 import type { SpotHomeData } from "@/lib/actions/spotcria";
-import { PlayerHost, PlayerProvider, useSpotPlayer } from "./PlayerProvider";
+import { MiniPlayer } from "./MiniPlayer";
+import { useSlot, useSpotPlayer } from "./PlayerProvider";
 import { NewPlaylistSheet } from "./SearchView";
-import { AddTrackSheet, Cover, Icon, likeOptimistic, PlaylistPicker, SpotMetaProvider, type SpotMeta } from "./ui";
+import { AddTrackSheet, Cover, Icon, likeOptimistic, PlaylistPicker, playsLabel, Portal, SpotMetaProvider, type SpotMeta } from "./ui";
 
 // "App dentro do app": cobre a tela inteira com o visual do Spotify em roxo. O player fica montado aqui,
 // então a música continua tocando enquanto a pessoa navega entre Início, Buscar e Sua biblioteca.
@@ -42,38 +43,11 @@ function TabBar({ onCreate }: { onCreate: () => void }) {
   );
 }
 
-function MiniPlayer() {
-  const { current, playing, toggle, position, duration, setExpanded, error, patchTrack } = useSpotPlayer();
-  if (!current) return null;
-  const pct = duration > 0 ? Math.min(100, (position / duration) * 100) : 0;
-  const like = () => void likeOptimistic(current, patchTrack);
-  return (
-    <div className="absolute inset-x-2 bottom-[calc(env(safe-area-inset-bottom)+58px+2px)] z-[80] overflow-hidden rounded-lg bg-[#5b2a99] shadow-xl">
-      <div className="flex h-[68px] items-center gap-3 px-2">
-        {/* o player de verdade fica por cima deste espaço (PlayerHost) */}
-        <button type="button" onClick={() => setExpanded(true)} aria-label="Abrir Tocando agora" className="pointer-events-auto h-[54px] w-24 shrink-0" />
-        <button type="button" onClick={() => setExpanded(true)} className="min-w-0 flex-1 text-left">
-          <span className="block truncate text-sm font-bold text-white">{current.title}</span>
-          <span className="block truncate text-xs text-white/70">{error ?? current.channel}</span>
-        </button>
-        <button type="button" onClick={like} aria-label={current.liked ? "Remover das curtidas" : "Curtir"} className="grid h-9 w-9 shrink-0 place-items-center">
-          <Icon name={current.liked ? "check" : "plus-circle"} className={`h-7 w-7 ${current.liked ? "text-[#c58bff]" : "text-white"}`} />
-        </button>
-        <button type="button" onClick={toggle} aria-label={playing ? "Pausar" : "Tocar"} className="grid h-9 w-9 shrink-0 place-items-center text-white">
-          <Icon name={playing ? "pause" : "play"} className="h-8 w-8" />
-        </button>
-      </div>
-      <div className="mx-2 mb-1 h-[3px] rounded-full bg-white/25">
-        <div className="h-full rounded-full bg-white" style={{ width: `${pct}%` }} />
-      </div>
-    </div>
-  );
-}
-
 function NowPlaying() {
   const { current, queue, index, playing, toggle, next, prev, position, duration, seek, expanded, setExpanded, error, patchTrack, play, shuffle, repeat, toggleShuffle, cycleRepeat } = useSpotPlayer();
   const [picker, setPicker] = useState(false);
   const [menu, setMenu] = useState(false);
+  const fullSlot = useSlot("full");
   if (!expanded || !current) return null;
 
   const like = () => void likeOptimistic(current, patchTrack);
@@ -101,13 +75,14 @@ function NowPlaying() {
       </div>
 
       {/* espaço onde o player (PlayerHost) aparece: quadrado, como a capa do álbum */}
-      <div className="mx-5 mt-6 aspect-square shrink-0" aria-hidden />
+      <div ref={fullSlot} className="mx-5 mt-6 aspect-square shrink-0" aria-hidden />
 
       <div className="px-6 pt-6">
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
             <p className="line-clamp-2 text-2xl font-black leading-tight">{current.title}</p>
             <p className="mt-0.5 truncate text-base text-white/70">{current.channel}</p>
+            <p className="mt-0.5 text-xs text-white/60">▶ {playsLabel(current.play_count)} no ELOS</p>
           </div>
           <button type="button" onClick={like} aria-label={current.liked ? "Remover das curtidas" : "Curtir"} className="grid h-10 w-10 shrink-0 place-items-center">
             <Icon name={current.liked ? "check" : "plus-circle"} className={`h-8 w-8 ${current.liked ? "text-[#c58bff]" : "text-white"}`} />
@@ -170,6 +145,7 @@ function NowPlaying() {
       ) : null}
 
       {menu ? (
+        <Portal>
         <div className="spot-fade fixed inset-0 z-[120] flex items-end justify-center bg-black/70" onClick={() => setMenu(false)}>
           <div className="spot-up w-full max-w-2xl rounded-t-3xl bg-[#282828] p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]" onClick={(e) => e.stopPropagation()}>
             <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/25" />
@@ -181,6 +157,7 @@ function NowPlaying() {
             </a>
           </div>
         </div>
+        </Portal>
       ) : null}
       {picker ? <PlaylistPicker track={current} onClose={() => setPicker(false)} /> : null}
     </div>
@@ -192,6 +169,20 @@ const PULL_TRIGGER = 70;
 function Frame({ children }: { children: ReactNode }) {
   const [sheet, setSheet] = useState<null | "create" | "track" | "playlist">(null);
   const { current } = useSpotPlayer();
+  // seta de voltar: no Início do Spot Cria sai para o início do ELOS; nas demais telas volta para a tela anterior
+  const router = useRouter();
+  const pathname = usePathname();
+  const trail = useRef<string[]>([]);
+  useEffect(() => {
+    const t = trail.current;
+    if (t[t.length - 2] === pathname) t.pop();
+    else if (t[t.length - 1] !== pathname) t.push(pathname);
+  }, [pathname]);
+  const goBack = () => {
+    if (pathname === "/app/spotcria") router.push("/app");
+    else if (trail.current.length > 1) router.back();
+    else router.push("/app/spotcria");
+  };
   // puxar a tela para baixo, no topo, recarrega (como no Spotify)
   const scroller = useRef<HTMLDivElement>(null);
   const startY = useRef<number | null>(null);
@@ -226,9 +217,9 @@ function Frame({ children }: { children: ReactNode }) {
     <div className="fixed inset-0 z-[60] bg-[#121212] text-white">
       <div className="relative mx-auto flex h-full max-w-2xl flex-col">
         <header className="flex items-center gap-3 px-4 pb-1 pt-[calc(env(safe-area-inset-top)+0.6rem)]">
-          <Link href="/app" aria-label="Voltar ao ELOS" className="grid h-8 w-8 place-items-center rounded-full bg-white/10 text-base">
+          <button type="button" onClick={goBack} aria-label={pathname === "/app/spotcria" ? "Voltar ao ELOS" : "Voltar"} className="grid h-8 w-8 place-items-center rounded-full bg-white/10 text-base">
             ←
-          </Link>
+          </button>
           <Link href="/app/spotcria" aria-label="Spot Cria — início">
             <img src="/spotcria/logo-branco.png" alt="Spotcria" className="h-6 w-auto" draggable={false} />
           </Link>
@@ -254,11 +245,11 @@ function Frame({ children }: { children: ReactNode }) {
           style={{ transform: pull ? `translateY(${pull * 0.6}px)` : undefined, transition: dragging ? "none" : "transform .25s ease" }}
           className={`min-h-0 flex-1 overflow-y-auto overscroll-y-contain ${current ? "pb-[calc(env(safe-area-inset-bottom)+58px+80px)]" : "pb-[calc(env(safe-area-inset-bottom)+58px+16px)]"}`}>{children}</div>
 
-        <MiniPlayer />
+        <MiniPlayer variant="frame" />
         <TabBar onCreate={() => setSheet("create")} />
         <NowPlaying />
-        <PlayerHost />
         {sheet === "create" ? (
+          <Portal>
           <div className="spot-fade fixed inset-0 z-[120] flex items-end justify-center bg-black/70" onClick={() => setSheet(null)}>
             <div className="spot-up w-full max-w-2xl rounded-t-3xl bg-[#282828] p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]" onClick={(e) => e.stopPropagation()}>
               <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/25" />
@@ -282,6 +273,7 @@ function Frame({ children }: { children: ReactNode }) {
               </button>
             </div>
           </div>
+          </Portal>
         ) : null}
         {sheet === "track" ? <AddTrackSheet onClose={() => setSheet(null)} /> : null}
         {sheet === "playlist" ? <NewPlaylistSheet onClose={() => setSheet(null)} /> : null}
@@ -298,9 +290,7 @@ export function SpotShell({ children, meta, initialHome }: { children: ReactNode
   });
   return (
     <SpotMetaProvider value={meta}>
-      <PlayerProvider>
-        <Frame>{children}</Frame>
-      </PlayerProvider>
+      <Frame>{children}</Frame>
     </SpotMetaProvider>
   );
 }
