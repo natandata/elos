@@ -1,4 +1,4 @@
-export type VideoSource = "subira" | "jesuscopy" | "luca" | "hub" | "dunamis";
+export type VideoSource = "subira" | "jesuscopy" | "luca" | "hub" | "dunamis" | "roberta";
 
 export const VIDEO_SOURCE_LABEL: Record<VideoSource, string> = {
   subira: "Israel Subira",
@@ -6,4 +6,5 @@ export const VIDEO_SOURCE_LABEL: Record<VideoSource, string> = {
   luca: "Luca Martini",
   hub: "Cortes HUB Podcast",
   dunamis: "Dunamis Hangout",
+  roberta: "Roberta Vicente",
 };
