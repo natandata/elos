@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MyAvatar, PlaylistCover, Shelf, TrackTile } from "@/components/spotcria/ui";
+import { MyAvatar, PlaylistCover, Shelf } from "@/components/spotcria/ui";
 import { createClient } from "@/lib/supabase/server";
 import type { SpotPlaylist, SpotTrack } from "@/lib/spotcria/types";
 
@@ -21,10 +21,6 @@ export default async function SpotCriaHome() {
   const likedTracks = ((liked.data ?? []) as SpotTrack[]).filter((t) => t.like_count > 0);
   const myRecent = (mine.data ?? []) as SpotTrack[];
   const playlists = (lists.data ?? []) as SpotPlaylist[];
-
-  // 8 atalhos: curtidas, adicionadas por mim, playlists e, se sobrar espaço, as músicas mais recentes
-  const fixed = 2 + Math.min(playlists.length, 6);
-  const fillers = recentTracks.slice(0, Math.max(0, 8 - fixed));
 
   return (
     <div className="pb-4">
@@ -60,9 +56,6 @@ export default async function SpotCriaHome() {
             <PlaylistCover covers={p.covers} className="!h-14 !w-14 !rounded-none" />
             <span className="line-clamp-2 pr-2 text-sm font-bold leading-tight">{p.name}</span>
           </Link>
-        ))}
-        {fillers.map((t) => (
-          <TrackTile key={t.id} track={t} queue={recentTracks} />
         ))}
       </div>
 
