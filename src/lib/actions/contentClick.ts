@@ -14,5 +14,6 @@ export async function logContentClick(videoId: string): Promise<void> {
   if (!user) return;
   const { data } = await supabase.from("home_video_picks").select("source, title").eq("video_id", videoId).maybeSingle<{ source: VideoSource; title: string }>();
   if (!data) return;
+  await supabase.rpc("home_video_play", { p_video: videoId });
   await logGameActivity(user.id, "conteudo", "click", `${VIDEO_SOURCE_LABEL[data.source] ?? data.source} · ${data.title}`, 60);
 }

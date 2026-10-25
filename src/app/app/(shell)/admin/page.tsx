@@ -1,6 +1,7 @@
 import { GAME_CATALOG } from "@/lib/games/catalog";
 import { Bar, Card, PageHeader, StatCard } from "@/components/ui";
 import { HomeHighlights } from "@/components/home/HomeHighlights";
+import { AdminVideoStats } from "@/components/home/AdminVideoStats";
 import { needsWeeklyPushNudge, requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { WeeklyPushNudge } from "@/components/push/WeeklyPushNudge";
@@ -192,6 +193,8 @@ export default async function AdminDashboard() {
           </Card>
         ))}
       </section>
+
+      <AdminVideoStats />
 
       <section className="mb-6">
         <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">

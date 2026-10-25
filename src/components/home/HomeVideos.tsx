@@ -24,7 +24,7 @@ export function VideosView({ videos }: { videos: DailyVideo[] | null }) {
         <ul className="mt-3 grid gap-2.5 sm:grid-cols-3">
           {videos.map((v) => (
             <li key={v.video_id}>
-              <VideoLink videoId={v.video_id}>
+              <VideoLink videoId={v.video_id} title={v.title} label={VIDEO_SOURCE_LABEL[v.source]}>
                 <span className="relative block aspect-video overflow-hidden bg-black">
                   <img src={`https://i.ytimg.com/vi/${v.video_id}/hqdefault.jpg`} alt="" loading="lazy" className="h-full w-full object-cover transition group-hover:scale-105" />
                   <span className="absolute inset-0 grid place-items-center bg-black/10" aria-hidden>
