@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import type { SpotPlaylist, SpotTrack } from "@/lib/spotcria/types";
 import { NewPlaylistButton } from "./SearchView";
-import { Icon, MyAvatar, PlaylistCover, TrackRow, useSpotMeta } from "./ui";
+import { CoverArt, Icon, MyAvatar, PlaylistCover, TrackRow, useSpotMeta } from "./ui";
 
 /** Sua Biblioteca: filtros (Playlists / Músicas), lista com capa e legenda "Playlist • Nome", como no Spotify. */
 export function LibraryView({ playlists, tracks }: { playlists: SpotPlaylist[]; tracks: SpotTrack[] }) {
@@ -37,9 +37,7 @@ export function LibraryView({ playlists, tracks }: { playlists: SpotPlaylist[]; 
         <ul className="mt-4 space-y-1">
           <li>
             <Link href="/app/spotcria/curtidas" className="flex items-center gap-3 rounded-md p-1.5 active:bg-white/5">
-              <span className="grid h-16 w-16 shrink-0 place-items-center rounded-md bg-gradient-to-br from-[#6d28d9] to-[#c084fc] text-3xl" aria-hidden>
-                💜
-              </span>
+              <CoverArt kind="liked" className="h-16 w-16" />
               <span>
                 <span className="block text-base font-bold">Músicas curtidas</span>
                 <span className="block text-sm text-[#a7a7a7]">Playlist • {first}</span>
@@ -48,9 +46,7 @@ export function LibraryView({ playlists, tracks }: { playlists: SpotPlaylist[]; 
           </li>
           <li>
             <Link href="/app/spotcria/minhas" className="flex items-center gap-3 rounded-md p-1.5 active:bg-white/5">
-              <span className="grid h-16 w-16 shrink-0 place-items-center rounded-md bg-gradient-to-br from-[#7e22ce] to-[#f0abfc] text-3xl" aria-hidden>
-                📤
-              </span>
+              <CoverArt kind="mine" className="h-16 w-16" />
               <span>
                 <span className="block text-base font-bold">Adicionadas por mim</span>
                 <span className="block text-sm text-[#a7a7a7]">Playlist • {first}</span>

@@ -40,6 +40,21 @@ const PATHS = {
   share: "M18 16.1c-.8 0-1.4.3-2 .8l-7.1-4.2c.1-.2.1-.5.1-.7s0-.5-.1-.7L16 7.2c.5.5 1.2.8 2 .8 1.7 0 3-1.3 3-3s-1.3-3-3-3-3 1.3-3 3c0 .2 0 .5.1.7L8 9.8C7.5 9.3 6.8 9 6 9c-1.7 0-3 1.3-3 3s1.3 3 3 3c.8 0 1.5-.3 2-.8l7.1 4.2c0 .2-.1.4-.1.6 0 1.6 1.3 2.9 2.9 2.9s2.9-1.3 2.9-2.9-1.2-2.9-2.8-2.9z",
   queue: "M3 13h2v-2H3zm0 4h2v-2H3zm0-8h2V7H3zm4 4h14v-2H7zm0 4h14v-2H7zM7 7v2h14V7z",
   "chevron-down": "M7.4 8.6 12 13.2l4.6-4.6L18 10l-6 6-6-6z",
+  "chevron-left": "M15.4 7.4 14 6l-6 6 6 6 1.4-1.4L10.8 12z",
+  "home-outline": "M12 5.7l5 4.5V18h-2v-6H9v6H7v-7.8l5-4.5M12 3 2 12h3v8h6v-6h2v6h6v-8h3z",
+  heart: "M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54z",
+  "music-note": "M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3z",
+  "playlist-add": "M14 10H2v2h12zm0-4H2v2h12zm4 8v-4h-2v4h-4v2h4v4h2v-4h4v-2zM2 16h8v-2H2z",
+  "minus-circle": "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zM7 11h10v2H7z",
+  trash: "M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6zM8 9h8v10H8zm7.5-5-1-1h-5l-1 1H5v2h14V4z",
+  pencil: "M3 17.25V21h3.75L17.81 9.94l-3.75-3.75zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75z",
+  upload: "M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z",
+  clock: "M12 2C6.47 2 2 6.48 2 12s4.47 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z",
+  trending: "M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z",
+  star: "M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z",
+  "open-in-new": "M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3z",
+  headphones: "M12 1C7.03 1 3 5.03 3 10v7a3 3 0 0 0 3 3h3v-8H5v-2c0-3.87 3.13-7 7-7s7 3.13 7 7v2h-4v8h3a3 3 0 0 0 3-3v-7c0-4.97-4.03-9-9-9z",
+  more: "M6 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm12 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm-6 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4z",
 } as const;
 
 export function Icon({ name, className = "h-6 w-6" }: { name: keyof typeof PATHS; className?: string }) {
@@ -60,6 +75,25 @@ export function MyAvatar({ size = 36 }: { size?: number }) {
 export const useSpotMeta = () => useContext(MetaContext);
 
 export const playsLabel = (n: number) => `${n} ${n === 1 ? "reprodução" : "reproduções"}`;
+
+const ART: Record<string, { gradient: string; icon: keyof typeof PATHS }> = {
+  liked: { gradient: "from-[#6d28d9] to-[#c084fc]", icon: "heart" },
+  mine: { gradient: "from-[#7e22ce] to-[#f0abfc]", icon: "upload" },
+  recent: { gradient: "from-[#be185d] to-[#f472b6]", icon: "star" },
+  played: { gradient: "from-[#15803d] to-[#86efac]", icon: "trending" },
+  liked_top: { gradient: "from-[#3730a3] to-[#a5b4fc]", icon: "heart" },
+  my_recent: { gradient: "from-[#be123c] to-[#fda4af]", icon: "clock" },
+};
+
+/** Capa quadrada com degradê e ícone branco (Músicas curtidas, Adicionadas por mim, listas automáticas). */
+export function CoverArt({ kind, className = "" }: { kind: keyof typeof ART | string; className?: string }) {
+  const a = ART[kind] ?? ART.liked;
+  return (
+    <span className={`grid aspect-square shrink-0 place-items-center rounded-md bg-gradient-to-br ${a.gradient} ${className}`} aria-hidden>
+      <Icon name={a.icon} className="h-[46%] w-[46%] text-white" />
+    </span>
+  );
+}
 
 /** Curtir/descurtir na hora (em todas as telas em cache e na fila) e confirmar no servidor por trás. */
 export async function likeOptimistic(track: SpotTrack, patchQueue: (id: string, patch: Partial<SpotTrack>) => void): Promise<void> {
@@ -90,8 +124,8 @@ export function PlaylistCover({ covers, className = "" }: { covers: string[]; cl
     return covers.length > 0 ? (
       <Cover videoId={covers[0]} className={className} />
     ) : (
-      <span className={`grid aspect-square shrink-0 place-items-center rounded-md bg-gradient-to-br from-[#6d28d9] to-[#a855f7] text-3xl ${className}`} aria-hidden>
-        🎵
+      <span className={`grid aspect-square shrink-0 place-items-center rounded-md bg-[#2a2a2a] text-[#a7a7a7] ${className}`} aria-hidden>
+        <Icon name="music-note" className="h-[45%] w-[45%]" />
       </span>
     );
   }
@@ -263,10 +297,10 @@ function TrackMenu({ track, playlistId, onClose }: { track: SpotTrack; playlistI
           onClose();
         }}
       >
-        <span aria-hidden>{track.liked ? "💜" : "🤍"}</span> {track.liked ? "Remover das curtidas" : "Curtir"}
+        <Icon name={track.liked ? "check" : "plus-circle"} className={`h-6 w-6 ${track.liked ? "text-[#c58bff]" : ""}`} /> {track.liked ? "Remover das curtidas" : "Curtir"}
       </SheetButton>
       <SheetButton onClick={() => setPicker(true)}>
-        <span aria-hidden>➕</span> Adicionar à playlist
+        <Icon name="playlist-add" className="h-6 w-6" /> Adicionar à playlist
       </SheetButton>
       {playlistId ? (
         <SheetButton
@@ -278,7 +312,7 @@ function TrackMenu({ track, playlistId, onClose }: { track: SpotTrack; playlistI
             })
           }
         >
-          <span aria-hidden>➖</span> Tirar desta playlist
+          <Icon name="minus-circle" className="h-6 w-6" /> Tirar desta playlist
         </SheetButton>
       ) : null}
       <SheetButton
@@ -287,7 +321,7 @@ function TrackMenu({ track, playlistId, onClose }: { track: SpotTrack; playlistI
           onClose();
         }}
       >
-        <span aria-hidden>↗️</span> Abrir no YouTube
+        <Icon name="open-in-new" className="h-6 w-6" /> Abrir no YouTube
       </SheetButton>
       {track.mine || isAdmin ? (
         <SheetButton
@@ -301,7 +335,7 @@ function TrackMenu({ track, playlistId, onClose }: { track: SpotTrack; playlistI
             })
           }
         >
-          <span aria-hidden>🗑️</span> Remover da biblioteca
+          <Icon name="trash" className="h-6 w-6" /> Remover da biblioteca
         </SheetButton>
       ) : null}
     </Sheet>
@@ -323,15 +357,15 @@ export function TrackRow({ track, queue, playlistId, index }: { track: SpotTrack
             {index === undefined && active && playing ? <Bars /> : null}
           </span>
           <span className="block truncate text-xs text-[#a7a7a7]">
-            {track.liked ? <span aria-hidden>💜 </span> : null}
+            {track.liked ? <Icon name="check" className="mr-1 inline h-3.5 w-3.5 align-[-2px] text-[#c58bff]" /> : null}
             {track.channel}
             {` · ${playsLabel(track.play_count)}`}
             {track.added_by_name ? ` · por ${track.added_by_name}` : ""}
           </span>
         </span>
       </button>
-      <button type="button" onClick={() => setMenu(true)} aria-label="Mais opções" className="grid h-10 w-10 shrink-0 place-items-center text-xl text-[#a7a7a7]">
-        ⋯
+      <button type="button" onClick={() => setMenu(true)} aria-label="Mais opções" className="grid h-10 w-10 shrink-0 place-items-center text-[#a7a7a7]">
+        <Icon name="more" className="h-6 w-6" />
       </button>
       {menu ? <TrackMenu track={track} playlistId={playlistId} onClose={() => setMenu(false)} /> : null}
     </li>
@@ -373,7 +407,7 @@ export function TrackCard({ track, queue }: { track: SpotTrack; queue: SpotTrack
         <span className="mt-2 block text-xs text-[#a7a7a7]">Música</span>
         <span className={`line-clamp-2 block text-sm font-bold leading-snug ${active ? "text-[#c4a0ff]" : "text-white"}`}>{track.title}</span>
         <span className="line-clamp-1 block text-xs text-[#a7a7a7]">{track.channel}</span>
-        <span className="block text-xs text-[#a7a7a7]">▶ {playsLabel(track.play_count)}</span>
+        <span className="flex items-center gap-1 text-xs text-[#a7a7a7]"><Icon name="play" className="h-3 w-3" />{playsLabel(track.play_count)}</span>
       </button>
     </li>
   );
@@ -425,11 +459,11 @@ export function TrackListView({
         <p className="mt-1 text-xs text-[#d0d0d0]">{subtitle}</p>
         {actions ? <div className="mt-3 flex flex-wrap items-center gap-2">{actions}</div> : null}
         <div className="mt-4 flex items-center gap-3">
-          <button type="button" onClick={shuffle} disabled={tracks.length === 0} aria-label="Tocar em ordem aleatória" className="rounded-full bg-white/10 px-4 py-2.5 text-sm font-black disabled:opacity-40">
-            🔀 Aleatório
+          <button type="button" onClick={shuffle} disabled={tracks.length === 0} aria-label="Tocar em ordem aleatória" className="grid h-10 w-10 place-items-center text-[#c58bff] disabled:opacity-40">
+            <Icon name="shuffle" className="h-8 w-8" />
           </button>
-          <button type="button" onClick={() => tracks[0] && play(tracks[0], tracks)} disabled={tracks.length === 0} aria-label="Tocar tudo" className="ml-auto grid h-14 w-14 place-items-center rounded-full bg-[#a855f7] text-2xl text-white shadow-lg disabled:opacity-40">
-            ▶
+          <button type="button" onClick={() => tracks[0] && play(tracks[0], tracks)} disabled={tracks.length === 0} aria-label="Tocar tudo" className="ml-auto grid h-14 w-14 place-items-center rounded-full bg-[#a855f7] text-white shadow-lg disabled:opacity-40">
+            <Icon name="play" className="h-8 w-8" />
           </button>
         </div>
       </div>

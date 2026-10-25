@@ -8,13 +8,15 @@ import { invalidateSpot } from "@/lib/spotcria/store";
 import type { SpotTrack } from "@/lib/spotcria/types";
 import { AddTrackSheet, Icon, MyAvatar, Portal, TrackRow } from "./ui";
 
-const TILES = [
-  { href: "/app/spotcria/lista/recent", label: "Novas no ELOS", color: "#dc148c", emoji: "🆕" },
-  { href: "/app/spotcria/lista/played", label: "Mais ouvidas", color: "#1e7a5a", emoji: "🔥" },
-  { href: "/app/spotcria/lista/liked_top", label: "Mais curtidas", color: "#2d46b9", emoji: "💜" },
-  { href: "/app/spotcria/minhas", label: "Adicionadas por mim", color: "#8d67ab", emoji: "📤" },
-  { href: "/app/spotcria/curtidas", label: "Músicas curtidas", color: "#b02897", emoji: "🤍" },
-  { href: "/app/spotcria/lista/my_recent", label: "Ouvidas por mim", color: "#e8115b", emoji: "🕘" },
+type IconName = Parameters<typeof Icon>[0]["name"];
+
+const TILES: { href: string; label: string; color: string; icon: IconName }[] = [
+  { href: "/app/spotcria/lista/recent", label: "Novas no ELOS", color: "#dc148c", icon: "star" },
+  { href: "/app/spotcria/lista/played", label: "Mais ouvidas", color: "#1e7a5a", icon: "trending" },
+  { href: "/app/spotcria/lista/liked_top", label: "Mais curtidas", color: "#2d46b9", icon: "heart" },
+  { href: "/app/spotcria/minhas", label: "Adicionadas por mim", color: "#8d67ab", icon: "upload" },
+  { href: "/app/spotcria/curtidas", label: "Músicas curtidas", color: "#b02897", icon: "heart" },
+  { href: "/app/spotcria/lista/my_recent", label: "Ouvidas por mim", color: "#e8115b", icon: "clock" },
 ];
 
 /** Tela Buscar: filtra a biblioteca do ELOS por título ou canal; sem busca, mostra os atalhos coloridos e os canais. */
@@ -74,9 +76,7 @@ export function SearchView({ initial }: { initial: SpotTrack[] }) {
             {TILES.map((t) => (
               <Link key={t.href} href={t.href} className="relative h-[88px] overflow-hidden rounded-lg p-3 text-lg font-black leading-tight active:scale-[0.98]" style={{ background: t.color }}>
                 <span className="relative z-10 block max-w-[75%]">{t.label}</span>
-                <span className="absolute -bottom-2 -right-1 rotate-[25deg] text-5xl opacity-80" aria-hidden>
-                  {t.emoji}
-                </span>
+                <Icon name={t.icon} className="absolute -bottom-3 -right-2 h-16 w-16 rotate-[25deg] text-black/25" />
               </Link>
             ))}
           </div>
@@ -176,9 +176,9 @@ export function PlaylistActions({ id, name }: { id: string; name: string }) {
             void invalidateSpot();
           });
         }}
-        className="grid h-10 w-10 place-items-center rounded-full bg-white/10 text-base"
+        className="grid h-10 w-10 place-items-center rounded-full bg-white/10"
       >
-        ✏️
+        <Icon name="pencil" className="h-5 w-5" />
       </button>
       <button
         type="button"
@@ -190,9 +190,9 @@ export function PlaylistActions({ id, name }: { id: string; name: string }) {
             router.replace("/app/spotcria/biblioteca");
           });
         }}
-        className="grid h-10 w-10 place-items-center rounded-full bg-white/10 text-base"
+        className="grid h-10 w-10 place-items-center rounded-full bg-white/10"
       >
-        🗑️
+        <Icon name="trash" className="h-5 w-5" />
       </button>
     </>
   );

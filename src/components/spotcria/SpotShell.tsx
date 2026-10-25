@@ -31,7 +31,7 @@ function TabBar({ onCreate }: { onCreate: () => void }) {
     <nav className="absolute inset-x-0 bottom-0 z-[80] box-content flex h-[58px] items-stretch bg-gradient-to-t from-[#121212] via-[#121212]/95 to-[#121212]/80 pb-[env(safe-area-inset-bottom)] backdrop-blur" aria-label="Spot Cria">
       {tabs.map((t) => (
         <Link key={t.href} href={t.href} className={cls(t.on)}>
-          <Icon name={t.icon} className="h-6 w-6" />
+          <Icon name={t.icon === "home" && !t.on ? "home-outline" : t.icon} className="h-6 w-6" />
           {t.label}
         </Link>
       ))}
@@ -69,8 +69,8 @@ function NowPlaying() {
           <Icon name="chevron-down" className="h-8 w-8" />
         </button>
         <p className="text-sm font-bold">Tocando agora</p>
-        <button type="button" onClick={() => setMenu(true)} aria-label="Mais opções" className="grid h-10 w-10 place-items-center text-2xl">
-          ⋯
+        <button type="button" onClick={() => setMenu(true)} aria-label="Mais opções" className="grid h-10 w-10 place-items-center">
+          <Icon name="more" className="h-7 w-7" />
         </button>
       </div>
 
@@ -82,7 +82,7 @@ function NowPlaying() {
           <div className="min-w-0 flex-1">
             <p className="line-clamp-2 text-2xl font-black leading-tight">{current.title}</p>
             <p className="mt-0.5 truncate text-base text-white/70">{current.channel}</p>
-            <p className="mt-0.5 text-xs text-white/60">▶ {playsLabel(current.play_count)} no ELOS</p>
+            <p className="mt-0.5 flex items-center gap-1 text-xs text-white/60"><Icon name="play" className="h-3 w-3" />{playsLabel(current.play_count)} no ELOS</p>
           </div>
           <button type="button" onClick={like} aria-label={current.liked ? "Remover das curtidas" : "Curtir"} className="grid h-10 w-10 shrink-0 place-items-center">
             <Icon name={current.liked ? "check" : "plus-circle"} className={`h-8 w-8 ${current.liked ? "text-[#c58bff]" : "text-white"}`} />
@@ -231,8 +231,8 @@ function Frame({ children }: { children: ReactNode }) {
     <div className="fixed inset-0 z-[60] bg-[#121212] text-white">
       <div className="relative mx-auto flex h-full max-w-2xl flex-col">
         <header className="flex items-center gap-3 px-4 pb-1 pt-[calc(env(safe-area-inset-top)+0.6rem)]">
-          <button type="button" onClick={goBack} aria-label={pathname === "/app/spotcria" ? "Voltar ao ELOS" : "Voltar"} className="grid h-8 w-8 place-items-center rounded-full bg-white/10 text-base">
-            ←
+          <button type="button" onClick={goBack} aria-label={pathname === "/app/spotcria" ? "Voltar ao ELOS" : "Voltar"} className="grid h-8 w-8 place-items-center rounded-full bg-black/40">
+            <Icon name="chevron-left" className="h-6 w-6" />
           </button>
           <Link href="/app/spotcria" aria-label="Spot Cria — início">
             <img src="/spotcria/logo-branco.png" alt="Spotcria" className="h-6 w-auto" draggable={false} />

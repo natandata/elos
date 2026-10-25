@@ -6,7 +6,7 @@ import { spotHome, spotLibrary, spotListMode, spotPlaylistData } from "@/lib/act
 import { useSpotQuery } from "@/lib/spotcria/store";
 import { LibraryView } from "./LibraryView";
 import { PlaylistActions, SearchView } from "./SearchView";
-import { MyAvatar, PlaylistCover, Shelf, TrackListView } from "./ui";
+import { CoverArt, Icon, MyAvatar, PlaylistCover, Shelf, TrackListView } from "./ui";
 
 // Telas do Spot Cria. Cada uma mostra o que já está em cache na hora (ou um esqueleto na primeira vez)
 // e atualiza por trás, como o Spotify.
@@ -116,15 +116,11 @@ export function HomePage() {
 
       <div className="grid grid-cols-2 gap-2 px-4">
         <Link href="/app/spotcria/curtidas" className={tileCls}>
-          <span className="grid h-14 w-14 shrink-0 place-items-center bg-gradient-to-br from-[#6d28d9] to-[#c084fc] text-2xl" aria-hidden>
-            💜
-          </span>
+          <CoverArt kind="liked" className="!h-14 !w-14 !rounded-none" />
           <span className="line-clamp-2 pr-2 text-sm font-bold leading-tight">Músicas curtidas</span>
         </Link>
         <Link href="/app/spotcria/minhas" className={tileCls}>
-          <span className="grid h-14 w-14 shrink-0 place-items-center bg-gradient-to-br from-[#7e22ce] to-[#f0abfc] text-2xl" aria-hidden>
-            📤
-          </span>
+          <CoverArt kind="mine" className="!h-14 !w-14 !rounded-none" />
           <span className="line-clamp-2 pr-2 text-sm font-bold leading-tight">Adicionadas por mim</span>
         </Link>
         {playlists.slice(0, 6).map((p) => (
@@ -137,9 +133,7 @@ export function HomePage() {
 
       {recent.length === 0 ? (
         <div className="mx-4 mt-8 rounded-2xl bg-[#282828] p-6 text-center">
-          <p className="text-3xl" aria-hidden>
-            🎧
-          </p>
+          <Icon name="headphones" className="mx-auto h-10 w-10 text-[#a7a7a7]" />
           <p className="mt-2 text-base font-black">A biblioteca está vazia</p>
           <p className="mt-1 text-sm text-[#a7a7a7]">Toque em “Criar”, escolha Adicionar música e cole o link de um louvor do YouTube. Ele fica salvo para todo o ELOS ouvir.</p>
         </div>
@@ -186,7 +180,7 @@ export function PlaylistPage({ id }: { id: string }) {
       cover={<PlaylistCover covers={data.tracks.slice(0, 4).map((t) => t.video_id)} className="w-full shadow-xl" />}
       tracks={data.tracks}
       playlistId={data.id}
-      empty="Esta playlist está vazia. Em qualquer música, toque em ⋯ e escolha Adicionar à playlist."
+      empty="Esta playlist está vazia. Em qualquer música, toque nos três pontinhos e escolha Adicionar à playlist."
       actions={<PlaylistActions id={data.id} name={data.name} />}
     />
   );
