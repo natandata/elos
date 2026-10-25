@@ -9,9 +9,9 @@ export async function DevotionalSuggestionCard() {
   const today = todayBrasilia();
   const s = suggestionFor(today);
   const supabase = await createClient();
-  const since = new Date(Date.now() - 24 * 3_600_000).toISOString();
-  const { data } = await supabase.from("daily_praise").select("url, title, channel").gte("created_at", since).order("created_at", { ascending: false }).limit(30);
-  const praises = (data ?? []) as { url: string; title: string; channel: string }[];
+  // o louvor do devocional vem da biblioteca do Spot Cria: uma música diferente por dia, entre as mais recentes
+  const { data } = await supabase.from("spot_tracks").select("video_id, title").order("created_at", { ascending: false }).limit(30);
+  const praises = ((data ?? []) as { video_id: string; title: string }[]).map((r) => ({ url: `https://www.youtube.com/watch?v=${r.video_id}`, title: r.title }));
   const day = Math.floor(new Date(`${today}T00:00:00Z`).getTime() / 86_400_000);
   const praise = praises.length ? praises[day % praises.length] : null;
 
@@ -35,7 +35,7 @@ export async function DevotionalSuggestionCard() {
               {praise.title}
             </a>
           ) : (
-            "ninguém colocou um louvor do dia ainda."
+            "ainda não há músicas no Spot Cria."
           )}
         </li>
         <li>

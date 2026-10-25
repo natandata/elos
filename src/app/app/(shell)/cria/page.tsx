@@ -3,7 +3,6 @@ import { ArenaLaunchCard } from "@/components/games/ArenaLaunchCard";
 import { EbdAnnouncement } from "@/components/games/EbdAnnouncement";
 import { DevotionalSuggestionCard } from "@/components/devotional/DevotionalSuggestionCard";
 import { BirthdayCard } from "@/components/BirthdayCard";
-import { DailyPraiseSection } from "@/components/praise/DailyPraiseSection";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { needsWeeklyPushNudge, requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -236,7 +235,6 @@ export default async function CriaDashboard() {
       <WeeklyPushNudge eligible={showPushNudge} />
 
       <BirthdayCard meId={profile.id} />
-      <DailyPraiseSection meId={profile.id} />
 
       <EbdAnnouncement />
 

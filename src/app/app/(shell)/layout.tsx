@@ -60,6 +60,7 @@ const NAV: Record<string, NavItem[]> = {
     { href: "/app/eventos", label: "Eventos", icon: "🎬" },
     { href: "/app/admin/igreja", label: "Igreja 3D", icon: "⛪" },
     { href: "/app/elogram", label: "Elogram", icon: "📸" },
+    { href: "/app/spotcria", label: "Spot Cria", icon: "🎧" },
   ],
   leader: [
     {
@@ -88,6 +89,7 @@ const NAV: Record<string, NavItem[]> = {
     },
     { href: "/app/biblia", label: "Bíblia", icon: "📕" },
     { href: "/app/elogram", label: "Elogram", icon: "📸" },
+    { href: "/app/spotcria", label: "Spot Cria", icon: "🎧" },
     { href: "/app/jogos", label: "Sala de Jogos", icon: "🎮" },
   ],
   cria: [
@@ -112,6 +114,7 @@ const NAV: Record<string, NavItem[]> = {
     { href: "/app/agenda", label: "Agenda", icon: "📅" },
     { href: "/app/biblia", label: "Bíblia", icon: "📕" },
     { href: "/app/elogram", label: "Elogram", icon: "📸" },
+    { href: "/app/spotcria", label: "Spot Cria", icon: "🎧" },
     { href: "/app/jogos", label: "Sala de Jogos", icon: "🎮" },
   ],
   guardian: [

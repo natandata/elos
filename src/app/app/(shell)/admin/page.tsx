@@ -7,7 +7,6 @@ import { createClient } from "@/lib/supabase/server";
 import { WeeklyPushNudge } from "@/components/push/WeeklyPushNudge";
 import { DevotionalSuggestionCard } from "@/components/devotional/DevotionalSuggestionCard";
 import { BirthdayCard } from "@/components/BirthdayCard";
-import { DailyPraiseSection } from "@/components/praise/DailyPraiseSection";
 import { formatDateTime, STATUS_LABEL, type StatusLevel } from "@/lib/types";
 
 const ACTIVITY_LABEL: Record<string, { icon: string; verb: string }> = {
@@ -32,6 +31,7 @@ const ACTIVITY_LABEL: Record<string, { icon: string; verb: string }> = {
 /** Ícone e verbo de cada atividade. "game:<chave>" vale para qualquer jogo do catálogo (inclusive os futuros). */
 function activityMeta(action: string): { icon: string; verb: string } {
   if (ACTIVITY_LABEL[action]) return ACTIVITY_LABEL[action];
+  if (action === "game:spotcria") return { icon: "🎧", verb: "no Spot Cria" };
   if (action === "game:conteudo") return { icon: "▶️", verb: "abriu um vídeo em Conteúdo relevante" };
   if (action === "game:store") return { icon: "🛍️", verb: "comprou na Loja de Jogos" };
   if (action.startsWith("game:")) {
@@ -136,7 +136,6 @@ export default async function AdminDashboard() {
 
       <BirthdayCard meId={profile.id} />
       <DevotionalSuggestionCard />
-      <DailyPraiseSection meId={profile.id} isAdmin />
 
       <section className="mb-6">
         <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[var(--muted)]">
