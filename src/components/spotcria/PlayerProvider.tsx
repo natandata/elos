@@ -52,6 +52,10 @@ type Ctx = {
   error: string | null;
   expanded: boolean;
   setExpanded: (v: boolean) => void;
+  shuffle: boolean;
+  repeat: "off" | "all" | "one";
+  toggleShuffle: () => void;
+  cycleRepeat: () => void;
   play: (track: SpotTrack, queue?: SpotTrack[]) => void;
   toggle: () => void;
   next: () => void;
@@ -76,6 +80,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [duration, setDuration] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const [shuffle, setShuffle] = useState(false);
+  const [repeat, setRepeat] = useState<"off" | "all" | "one">("off");
 
   const playerRef = useRef<YTPlayer | null>(null);
   const readyRef = useRef(false);
@@ -84,6 +90,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const indexRef = useRef(0);
   const recordedRef = useRef<string | null>(null);
   const advanceRef = useRef<() => void>(() => undefined);
+  const endedRef = useRef<() => void>(() => undefined);
+  const shuffleRef = useRef(false);
+  const repeatRef = useRef<"off" | "all" | "one">("off");
 
   useEffect(() => {
     queueRef.current = queue;
@@ -128,7 +137,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             } else if (e.data === 2) setPlaying(false);
             else if (e.data === 0) {
               setPlaying(false);
-              advanceRef.current();
+              endedRef.current();
             }
           },
           onError: () => {
@@ -167,8 +176,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   );
 
   const next = useCallback(() => {
-    const i = indexRef.current + 1;
-    if (i < queueRef.current.length) goTo(i);
+    const q = queueRef.current;
+    const cur = indexRef.current;
+    if (shuffleRef.current && q.length > 1) {
+      let i = cur;
+      while (i === cur) i = Math.floor(Math.random() * q.length);
+      goTo(i);
+      return;
+    }
+    const i = cur + 1;
+    if (i < q.length) goTo(i);
+    else if (repeatRef.current === "all" && q.length > 0) goTo(0);
     else {
       setPlaying(false);
       playerRef.current?.pauseVideo();
@@ -176,7 +194,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [goTo]);
   useEffect(() => {
     advanceRef.current = next;
+    endedRef.current = () => {
+      if (repeatRef.current === "one") {
+        playerRef.current?.seekTo(0, true);
+        playerRef.current?.playVideo();
+      } else next();
+    };
   }, [next]);
+  useEffect(() => {
+    shuffleRef.current = shuffle;
+    repeatRef.current = repeat;
+  }, [shuffle, repeat]);
+  const toggleShuffle = useCallback(() => setShuffle((v) => !v), []);
+  const cycleRepeat = useCallback(() => setRepeat((r) => (r === "off" ? "all" : r === "all" ? "one" : "off")), []);
 
   const prev = useCallback(() => {
     if (position > 3) {
@@ -226,8 +256,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [current]);
 
   const value = useMemo<Ctx>(
-    () => ({ current, queue, index, playing, position, duration, error, expanded, setExpanded, play, toggle, next, prev, seek, patchTrack }),
-    [current, queue, index, playing, position, duration, error, expanded, play, toggle, next, prev, seek, patchTrack],
+    () => ({ current, queue, index, playing, position, duration, error, expanded, setExpanded, shuffle, repeat, toggleShuffle, cycleRepeat, play, toggle, next, prev, seek, patchTrack }),
+    [current, queue, index, playing, position, duration, error, expanded, shuffle, repeat, toggleShuffle, cycleRepeat, play, toggle, next, prev, seek, patchTrack],
   );
 
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
@@ -243,11 +273,17 @@ export function PlayerHost() {
         !current
           ? "pointer-events-none absolute -left-[9999px] top-0 h-[200px] w-[200px]"
           : expanded
-            ? "absolute inset-x-5 top-[72px] z-[85] aspect-video overflow-hidden rounded-2xl bg-black shadow-2xl"
-            : "pointer-events-none absolute bottom-[calc(env(safe-area-inset-bottom)+63px)] left-4 z-[85] h-[54px] w-24 overflow-hidden rounded-lg bg-black"
+            ? "absolute inset-x-5 top-20 z-[85] aspect-square overflow-hidden rounded-lg bg-black shadow-2xl"
+            : "pointer-events-none absolute bottom-[calc(env(safe-area-inset-bottom)+58px+2px+7px)] left-4 z-[85] h-[54px] w-24 overflow-hidden rounded bg-black"
       }
     >
-      <div id="spot-yt-target" />
+      {expanded && current ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={thumb(current.video_id, "hq")} alt="" className="absolute inset-0 h-full w-full scale-150 object-cover opacity-70 blur-2xl" draggable={false} />
+      ) : null}
+      <div className={expanded ? "absolute inset-x-0 top-1/2 aspect-video -translate-y-1/2" : "absolute inset-0"}>
+        <div id="spot-yt-target" />
+      </div>
     </div>
   );
 }

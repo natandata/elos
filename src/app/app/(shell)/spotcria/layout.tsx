@@ -5,5 +5,5 @@ export const metadata = { title: "Spot Cria" };
 
 export default async function SpotCriaLayout({ children }: { children: React.ReactNode }) {
   const { profile } = await requireProfile();
-  return <SpotShell isAdmin={profile.role === "admin"}>{children}</SpotShell>;
+  return <SpotShell meta={{ isAdmin: profile.role === "admin", name: profile.full_name || "", avatarUrl: profile.avatar_url ?? null }}>{children}</SpotShell>;
 }

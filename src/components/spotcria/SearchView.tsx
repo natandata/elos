@@ -1,12 +1,22 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { createSpotPlaylist, deleteSpotPlaylist, renameSpotPlaylist, searchSpot } from "@/lib/actions/spotcria";
 import type { SpotTrack } from "@/lib/spotcria/types";
-import { TrackRow } from "./ui";
+import { Icon, MyAvatar, TrackRow } from "./ui";
 
-/** Tela Buscar: filtra a biblioteca do ELOS por título ou canal. */
+const TILES = [
+  { href: "/app/spotcria/lista/recent", label: "Novas no ELOS", color: "#dc148c", emoji: "🆕" },
+  { href: "/app/spotcria/lista/played", label: "Mais ouvidas", color: "#1e7a5a", emoji: "🔥" },
+  { href: "/app/spotcria/lista/liked_top", label: "Mais curtidas", color: "#2d46b9", emoji: "💜" },
+  { href: "/app/spotcria/minhas", label: "Adicionadas por mim", color: "#8d67ab", emoji: "📤" },
+  { href: "/app/spotcria/curtidas", label: "Músicas curtidas", color: "#b02897", emoji: "🤍" },
+  { href: "/app/spotcria/lista/my_recent", label: "Ouvidas por mim", color: "#e8115b", emoji: "🕘" },
+];
+
+/** Tela Buscar: filtra a biblioteca do ELOS por título ou canal; sem busca, mostra os atalhos coloridos e os canais. */
 export function SearchView({ initial }: { initial: SpotTrack[] }) {
   const [q, setQ] = useState("");
   const [found, setFound] = useState<{ q: string; tracks: SpotTrack[] } | null>(null);
@@ -21,38 +31,81 @@ export function SearchView({ initial }: { initial: SpotTrack[] }) {
   }, [term]);
 
   const loading = term !== "" && found?.q !== term;
-  const tracks = !term ? initial : (found?.tracks ?? []);
+  const tracks = found?.tracks ?? [];
+  const channels = useMemo(() => {
+    const m = new Map<string, number>();
+    initial.forEach((t) => t.channel && m.set(t.channel, (m.get(t.channel) ?? 0) + 1));
+    return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
+  }, [initial]);
 
   return (
-    <div className="px-3 pb-4 pt-4">
-      <h1 className="px-1 text-2xl font-black">Buscar</h1>
-      <div className="relative mt-3">
-        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#3b1f6b]" aria-hidden>
-          🔎
+    <div className="px-4 pb-4 pt-2">
+      <div className="flex items-center gap-3">
+        <MyAvatar size={40} />
+        <h1 className="text-3xl font-black tracking-tight">Buscar</h1>
+      </div>
+      <div className="relative mt-4">
+        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#121212]">
+          <Icon name="search" className="h-6 w-6" />
         </span>
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Qual música você quer ouvir?"
-          className="w-full rounded-full bg-white py-3 pl-10 pr-4 text-sm font-semibold text-[#1b1230] placeholder:text-[#6b5b8f]"
+          placeholder="O que você quer ouvir?"
+          className="w-full rounded-md bg-white py-3.5 pl-11 pr-4 text-base font-bold text-[#121212] placeholder:font-semibold placeholder:text-[#4a4a4a]"
           aria-label="Buscar músicas"
         />
       </div>
-      <p className="mt-4 px-1 text-sm font-black">{term ? (loading ? "Buscando…" : `${tracks.length} resultado(s)`) : "Toda a biblioteca do ELOS"}</p>
-      {tracks.length === 0 && !loading ? <p className="px-1 py-6 text-center text-sm text-[#b8a9d6]">Nada encontrado. Que tal adicionar essa música no “+”?</p> : null}
-      <ul className="mt-1">
-        {tracks.map((t) => (
-          <TrackRow key={t.id} track={t} queue={tracks} />
-        ))}
-      </ul>
+
+      {term ? (
+        <>
+          <p className="mt-5 text-sm font-black">{loading ? "Buscando…" : `${tracks.length} resultado(s)`}</p>
+          {tracks.length === 0 && !loading ? <p className="py-6 text-center text-sm text-[#a7a7a7]">Nada encontrado. Que tal adicionar essa música em “Criar”?</p> : null}
+          <ul className="mt-1">
+            {tracks.map((t) => (
+              <TrackRow key={t.id} track={t} queue={tracks} />
+            ))}
+          </ul>
+        </>
+      ) : (
+        <>
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            {TILES.map((t) => (
+              <Link key={t.href} href={t.href} className="relative h-[88px] overflow-hidden rounded-lg p-3 text-lg font-black leading-tight active:scale-[0.98]" style={{ background: t.color }}>
+                <span className="relative z-10 block max-w-[75%]">{t.label}</span>
+                <span className="absolute -bottom-2 -right-1 rotate-[25deg] text-5xl opacity-80" aria-hidden>
+                  {t.emoji}
+                </span>
+              </Link>
+            ))}
+          </div>
+          {channels.length > 0 ? (
+            <>
+              <h2 className="mt-6 text-lg font-black">Explore por canal</h2>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {channels.map(([c, n]) => (
+                  <button key={c} type="button" onClick={() => setQ(c)} className="rounded-full bg-white/10 px-4 py-2 text-sm font-bold active:bg-white/20">
+                    {c} <span className="text-[#a7a7a7]">· {n}</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : null}
+          <h2 className="mt-6 text-lg font-black">Toda a biblioteca do ELOS</h2>
+          <ul className="mt-1">
+            {initial.map((t) => (
+              <TrackRow key={t.id} track={t} queue={initial} />
+            ))}
+          </ul>
+        </>
+      )}
     </div>
   );
 }
 
-/** Botão "Criar" da biblioteca: pede o nome e cria a playlist. */
-export function NewPlaylistButton() {
+/** Folha "Nova playlist": pede o nome e cria. */
+export function NewPlaylistSheet({ onClose }: { onClose: () => void }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -61,33 +114,38 @@ export function NewPlaylistButton() {
     start(async () => {
       const r = await createSpotPlaylist(name);
       if (r.error) return setErr(r.error);
-      setOpen(false);
-      setName("");
+      onClose();
       router.push(`/app/spotcria/playlist/${r.id}`);
     });
 
   return (
-    <>
-      <button type="button" onClick={() => setOpen(true)} className="rounded-full bg-[#a855f7] px-4 py-2 text-sm font-black text-white">
-        + Criar
-      </button>
-      {open ? (
-        <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/70" onClick={() => setOpen(false)}>
-          <div className="w-full max-w-2xl rounded-t-3xl bg-[#1b1230] p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] text-white" onClick={(e) => e.stopPropagation()}>
-            <p className="mb-3 text-sm font-black">Nova playlist</p>
-            <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome da playlist" maxLength={60} className="w-full rounded-xl bg-[#2a1b47] px-3 py-3 text-sm text-white placeholder:text-[#b8a9d6]" aria-label="Nome da playlist" />
-            {err ? <p className="mt-2 text-xs font-bold text-rose-400">{err}</p> : null}
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <button type="button" onClick={create} disabled={pending || !name.trim()} className="rounded-full bg-[#a855f7] py-2.5 text-sm font-black disabled:opacity-50">
-                {pending ? "Criando…" : "Criar"}
-              </button>
-              <button type="button" onClick={() => setOpen(false)} className="rounded-full bg-white/10 py-2.5 text-sm font-black">
-                Cancelar
-              </button>
-            </div>
-          </div>
+    <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/70" onClick={onClose}>
+      <div className="w-full max-w-2xl rounded-t-3xl bg-[#282828] p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] text-white" onClick={(e) => e.stopPropagation()}>
+        <p className="mb-3 text-sm font-black">Dê um nome à sua playlist</p>
+        <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Minha playlist" maxLength={60} className="w-full rounded-md bg-[#3a3a3a] px-3 py-3 text-base font-bold text-white placeholder:text-[#a7a7a7]" aria-label="Nome da playlist" />
+        {err ? <p className="mt-2 text-xs font-bold text-rose-400">{err}</p> : null}
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <button type="button" onClick={onClose} className="rounded-full bg-white/10 py-3 text-sm font-black">
+            Cancelar
+          </button>
+          <button type="button" onClick={create} disabled={pending || !name.trim()} className="rounded-full bg-[#a855f7] py-3 text-sm font-black text-white disabled:opacity-50">
+            {pending ? "Criando…" : "Criar"}
+          </button>
         </div>
-      ) : null}
+      </div>
+    </div>
+  );
+}
+
+/** Botão "+" da biblioteca. */
+export function NewPlaylistButton() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)} aria-label="Nova playlist" className="grid h-10 w-10 place-items-center">
+        <Icon name="plus" className="h-8 w-8" />
+      </button>
+      {open ? <NewPlaylistSheet onClose={() => setOpen(false)} /> : null}
     </>
   );
 }

@@ -3,6 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 import { createContext, useContext, useEffect, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { Avatar } from "@/components/Avatar";
 import { addSpotTrack, addToSpotPlaylist, createSpotPlaylist, myPlaylists, removeFromSpotPlaylist, removeSpotTrack, toggleSpotLike } from "@/lib/actions/spotcria";
 import { thumb, type SpotPlaylist, type SpotTrack } from "@/lib/spotcria/types";
 import { useSpotPlayer } from "./PlayerProvider";
@@ -10,22 +11,57 @@ import { useSpotPlayer } from "./PlayerProvider";
 // Peças do Spot Cria: roxo no lugar do verde do Spotify, fundo escuro, capas quadradas e linhas de faixa.
 
 export const SPOT = {
-  bg: "#0f0a1a",
-  surface: "#1b1230",
-  surface2: "#2a1b47",
+  bg: "#121212",
+  surface: "#282828",
+  surface2: "#2a2a2a",
   accent: "#a855f7",
   accentSoft: "#c4a0ff",
-  muted: "#b8a9d6",
+  muted: "#a7a7a7",
 };
 
-const MetaContext = createContext<{ isAdmin: boolean }>({ isAdmin: false });
+export type SpotMeta = { isAdmin: boolean; name: string; avatarUrl: string | null };
+
+const MetaContext = createContext<SpotMeta>({ isAdmin: false, name: "", avatarUrl: null });
+
+const PATHS = {
+  home: "M12 3 3 10.2V21h6.2v-6.4h5.6V21H21V10.2z",
+  search: "M10.5 3a7.5 7.5 0 0 1 5.9 12.1l4.3 4.3-1.4 1.4-4.3-4.3A7.5 7.5 0 1 1 10.5 3zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11z",
+  library: "M4 4h3v16H4zm5 0h3v16H9zm5.6.6 3-.8 3.4 15.6-3 .8z",
+  plus: "M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7z",
+  "plus-circle": "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16zm-1 3v4H7v2h4v4h2v-4h4v-2h-4V7z",
+  check: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-1.6 14.4-4-4 1.4-1.4 2.6 2.6 5.8-5.8 1.4 1.4z",
+  shuffle: "M10.6 9.2 5.4 4 4 5.4l5.2 5.2zM14.5 4l2 2L4 18.6 5.4 20 18 7.5l2 2V4zm.3 9.4-1.4 1.4 3.1 3.1-2 2H20v-5.5l-2 2z",
+  repeat: "M7 7h10v3l4-4-4-4v3H5v6h2zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2z",
+  prev: "M6 6h2v12H6zm3.5 6 8.5 6V6z",
+  next: "M6 18l8.5-6L6 6zM16 6v12h2V6z",
+  play: "M8 5v14l11-7z",
+  pause: "M6 19h4V5H6zm8-14v14h4V5z",
+  share: "M18 16.1c-.8 0-1.4.3-2 .8l-7.1-4.2c.1-.2.1-.5.1-.7s0-.5-.1-.7L16 7.2c.5.5 1.2.8 2 .8 1.7 0 3-1.3 3-3s-1.3-3-3-3-3 1.3-3 3c0 .2 0 .5.1.7L8 9.8C7.5 9.3 6.8 9 6 9c-1.7 0-3 1.3-3 3s1.3 3 3 3c.8 0 1.5-.3 2-.8l7.1 4.2c0 .2-.1.4-.1.6 0 1.6 1.3 2.9 2.9 2.9s2.9-1.3 2.9-2.9-1.2-2.9-2.8-2.9z",
+  queue: "M3 13h2v-2H3zm0 4h2v-2H3zm0-8h2V7H3zm4 4h14v-2H7zm0 4h14v-2H7zM7 7v2h14V7z",
+  "chevron-down": "M7.4 8.6 12 13.2l4.6-4.6L18 10l-6 6-6-6z",
+} as const;
+
+export function Icon({ name, className = "h-6 w-6" }: { name: keyof typeof PATHS; className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
+      <path d={PATHS[name]} />
+    </svg>
+  );
+}
+
 export const SpotMetaProvider = MetaContext.Provider;
+
+/** Foto de quem está usando (canto superior esquerdo das telas, como no Spotify). */
+export function MyAvatar({ size = 36 }: { size?: number }) {
+  const { name, avatarUrl } = useContext(MetaContext);
+  return <Avatar url={avatarUrl} name={name || "Você"} size={size} />;
+}
 export const useSpotMeta = () => useContext(MetaContext);
 
 /** Capa quadrada: recorta o centro da miniatura 16:9 do YouTube. */
 export function Cover({ videoId, className = "", rounded = "rounded-md" }: { videoId: string; className?: string; rounded?: string }) {
   return (
-    <span className={`relative block aspect-square shrink-0 overflow-hidden bg-[#2a1b47] ${rounded} ${className}`}>
+    <span className={`relative block aspect-square shrink-0 overflow-hidden bg-[#2a2a2a] ${rounded} ${className}`}>
       <img src={thumb(videoId, "hq")} alt="" loading="lazy" draggable={false} className="absolute left-1/2 top-1/2 h-full w-[178%] max-w-none -translate-x-1/2 -translate-y-1/2 object-cover" />
     </span>
   );
@@ -68,7 +104,7 @@ function Sheet({ title, onClose, children }: { title?: string; onClose: () => vo
   }, [onClose]);
   return (
     <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/70" onClick={onClose} role="dialog" aria-modal="true">
-      <div className="w-full max-w-2xl rounded-t-3xl bg-[#1b1230] p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] text-white" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-2xl rounded-t-3xl bg-[#282828] p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] text-white" onClick={(e) => e.stopPropagation()}>
         <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/25" />
         {title ? <p className="mb-3 line-clamp-2 text-sm font-black">{title}</p> : null}
         {children}
@@ -119,22 +155,22 @@ export function PlaylistPicker({ track, onClose, onDone }: { track: SpotTrack; o
   return (
     <Sheet title="Adicionar à playlist" onClose={onClose}>
       <div className="flex gap-2">
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nova playlist…" maxLength={60} className="min-w-0 flex-1 rounded-xl bg-[#2a1b47] px-3 py-2.5 text-sm text-white placeholder:text-[#b8a9d6]" aria-label="Nome da nova playlist" />
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nova playlist…" maxLength={60} className="min-w-0 flex-1 rounded-xl bg-[#2a2a2a] px-3 py-2.5 text-sm text-white placeholder:text-[#a7a7a7]" aria-label="Nome da nova playlist" />
         <button type="button" onClick={create} disabled={pending || !name.trim()} className="rounded-xl bg-[#a855f7] px-4 text-sm font-black text-white disabled:opacity-50">
           Criar
         </button>
       </div>
       {msg ? <p className="mt-2 text-xs font-bold text-[#c4a0ff]">{msg}</p> : null}
       <ul className="mt-2 max-h-64 overflow-y-auto">
-        {lists === null ? <li className="p-3 text-sm text-[#b8a9d6]">Carregando…</li> : null}
-        {lists?.length === 0 ? <li className="p-3 text-sm text-[#b8a9d6]">Você ainda não tem playlists.</li> : null}
+        {lists === null ? <li className="p-3 text-sm text-[#a7a7a7]">Carregando…</li> : null}
+        {lists?.length === 0 ? <li className="p-3 text-sm text-[#a7a7a7]">Você ainda não tem playlists.</li> : null}
         {lists?.map((l) => (
           <li key={l.id}>
             <button type="button" onClick={() => add(l.id, l.name)} disabled={pending} className="flex w-full items-center gap-3 rounded-xl px-1 py-2 text-left active:bg-white/10">
               <PlaylistCover covers={l.covers} className="h-11 w-11" />
               <span className="min-w-0">
                 <span className="block truncate text-sm font-bold">{l.name}</span>
-                <span className="block text-xs text-[#b8a9d6]">{l.track_count} música(s)</span>
+                <span className="block text-xs text-[#a7a7a7]">{l.track_count} música(s)</span>
               </span>
             </button>
           </li>
@@ -162,8 +198,8 @@ export function AddTrackSheet({ onClose }: { onClose: () => void }) {
 
   return (
     <Sheet title="Adicionar música" onClose={onClose}>
-      <p className="mb-2 text-xs text-[#b8a9d6]">Cole o link de um louvor ou música do YouTube. Ela fica salva para todo o ELOS ouvir.</p>
-      <input value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" inputMode="url" className="w-full rounded-xl bg-[#2a1b47] px-3 py-3 text-sm text-white placeholder:text-[#b8a9d6]" aria-label="Link da música no YouTube" />
+      <p className="mb-2 text-xs text-[#a7a7a7]">Cole o link de um louvor ou música do YouTube. Ela fica salva para todo o ELOS ouvir.</p>
+      <input value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" inputMode="url" className="w-full rounded-xl bg-[#2a2a2a] px-3 py-3 text-sm text-white placeholder:text-[#a7a7a7]" aria-label="Link da música no YouTube" />
       {msg ? <p className={`mt-2 text-xs font-bold ${msg.ok ? "text-emerald-300" : "text-rose-400"}`}>{msg.text}</p> : null}
       <div className="mt-3 grid grid-cols-2 gap-2">
         <button type="button" onClick={save} disabled={pending || link.trim().length < 5} className="rounded-full bg-[#a855f7] py-2.5 text-sm font-black text-white disabled:opacity-50">
@@ -250,25 +286,42 @@ export function TrackRow({ track, queue, playlistId, index }: { track: SpotTrack
   return (
     <li className="flex items-center gap-1 rounded-xl px-1 active:bg-white/5">
       <button type="button" onClick={() => play(track, queue)} className="flex min-w-0 flex-1 items-center gap-3 py-1.5 text-left">
-        {index !== undefined ? <span className="w-5 shrink-0 text-center text-xs tabular-nums text-[#b8a9d6]">{active && playing ? <Bars /> : index + 1}</span> : null}
+        {index !== undefined ? <span className="w-5 shrink-0 text-center text-xs tabular-nums text-[#a7a7a7]">{active && playing ? <Bars /> : index + 1}</span> : null}
         <Cover videoId={track.video_id} className="h-12 w-12" />
         <span className="min-w-0 flex-1">
           <span className={`flex items-center gap-1.5 text-sm font-bold ${active ? "text-[#c4a0ff]" : "text-white"}`}>
             <span className="truncate">{track.title}</span>
             {index === undefined && active && playing ? <Bars /> : null}
           </span>
-          <span className="block truncate text-xs text-[#b8a9d6]">
+          <span className="block truncate text-xs text-[#a7a7a7]">
             {track.liked ? <span aria-hidden>💜 </span> : null}
             {track.channel}
             {track.added_by_name ? ` · por ${track.added_by_name}` : ""}
           </span>
         </span>
       </button>
-      <button type="button" onClick={() => setMenu(true)} aria-label="Mais opções" className="grid h-10 w-10 shrink-0 place-items-center text-xl text-[#b8a9d6]">
+      <button type="button" onClick={() => setMenu(true)} aria-label="Mais opções" className="grid h-10 w-10 shrink-0 place-items-center text-xl text-[#a7a7a7]">
         ⋯
       </button>
       {menu ? <TrackMenu track={track} playlistId={playlistId} onClose={() => setMenu(false)} /> : null}
     </li>
+  );
+}
+
+/** Atalho compacto da Home (capa + título), que toca a faixa. */
+export function TrackTile({ track, queue }: { track: SpotTrack; queue: SpotTrack[] }) {
+  const { current, playing, play } = useSpotPlayer();
+  const active = current?.id === track.id;
+  return (
+    <button type="button" onClick={() => play(track, queue)} className="flex h-14 items-center gap-3 overflow-hidden rounded-md bg-[#2a2a2a] text-left active:bg-[#333]">
+      <Cover videoId={track.video_id} className="!h-14 !w-14" rounded="rounded-none" />
+      <span className={`line-clamp-2 flex-1 pr-2 text-sm font-bold leading-tight ${active ? "text-[#c4a0ff]" : ""}`}>{track.title}</span>
+      {active && playing ? (
+        <span className="pr-2">
+          <Bars />
+        </span>
+      ) : null}
+    </button>
   );
 }
 
@@ -277,7 +330,7 @@ export function TrackCard({ track, queue }: { track: SpotTrack; queue: SpotTrack
   const { current, playing, play } = useSpotPlayer();
   const active = current?.id === track.id;
   return (
-    <li className="w-36 shrink-0">
+    <li className="w-44 shrink-0">
       <button type="button" onClick={() => play(track, queue)} className="block w-full text-left">
         <span className="relative block">
           <Cover videoId={track.video_id} className="w-full" rounded="rounded-lg" />
@@ -287,8 +340,9 @@ export function TrackCard({ track, queue }: { track: SpotTrack; queue: SpotTrack
             </span>
           ) : null}
         </span>
-        <span className={`mt-1.5 line-clamp-2 block text-sm font-bold leading-snug ${active ? "text-[#c4a0ff]" : "text-white"}`}>{track.title}</span>
-        <span className="mt-0.5 line-clamp-1 block text-xs text-[#b8a9d6]">{track.channel}</span>
+        <span className="mt-2 block text-xs text-[#a7a7a7]">Música</span>
+        <span className={`line-clamp-2 block text-sm font-bold leading-snug ${active ? "text-[#c4a0ff]" : "text-white"}`}>{track.title}</span>
+        <span className="line-clamp-1 block text-xs text-[#a7a7a7]">{track.channel}</span>
       </button>
     </li>
   );
@@ -298,8 +352,8 @@ export function Shelf({ title, tracks, hint }: { title: string; tracks: SpotTrac
   if (tracks.length === 0) return null;
   return (
     <section className="mt-6">
-      <h2 className="px-4 text-lg font-black">{title}</h2>
-      {hint ? <p className="px-4 text-xs text-[#b8a9d6]">{hint}</p> : null}
+      <h2 className="px-4 text-2xl font-black tracking-tight">{title}</h2>
+      {hint ? <p className="px-4 text-xs text-[#a7a7a7]">{hint}</p> : null}
       <ul className="-mx-0 mt-2 flex gap-3 overflow-x-auto px-4 pb-1">
         {tracks.map((t) => (
           <TrackCard key={t.id} track={t} queue={tracks} />
@@ -337,7 +391,7 @@ export function TrackListView({
       <div className="bg-gradient-to-b from-[#4c1d95] to-transparent px-4 pb-4 pt-6">
         <div className="mx-auto w-40">{cover}</div>
         <h1 className="mt-4 text-2xl font-black leading-tight">{title}</h1>
-        <p className="mt-1 text-xs text-[#d6c8f5]">{subtitle}</p>
+        <p className="mt-1 text-xs text-[#d0d0d0]">{subtitle}</p>
         <div className="mt-4 flex items-center gap-3">
           <button type="button" onClick={shuffle} disabled={tracks.length === 0} aria-label="Tocar em ordem aleatória" className="rounded-full bg-white/10 px-4 py-2.5 text-sm font-black disabled:opacity-40">
             🔀 Aleatório
@@ -349,7 +403,7 @@ export function TrackListView({
         </div>
       </div>
       {tracks.length === 0 ? (
-        <p className="px-6 py-8 text-center text-sm text-[#b8a9d6]">{empty}</p>
+        <p className="px-6 py-8 text-center text-sm text-[#a7a7a7]">{empty}</p>
       ) : (
         <ul className="px-2">
           {tracks.map((t, i) => (
