@@ -2,12 +2,13 @@
 
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useState, useTransition, type ReactNode } from "react";
-import { toggleSpotLike } from "@/lib/actions/spotcria";
+import { usePathname } from "next/navigation";
+import { useRef, useState, type ReactNode } from "react";
+import { invalidateSpot, seedSpot } from "@/lib/spotcria/store";
+import type { SpotHomeData } from "@/lib/actions/spotcria";
 import { PlayerHost, PlayerProvider, useSpotPlayer } from "./PlayerProvider";
 import { NewPlaylistSheet } from "./SearchView";
-import { AddTrackSheet, Cover, Icon, PlaylistPicker, SpotMetaProvider, type SpotMeta } from "./ui";
+import { AddTrackSheet, Cover, Icon, likeOptimistic, PlaylistPicker, SpotMetaProvider, type SpotMeta } from "./ui";
 
 // "App dentro do app": cobre a tela inteira com o visual do Spotify em roxo. O player fica montado aqui,
 // então a música continua tocando enquanto a pessoa navega entre Início, Buscar e Sua biblioteca.
@@ -42,17 +43,10 @@ function TabBar({ onCreate }: { onCreate: () => void }) {
 }
 
 function MiniPlayer() {
-  const router = useRouter();
   const { current, playing, toggle, position, duration, setExpanded, error, patchTrack } = useSpotPlayer();
-  const [, start] = useTransition();
   if (!current) return null;
   const pct = duration > 0 ? Math.min(100, (position / duration) * 100) : 0;
-  const like = () =>
-    start(async () => {
-      const liked = await toggleSpotLike(current.id);
-      patchTrack(current.id, { liked, like_count: Math.max(0, current.like_count + (liked ? 1 : -1)) });
-      router.refresh();
-    });
+  const like = () => void likeOptimistic(current, patchTrack);
   return (
     <div className="absolute inset-x-2 bottom-[calc(env(safe-area-inset-bottom)+58px+2px)] z-[80] overflow-hidden rounded-lg bg-[#5b2a99] shadow-xl">
       <div className="flex h-[68px] items-center gap-3 px-2">
@@ -77,19 +71,12 @@ function MiniPlayer() {
 }
 
 function NowPlaying() {
-  const router = useRouter();
   const { current, queue, index, playing, toggle, next, prev, position, duration, seek, expanded, setExpanded, error, patchTrack, play, shuffle, repeat, toggleShuffle, cycleRepeat } = useSpotPlayer();
   const [picker, setPicker] = useState(false);
   const [menu, setMenu] = useState(false);
-  const [, start] = useTransition();
   if (!expanded || !current) return null;
 
-  const like = () =>
-    start(async () => {
-      const liked = await toggleSpotLike(current.id);
-      patchTrack(current.id, { liked, like_count: Math.max(0, current.like_count + (liked ? 1 : -1)) });
-      router.refresh();
-    });
+  const like = () => void likeOptimistic(current, patchTrack);
   const share = async () => {
     const url = `https://www.youtube.com/watch?v=${current.video_id}`;
     try {
@@ -102,7 +89,7 @@ function NowPlaying() {
   const dur = Math.max(1, Math.floor(duration));
 
   return (
-    <div className="absolute inset-0 z-[82] flex flex-col overflow-y-auto bg-gradient-to-b from-[#5b2a99] via-[#2a1747] to-[#121212] pb-[calc(env(safe-area-inset-bottom)+1.5rem)] text-white">
+    <div className="spot-up absolute inset-0 z-[82] flex flex-col overflow-y-auto bg-gradient-to-b from-[#5b2a99] via-[#2a1747] to-[#121212] pb-[calc(env(safe-area-inset-bottom)+1.5rem)] text-white">
       <div className="flex items-center justify-between px-4 pt-4">
         <button type="button" onClick={() => setExpanded(false)} aria-label="Minimizar" className="grid h-10 w-10 place-items-center">
           <Icon name="chevron-down" className="h-8 w-8" />
@@ -183,8 +170,8 @@ function NowPlaying() {
       ) : null}
 
       {menu ? (
-        <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/70" onClick={() => setMenu(false)}>
-          <div className="w-full max-w-2xl rounded-t-3xl bg-[#282828] p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]" onClick={(e) => e.stopPropagation()}>
+        <div className="spot-fade fixed inset-0 z-[120] flex items-end justify-center bg-black/70" onClick={() => setMenu(false)}>
+          <div className="spot-up w-full max-w-2xl rounded-t-3xl bg-[#282828] p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]" onClick={(e) => e.stopPropagation()}>
             <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/25" />
             <button type="button" onClick={() => { setMenu(false); setPicker(true); }} className="flex w-full items-center gap-3 rounded-xl px-2 py-3 text-left text-sm font-bold active:bg-white/10">
               <Icon name="plus-circle" className="h-6 w-6" /> Adicionar à playlist
@@ -200,9 +187,41 @@ function NowPlaying() {
   );
 }
 
+const PULL_TRIGGER = 70;
+
 function Frame({ children }: { children: ReactNode }) {
   const [sheet, setSheet] = useState<null | "create" | "track" | "playlist">(null);
   const { current } = useSpotPlayer();
+  // puxar a tela para baixo, no topo, recarrega (como no Spotify)
+  const scroller = useRef<HTMLDivElement>(null);
+  const startY = useRef<number | null>(null);
+  const [pull, setPull] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const [dragging, setDragging] = useState(false);
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    const ok = !!scroller.current && scroller.current.scrollTop <= 0 && !refreshing;
+    startY.current = ok ? e.touches[0].clientY : null;
+    setDragging(ok);
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (startY.current === null) return;
+    const dy = e.touches[0].clientY - startY.current;
+    if (dy <= 0) return setPull(0);
+    setPull(Math.min(110, dy * 0.5));
+  };
+  const onTouchEnd = () => {
+    const done = pull >= PULL_TRIGGER * 0.5 + 8;
+    startY.current = null;
+    setDragging(false);
+    if (!done) return setPull(0);
+    setRefreshing(true);
+    setPull(48);
+    void Promise.all([invalidateSpot(), new Promise((r) => window.setTimeout(r, 700))]).finally(() => {
+      setRefreshing(false);
+      setPull(0);
+    });
+  };
   return (
     <div className="fixed inset-0 z-[60] bg-[#121212] text-white">
       <div className="relative mx-auto flex h-full max-w-2xl flex-col">
@@ -215,15 +234,33 @@ function Frame({ children }: { children: ReactNode }) {
           </Link>
         </header>
 
-        <div className={`min-h-0 flex-1 overflow-y-auto ${current ? "pb-[calc(env(safe-area-inset-bottom)+58px+80px)]" : "pb-[calc(env(safe-area-inset-bottom)+58px+16px)]"}`}>{children}</div>
+        <div
+          className="pointer-events-none absolute inset-x-0 top-[52px] z-[70] flex justify-center"
+          style={{ transform: `translateY(${pull - 34}px)`, opacity: pull > 6 || refreshing ? 1 : 0, transition: dragging ? "none" : "transform .25s ease, opacity .2s" }}
+          aria-hidden
+        >
+          <span className={`grid h-9 w-9 place-items-center rounded-full bg-[#2a2a2a] shadow-lg ${refreshing ? "animate-spin" : ""}`} style={{ transform: refreshing ? undefined : `rotate(${pull * 4}deg)` }}>
+            <svg viewBox="0 0 24 24" className="h-5 w-5 text-white" fill="currentColor">
+              <path d="M17.7 6.3A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.8-4.3L13 11h7V4z" />
+            </svg>
+          </span>
+        </div>
+
+        <div
+          ref={scroller}
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+          style={{ transform: pull ? `translateY(${pull * 0.6}px)` : undefined, transition: dragging ? "none" : "transform .25s ease" }}
+          className={`min-h-0 flex-1 overflow-y-auto overscroll-y-contain ${current ? "pb-[calc(env(safe-area-inset-bottom)+58px+80px)]" : "pb-[calc(env(safe-area-inset-bottom)+58px+16px)]"}`}>{children}</div>
 
         <MiniPlayer />
         <TabBar onCreate={() => setSheet("create")} />
         <NowPlaying />
         <PlayerHost />
         {sheet === "create" ? (
-          <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/70" onClick={() => setSheet(null)}>
-            <div className="w-full max-w-2xl rounded-t-3xl bg-[#282828] p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]" onClick={(e) => e.stopPropagation()}>
+          <div className="spot-fade fixed inset-0 z-[120] flex items-end justify-center bg-black/70" onClick={() => setSheet(null)}>
+            <div className="spot-up w-full max-w-2xl rounded-t-3xl bg-[#282828] p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]" onClick={(e) => e.stopPropagation()}>
               <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/25" />
               <button type="button" onClick={() => setSheet("playlist")} className="flex w-full items-center gap-4 rounded-xl px-2 py-3 text-left active:bg-white/10">
                 <span className="grid h-12 w-12 place-items-center rounded-full bg-white/10">
@@ -253,7 +290,12 @@ function Frame({ children }: { children: ReactNode }) {
   );
 }
 
-export function SpotShell({ children, meta }: { children: ReactNode; meta: SpotMeta }) {
+export function SpotShell({ children, meta, initialHome }: { children: ReactNode; meta: SpotMeta; initialHome?: SpotHomeData }) {
+  // o Início já chega com os dados do servidor: abre sem esqueleto
+  useState(() => {
+    if (initialHome) seedSpot("home", initialHome);
+    return true;
+  });
   return (
     <SpotMetaProvider value={meta}>
       <PlayerProvider>

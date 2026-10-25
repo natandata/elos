@@ -131,3 +131,55 @@ export async function removeFromSpotPlaylist(playlistId: string, trackId: string
   await supabase.from("spot_playlist_tracks").delete().eq("playlist_id", playlistId).eq("track_id", trackId);
   revalidatePath("/app/spotcria", "layout");
 }
+
+// ---- leitura (as telas buscam por aqui e guardam em cache no aparelho) ----
+
+export type SpotHomeData = { recent: SpotTrack[]; played: SpotTrack[]; liked: SpotTrack[]; myRecent: SpotTrack[]; playlists: SpotPlaylist[] };
+
+/** Tudo que o Início precisa numa única chamada (ações do servidor são enfileiradas, então uma só é mais rápida). */
+export async function spotHome(): Promise<SpotHomeData> {
+  const { supabase, user } = await me();
+  if (!user) return { recent: [], played: [], liked: [], myRecent: [], playlists: [] };
+  const [recent, played, liked, mine, lists] = await Promise.all([
+    supabase.rpc("spot_list_tracks", { p_mode: "recent", p_limit: 20 }),
+    supabase.rpc("spot_list_tracks", { p_mode: "played", p_limit: 12 }),
+    supabase.rpc("spot_list_tracks", { p_mode: "liked_top", p_limit: 12 }),
+    supabase.rpc("spot_list_tracks", { p_mode: "my_recent", p_limit: 12 }),
+    supabase.rpc("spot_my_playlists"),
+  ]);
+  return {
+    recent: (recent.data ?? []) as SpotTrack[],
+    played: ((played.data ?? []) as SpotTrack[]).filter((t) => t.play_count > 0),
+    liked: ((liked.data ?? []) as SpotTrack[]).filter((t) => t.like_count > 0),
+    myRecent: (mine.data ?? []) as SpotTrack[],
+    playlists: (lists.data ?? []) as SpotPlaylist[],
+  };
+}
+
+export type SpotLibraryData = { playlists: SpotPlaylist[]; tracks: SpotTrack[] };
+
+export async function spotLibrary(): Promise<SpotLibraryData> {
+  const { supabase, user } = await me();
+  if (!user) return { playlists: [], tracks: [] };
+  const [lists, all] = await Promise.all([supabase.rpc("spot_my_playlists"), supabase.rpc("spot_list_tracks", { p_mode: "recent", p_limit: 200 })]);
+  return { playlists: (lists.data ?? []) as SpotPlaylist[], tracks: (all.data ?? []) as SpotTrack[] };
+}
+
+export async function spotListMode(mode: "recent" | "played" | "liked_top" | "my_recent" | "mine_liked" | "added_by_me", limit = 100): Promise<SpotTrack[]> {
+  const { supabase, user } = await me();
+  if (!user) return [];
+  const { data } = await supabase.rpc("spot_list_tracks", { p_mode: mode, p_limit: limit });
+  let tracks = (data ?? []) as SpotTrack[];
+  if (mode === "played") tracks = tracks.filter((t) => t.play_count > 0);
+  if (mode === "liked_top") tracks = tracks.filter((t) => t.like_count > 0);
+  return tracks;
+}
+
+export async function spotPlaylistData(id: string): Promise<{ id: string; name: string; tracks: SpotTrack[] } | null> {
+  const { supabase, user } = await me();
+  if (!user) return null;
+  const { data: pl } = await supabase.from("spot_playlists").select("id, name").eq("id", id).maybeSingle<{ id: string; name: string }>();
+  if (!pl) return null;
+  const { data } = await supabase.rpc("spot_playlist_items", { p_playlist: id });
+  return { id: pl.id, name: pl.name, tracks: (data ?? []) as SpotTrack[] };
+}

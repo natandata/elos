@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { createSpotPlaylist, deleteSpotPlaylist, renameSpotPlaylist, searchSpot } from "@/lib/actions/spotcria";
+import { invalidateSpot } from "@/lib/spotcria/store";
 import type { SpotTrack } from "@/lib/spotcria/types";
 import { Icon, MyAvatar, TrackRow } from "./ui";
 
@@ -114,13 +115,14 @@ export function NewPlaylistSheet({ onClose }: { onClose: () => void }) {
     start(async () => {
       const r = await createSpotPlaylist(name);
       if (r.error) return setErr(r.error);
+      void invalidateSpot();
       onClose();
       router.push(`/app/spotcria/playlist/${r.id}`);
     });
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/70" onClick={onClose}>
-      <div className="w-full max-w-2xl rounded-t-3xl bg-[#282828] p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] text-white" onClick={(e) => e.stopPropagation()}>
+    <div className="spot-fade fixed inset-0 z-[120] flex items-end justify-center bg-black/70" onClick={onClose}>
+      <div className="spot-up w-full max-w-2xl rounded-t-3xl bg-[#282828] p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] text-white" onClick={(e) => e.stopPropagation()}>
         <p className="mb-3 text-sm font-black">Dê um nome à sua playlist</p>
         <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Minha playlist" maxLength={60} className="w-full rounded-md bg-[#3a3a3a] px-3 py-3 text-base font-bold text-white placeholder:text-[#a7a7a7]" aria-label="Nome da playlist" />
         {err ? <p className="mt-2 text-xs font-bold text-rose-400">{err}</p> : null}
@@ -164,7 +166,7 @@ export function PlaylistActions({ id, name }: { id: string; name: string }) {
           if (!n) return;
           start(async () => {
             await renameSpotPlaylist(id, n);
-            router.refresh();
+            void invalidateSpot();
           });
         }}
         className="grid h-10 w-10 place-items-center rounded-full bg-white/10 text-base"

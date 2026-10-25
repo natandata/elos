@@ -2,9 +2,9 @@
 
 /* eslint-disable @next/next/no-img-element */
 import { createContext, useContext, useEffect, useState, useTransition, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
 import { Avatar } from "@/components/Avatar";
 import { addSpotTrack, addToSpotPlaylist, createSpotPlaylist, myPlaylists, removeFromSpotPlaylist, removeSpotTrack, toggleSpotLike } from "@/lib/actions/spotcria";
+import { invalidateSpot, patchSpotTrack } from "@/lib/spotcria/store";
 import { thumb, type SpotPlaylist, type SpotTrack } from "@/lib/spotcria/types";
 import { useSpotPlayer } from "./PlayerProvider";
 
@@ -58,6 +58,21 @@ export function MyAvatar({ size = 36 }: { size?: number }) {
 }
 export const useSpotMeta = () => useContext(MetaContext);
 
+/** Curtir/descurtir na hora (em todas as telas em cache e na fila) e confirmar no servidor por trás. */
+export async function likeOptimistic(track: SpotTrack, patchQueue: (id: string, patch: Partial<SpotTrack>) => void): Promise<void> {
+  const liked = !track.liked;
+  const like_count = Math.max(0, track.like_count + (liked ? 1 : -1));
+  patchSpotTrack(track.id, { liked, like_count });
+  patchQueue(track.id, { liked, like_count });
+  try {
+    await toggleSpotLike(track.id);
+  } catch {
+    patchSpotTrack(track.id, { liked: track.liked, like_count: track.like_count });
+    patchQueue(track.id, { liked: track.liked, like_count: track.like_count });
+  }
+  void invalidateSpot();
+}
+
 /** Capa quadrada: recorta o centro da miniatura 16:9 do YouTube. */
 export function Cover({ videoId, className = "", rounded = "rounded-md" }: { videoId: string; className?: string; rounded?: string }) {
   return (
@@ -103,8 +118,8 @@ function Sheet({ title, onClose, children }: { title?: string; onClose: () => vo
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
   return (
-    <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/70" onClick={onClose} role="dialog" aria-modal="true">
-      <div className="w-full max-w-2xl rounded-t-3xl bg-[#282828] p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] text-white" onClick={(e) => e.stopPropagation()}>
+    <div className="spot-fade fixed inset-0 z-[120] flex items-end justify-center bg-black/70" onClick={onClose} role="dialog" aria-modal="true">
+      <div className="spot-up w-full max-w-2xl rounded-t-3xl bg-[#282828] p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] text-white" onClick={(e) => e.stopPropagation()}>
         <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/25" />
         {title ? <p className="mb-3 line-clamp-2 text-sm font-black">{title}</p> : null}
         {children}
@@ -123,7 +138,6 @@ function SheetButton({ onClick, children, danger }: { onClick: () => void; child
 
 /** Escolher (ou criar) uma playlist para guardar a faixa. */
 export function PlaylistPicker({ track, onClose, onDone }: { track: SpotTrack; onClose: () => void; onDone?: () => void }) {
-  const router = useRouter();
   const [lists, setLists] = useState<SpotPlaylist[] | null>(null);
   const [name, setName] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
@@ -138,7 +152,7 @@ export function PlaylistPicker({ track, onClose, onDone }: { track: SpotTrack; o
       const r = await addToSpotPlaylist(id, track.id);
       if (r.error) return setMsg(r.error);
       setMsg(r.already ? `Já está em “${label}”.` : `Adicionada a “${label}”.`);
-      router.refresh();
+      void invalidateSpot();
       onDone?.();
       window.setTimeout(onClose, 900);
     });
@@ -147,7 +161,7 @@ export function PlaylistPicker({ track, onClose, onDone }: { track: SpotTrack; o
       const r = await createSpotPlaylist(name, track.id);
       if (r.error) return setMsg(r.error);
       setMsg(`Playlist “${name.trim()}” criada.`);
-      router.refresh();
+      void invalidateSpot();
       onDone?.();
       window.setTimeout(onClose, 900);
     });
@@ -182,7 +196,6 @@ export function PlaylistPicker({ track, onClose, onDone }: { track: SpotTrack; o
 
 /** Colar um link do YouTube e guardar na biblioteca do ELOS. */
 export function AddTrackSheet({ onClose }: { onClose: () => void }) {
-  const router = useRouter();
   const [link, setLink] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, start] = useTransition();
@@ -193,7 +206,7 @@ export function AddTrackSheet({ onClose }: { onClose: () => void }) {
       if (r.error) return setMsg({ ok: false, text: r.error });
       setMsg({ ok: true, text: r.existed ? `“${r.track?.title}” já estava na biblioteca.` : `“${r.track?.title}” entrou na biblioteca!` });
       setLink("");
-      router.refresh();
+      void invalidateSpot();
     });
 
   return (
@@ -215,7 +228,6 @@ export function AddTrackSheet({ onClose }: { onClose: () => void }) {
 
 /** Menu "⋯" de uma faixa. */
 function TrackMenu({ track, playlistId, onClose }: { track: SpotTrack; playlistId?: string; onClose: () => void }) {
-  const router = useRouter();
   const { isAdmin } = useSpotMeta();
   const { patchTrack } = useSpotPlayer();
   const [picker, setPicker] = useState(false);
@@ -225,14 +237,10 @@ function TrackMenu({ track, playlistId, onClose }: { track: SpotTrack; playlistI
   return (
     <Sheet title={track.title} onClose={onClose}>
       <SheetButton
-        onClick={() =>
-          start(async () => {
-            const liked = await toggleSpotLike(track.id);
-            patchTrack(track.id, { liked, like_count: Math.max(0, track.like_count + (liked ? 1 : -1)) });
-            router.refresh();
-            onClose();
-          })
-        }
+        onClick={() => {
+          void likeOptimistic(track, patchTrack);
+          onClose();
+        }}
       >
         <span aria-hidden>{track.liked ? "💜" : "🤍"}</span> {track.liked ? "Remover das curtidas" : "Curtir"}
       </SheetButton>
@@ -244,7 +252,7 @@ function TrackMenu({ track, playlistId, onClose }: { track: SpotTrack; playlistI
           onClick={() =>
             start(async () => {
               await removeFromSpotPlaylist(playlistId, track.id);
-              router.refresh();
+              void invalidateSpot();
               onClose();
             })
           }
@@ -267,7 +275,7 @@ function TrackMenu({ track, playlistId, onClose }: { track: SpotTrack; playlistI
             start(async () => {
               if (!window.confirm("Remover esta música da biblioteca de todos?")) return;
               await removeSpotTrack(track.id);
-              router.refresh();
+              void invalidateSpot();
               onClose();
             })
           }

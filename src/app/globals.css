@@ -2183,3 +2183,16 @@ input[type="datetime-local"] {
 .gr-room .card {
   color: var(--ink);
 }
+
+
+/* Spot Cria: entradas suaves (folhas de baixo, "Tocando agora") */
+@keyframes spot-up {
+  from { transform: translateY(100%); opacity: 0.6; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes spot-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.spot-up { animation: spot-up 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.spot-fade { animation: spot-fade 0.2s ease-out; }

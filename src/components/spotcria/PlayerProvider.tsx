@@ -273,7 +273,7 @@ export function PlayerHost() {
         !current
           ? "pointer-events-none absolute -left-[9999px] top-0 h-[200px] w-[200px]"
           : expanded
-            ? "absolute inset-x-5 top-20 z-[85] aspect-square overflow-hidden rounded-lg bg-black shadow-2xl"
+            ? "spot-up absolute inset-x-5 top-20 z-[85] aspect-square overflow-hidden rounded-lg bg-black shadow-2xl"
             : "pointer-events-none absolute bottom-[calc(env(safe-area-inset-bottom)+58px+2px+7px)] left-4 z-[85] h-[54px] w-24 overflow-hidden rounded bg-black"
       }
     >
