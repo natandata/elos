@@ -2196,3 +2196,7 @@ input[type="datetime-local"] {
 }
 .spot-up { animation: spot-up 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); }
 .spot-fade { animation: spot-fade 0.2s ease-out; }
+
+/* Spot Cria: faixas que rolam na horizontal sem barra visível */
+.spot-hscroll { scrollbar-width: none; -ms-overflow-style: none; }
+.spot-hscroll::-webkit-scrollbar { display: none; }

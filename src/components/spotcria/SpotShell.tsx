@@ -3,13 +3,13 @@
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { invalidateSpot, seedSpot } from "@/lib/spotcria/store";
 import type { SpotHomeData } from "@/lib/actions/spotcria";
 import { MiniPlayer } from "./MiniPlayer";
 import { useSlot, useSpotPlayer } from "./PlayerProvider";
 import { NewPlaylistSheet } from "./SearchView";
-import { AddTrackSheet, Cover, Icon, likeOptimistic, PlaylistPicker, playsLabel, Portal, SpotMetaProvider, type SpotMeta } from "./ui";
+import { AddTrackSheet, Cover, Icon, likeOptimistic, PlaylistPicker, playsLabel, Portal, SpotMetaProvider, useSpotMeta, type SpotMeta } from "./ui";
 
 // "App dentro do app": cobre a tela inteira com o visual do Spotify em roxo. O player fica montado aqui,
 // então a música continua tocando enquanto a pessoa navega entre Início, Buscar e Sua biblioteca.
@@ -169,8 +169,10 @@ const PULL_TRIGGER = 70;
 function Frame({ children }: { children: ReactNode }) {
   const [sheet, setSheet] = useState<null | "create" | "track" | "playlist">(null);
   const { current } = useSpotPlayer();
+  const scroller = useRef<HTMLDivElement>(null);
   // seta de voltar: no Início do Spot Cria sai para o início do ELOS; nas demais telas volta para a tela anterior
   const router = useRouter();
+  const { homeHref } = useSpotMeta();
   const pathname = usePathname();
   const trail = useRef<string[]>([]);
   useEffect(() => {
@@ -178,13 +180,25 @@ function Frame({ children }: { children: ReactNode }) {
     if (t[t.length - 2] === pathname) t.pop();
     else if (t[t.length - 1] !== pathname) t.push(pathname);
   }, [pathname]);
+  // cada tela lembra a posição de rolagem: voltar para o Início devolve você onde estava
+  const scrollPos = useRef<Record<string, number>>({});
+  const pathRef = useRef(pathname);
+  useLayoutEffect(() => {
+    pathRef.current = pathname;
+    const want = scrollPos.current[pathname] ?? 0;
+    const apply = () => {
+      if (scroller.current) scroller.current.scrollTop = want;
+    };
+    apply();
+    const timers = want > 0 ? [120, 400, 900].map((ms) => window.setTimeout(apply, ms)) : [];
+    return () => timers.forEach((t) => window.clearTimeout(t));
+  }, [pathname]);
   const goBack = () => {
-    if (pathname === "/app/spotcria") router.push("/app");
+    if (pathname === "/app/spotcria") router.push(homeHref);
     else if (trail.current.length > 1) router.back();
     else router.push("/app/spotcria");
   };
   // puxar a tela para baixo, no topo, recarrega (como no Spotify)
-  const scroller = useRef<HTMLDivElement>(null);
   const startY = useRef<number | null>(null);
   const [pull, setPull] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
@@ -239,6 +253,9 @@ function Frame({ children }: { children: ReactNode }) {
 
         <div
           ref={scroller}
+          onScroll={(e) => {
+            scrollPos.current[pathRef.current] = e.currentTarget.scrollTop;
+          }}
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}

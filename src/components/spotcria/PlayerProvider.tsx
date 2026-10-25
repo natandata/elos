@@ -111,6 +111,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const current = queue[index] ?? null;
 
   const load = useCallback((track: SpotTrack) => {
+    userPausedRef.current = false;
     setError(null);
     setPosition(0);
     setDuration(0);

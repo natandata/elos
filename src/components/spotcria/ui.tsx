@@ -20,9 +20,9 @@ export const SPOT = {
   muted: "#a7a7a7",
 };
 
-export type SpotMeta = { isAdmin: boolean; name: string; avatarUrl: string | null };
+export type SpotMeta = { isAdmin: boolean; name: string; avatarUrl: string | null; homeHref: string };
 
-const MetaContext = createContext<SpotMeta>({ isAdmin: false, name: "", avatarUrl: null });
+const MetaContext = createContext<SpotMeta>({ isAdmin: false, name: "", avatarUrl: null, homeHref: "/app" });
 
 const PATHS = {
   home: "M12 3 3 10.2V21h6.2v-6.4h5.6V21H21V10.2z",
@@ -385,7 +385,7 @@ export function Shelf({ title, tracks, hint }: { title: string; tracks: SpotTrac
     <section className="mt-6">
       <h2 className="px-4 text-2xl font-black tracking-tight">{title}</h2>
       {hint ? <p className="px-4 text-xs text-[#a7a7a7]">{hint}</p> : null}
-      <ul className="-mx-0 mt-2 flex gap-3 overflow-x-auto px-4 pb-1">
+      <ul className="spot-hscroll -mx-0 mt-2 flex gap-3 overflow-x-auto px-4 pb-1">
         {tracks.map((t) => (
           <TrackCard key={t.id} track={t} queue={tracks} />
         ))}

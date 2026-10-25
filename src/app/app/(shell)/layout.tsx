@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { AppShell, type NavItem } from "@/components/shell/AppShell";
 import { ThemeSetter } from "@/components/shell/ThemeSetter";
 import { ViewAsBanner } from "@/components/shell/ViewAsBanner";
-import { SpotPlayerRoot } from "@/components/spotcria/SpotPlayerRoot";
 import { AnnouncementModal, type ActiveAnnouncement } from "@/components/announcements/AnnouncementModal";
 import { BirthdayModal } from "@/components/announcements/BirthdayModal";
 import { GenerosityPoll } from "@/components/announcements/GenerosityPoll";
@@ -254,7 +253,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   else if (profile.role !== "admin" && profile.gender) theme = profile.gender;
 
   return (
-    <SpotPlayerRoot>
+    <>
       <ThemeSetter theme={theme} />
       {viewingAs ? <ViewAsBanner targetName={viewingAs.targetName} /> : null}
       <AppShell
@@ -275,6 +274,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <AnnouncementModal key={`${announcement.id}-${announcement.version}`} announcement={announcement} />
       ) : null}
       {generosity && !announcement && profile.birth_date ? <GenerosityPoll others={generosity.others} /> : null}
-    </SpotPlayerRoot>
+    </>
   );
 }

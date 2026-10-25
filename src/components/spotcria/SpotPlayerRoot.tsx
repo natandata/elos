@@ -32,7 +32,8 @@ function RouteWatcher() {
 function GlobalMini() {
   const pathname = usePathname();
   const { current } = useSpotPlayer();
-  if (!current || pathname.startsWith("/app/spotcria")) return null;
+  // nos jogos o mini player cobriria os botões: a música segue tocando, sem a barra
+  if (!current || pathname.startsWith("/app/spotcria") || pathname.startsWith("/app/jogos")) return null;
   return (
     <>
       <div className="h-24" aria-hidden />

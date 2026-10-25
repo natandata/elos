@@ -100,7 +100,7 @@ export function HomePage() {
   const { recent, played, liked, myRecent, playlists } = data;
   return (
     <div className="pb-4">
-      <div className="flex items-center gap-2 overflow-x-auto px-4 pb-3 pt-2">
+      <div className="spot-hscroll flex items-center gap-2 overflow-x-auto px-4 pb-3 pt-2">
         <MyAvatar size={40} />
         <span className="rounded-full bg-[#a855f7] px-4 py-2 text-sm font-bold text-white">Tudo</span>
         <Link href="/app/spotcria/lista/recent" className="rounded-full bg-[#2a2a2a] px-4 py-2 text-sm font-bold">

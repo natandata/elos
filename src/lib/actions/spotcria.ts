@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { logGameActivity } from "@/lib/games/activity";
 import { youtubeId } from "@/lib/actions/praise";
 import { createClient } from "@/lib/supabase/server";
@@ -24,6 +23,10 @@ export async function addSpotTrack(link: string): Promise<{ error?: string; trac
   const { data: existing } = await supabase.from("spot_tracks").select("id, title").eq("video_id", id).maybeSingle<{ id: string; title: string }>();
   if (existing) return { track: existing, existed: true };
 
+  // limite diário para ninguém lotar a biblioteca
+  const { count: addedToday } = await supabase.from("spot_tracks").select("id", { count: "exact", head: true }).eq("added_by", user.id).gte("created_at", new Date(Date.now() - 24 * 3_600_000).toISOString());
+  if ((addedToday ?? 0) >= 40) return { error: "Você já adicionou muitas músicas hoje. Tente de novo amanhã." };
+
   let title = "";
   let channel = "";
   try {
@@ -41,7 +44,6 @@ export async function addSpotTrack(link: string): Promise<{ error?: string; trac
   const { data, error } = await supabase.from("spot_tracks").insert({ video_id: id, title, channel, added_by: user.id }).select("id, title").single<{ id: string; title: string }>();
   if (error || !data) return { error: "Não foi possível salvar. Tente de novo." };
   void logGameActivity(user.id, "spotcria", "add", `Adicionou · ${title}`, 5);
-  revalidatePath("/app/spotcria", "layout");
   return { track: data };
 }
 
@@ -50,7 +52,6 @@ export async function removeSpotTrack(trackId: string): Promise<{ error?: string
   if (!user) return { error: "Entre na sua conta." };
   const { error } = await supabase.from("spot_tracks").delete().eq("id", trackId);
   if (error) return { error: "Não foi possível remover." };
-  revalidatePath("/app/spotcria", "layout");
   return {};
 }
 
@@ -95,7 +96,6 @@ export async function createSpotPlaylist(name: string, firstTrackId?: string): P
   const { data, error } = await supabase.from("spot_playlists").insert({ owner_id: user.id, name: clean }).select("id").single<{ id: string }>();
   if (error || !data) return { error: "Não foi possível criar a playlist." };
   if (firstTrackId) await supabase.from("spot_playlist_tracks").insert({ playlist_id: data.id, track_id: firstTrackId });
-  revalidatePath("/app/spotcria", "layout");
   return { id: data.id };
 }
 
@@ -105,14 +105,12 @@ export async function renameSpotPlaylist(id: string, name: string): Promise<{ er
   const { supabase } = await me();
   const { error } = await supabase.from("spot_playlists").update({ name: clean }).eq("id", id);
   if (error) return { error: "Não foi possível renomear." };
-  revalidatePath("/app/spotcria", "layout");
   return {};
 }
 
 export async function deleteSpotPlaylist(id: string): Promise<void> {
   const { supabase } = await me();
   await supabase.from("spot_playlists").delete().eq("id", id);
-  revalidatePath("/app/spotcria", "layout");
 }
 
 export async function addToSpotPlaylist(playlistId: string, trackId: string): Promise<{ error?: string; already?: boolean }> {
@@ -122,14 +120,12 @@ export async function addToSpotPlaylist(playlistId: string, trackId: string): Pr
     if (error.code === "23505") return { already: true };
     return { error: "Não foi possível adicionar." };
   }
-  revalidatePath("/app/spotcria", "layout");
   return {};
 }
 
 export async function removeFromSpotPlaylist(playlistId: string, trackId: string): Promise<void> {
   const { supabase } = await me();
   await supabase.from("spot_playlist_tracks").delete().eq("playlist_id", playlistId).eq("track_id", trackId);
-  revalidatePath("/app/spotcria", "layout");
 }
 
 // ---- leitura (as telas buscam por aqui e guardam em cache no aparelho) ----
