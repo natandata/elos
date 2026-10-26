@@ -22,7 +22,7 @@ import { bibleGateFor, todayBR } from "@/lib/games/bibleGate";
 import { BibleGameLock } from "@/components/games/BibleGameLock";
 import { RoomBackdrop } from "@/components/games/room/RoomBackdrop";
 import { CategoryBar, CategoryCards, RoomHero } from "@/components/games/room/RoomParts";
-import { BabelTower } from "@/components/english/BabelTower";
+import { BabelMascot } from "@/components/english/BabelMascot";
 
 type Tile = { href: string; game: string; emoji: string; title: string; hint: string; tone: string };
 
@@ -384,7 +384,7 @@ export default async function JogosPage({ searchParams }: { searchParams: Promis
         })}
         {englishVisible ? (
           <Link href="/app/jogos/ingles" className={`relative flex aspect-square flex-col justify-between rounded-2xl border-2 border-b-4 border-[#58a700] bg-[#58cc02] p-4 text-white transition active:scale-[0.98] ${englishDone ? "opacity-80" : ""}`}>
-            <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/90"><BabelTower className="h-10 w-10" /></span>
+            <BabelMascot mood="happy" className="h-16 w-14" />
             <div>
               <p className="text-lg font-black leading-tight">Babel</p>
               <p className="mt-1 text-xs font-bold opacity-80">{englishDone ? "✔ Feito hoje · continue treinando" : "Lições e conversas · até +5 XP/dia"}</p>

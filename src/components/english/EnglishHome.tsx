@@ -3,6 +3,7 @@ import { LESSON_ORDER, ROLEPLAYS, UNITS, wordCards } from "@/lib/english/content
 import type { EnglishState } from "@/lib/english/data.server";
 import { legendaryId, legendaryUnlocked, lessonUnlocked, nextLesson, roleplayUnlocked } from "@/lib/english/progress";
 import { BabelTop } from "./BabelTop";
+import { MascotSays, type Mood } from "./BabelMascot";
 import { IcoBoost, IcoCards, IcoChat, IcoCheck, IcoCrown, IcoHeadphones, IcoLock, IcoStar, IcoTarget } from "./icons";
 
 // Trilha do Babel: barra de status, faixa verde por unidade e caminho em zigue-zague (lições, conversa e nível lendário), mais treinos.
@@ -56,6 +57,17 @@ function Hub({ href, icon, title, sub, badge }: { href: string; icon: React.Reac
   );
 }
 
+function bab(state: EnglishState, next: string | null): { mood: Mood; text: string } {
+  const b = state.babel;
+  if (state.totalDone === 0) return { mood: "cheer", text: "Oi! Eu sou o Bab, o guardião da torre. Vamos aprender inglês juntos? Comece pela primeira lição!" };
+  if (b.hearts === 0) return { mood: "sad", text: "Eita, acabaram os seus corações. Treine os erros para ganhar um de volta!" };
+  if (!next) return { mood: "proud", text: "Você terminou todas as lições por enquanto! Revise nos treinos e fique de olho nas ligas." };
+  if (state.streak > 0 && !state.doneToday) return { mood: "worried", text: `Faça uma lição hoje para manter a sua ofensiva de ${state.streak} ${state.streak === 1 ? "dia" : "dias"}!` };
+  if (b.today.xp >= b.goal) return { mood: "cheer", text: "Meta do dia batida! Continue e suba na liga." };
+  if (b.today.xp > 0) return { mood: "proud", text: `Boa! Faltam ${b.goal - b.today.xp} XP para a meta de hoje.` };
+  return { mood: "happy", text: "Pronto para a próxima lição? Vai ser rapidinho!" };
+}
+
 export function EnglishHome({ state }: { state: EnglishState }) {
   const done = new Set(state.done.keys());
   const next = nextLesson(done, state.startUnit);
@@ -78,6 +90,10 @@ export function EnglishHome({ state }: { state: EnglishState }) {
         </span>
         {state.babel.boostUntil ? <IcoBoost className="h-8 w-8 shrink-0" /> : null}
       </Link>
+
+      <div className="mt-4">
+        <MascotSays mood={bab(state, next).mood}>{bab(state, next).text}</MascotSays>
+      </div>
 
       {!state.placementDone && state.totalDone === 0 ? (
         <Link href="/app/jogos/ingles/nivelamento" className="bb-card bb-hub mt-5 transition active:translate-y-0.5">

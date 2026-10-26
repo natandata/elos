@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { BabelMascot } from "@/components/english/BabelMascot";
 import { LessonPlayer } from "@/components/english/LessonPlayer";
 import { requireRole } from "@/lib/auth";
 import { ALL_EXERCISES, listeningPool, wordCards } from "@/lib/english/content";
@@ -35,9 +36,7 @@ export default async function TreinoPage({ params }: { params: Promise<{ tipo: s
     return (
       <div className="flex min-h-[85dvh] flex-col text-center">
         <div className="flex flex-1 flex-col items-center justify-center">
-          <p className="text-7xl" aria-hidden>
-            ✨
-          </p>
+          <BabelMascot mood="cheer" className="h-36 w-32" />
           <h2 className="bb-h mt-3 text-3xl">Nada para revisar</h2>
           <p className="bb-sub mt-2">Quando você errar um exercício numa lição, ele aparece aqui para você refazer até dominar.</p>
         </div>

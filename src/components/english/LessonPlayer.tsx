@@ -10,7 +10,8 @@ import { placementUnit } from "@/lib/english/content";
 import { canSpeak, prepareVoices, speak, stopSpeaking } from "@/lib/english/speak";
 import type { Exercise, LsEx, McEx, MtEx, TrEx, TyEx } from "@/lib/english/types";
 import { WEEK_LETTERS } from "@/lib/babel/economy";
-import { IcoBolt, IcoBoost, IcoCheck, IcoClose, IcoFlame, IcoGem, IcoHeart, IcoSparkle, IcoSpeaker, IcoStar, IcoTarget, IcoTurtle } from "./icons";
+import { BabelMascot } from "./BabelMascot";
+import { IcoBolt, IcoBoost, IcoCheck, IcoClose, IcoFlame, IcoGem, IcoHeart, IcoSparkle, IcoSpeaker, IcoStar, IcoTurtle } from "./icons";
 
 // Jogador de lições: trilha, nível lendário (sem errar), treino de erros/palavras/ouvir e teste de nivelamento.
 // A correção é feita aqui (resposta instantânea); o servidor só confere o resultado final e paga o XP.
@@ -331,7 +332,7 @@ export function LessonPlayer({ mode, keyId, title, exercises, backHref, nextHref
     return (
       <div className="flex min-h-[85dvh] flex-col text-center">
         <div className="flex flex-1 flex-col items-center justify-center">
-          <IcoTarget className="h-24 w-24" />
+          <BabelMascot mood="sad" className="h-36 w-32" />
           <h2 className="mt-4 text-3xl font-extrabold text-[var(--bb-red)]">Quase! Errou uma</h2>
           <p className="bb-sub mt-2">No Nível Lendário não pode errar nenhuma. Você pode tentar quantas vezes quiser.</p>
           {out && !out.ok ? <p className="mt-4 rounded-2xl bg-[var(--bb-bad-bg)] px-4 py-3 text-sm font-extrabold text-[var(--bb-bad-ink)]">Resposta certa: {out.expected}</p> : null}
@@ -352,7 +353,7 @@ export function LessonPlayer({ mode, keyId, title, exercises, backHref, nextHref
     return (
       <div className="flex min-h-[85dvh] flex-col text-center">
         <div className="flex flex-1 flex-col items-center justify-center">
-          <IcoHeart className="h-24 w-24" broken />
+          <BabelMascot mood="sad" className="h-36 w-32" />
           <h2 className="mt-4 text-3xl font-extrabold">Você ficou sem corações</h2>
           <p className="bb-sub mt-2">Treine os seus erros para ganhar 1 coração, recarregue com gemas ou espere: volta 1 coração a cada 4 horas.</p>
           {buyErr ? <p className="mt-3 rounded-2xl bg-[var(--bb-bad-bg)] px-3 py-2 text-sm font-extrabold text-[var(--bb-bad-ink)]">{buyErr}</p> : null}
@@ -422,9 +423,10 @@ export function LessonPlayer({ mode, keyId, title, exercises, backHref, nextHref
         <div className="flex min-h-[85dvh] flex-col text-center">
           <div className="flex flex-1 flex-col items-center justify-center">
             <div className="bb-pop">
-              <IcoFlame className="mx-auto h-32 w-32" />
+              <BabelMascot mood="cheer" className="mx-auto h-36 w-32" />
             </div>
-            <p className="bb-pop mt-2 text-7xl font-black text-[var(--bb-orange)]">{bab.streak}</p>
+            <IcoFlame className="mt-2 h-12 w-12" />
+            <p className="bb-pop text-7xl font-black text-[var(--bb-orange)]">{bab.streak}</p>
             <h2 className="mt-1 text-2xl font-extrabold text-[var(--bb-orange)]">{bab.streak === 1 ? "dia de ofensiva!" : "dias de ofensiva!"}</h2>
             <div className="bb-card mt-6 w-full p-4">
               <div className="bb-week">
@@ -452,9 +454,12 @@ export function LessonPlayer({ mode, keyId, title, exercises, backHref, nextHref
       return (
         <div className="flex min-h-[85dvh] flex-col text-center">
           <div className="flex flex-1 flex-col items-center justify-center">
-            <div className="bb-ring bb-pop !h-36 !w-36" style={{ ["--p" as string]: 100 }}>
-              <span className="!h-28 !w-28">
-                <IcoCheck className="h-14 w-14 text-[var(--bb-green)]" />
+            <div className="bb-pop">
+              <BabelMascot mood="cheer" className="mx-auto h-36 w-32" />
+            </div>
+            <div className="bb-ring mt-3 !h-16 !w-16" style={{ ["--p" as string]: 100 }}>
+              <span className="!h-12 !w-12">
+                <IcoCheck className="h-7 w-7 text-[var(--bb-green)]" />
               </span>
             </div>
             <h2 className="mt-6 text-3xl font-extrabold text-[var(--bb-green)]">Meta diária concluída!</h2>
@@ -473,6 +478,7 @@ export function LessonPlayer({ mode, keyId, title, exercises, backHref, nextHref
     return (
       <div className="flex min-h-[85dvh] flex-col text-center">
         <div className="flex flex-1 flex-col items-center justify-center">
+          <BabelMascot mood={bab?.perfect ? "cheer" : "proud"} className="mb-2 h-28 w-24" />
           {stars ? (
             <p className="bb-pop flex gap-1 text-[var(--bb-gold)]" aria-label={`${stars} estrelas`}>
               {[1, 2, 3].map((s) => (
