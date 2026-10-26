@@ -20,6 +20,7 @@ import { STORE_COLUMNS, type StoreItem } from "@/lib/games/store";
 import { gameOpenFor, getEarlyAccess, getVisibilities, isHiddenFor } from "@/lib/games/releaseServer";
 import { bibleGateFor, todayBR } from "@/lib/games/bibleGate";
 import { BibleGameLock } from "@/components/games/BibleGameLock";
+import { VideoGameLock, type LockVideo } from "@/components/games/VideoGameLock";
 import { RoomBackdrop } from "@/components/games/room/RoomBackdrop";
 import { CategoryBar, CategoryCards, RoomHero } from "@/components/games/room/RoomParts";
 import { BabelMascot } from "@/components/english/BabelMascot";
@@ -40,10 +41,27 @@ export default async function JogosPage({ searchParams }: { searchParams: Promis
   const supabase = await createClient();
   // trava do dia: cria só entra na Sala de Jogos depois de ler a Bíblia 5 minutos
   const gate = await bibleGateFor(supabase, profile);
-  if (gate.locked) {
+  if (gate.locked && gate.kind === "reading") {
     return (
       <RoomBackdrop>
         <BibleGameLock seconds={gate.seconds} />
+      </RoomBackdrop>
+    );
+  }
+  if (gate.locked) {
+    // dia de vídeo (ou pendência por ter ido ao YouTube): assistir um conteúdo relevante inteiro no player do app
+    const { data: daily } = await supabase.rpc("home_daily_videos");
+    let list = ((daily ?? []) as { source: LockVideo["source"]; video_id: string; title: string }[]).map((v) => ({ ...v, pct: 0 }));
+    if (gate.kind === "penalty" && gate.penaltyVideo) {
+      const { data: pick } = await supabase.from("home_video_picks").select("source, title, video_id").eq("video_id", gate.penaltyVideo).maybeSingle<{ source: LockVideo["source"]; title: string; video_id: string }>();
+      list = pick ? [{ ...pick, pct: 0 }] : list;
+    }
+    const { data: watched } = await supabase.from("video_watch").select("video_id, duration, covered").eq("user_id", profile.id).in("video_id", list.map((v) => v.video_id));
+    const pctOf = new Map(((watched ?? []) as { video_id: string; duration: number; covered: number[] }[]).map((w) => [w.video_id, Math.min(100, Math.round((w.covered.length / Math.max(1, Math.ceil(w.duration / 5))) * 100))]));
+    list = list.map((v) => ({ ...v, pct: pctOf.get(v.video_id) ?? 0 }));
+    return (
+      <RoomBackdrop>
+        <VideoGameLock videos={list} penalty={gate.kind === "penalty"} />
       </RoomBackdrop>
     );
   }

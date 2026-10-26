@@ -23,7 +23,7 @@ function refFromPath(path: string): string | undefined {
 
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
-export function ReadingTimer({ initialSeconds, required, role }: { initialSeconds: number; required: number; role: "cria" | "leader" }) {
+export function ReadingTimer({ initialSeconds, required, role, unlocksGames = true }: { initialSeconds: number; required: number; role: "cria" | "leader"; /** hoje a leitura libera a Sala de Jogos (dia de leitura); em dia de vídeo ela só rende o +1 XP */ unlocksGames?: boolean }) {
   const [secs, setSecs] = useState(initialSeconds);
   const [done, setDone] = useState(initialSeconds >= required);
   const [justEarned, setJustEarned] = useState(false);
@@ -129,9 +129,9 @@ export function ReadingTimer({ initialSeconds, required, role }: { initialSecond
       <div className="sticky top-2 z-30 mb-4 flex items-center justify-between gap-3 rounded-2xl border border-emerald-400 bg-emerald-50 px-4 py-3 text-emerald-900 shadow-md">
         <p className="text-sm font-black">
           {justEarned ? "✅ Leitura do dia completa: +1 XP!" : "✅ Leitura do dia completa"}
-          {role === "cria" ? " 🎮 Sala de Jogos liberada." : ""}
+          {role === "cria" && unlocksGames ? " 🎮 Sala de Jogos liberada." : ""}
         </p>
-        {role === "cria" ? (
+        {role === "cria" && unlocksGames ? (
           <Link href="/app/jogos" className="btn btn-primary !px-3 !py-1.5 text-sm">
             Ir jogar
           </Link>
@@ -140,7 +140,7 @@ export function ReadingTimer({ initialSeconds, required, role }: { initialSecond
     );
   }
 
-  const goal = role === "cria" ? "para liberar os jogos e ganhar +1 XP" : "para ganhar +1 XP hoje";
+  const goal = role === "cria" && unlocksGames ? "para liberar os jogos e ganhar +1 XP" : "para ganhar +1 XP hoje";
 
   return (
     <div className="sticky top-2 z-30 mb-4 rounded-2xl border border-[var(--line)] bg-[var(--card)] px-4 py-3 text-[var(--ink)] shadow-md" role="status" aria-live="polite">

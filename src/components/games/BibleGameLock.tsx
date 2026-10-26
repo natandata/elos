@@ -26,7 +26,7 @@ export function BibleGameLock({ seconds }: { seconds: number }) {
         <Link href="/app/biblia" className="btn btn-primary mt-5 w-full !py-3 text-base">
           📖 Ler a Bíblia
         </Link>
-        <p className="mt-3 text-[11px] text-[var(--muted)]">A trava recomeça todo dia à meia-noite.</p>
+        <p className="mt-3 text-[11px] text-[var(--muted)]">A trava recomeça todo dia à meia-noite. Amanhã a liberação será assistir um conteúdo relevante por inteiro.</p>
       </div>
     </>
   );
