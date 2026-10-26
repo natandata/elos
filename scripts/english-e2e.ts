@@ -38,7 +38,7 @@ let total = 0;
 for (const u of UNITS) {
   ok(u.lessons.length === 3, `unidade ${u.n} tem 3 lições`);
   for (const l of u.lessons) {
-    ok(l.exercises.length >= 8, `${l.id} tem pelo menos 8 exercícios (${l.exercises.length})`);
+    ok(l.exercises.length >= 5, `${l.id} tem pelo menos 5 exercícios (${l.exercises.length})`);
     for (const e of l.exercises) {
       total++;
       ok(!ids.has(e.id), `id repetido ${e.id}`);
@@ -75,7 +75,7 @@ const pl = placementExercises();
 eq(pl.length, 8, "nivelamento com 8 perguntas");
 eq([0, 2, 3, 5, 7, 8].map(placementUnit), [1, 1, 2, 3, 4, 4], "nivelamento -> unidade");
 ok(wordCards().length >= 8, `cartas de palavras (${wordCards().length})`);
-ok(listeningPool().length >= 12, `exercícios de ouvir (${listeningPool().length})`);
+eq(listeningPool().length, 0, "sem exercícios de ouvir nas lições");
 for (const u of UNITS) {
   const lg = legendaryExercises(u.n);
   ok(lg.length >= 8 && lg.length <= 10, `lendário da unidade ${u.n} (${lg.length})`);

@@ -5,7 +5,7 @@ import type { EnglishState } from "@/lib/english/data.server";
 import { legendaryId, legendaryUnlocked, lessonUnlocked, nextLesson, roleplayUnlocked } from "@/lib/english/progress";
 import { BabelTop } from "./BabelTop";
 import { MascotSays, type Mood } from "./BabelMascot";
-import { IcoBoost, IcoCards, IcoChat, IcoCheck, IcoCrown, IcoHeadphones, IcoLock, IcoStar, IcoTarget } from "./icons";
+import { IcoBoost, IcoCards, IcoChat, IcoCheck, IcoCrown, IcoLock, IcoStar, IcoTarget } from "./icons";
 
 // Trilha do Babel: barra de status, faixa verde por unidade e caminho em zigue-zague (lições, conversa e nível lendário), mais treinos.
 
@@ -160,7 +160,6 @@ export function EnglishHome({ state }: { state: EnglishState }) {
         <div className="grid gap-3">
           <Hub href="/app/jogos/ingles/treino/erros" icon={<IcoTarget className="h-10 w-10" />} title="Meus erros" sub="Refaça o que você errou" badge={state.pendingMistakes.length || undefined} />
           <Hub href="/app/jogos/ingles/treino/palavras" icon={<IcoCards className="h-10 w-10" />} title="Palavras" sub={`${wordCards().length} cartas para fixar`} />
-          <Hub href="/app/jogos/ingles/treino/ouvir" icon={<IcoHeadphones className="h-10 w-10" />} title="Ouvir" sub="Treine o ouvido" />
         </div>
         <p className="bb-sub mt-3 text-center text-xs">Treinos não valem XP, mas ajudam a fixar. {LESSON_ORDER.length} lições no total nas {UNITS.length} unidades (A1 a B1).</p>
       </section>

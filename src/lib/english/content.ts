@@ -188,6 +188,10 @@ export const UNITS: Unit[] = [
 // Unidades 5 a 10 (A2 e B1): geradas a partir do Tatoeba por scripts/build-english-library.py
 UNITS.push(...LIBRARY_UNITS.map((u): Unit => ({ n: u.n, title: u.title, emoji: u.emoji, level: u.level, about: u.about, lessons: u.lessons.map((l) => L(u.n, l.n, l.title, l.exercises)) })));
 
+// Sem exercícios de listening (ouvir e digitar / ouvir e tocar). Filtra depois de gerar os ids, para não mexer nos ids dos demais.
+const isListening = (e: Exercise) => e.k === "ls" || (e.k === "mc" && !!e.say);
+for (const u of UNITS) for (const l of u.lessons) l.exercises = l.exercises.filter((e) => !isListening(e));
+
 export const LESSONS: Record<string, Lesson> = Object.fromEntries(UNITS.flatMap((u) => u.lessons).map((l) => [l.id, l]));
 export const ALL_EXERCISES: Record<string, Exercise> = Object.fromEntries(Object.values(LESSONS).flatMap((l) => l.exercises).map((e) => [e.id, e]));
 export const LESSON_ORDER: string[] = UNITS.flatMap((u) => u.lessons.map((l) => l.id));
