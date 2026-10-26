@@ -383,8 +383,8 @@ export default async function JogosPage({ searchParams }: { searchParams: Promis
           );
         })}
         {englishVisible ? (
-          <Link href="/app/jogos/ingles" className={`relative flex aspect-square flex-col justify-between rounded-2xl border-2 border-amber-400 bg-amber-100 p-4 text-amber-950 transition active:scale-[0.98] ${englishDone ? "opacity-80" : ""}`}>
-            <BabelTower className="h-12 w-12" />
+          <Link href="/app/jogos/ingles" className={`relative flex aspect-square flex-col justify-between rounded-2xl border-2 border-b-4 border-[#58a700] bg-[#58cc02] p-4 text-white transition active:scale-[0.98] ${englishDone ? "opacity-80" : ""}`}>
+            <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/90"><BabelTower className="h-10 w-10" /></span>
             <div>
               <p className="text-lg font-black leading-tight">Babel</p>
               <p className="mt-1 text-xs font-bold opacity-80">{englishDone ? "✔ Feito hoje · continue treinando" : "Lições e conversas · até +5 XP/dia"}</p>

@@ -33,15 +33,19 @@ export default async function TreinoPage({ params }: { params: Promise<{ tipo: s
 
   if (exercises.length === 0) {
     return (
-      <div className="mx-auto max-w-md text-center">
-        <p className="text-6xl" aria-hidden>
-          ✨
-        </p>
-        <h2 className="mt-2 text-2xl font-black">Nada para revisar</h2>
-        <p className="mt-1 text-sm text-[var(--muted)]">Quando você errar um exercício numa lição, ele aparece aqui para você refazer até dominar.</p>
-        <Link href={HOME} className="btn btn-primary mt-5 w-full !py-3">
-          Voltar à trilha
-        </Link>
+      <div className="flex min-h-[85dvh] flex-col text-center">
+        <div className="flex flex-1 flex-col items-center justify-center">
+          <p className="text-7xl" aria-hidden>
+            ✨
+          </p>
+          <h2 className="bb-h mt-3 text-3xl">Nada para revisar</h2>
+          <p className="bb-sub mt-2">Quando você errar um exercício numa lição, ele aparece aqui para você refazer até dominar.</p>
+        </div>
+        <div className="bb-foot">
+          <Link href={HOME} className="bb-btn">
+            Voltar à trilha
+          </Link>
+        </div>
       </div>
     );
   }

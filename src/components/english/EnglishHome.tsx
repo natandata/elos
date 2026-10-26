@@ -1,150 +1,140 @@
 import Link from "next/link";
-import { LESSON_ORDER, LESSONS, ROLEPLAYS, UNITS, wordCards } from "@/lib/english/content";
+import { LESSON_ORDER, ROLEPLAYS, UNITS, wordCards } from "@/lib/english/content";
 import type { EnglishState } from "@/lib/english/data.server";
 import { legendaryId, legendaryUnlocked, lessonUnlocked, nextLesson, roleplayUnlocked } from "@/lib/english/progress";
 import { XP_DAILY_LESSONS } from "@/lib/english/grade";
 import { BabelTower } from "./BabelTower";
+import { IcoBack, IcoBolt, IcoCards, IcoChat, IcoCheck, IcoCrown, IcoFlame, IcoHeadphones, IcoLock, IcoStar, IcoTarget } from "./icons";
 
-// Trilha do Babel: meta do dia, próxima lição, unidades (lições, conversa e nível lendário) e treino.
+// Trilha do Babel: barra de status, faixa verde por unidade e caminho em zigue-zague (lições, conversa e nível lendário), mais treinos.
 
-function Node({ href, icon, title, sub, state, stars }: { href?: string; icon: string; title: string; sub?: string; state: "done" | "next" | "open" | "locked"; stars?: number }) {
-  const tone = state === "done" ? "border-emerald-300 bg-emerald-50 text-emerald-950" : state === "next" ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[#1d1535] ring-2 ring-[var(--accent)]" : state === "open" ? "border-[var(--line)] bg-[var(--card)]" : "border-[var(--line)] bg-[var(--card)] opacity-55";
-  const body = (
-    <div className={`flex items-center gap-3 rounded-2xl border-2 px-3 py-3 transition active:scale-[0.99] ${tone}`}>
-      <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-2xl ${state === "locked" ? "bg-[var(--line)]" : "bg-white/80"}`} aria-hidden>
-        {state === "locked" ? "🔒" : icon}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-base font-black">{title}</p>
-        {sub ? <p className="truncate text-xs font-semibold opacity-75">{sub}</p> : null}
-      </div>
+type NodeState = "done" | "next" | "open" | "locked";
+type Kind = "lesson" | "chat" | "legend";
+
+// deslocamento horizontal (px) de cada bolinha, formando a curva do caminho
+const WAVE = [0, 38, 62, 38, 0, -38, -62, -38];
+
+function PathNode({ idx, href, kind, state, label, stars }: { idx: number; href: string; kind: Kind; state: NodeState; label: string; stars?: number }) {
+  const cls = state === "locked" ? "locked" : state === "done" ? "done" : kind === "chat" ? "chat" : kind === "legend" ? "legend" : "todo";
+  const icon = state === "locked" ? <IcoLock className="h-7 w-7" /> : state === "done" ? <IcoCheck className="h-9 w-9" /> : kind === "chat" ? <IcoChat className="h-8 w-8" /> : kind === "legend" ? <IcoCrown className="h-8 w-8" /> : <IcoStar className="h-8 w-8" />;
+  const node = (
+    <>
+      {state === "next" ? <span className="bb-start">Começar</span> : null}
+      <span className={`bb-node ${cls} ${state === "next" ? "next" : ""}`}>{icon}</span>
+    </>
+  );
+  return (
+    <div className="bb-node-wrap" style={{ transform: `translateX(${WAVE[idx % WAVE.length]}px)` }}>
+      {state === "locked" ? (
+        <div aria-disabled>{node}</div>
+      ) : (
+        <Link href={href} className="relative flex flex-col items-center" aria-label={label}>
+          {node}
+        </Link>
+      )}
+      <p className="bb-node-lbl">{label}</p>
       {stars ? (
-        <span className="shrink-0 text-base" aria-label={`${stars} estrelas`}>
-          {"⭐".repeat(stars)}
-        </span>
-      ) : state === "next" ? (
-        <span className="shrink-0 rounded-full bg-[var(--accent)] px-3 py-1 text-xs font-black text-[var(--accent-ink)]">COMEÇAR</span>
+        <p className="mt-0.5 flex gap-0.5 text-[var(--bb-gold)]" aria-label={`${stars} estrelas`}>
+          {[1, 2, 3].map((s) => (
+            <IcoStar key={s} className={`h-3.5 w-3.5 ${s <= stars ? "" : "opacity-25"}`} />
+          ))}
+        </p>
       ) : null}
     </div>
   );
-  return href && state !== "locked" ? (
-    <Link href={href} className="block">
-      {body}
+}
+
+function Hub({ href, icon, title, sub, badge }: { href: string; icon: React.ReactNode; title: string; sub: string; badge?: number }) {
+  return (
+    <Link href={href} className="bb-card bb-hub relative transition active:translate-y-0.5">
+      {badge ? <span className="absolute right-3 top-3 rounded-full bg-[var(--bb-red)] px-2 py-0.5 text-xs font-extrabold text-white">{badge}</span> : null}
+      <span className="flex h-12 w-12 shrink-0 items-center justify-center">{icon}</span>
+      <span className="min-w-0">
+        <span className="block text-base font-extrabold uppercase tracking-wide">{title}</span>
+        <span className="bb-sub block">{sub}</span>
+      </span>
     </Link>
-  ) : (
-    <div aria-disabled={state === "locked"}>{body}</div>
   );
 }
 
 export function EnglishHome({ state }: { state: EnglishState }) {
   const done = new Set(state.done.keys());
   const next = nextLesson(done, state.startUnit);
-  const nextTitle = next ? LESSONS[next]?.title : null;
   const finished = !next;
+  let counter = 0;
 
   return (
-    <div className="mx-auto max-w-xl">
-      <header className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-500 via-orange-600 to-rose-800 p-5 text-white shadow-lg">
-        <BabelTower className="pointer-events-none absolute -right-2 -top-1 h-28 w-28 opacity-90" />
-        <p className="text-xs font-black uppercase tracking-widest text-white/80">Jogo educativo · inglês</p>
-        <h1 className="mt-1 text-4xl font-black leading-tight tracking-tight">Babel</h1>
-        <p className="mt-1 max-w-[16rem] text-sm font-semibold text-white/90">Aprenda inglês conversando: lições curtas, conversas com personagens e treino dos seus erros.</p>
-        <div className="mt-3 flex flex-wrap gap-2 text-xs font-black">
-          <span className="rounded-full bg-white/20 px-3 py-1">🔥 {state.streak} {state.streak === 1 ? "dia" : "dias"} seguidos</span>
-          <span className="rounded-full bg-white/20 px-3 py-1">
-            ⭐ XP hoje: {state.xpLessons}/{XP_DAILY_LESSONS} lições{state.xpRoleplay ? " + conversa" : ""}
+    <div>
+      <div className="bb-top">
+        <Link href="/app/jogos" className="text-[var(--bb-mute)]" aria-label="Voltar à Sala de Jogos">
+          <IcoBack />
+        </Link>
+        <span className="flex items-center gap-1.5 text-2xl font-black tracking-tight text-[var(--bb-green)]">
+          <BabelTower className="h-7 w-7" />
+          babel
+        </span>
+        <span className="ml-auto flex items-center gap-4">
+          <span className="bb-chip" style={{ color: "var(--bb-orange)" }} aria-label={`${state.streak} dias seguidos`}>
+            <IcoFlame />
+            {state.streak}
           </span>
-        </div>
-        {next ? (
-          <Link href={`/app/jogos/ingles/licao/${next}`} className="mt-4 inline-block rounded-full bg-white px-5 py-2.5 text-sm font-black text-orange-900 shadow">
-            ▶ {state.totalDone === 0 ? "Começar" : "Continuar"}: {nextTitle}
-          </Link>
-        ) : null}
-        {finished ? <p className="mt-4 rounded-2xl bg-white/20 px-3 py-2 text-sm font-black">Você terminou todas as lições disponíveis! Revise nos treinos. Mais unidades (A2 e B1) chegam em breve. 🎉</p> : null}
-      </header>
+          <span className="bb-chip" style={{ color: "var(--bb-gold)" }} aria-label="XP de lições hoje">
+            <IcoBolt />
+            {state.xpLessons}/{XP_DAILY_LESSONS}
+          </span>
+        </span>
+      </div>
 
       {!state.placementDone && state.totalDone === 0 ? (
-        <Link href="/app/jogos/ingles/nivelamento" className="card mt-4 flex items-center gap-3 p-4 transition active:scale-[0.99]">
-          <span className="text-3xl" aria-hidden>
-            🎯
+        <Link href="/app/jogos/ingles/nivelamento" className="bb-card bb-hub mt-5 transition active:translate-y-0.5">
+          <IcoTarget className="h-10 w-10 shrink-0" />
+          <span className="min-w-0">
+            <span className="block text-base font-extrabold">Já sabe um pouco de inglês?</span>
+            <span className="bb-sub block">Faça o teste de nivelamento (8 perguntas, 2 minutos) e comece mais adiante.</span>
           </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-base font-black">Já sabe um pouco de inglês?</span>
-            <span className="block text-xs font-semibold text-[var(--muted)]">Faça o teste de nivelamento (8 perguntas, 2 minutos) e comece mais adiante.</span>
-          </span>
-          <span aria-hidden>→</span>
         </Link>
       ) : null}
 
-      <section className="mt-5 space-y-5">
-        {UNITS.map((u) => {
-          const rp = ROLEPLAYS.find((r) => r.id === u.roleplay);
-          const rpOpen = rp ? roleplayUnlocked(u.n, done, state.startUnit) : false;
-          const legOpen = legendaryUnlocked(u.n, done, state.startUnit);
-          const legStars = state.done.get(legendaryId(u.n));
-          return (
-            <div key={u.n}>
-              <div className="mb-2 flex items-center gap-2">
-                <span className="text-3xl" aria-hidden>
-                  {u.emoji}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-black uppercase tracking-wide text-[var(--muted)]">
-                    Unidade {u.n} · {u.level}
-                  </p>
-                  <p className="truncate text-lg font-black leading-tight">{u.title}</p>
-                </div>
-              </div>
-              <div className="space-y-2">
-                {u.lessons.map((l) => {
-                  const unlocked = lessonUnlocked(l.id, done, state.startUnit);
-                  const stars = state.done.get(l.id);
-                  const st = stars ? "done" : next === l.id ? "next" : unlocked ? "open" : "locked";
-                  return <Node key={l.id} href={`/app/jogos/ingles/licao/${l.id}`} icon="📘" title={`Lição ${l.n}: ${l.title}`} sub={`${l.exercises.length} exercícios`} state={st} stars={stars} />;
-                })}
-                {rp ? (
-                  <Node
-                    href={`/app/jogos/ingles/conversa/${rp.id}`}
-                    icon="💬"
-                    title={`Conversa: ${rp.title}`}
-                    sub={rpOpen ? (state.roleplayBest.has(rp.id) ? `Melhor precisão: ${state.roleplayBest.get(rp.id)}%` : `com ${rp.who.name} · +2 XP por dia`) : "Abre depois da lição 2"}
-                    state={state.roleplayBest.has(rp.id) ? "done" : rpOpen ? "open" : "locked"}
-                  />
-                ) : null}
-                <Node href={`/app/jogos/ingles/licao/${legendaryId(u.n)}`} icon="👑" title="Nível Lendário" sub={legOpen ? "10 exercícios sem errar · tentativas ilimitadas" : "Abre depois das 3 lições"} state={legStars ? "done" : legOpen ? "open" : "locked"} stars={legStars} />
-              </div>
-            </div>
-          );
-        })}
-      </section>
+      {finished ? <p className="bb-card mt-5 px-4 py-3 text-center text-sm font-extrabold">Você terminou todas as lições disponíveis! Revise nos treinos. Mais unidades (A2 e B1) chegam em breve.</p> : null}
 
-      <section className="mt-6">
-        <h2 className="mb-2 text-sm font-black uppercase tracking-wide text-[var(--muted)]">Treino</h2>
-        <div className="grid grid-cols-3 gap-2">
-          <Link href="/app/jogos/ingles/treino/erros" className="card relative flex flex-col items-center gap-1 p-3 text-center transition active:scale-[0.98]">
-            {state.pendingMistakes.length ? <span className="absolute right-2 top-2 rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-black text-white">{state.pendingMistakes.length}</span> : null}
-            <span className="text-3xl" aria-hidden>
-              🎯
-            </span>
-            <span className="text-sm font-black">Meus erros</span>
-            <span className="text-[11px] font-semibold text-[var(--muted)]">refaça o que errou</span>
-          </Link>
-          <Link href="/app/jogos/ingles/treino/palavras" className="card flex flex-col items-center gap-1 p-3 text-center transition active:scale-[0.98]">
-            <span className="text-3xl" aria-hidden>
-              🃏
-            </span>
-            <span className="text-sm font-black">Palavras</span>
-            <span className="text-[11px] font-semibold text-[var(--muted)]">{wordCards().length} cartas</span>
-          </Link>
-          <Link href="/app/jogos/ingles/treino/ouvir" className="card flex flex-col items-center gap-1 p-3 text-center transition active:scale-[0.98]">
-            <span className="text-3xl" aria-hidden>
-              🎧
-            </span>
-            <span className="text-sm font-black">Ouvir</span>
-            <span className="text-[11px] font-semibold text-[var(--muted)]">treine o ouvido</span>
-          </Link>
+      {UNITS.map((u) => {
+        const rp = ROLEPLAYS.find((r) => r.id === u.roleplay);
+        const rpOpen = rp ? roleplayUnlocked(u.n, done, state.startUnit) : false;
+        const legOpen = legendaryUnlocked(u.n, done, state.startUnit);
+        const legStars = state.done.get(legendaryId(u.n));
+        const doneCount = u.lessons.filter((l) => state.done.has(l.id)).length;
+        return (
+          <section key={u.n}>
+            <div className="bb-unit">
+              <small>
+                Unidade {u.n} · {u.level} · {doneCount}/{u.lessons.length}
+              </small>
+              <p>
+                {u.emoji} {u.title}
+              </p>
+            </div>
+            <div className="bb-path">
+              {u.lessons.map((l) => {
+                const unlocked = lessonUnlocked(l.id, done, state.startUnit);
+                const stars = state.done.get(l.id);
+                const st: NodeState = stars ? "done" : next === l.id ? "next" : unlocked ? "open" : "locked";
+                return <PathNode key={l.id} idx={counter++} href={`/app/jogos/ingles/licao/${l.id}`} kind="lesson" state={st} label={l.title} stars={stars} />;
+              })}
+              {rp ? <PathNode idx={counter++} href={`/app/jogos/ingles/conversa/${rp.id}`} kind="chat" state={state.roleplayBest.has(rp.id) ? "done" : rpOpen ? "open" : "locked"} label={`Conversa: ${rp.title}`} /> : null}
+              <PathNode idx={counter++} href={`/app/jogos/ingles/licao/${legendaryId(u.n)}`} kind="legend" state={legStars ? "done" : legOpen ? "open" : "locked"} label="Nível Lendário" stars={legStars} />
+            </div>
+          </section>
+        );
+      })}
+
+      <section className="mt-4">
+        <h2 className="mb-3 text-xl font-extrabold">Treino</h2>
+        <div className="grid gap-3">
+          <Hub href="/app/jogos/ingles/treino/erros" icon={<IcoTarget className="h-10 w-10" />} title="Meus erros" sub="Refaça o que você errou" badge={state.pendingMistakes.length || undefined} />
+          <Hub href="/app/jogos/ingles/treino/palavras" icon={<IcoCards className="h-10 w-10" />} title="Palavras" sub={`${wordCards().length} cartas para fixar`} />
+          <Hub href="/app/jogos/ingles/treino/ouvir" icon={<IcoHeadphones className="h-10 w-10" />} title="Ouvir" sub="Treine o ouvido" />
         </div>
-        <p className="mt-2 text-center text-[11px] font-semibold text-[var(--muted)]">Treinos não valem XP, mas ajudam a fixar. {LESSON_ORDER.length} lições no total nesta etapa (nível A1).</p>
+        <p className="bb-sub mt-3 text-center text-xs">Treinos não valem XP, mas ajudam a fixar. {LESSON_ORDER.length} lições no total nesta etapa (nível A1).</p>
       </section>
     </div>
   );
