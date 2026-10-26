@@ -1,3 +1,4 @@
+import { LIBRARY_UNITS } from "./library.generated";
 import type { Exercise, Lesson, RawExercise, Roleplay, Unit } from "./types";
 
 // Conteúdo do Babel, fase 1: nível A1 (unidades 1 a 4). Escrito para o ELOS (adolescentes brasileiros);
@@ -184,6 +185,9 @@ export const UNITS: Unit[] = [
   },
 ];
 
+// Unidades 5 a 10 (A2 e B1): geradas a partir do Tatoeba por scripts/build-english-library.py
+UNITS.push(...LIBRARY_UNITS.map((u): Unit => ({ n: u.n, title: u.title, emoji: u.emoji, level: u.level, about: u.about, lessons: u.lessons.map((l) => L(u.n, l.n, l.title, l.exercises)) })));
+
 export const LESSONS: Record<string, Lesson> = Object.fromEntries(UNITS.flatMap((u) => u.lessons).map((l) => [l.id, l]));
 export const ALL_EXERCISES: Record<string, Exercise> = Object.fromEntries(Object.values(LESSONS).flatMap((l) => l.exercises).map((e) => [e.id, e]));
 export const LESSON_ORDER: string[] = UNITS.flatMap((u) => u.lessons.map((l) => l.id));
@@ -199,7 +203,7 @@ export function legendaryExercises(unit: number): Exercise[] {
 
 /** Teste de nivelamento: 2 perguntas (escolha ou digitar) da última lição de cada unidade. */
 export function placementExercises(): Exercise[] {
-  return UNITS.flatMap((u) => u.lessons[2].exercises.filter((e) => e.k === "mc" || e.k === "ty").slice(0, 2));
+  return UNITS.slice(0, 4).flatMap((u) => u.lessons[2].exercises.filter((e) => e.k === "mc" || e.k === "ty").slice(0, 2));
 }
 /** Pontos do teste (0 a 8) -> unidade inicial (1 a 4). */
 export function placementUnit(correct: number): number {

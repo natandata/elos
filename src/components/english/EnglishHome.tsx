@@ -107,7 +107,7 @@ export function EnglishHome({ state }: { state: EnglishState }) {
         </Link>
       ) : null}
 
-      {finished ? <p className="bb-card mt-5 px-4 py-3 text-center text-sm font-extrabold">Você terminou todas as lições! Peça sua conversa com o líder no último nível, ao fim da trilha. Mais unidades (A2 e B1) chegam em breve.</p> : null}
+      {finished ? <p className="bb-card mt-5 px-4 py-3 text-center text-sm font-extrabold">Você terminou todas as lições! Peça sua conversa com o líder no último nível, ao fim da trilha.</p> : null}
 
       {UNITS.map((u) => {
         const rp = ROLEPLAYS.find((r) => r.id === u.roleplay);
@@ -162,7 +162,7 @@ export function EnglishHome({ state }: { state: EnglishState }) {
           <Hub href="/app/jogos/ingles/treino/palavras" icon={<IcoCards className="h-10 w-10" />} title="Palavras" sub={`${wordCards().length} cartas para fixar`} />
           <Hub href="/app/jogos/ingles/treino/ouvir" icon={<IcoHeadphones className="h-10 w-10" />} title="Ouvir" sub="Treine o ouvido" />
         </div>
-        <p className="bb-sub mt-3 text-center text-xs">Treinos não valem XP, mas ajudam a fixar. {LESSON_ORDER.length} lições no total nesta etapa (nível A1).</p>
+        <p className="bb-sub mt-3 text-center text-xs">Treinos não valem XP, mas ajudam a fixar. {LESSON_ORDER.length} lições no total nas {UNITS.length} unidades (A1 a B1).</p>
       </section>
     </div>
   );

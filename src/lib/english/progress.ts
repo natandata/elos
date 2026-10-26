@@ -38,6 +38,6 @@ export function legendaryUnlocked(unit: number, done: Set<string>, startUnit: nu
 
 export const legendaryId = (unit: number) => `u${unit}-lendario`;
 export const parseLegendary = (key: string): number | null => {
-  const m = key.match(/^u(\d)-lendario$/);
+  const m = key.match(/^u(\d+)-lendario$/);
   return m ? Number(m[1]) : null;
 };

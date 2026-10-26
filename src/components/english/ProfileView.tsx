@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { setBabelGoal } from "@/lib/actions/babel";
@@ -106,6 +107,11 @@ export function ProfileView({ state, name }: { state: EnglishState; name: string
           </button>
         ))}
       </div>
+      <p className="mt-6 text-center">
+        <Link href="/app/jogos/ingles/creditos" className="text-xs font-extrabold text-[var(--bb-mute)] underline">
+          Créditos das frases (Tatoeba)
+        </Link>
+      </p>
     </div>
   );
 }
