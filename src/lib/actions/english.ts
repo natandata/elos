@@ -23,7 +23,24 @@ export type EnglishFinish = {
   turns?: { turn: number; reply: string; q: number }[];
   startUnit?: number;
 };
-export type EnglishResult = { error?: string; xp?: number; stars?: number; streak?: number; valid?: boolean };
+/** Recompensas do Babel pagas por uma lição (XP próprio, gemas, ofensiva, meta do dia). */
+export type BabelAward = {
+  xp: number;
+  gems: number;
+  perfect: boolean;
+  goal_now: boolean;
+  goal: number;
+  day_xp: number;
+  milestone_gems: number;
+  heart_gain: boolean;
+  week: boolean[];
+  dow: number;
+  boosted: boolean;
+  extended: boolean;
+  froze: boolean;
+  streak: number;
+};
+export type EnglishResult = { error?: string; xp?: number; stars?: number; streak?: number; valid?: boolean; babel?: BabelAward | null };
 
 const int = (v: unknown, lo: number, hi: number) => Math.max(lo, Math.min(hi, Math.floor(Number(v)) || 0));
 
@@ -85,13 +102,13 @@ export async function finishEnglish(input: EnglishFinish): Promise<EnglishResult
     p_start_unit: kind === "placement" ? int(input.startUnit, 1, 4) : null,
   });
   if (error || !data) return { error: "Não foi possível salvar o progresso." };
-  const r = data as { xp: number; stars: number; streak: number; valid: boolean };
+  const r = data as { xp: number; stars: number; streak: number; valid: boolean; babel: BabelAward | null };
 
   const what = kind === "lesson" ? `lição ${LESSONS[key]?.title ?? key} (${r.stars}★)` : kind === "legendary" ? `nível lendário ${key}` : kind === "roleplay" ? `conversa "${ROLEPLAY_BY_ID[key]?.title ?? key}" (${correct}% de precisão)` : kind === "placement" ? `teste de nivelamento (unidade ${input.startUnit})` : `treino de ${key}`;
   if (kind !== "practice") await logGameActivity(user.id, "english", "play", `Babel: ${what}${r.xp ? ` · +${r.xp} XP` : ""}`, 0);
-  revalidatePath("/app/jogos/ingles");
+  revalidatePath("/app/jogos/ingles", "layout");
   revalidatePath("/app/jogos");
-  return { xp: r.xp, stars: r.stars, streak: r.streak, valid: r.valid };
+  return { xp: r.xp, stars: r.stars, streak: r.streak, valid: r.valid, babel: r.babel };
 }
 
 /** Aluno avisa que um exercício ou fala está errado/estranho: o admin vê em "Atividade recente". */

@@ -2,9 +2,8 @@ import Link from "next/link";
 import { LESSON_ORDER, ROLEPLAYS, UNITS, wordCards } from "@/lib/english/content";
 import type { EnglishState } from "@/lib/english/data.server";
 import { legendaryId, legendaryUnlocked, lessonUnlocked, nextLesson, roleplayUnlocked } from "@/lib/english/progress";
-import { XP_DAILY_LESSONS } from "@/lib/english/grade";
-import { BabelTower } from "./BabelTower";
-import { IcoBack, IcoBolt, IcoCards, IcoChat, IcoCheck, IcoCrown, IcoFlame, IcoHeadphones, IcoLock, IcoStar, IcoTarget } from "./icons";
+import { BabelTop } from "./BabelTop";
+import { IcoBoost, IcoCards, IcoChat, IcoCheck, IcoCrown, IcoHeadphones, IcoLock, IcoStar, IcoTarget } from "./icons";
 
 // Trilha do Babel: barra de status, faixa verde por unidade e caminho em zigue-zague (lições, conversa e nível lendário), mais treinos.
 
@@ -64,26 +63,21 @@ export function EnglishHome({ state }: { state: EnglishState }) {
   let counter = 0;
 
   return (
-    <div>
-      <div className="bb-top">
-        <Link href="/app/jogos" className="text-[var(--bb-mute)]" aria-label="Voltar à Sala de Jogos">
-          <IcoBack />
-        </Link>
-        <span className="flex items-center gap-1.5 text-2xl font-black tracking-tight text-[var(--bb-green)]">
-          <BabelTower className="h-7 w-7" />
-          babel
-        </span>
-        <span className="ml-auto flex items-center gap-4">
-          <span className="bb-chip" style={{ color: "var(--bb-orange)" }} aria-label={`${state.streak} dias seguidos`}>
-            <IcoFlame />
-            {state.streak}
-          </span>
-          <span className="bb-chip" style={{ color: "var(--bb-gold)" }} aria-label="XP de lições hoje">
-            <IcoBolt />
-            {state.xpLessons}/{XP_DAILY_LESSONS}
+    <div className="bb-pad">
+      <BabelTop state={state} />
+
+      <Link href="/app/jogos/ingles/missoes" className="bb-card mt-4 flex items-center gap-3 p-3 transition active:translate-y-0.5">
+        <div className="bb-ring" style={{ ["--p" as string]: Math.min(100, Math.round((state.babel.today.xp / state.babel.goal) * 100)) }}>
+          <span>{state.babel.today.xp >= state.babel.goal ? <IcoCheck className="h-6 w-6 text-[var(--bb-green)]" /> : `${state.babel.today.xp}`}</span>
+        </div>
+        <span className="min-w-0 flex-1">
+          <span className="block text-base font-extrabold">Meta diária</span>
+          <span className="bb-sub block">
+            {state.babel.today.xp >= state.babel.goal ? "Meta batida! Continue para subir na liga." : `${state.babel.today.xp}/${state.babel.goal} XP hoje`}
           </span>
         </span>
-      </div>
+        {state.babel.boostUntil ? <IcoBoost className="h-8 w-8 shrink-0" /> : null}
+      </Link>
 
       {!state.placementDone && state.totalDone === 0 ? (
         <Link href="/app/jogos/ingles/nivelamento" className="bb-card bb-hub mt-5 transition active:translate-y-0.5">

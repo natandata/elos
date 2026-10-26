@@ -84,3 +84,64 @@ export const IcoSparkle = ({ className = "h-5 w-5" }: P) => (
     <path d="M12 2l1.800 6.200L20 10l-6.200 1.800L12 18l-1.800-6.200L4 10l6.200-1.800zM19 15l.9 2.100L22 18l-2.100.9L19 21l-.9-2.100L16 18l2.100-.9z" />
   </svg>
 );
+
+export const IcoGem = ({ className = "h-6 w-6" }: P) => (
+  <svg {...base} className={className}>
+    <path d="M6.500 3h11L22 9l-10 12L2 9z" fill="#1cb0f6" />
+    <path d="M2 9h20L12 21z" fill="#1899d6" />
+    <path d="M6.500 3L9 9h6l2.500-6" fill="#84d8ff" />
+  </svg>
+);
+export const IcoHeart = ({ className = "h-6 w-6", broken = false }: P & { broken?: boolean }) => (
+  <svg {...base} className={className}>
+    <path d="M12 21s-8.500-5.300-8.500-11.200C3.500 6.600 5.800 4.500 8.400 4.500c1.500 0 2.800.7 3.600 1.900.8-1.200 2.100-1.900 3.600-1.900 2.600 0 4.900 2.100 4.900 5.300C20.500 15.700 12 21 12 21z" fill={broken ? "#afafaf" : "#ff4b4b"} />
+    {broken ? <path d="M12 6.400l-1.800 3.600 2.600 1.800-1.600 3.600" fill="none" stroke="#fff" strokeWidth="1.800" strokeLinejoin="round" /> : <path d="M7.500 7.500c.6-.7 1.400-.9 2.200-.7" fill="none" stroke="#fff" strokeWidth="1.600" strokeLinecap="round" opacity=".6" />}
+  </svg>
+);
+export const IcoShield = ({ className = "h-8 w-8" }: P) => (
+  <svg {...base} className={className}>
+    <path d="M12 2.500l8 3v6c0 5-3.500 8.500-8 10-4.500-1.500-8-5-8-10v-6z" fill="#ffc800" stroke="#e5b000" strokeWidth="1.500" strokeLinejoin="round" />
+    <path d="M12 7l1.600 3.300 3.600.5-2.600 2.500.6 3.600L12 15.200 8.800 16.900l.6-3.600L6.800 10.800l3.600-.5z" fill="#fff" />
+  </svg>
+);
+export const IcoChest = ({ className = "h-10 w-10", open = false }: P & { open?: boolean }) => (
+  <svg {...base} className={className}>
+    <rect x="3" y="10" width="18" height="10" rx="2" fill="#b45309" />
+    <path d={open ? "M3 10l2-6h14l2 6z" : "M3 10a9 5 0 0118 0z"} fill="#d97706" />
+    <rect x="10.500" y="11.500" width="3" height="4" rx=".8" fill="#ffc800" stroke="#e5b000" />
+    {open ? <circle cx="12" cy="7" r="2" fill="#ffc800" /> : null}
+  </svg>
+);
+export const IcoBag = ({ className = "h-8 w-8" }: P) => (
+  <svg {...base} className={className} fill="currentColor">
+    <path d="M6 8h12l1.500 12.500a1 1 0 01-1 1.100h-13a1 1 0 01-1-1.100z" />
+    <path d="M9 8V6.500a3 3 0 016 0V8" fill="none" stroke="currentColor" strokeWidth="2.200" strokeLinecap="round" />
+  </svg>
+);
+export const IcoUser = ({ className = "h-8 w-8" }: P) => (
+  <svg {...base} className={className} fill="currentColor">
+    <circle cx="12" cy="8" r="4.500" />
+    <path d="M3.500 21c.6-4.500 4-6.500 8.500-6.500s7.900 2 8.500 6.500z" />
+  </svg>
+);
+export const IcoPath = ({ className = "h-8 w-8" }: P) => (
+  <svg {...base} className={className} fill="currentColor">
+    <path d="M12 3l2.600 5.400 5.900.8-4.300 4.100 1 5.900L12 16.400 6.800 19.200l1-5.900L3.500 9.200l5.900-.8z" />
+  </svg>
+);
+export const IcoSnow = ({ className = "h-8 w-8" }: P) => (
+  <svg {...base} className={className} fill="none" stroke="#1cb0f6" strokeWidth="2.400" strokeLinecap="round">
+    <path d="M12 2v20M3.300 7l17.400 10M3.300 17L20.700 7M9 4l3 2 3-2M9 20l3-2 3 2" />
+  </svg>
+);
+export const IcoBoost = ({ className = "h-8 w-8" }: P) => (
+  <svg {...base} className={className}>
+    <circle cx="12" cy="12" r="10" fill="#ce82ff" />
+    <path d="M13.200 4.500L7 13h4.500l-.7 6.500L17 11h-4.500z" fill="#fff" />
+  </svg>
+);
+export const IcoLeague = ({ className = "h-8 w-8" }: P) => (
+  <svg {...base} className={className} fill="currentColor">
+    <path d="M7 3h10v5a5 5 0 01-10 0zM4 4h3v3.500A3 3 0 014 4.500zM20 4h-3v3.500A3 3 0 0020 4.500zM11 13h2v4h3v2.500H8V17h3z" />
+  </svg>
+);

@@ -3,6 +3,7 @@ import { Nunito } from "next/font/google";
 import { requireRole } from "@/lib/auth";
 import { guardGame } from "@/lib/games/guard";
 import { gameOpenFor } from "@/lib/games/releaseServer";
+import { BabelTabs } from "@/components/english/BabelTabs";
 
 const nunito = Nunito({ subsets: ["latin"], weight: ["600", "700", "800", "900"], variable: "--font-nunito", display: "swap" });
 
@@ -15,6 +16,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
   return (
     <div className={`bb-root ${nunito.variable}`}>
       <div className="bb-wrap">{children}</div>
+      <BabelTabs />
     </div>
   );
 }

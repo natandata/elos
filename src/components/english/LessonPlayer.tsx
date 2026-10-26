@@ -2,12 +2,15 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { buyBabelItem, loseHeart } from "@/lib/actions/babel";
 import { finishEnglish, reportEnglishContent, type EnglishResult } from "@/lib/actions/english";
 import { gradeBank, gradeTyped, lessonStars, requeue, seededShuffle } from "@/lib/english/grade";
 import { placementUnit } from "@/lib/english/content";
 import { canSpeak, prepareVoices, speak, stopSpeaking } from "@/lib/english/speak";
 import type { Exercise, LsEx, McEx, MtEx, TrEx, TyEx } from "@/lib/english/types";
-import { IcoBolt, IcoCheck, IcoClose, IcoFlame, IcoSparkle, IcoSpeaker, IcoStar, IcoTarget, IcoTurtle } from "./icons";
+import { WEEK_LETTERS } from "@/lib/babel/economy";
+import { IcoBolt, IcoBoost, IcoCheck, IcoClose, IcoFlame, IcoGem, IcoHeart, IcoSparkle, IcoSpeaker, IcoStar, IcoTarget, IcoTurtle } from "./icons";
 
 // Jogador de lições: trilha, nível lendário (sem errar), treino de erros/palavras/ouvir e teste de nivelamento.
 // A correção é feita aqui (resposta instantânea); o servidor só confere o resultado final e paga o XP.
@@ -229,13 +232,19 @@ function MtView({ ex, onSubmit }: { ex: MtEx & { id: string }; onSubmit: (o: Out
 
 // ------------------------------------------------------------------ jogador
 
-export function LessonPlayer({ mode, keyId, title, exercises, backHref, nextHref, nextLabel }: { mode: PlayerMode; keyId: string; title: string; exercises: Exercise[]; backHref: string; nextHref?: string; nextLabel?: string }) {
+export function LessonPlayer({ mode, keyId, title, exercises, backHref, nextHref, nextLabel, hearts }: { mode: PlayerMode; keyId: string; title: string; exercises: Exercise[]; backHref: string; nextHref?: string; nextLabel?: string; /** corações atuais; só nas lições comuns (as demais não gastam coração) */ hearts?: number }) {
   const [queue, setQueue] = useState<Exercise[]>(exercises);
   const [idx, setIdx] = useState(0);
   const [out, setOut] = useState<Outcome | null>(null);
   const [explain, setExplain] = useState(false);
   const [reported, setReported] = useState(false);
-  const [phase, setPhase] = useState<"play" | "done" | "failed">("play");
+  const [phase, setPhase] = useState<"play" | "done" | "failed" | "nohearts">(mode === "lesson" && hearts === 0 ? "nohearts" : "play");
+  const heartsOn = mode === "lesson" && hearts !== undefined;
+  const [hp, setHp] = useState(hearts ?? 0);
+  const [step, setStep] = useState(0);
+  const router = useRouter();
+  const [buying, setBuying] = useState(false);
+  const [buyErr, setBuyErr] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [res, setRes] = useState<EnglishResult | null>(null);
   const [wrongFirst, setWrongFirst] = useState<string[]>([]);
@@ -265,12 +274,20 @@ export function LessonPlayer({ mode, keyId, title, exercises, backHref, nextHref
         if (mode === "practice") setFixed((f) => [...f, current.id]);
       } else setWrongFirst((w) => [...w, current.id]);
     }
+    if (!o.ok && heartsOn) {
+      setHp((h) => Math.max(0, h - 1));
+      void loseHeart();
+    }
     if (!o.ok && mode === "legendary") setPhase("failed");
     if (!o.ok && mode !== "placement") setQueue((q) => requeue(q, idx, true, retried.current));
   }
 
   async function next() {
     setOut(null);
+    if (heartsOn && hp === 0) {
+      setPhase("nohearts");
+      return;
+    }
     if (idx + 1 < queue.length) {
       setIdx(idx + 1);
       return;
@@ -298,6 +315,7 @@ export function LessonPlayer({ mode, keyId, title, exercises, backHref, nextHref
     setIdx(0);
     setOut(null);
     setPhase("play");
+    setStep(0);
     setWrongFirst([]);
     setFixed([]);
     setCorrectCount(0);
@@ -330,16 +348,133 @@ export function LessonPlayer({ mode, keyId, title, exercises, backHref, nextHref
     );
   }
 
+  if (phase === "nohearts") {
+    return (
+      <div className="flex min-h-[85dvh] flex-col text-center">
+        <div className="flex flex-1 flex-col items-center justify-center">
+          <IcoHeart className="h-24 w-24" broken />
+          <h2 className="mt-4 text-3xl font-extrabold">Você ficou sem corações</h2>
+          <p className="bb-sub mt-2">Treine os seus erros para ganhar 1 coração, recarregue com gemas ou espere: volta 1 coração a cada 4 horas.</p>
+          {buyErr ? <p className="mt-3 rounded-2xl bg-[var(--bb-bad-bg)] px-3 py-2 text-sm font-extrabold text-[var(--bb-bad-ink)]">{buyErr}</p> : null}
+        </div>
+        <Foot>
+          <Link href="/app/jogos/ingles/treino/erros" className="bb-btn">
+            Treinar para ganhar coração
+          </Link>
+          <button
+            type="button"
+            disabled={buying}
+            onClick={async () => {
+              setBuying(true);
+              const r = await buyBabelItem("refill");
+              setBuying(false);
+              if (r.error) setBuyErr(r.error);
+              else router.refresh();
+              if (!r.error) window.location.reload();
+            }}
+            className="bb-btn bb-btn-blue mt-3 flex items-center justify-center gap-2"
+          >
+            Recarregar por 80 <IcoGem className="h-5 w-5" />
+          </button>
+          <Link href={backHref} className="bb-btn bb-btn-ghost mt-3">
+            Sair
+          </Link>
+        </Foot>
+      </div>
+    );
+  }
+
   if (phase === "done") {
     const stars = mode === "lesson" || mode === "legendary" ? lessonStars(wrongFirst.length) : null;
     const startU = mode === "placement" ? placementUnit(correctCount) : null;
     const accuracy = Math.round((correctCount / Math.max(1, total)) * 100);
     const heading = mode === "placement" ? "Teste concluído!" : mode === "legendary" ? "Nível Lendário!" : mode === "practice" ? "Treino concluído!" : "Lição completa!";
+    const bab = res && !res.error ? res.babel ?? null : null;
+    const steps: ("summary" | "streak" | "goal")[] = ["summary"];
+    if (bab?.extended) steps.push("streak");
+    if (bab?.goal_now) steps.push("goal");
+    const cur = steps[Math.min(step, steps.length - 1)];
+    const last = step >= steps.length - 1;
+
+    const footer = (
+      <Foot>
+        {!last && !saving ? (
+          <button type="button" onClick={() => setStep((n) => n + 1)} className="bb-btn">
+            Continuar
+          </button>
+        ) : (
+          <>
+            {nextHref && !saving ? (
+              <Link href={nextHref} className="bb-btn">
+                {nextLabel ?? "Continuar"}
+              </Link>
+            ) : null}
+            <Link href={backHref} className={`bb-btn ${nextHref && !saving ? "bb-btn-ghost mt-3" : ""}`}>
+              Voltar à trilha
+            </Link>
+          </>
+        )}
+      </Foot>
+    );
+
+    if (cur === "streak" && bab) {
+      return (
+        <div className="flex min-h-[85dvh] flex-col text-center">
+          <div className="flex flex-1 flex-col items-center justify-center">
+            <div className="bb-pop">
+              <IcoFlame className="mx-auto h-32 w-32" />
+            </div>
+            <p className="bb-pop mt-2 text-7xl font-black text-[var(--bb-orange)]">{bab.streak}</p>
+            <h2 className="mt-1 text-2xl font-extrabold text-[var(--bb-orange)]">{bab.streak === 1 ? "dia de ofensiva!" : "dias de ofensiva!"}</h2>
+            <div className="bb-card mt-6 w-full p-4">
+              <div className="bb-week">
+                {WEEK_LETTERS.map((l, i) => (
+                  <div key={i} className={`bb-day ${bab.week[i] ? "on" : ""} ${i === bab.dow ? "today" : ""}`}>
+                    <i>{bab.week[i] ? <IcoCheck className="h-5 w-5" /> : null}</i>
+                    {l}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <p className="bb-sub mt-4">{bab.froze ? "Seu congelamento salvou a ofensiva!" : bab.streak === 1 ? "Volte amanhã para manter a ofensiva." : "Continue amanhã para ela crescer."}</p>
+            {bab.milestone_gems ? (
+              <p className="mt-3 flex items-center justify-center gap-1 rounded-2xl bg-[var(--bb-sel-bg)] px-4 py-2 text-base font-extrabold text-[var(--bb-sel-ink)]">
+                Marco de ofensiva! +{bab.milestone_gems} <IcoGem className="h-5 w-5" />
+              </p>
+            ) : null}
+          </div>
+          {footer}
+        </div>
+      );
+    }
+
+    if (cur === "goal" && bab) {
+      return (
+        <div className="flex min-h-[85dvh] flex-col text-center">
+          <div className="flex flex-1 flex-col items-center justify-center">
+            <div className="bb-ring bb-pop !h-36 !w-36" style={{ ["--p" as string]: 100 }}>
+              <span className="!h-28 !w-28">
+                <IcoCheck className="h-14 w-14 text-[var(--bb-green)]" />
+              </span>
+            </div>
+            <h2 className="mt-6 text-3xl font-extrabold text-[var(--bb-green)]">Meta diária concluída!</h2>
+            <p className="bb-sub mt-2">
+              Você fez {bab.day_xp} XP hoje (meta: {bab.goal}).
+            </p>
+            <p className="mt-3 flex items-center justify-center gap-1 text-lg font-extrabold text-[var(--bb-blue)]">
+              +10 <IcoGem className="h-6 w-6" />
+            </p>
+          </div>
+          {footer}
+        </div>
+      );
+    }
+
     return (
       <div className="flex min-h-[85dvh] flex-col text-center">
         <div className="flex flex-1 flex-col items-center justify-center">
           {stars ? (
-            <p className="flex gap-1 text-[var(--bb-gold)]" aria-label={`${stars} estrelas`}>
+            <p className="bb-pop flex gap-1 text-[var(--bb-gold)]" aria-label={`${stars} estrelas`}>
               {[1, 2, 3].map((s) => (
                 <IcoStar key={s} className={`${s === 2 ? "h-20 w-20 -translate-y-3" : "h-14 w-14"} ${s <= stars ? "" : "opacity-25"}`} />
               ))}
@@ -353,44 +488,37 @@ export function LessonPlayer({ mode, keyId, title, exercises, backHref, nextHref
               <b>XP</b>
               <span className="flex items-center justify-center gap-1">
                 <IcoBolt className="h-6 w-6" />
-                {saving ? "…" : (res && !res.error ? res.xp : 0) ?? 0}
-              </span>
-            </div>
-            <div className="bb-stat" style={{ ["--c" as string]: "var(--bb-green)" }}>
-              <b>Certas</b>
-              <span>
-                {correctCount}/{total}
+                {saving ? "…" : bab?.xp ?? 0}
               </span>
             </div>
             <div className="bb-stat" style={{ ["--c" as string]: "var(--bb-blue)" }}>
+              <b>Gemas</b>
+              <span className="flex items-center justify-center gap-1">
+                <IcoGem className="h-6 w-6" />
+                {saving ? "…" : bab?.gems ?? 0}
+              </span>
+            </div>
+            <div className="bb-stat" style={{ ["--c" as string]: "var(--bb-green)" }}>
               <b>Precisão</b>
               <span>{accuracy}%</span>
             </div>
           </div>
+          {bab?.perfect && mode !== "practice" ? <p className="mt-4 text-base font-extrabold text-[var(--bb-gold)]">Sem erros! Bônus de XP e gemas.</p> : null}
+          {bab?.boosted ? (
+            <p className="mt-2 flex items-center justify-center gap-1 text-sm font-extrabold text-[var(--bb-purple)]">
+              <IcoBoost className="h-5 w-5" /> XP em dobro ativo
+            </p>
+          ) : null}
+          {bab?.heart_gain ? (
+            <p className="mt-2 flex items-center justify-center gap-1 text-sm font-extrabold text-[var(--bb-red)]">
+              <IcoHeart className="h-5 w-5" /> +1 coração
+            </p>
+          ) : null}
           {startU ? <p className="mt-5 rounded-2xl bg-[var(--bb-sel-bg)] px-4 py-3 text-base font-extrabold text-[var(--bb-sel-ink)]">Você começa na Unidade {startU}</p> : null}
           {res?.error ? <p className="mt-4 rounded-2xl bg-[var(--bb-bad-bg)] px-3 py-2 text-sm font-extrabold text-[var(--bb-bad-ink)]">{res.error}</p> : null}
-          {res && !res.error ? (
-            <div className="mt-4 space-y-1">
-              {!res.xp && res.valid === false ? <p className="bb-sub">Rápido demais para valer XP: leia e pense em cada resposta.</p> : null}
-              {!res.xp && res.valid && (mode === "lesson" || mode === "legendary") ? <p className="bb-sub">Você já ganhou o XP das lições de hoje (máximo de 3).</p> : null}
-              {res.streak ? (
-                <p className="flex items-center justify-center gap-1 text-base font-extrabold text-[var(--bb-orange)]">
-                  <IcoFlame /> {res.streak} {res.streak === 1 ? "dia seguido" : "dias seguidos"} de inglês
-                </p>
-              ) : null}
-            </div>
-          ) : null}
+          {res && !res.error && res.valid === false ? <p className="bb-sub mt-4">Rápido demais para valer XP: leia e pense em cada resposta.</p> : null}
         </div>
-        <Foot>
-          {nextHref && !saving ? (
-            <Link href={nextHref} className="bb-btn">
-              {nextLabel ?? "Continuar"}
-            </Link>
-          ) : null}
-          <Link href={backHref} className={`bb-btn ${nextHref && !saving ? "bb-btn-ghost mt-3" : ""}`}>
-            Voltar à trilha
-          </Link>
-        </Foot>
+        {footer}
       </div>
     );
   }
@@ -419,6 +547,12 @@ export function LessonPlayer({ mode, keyId, title, exercises, backHref, nextHref
         <div className="bb-bar" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={title}>
           <i style={{ width: `${pct}%` }} />
         </div>
+        {heartsOn ? (
+          <span className="bb-chip" style={{ color: "var(--bb-red)" }} aria-label={`${hp} corações`}>
+            <IcoHeart />
+            {hp}
+          </span>
+        ) : null}
       </div>
       {view()}
 

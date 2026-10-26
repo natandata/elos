@@ -26,5 +26,5 @@ export default async function LicaoPage({ params }: { params: Promise<{ id: stri
   if (!lesson) notFound();
   if (!lessonUnlocked(id, done, state.startUnit)) redirect(HOME);
   const nextId = LESSON_ORDER[LESSON_ORDER.indexOf(id) + 1];
-  return <LessonPlayer mode="lesson" keyId={id} title={lesson.title} exercises={lesson.exercises} backHref={HOME} nextHref={nextId ? `${HOME}/licao/${nextId}` : undefined} nextLabel={nextId ? `Próxima: ${LESSONS[nextId].title}` : undefined} />;
+  return <LessonPlayer mode="lesson" keyId={id} title={lesson.title} exercises={lesson.exercises} backHref={HOME} hearts={state.babel.hearts} nextHref={nextId ? `${HOME}/licao/${nextId}` : undefined} nextLabel={nextId ? `Próxima: ${LESSONS[nextId].title}` : undefined} />;
 }
