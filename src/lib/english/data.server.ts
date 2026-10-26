@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { heartsNow, type DailyStats } from "@/lib/babel/economy";
+import type { LeaderCall } from "@/lib/babel/leaders";
 
 // Leitura do progresso do aluno (RLS: cada um lê só o que é seu; o admin lê tudo).
 
@@ -36,6 +37,8 @@ export type EnglishState = {
   /** cenário -> melhor precisão */
   roleplayBest: Map<string, number>;
   babel: BabelState;
+  /** última conversa com o líder (último nível), se houver e não cancelada */
+  leaderCall: LeaderCall | null;
 };
 
 const todayBR = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
@@ -45,13 +48,14 @@ export async function getEnglishState(supabase: SupabaseClient, userId: string):
   const today0 = todayBR();
   const dow = (new Date(today0 + "T12:00:00Z").getUTCDay() + 6) % 7;
   const monday = addDays(today0, -dow);
-  const [babRes, dayRes, profRes, doneRes, misRes, runRes] = await Promise.all([
+  const [babRes, dayRes, profRes, doneRes, misRes, runRes, callRes] = await Promise.all([
     supabase.from("babel_profile").select("xp_total, gems, hearts, hearts_at, freezes, goal, boost_until, best_streak, league").eq("user_id", userId).maybeSingle(),
     supabase.from("babel_daily").select("day, xp, lessons, perfects, roleplays, practices, goal_met, quests_claimed").eq("user_id", userId).gte("day", monday),
     supabase.from("english_profile").select("start_unit, placement_done, streak, streak_date, last_done_date, total_done, xp_day, xp_lessons, xp_roleplay").eq("user_id", userId).maybeSingle(),
     supabase.from("english_lessons_done").select("lesson_id, stars").eq("user_id", userId),
     supabase.from("english_mistakes").select("ex_id").eq("user_id", userId).is("mastered_at", null).order("last_wrong_at", { ascending: false }).limit(60),
     supabase.from("english_roleplay_runs").select("scenario, accuracy").eq("user_id", userId).order("created_at", { ascending: false }).limit(60),
+    supabase.from("babel_leader_calls").select("id, leader, status, scheduled_at, link, note").eq("user_id", userId).neq("status", "cancelled").order("created_at", { ascending: false }).limit(1),
   ]);
   const p = (profRes.data ?? null) as { start_unit: number; placement_done: boolean; streak: number; streak_date: string | null; last_done_date: string | null; total_done: number; xp_day: string | null; xp_lessons: number; xp_roleplay: boolean } | null;
   const today = todayBR();
@@ -63,7 +67,9 @@ export async function getEnglishState(supabase: SupabaseClient, userId: string):
   const hh = heartsNow(b?.hearts ?? 5, b?.hearts_at ?? null);
   const rp = new Map<string, number>();
   for (const r of (runRes.data ?? []) as { scenario: string; accuracy: number }[]) rp.set(r.scenario, Math.max(rp.get(r.scenario) ?? 0, r.accuracy));
+  const callRow = ((callRes.data ?? []) as { id: string; leader: LeaderCall["leader"]; status: LeaderCall["status"]; scheduled_at: string | null; link: string | null; note: string | null }[])[0];
   return {
+    leaderCall: callRow ? { id: callRow.id, leader: callRow.leader, status: callRow.status, scheduledAt: callRow.scheduled_at, link: callRow.link, note: callRow.note } : null,
     startUnit: p?.start_unit ?? 1,
     placementDone: p?.placement_done ?? false,
     streak: live ? (p?.streak ?? 0) : 0,

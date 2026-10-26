@@ -17,6 +17,7 @@ const NAV: Record<string, NavItem[]> = {
     { href: "/app/admin/ajuda", label: "Pedidos de Ajuda", icon: "🆘" },
     { href: "/app/admin/avisos", label: "Avisos", icon: "📣" },
     { href: "/app/admin/retencao", label: "Retenção", icon: "📈" },
+    { href: "/app/admin/babel-conversas", label: "Conversas do Babel", icon: "🎤" },
     {
       href: "/app/admin/jogos",
       label: "Sala de Jogos",

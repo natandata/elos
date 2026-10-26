@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LESSON_ORDER, ROLEPLAYS, UNITS, wordCards } from "@/lib/english/content";
+import { CALL_MINUTES } from "@/lib/babel/leaders";
 import type { EnglishState } from "@/lib/english/data.server";
 import { legendaryId, legendaryUnlocked, lessonUnlocked, nextLesson, roleplayUnlocked } from "@/lib/english/progress";
 import { BabelTop } from "./BabelTop";
@@ -9,14 +10,14 @@ import { IcoBoost, IcoCards, IcoChat, IcoCheck, IcoCrown, IcoHeadphones, IcoLock
 // Trilha do Babel: barra de status, faixa verde por unidade e caminho em zigue-zague (lições, conversa e nível lendário), mais treinos.
 
 type NodeState = "done" | "next" | "open" | "locked";
-type Kind = "lesson" | "chat" | "legend";
+type Kind = "lesson" | "chat" | "legend" | "leader";
 
 // deslocamento horizontal (px) de cada bolinha, formando a curva do caminho
 const WAVE = [0, 38, 62, 38, 0, -38, -62, -38];
 
 function PathNode({ idx, href, kind, state, label, stars }: { idx: number; href: string; kind: Kind; state: NodeState; label: string; stars?: number }) {
-  const cls = state === "locked" ? "locked" : state === "done" ? "done" : kind === "chat" ? "chat" : kind === "legend" ? "legend" : "todo";
-  const icon = state === "locked" ? <IcoLock className="h-7 w-7" /> : state === "done" ? <IcoCheck className="h-9 w-9" /> : kind === "chat" ? <IcoChat className="h-8 w-8" /> : kind === "legend" ? <IcoCrown className="h-8 w-8" /> : <IcoStar className="h-8 w-8" />;
+  const cls = state === "locked" ? "locked" : state === "done" ? "done" : kind === "chat" ? "chat" : kind === "legend" || kind === "leader" ? "legend" : "todo";
+  const icon = state === "locked" ? <IcoLock className="h-7 w-7" /> : state === "done" ? <IcoCheck className="h-9 w-9" /> : kind === "chat" ? <IcoChat className="h-8 w-8" /> : kind === "legend" || kind === "leader" ? <IcoCrown className="h-8 w-8" /> : <IcoStar className="h-8 w-8" />;
   const node = (
     <>
       {state === "next" ? <span className="bb-start">Começar</span> : null}
@@ -61,7 +62,7 @@ function bab(state: EnglishState, next: string | null): { mood: Mood; text: stri
   const b = state.babel;
   if (state.totalDone === 0) return { mood: "cheer", text: "Oi! Eu sou o Bab, o guardião da torre. Vamos aprender inglês juntos? Comece pela primeira lição!" };
   if (b.hearts === 0) return { mood: "sad", text: "Eita, acabaram os seus corações. Treine os erros para ganhar um de volta!" };
-  if (!next) return { mood: "proud", text: "Você terminou todas as lições por enquanto! Revise nos treinos e fique de olho nas ligas." };
+  if (!next) return { mood: "proud", text: "Você terminou todas as lições! Agora falta o último nível: uma conversa de 10 minutos com o Natan ou a Rebeca." };
   if (state.streak > 0 && !state.doneToday) return { mood: "worried", text: `Faça uma lição hoje para manter a sua ofensiva de ${state.streak} ${state.streak === 1 ? "dia" : "dias"}!` };
   if (b.today.xp >= b.goal) return { mood: "cheer", text: "Meta do dia batida! Continue e suba na liga." };
   if (b.today.xp > 0) return { mood: "proud", text: `Boa! Faltam ${b.goal - b.today.xp} XP para a meta de hoje.` };
@@ -72,6 +73,7 @@ export function EnglishHome({ state }: { state: EnglishState }) {
   const done = new Set(state.done.keys());
   const next = nextLesson(done, state.startUnit);
   const finished = !next;
+  const allLessonsDone = LESSON_ORDER.every((id) => done.has(id));
   let counter = 0;
 
   return (
@@ -105,7 +107,7 @@ export function EnglishHome({ state }: { state: EnglishState }) {
         </Link>
       ) : null}
 
-      {finished ? <p className="bb-card mt-5 px-4 py-3 text-center text-sm font-extrabold">Você terminou todas as lições disponíveis! Revise nos treinos. Mais unidades (A2 e B1) chegam em breve.</p> : null}
+      {finished ? <p className="bb-card mt-5 px-4 py-3 text-center text-sm font-extrabold">Você terminou todas as lições! Peça sua conversa com o líder no último nível, ao fim da trilha. Mais unidades (A2 e B1) chegam em breve.</p> : null}
 
       {UNITS.map((u) => {
         const rp = ROLEPLAYS.find((r) => r.id === u.roleplay);
@@ -136,6 +138,22 @@ export function EnglishHome({ state }: { state: EnglishState }) {
           </section>
         );
       })}
+
+      <section>
+        <div className="bb-unit">
+          <small>Último nível · {CALL_MINUTES} min</small>
+          <p>🎤 Conversa com o líder</p>
+        </div>
+        <div className="bb-path">
+          <PathNode
+            idx={counter++}
+            href="/app/jogos/ingles/lider"
+            kind="leader"
+            state={state.leaderCall?.status === "done" ? "done" : allLessonsDone || state.leaderCall ? (next === null && !state.leaderCall ? "next" : "open") : "locked"}
+            label={state.leaderCall?.status === "scheduled" ? "Conversa marcada" : state.leaderCall ? "Pedido enviado" : allLessonsDone ? "Natan ou Rebeca" : "Termine as lições"}
+          />
+        </div>
+      </section>
 
       <section className="mt-4">
         <h2 className="mb-3 text-xl font-extrabold">Treino</h2>
