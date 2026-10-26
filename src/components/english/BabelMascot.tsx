@@ -15,25 +15,25 @@ export function BabelMascot({ mood = "happy", className = "h-28 w-28" }: { mood?
 
       {/* ameias */}
       {[37, 54.500, 72].map((x) => (
-        <rect key={x} x={x} y="22" width="11" height="14" rx="3.500" fill="#6fd817" stroke="#58a700" strokeWidth="2" />
+        <rect key={x} x={x} y="22" width="11" height="14" rx="3.500" fill="#f3c27e" stroke="#b9761f" strokeWidth="2" />
       ))}
 
       {/* andares */}
-      <rect x="34" y="30" width="52" height="38" rx="12" fill="#6fd817" stroke="#58a700" strokeWidth="2.500" />
-      <rect x="24" y="58" width="72" height="42" rx="15" fill="#58cc02" stroke="#58a700" strokeWidth="2.500" />
-      <rect x="13" y="90" width="94" height="40" rx="17" fill="#4fbd00" stroke="#58a700" strokeWidth="2.500" />
-      <path d="M26 118h14M52 121h16M80 118h14M40 108h12M68 108h12" stroke="#3f9600" strokeWidth="2.500" strokeLinecap="round" opacity=".55" />
+      <rect x="34" y="30" width="52" height="38" rx="12" fill="#f3c27e" stroke="#b9761f" strokeWidth="2.500" />
+      <rect x="24" y="58" width="72" height="42" rx="15" fill="#e8a04c" stroke="#b9761f" strokeWidth="2.500" />
+      <rect x="13" y="90" width="94" height="40" rx="17" fill="#d98f3a" stroke="#b9761f" strokeWidth="2.500" />
+      <path d="M26 118h14M52 121h16M80 118h14M40 108h12M68 108h12" stroke="#a2661a" strokeWidth="2.500" strokeLinecap="round" opacity=".55" />
 
       {/* braços */}
       {up ? (
         <>
-          <ellipse cx="17" cy="62" rx="7" ry="11" fill="#58cc02" stroke="#58a700" strokeWidth="2.500" transform="rotate(25 17 62)" />
-          <ellipse cx="103" cy="62" rx="7" ry="11" fill="#58cc02" stroke="#58a700" strokeWidth="2.500" transform="rotate(-25 103 62)" />
+          <ellipse cx="17" cy="62" rx="7" ry="11" fill="#e8a04c" stroke="#b9761f" strokeWidth="2.500" transform="rotate(25 17 62)" />
+          <ellipse cx="103" cy="62" rx="7" ry="11" fill="#e8a04c" stroke="#b9761f" strokeWidth="2.500" transform="rotate(-25 103 62)" />
         </>
       ) : (
         <>
-          <ellipse cx="18" cy="86" rx="7" ry="11" fill="#58cc02" stroke="#58a700" strokeWidth="2.500" transform={sad ? "rotate(8 18 86)" : "rotate(-12 18 86)"} />
-          <ellipse cx="102" cy="86" rx="7" ry="11" fill="#58cc02" stroke="#58a700" strokeWidth="2.500" transform={sad ? "rotate(-8 102 86)" : "rotate(12 102 86)"} />
+          <ellipse cx="18" cy="86" rx="7" ry="11" fill="#e8a04c" stroke="#b9761f" strokeWidth="2.500" transform={sad ? "rotate(8 18 86)" : "rotate(-12 18 86)"} />
+          <ellipse cx="102" cy="86" rx="7" ry="11" fill="#e8a04c" stroke="#b9761f" strokeWidth="2.500" transform={sad ? "rotate(-8 102 86)" : "rotate(12 102 86)"} />
         </>
       )}
 
@@ -84,8 +84,8 @@ export function BabelMascot({ mood = "happy", className = "h-28 w-28" }: { mood?
       {worried ? <text x="92" y="48" fontSize="16" fontWeight="800" fill="#1cb0f6" fontFamily="sans-serif">z</text> : null}
 
       {/* pés */}
-      <ellipse cx="42" cy="131" rx="12" ry="5.500" fill="#58a700" />
-      <ellipse cx="78" cy="131" rx="12" ry="5.500" fill="#58a700" />
+      <ellipse cx="42" cy="131" rx="12" ry="5.500" fill="#b9761f" />
+      <ellipse cx="78" cy="131" rx="12" ry="5.500" fill="#b9761f" />
     </svg>
   );
 }

@@ -232,7 +232,7 @@ export function RoleplayPlayer({ rp, backHref, nextHref }: { rp: Roleplay; backH
         <div className={`bb-sheet ${fb.q === 2 ? "ok" : fb.q === 1 ? "warn" : "bad"}`}>
           <div className="bb-sheet-in">
             <p className="bb-sheet-t">
-              <span className="bb-sheet-dot">{fb.q === 0 ? <IcoClose className="h-5 w-5 text-[var(--bb-red)]" /> : <IcoCheck className="h-5 w-5 text-[var(--bb-green)]" />}</span>
+              <span className="bb-sheet-dot">{fb.q === 0 ? <IcoClose className="h-5 w-5 text-[var(--bb-red)]" /> : <IcoCheck className="h-5 w-5 text-[var(--bb-ok)]" />}</span>
               {fb.q === 2 ? "Ótimo!" : fb.q === 1 ? "Quase!" : "Ainda não"}
             </p>
             <p className="mt-1 text-sm font-bold">{fb.text.replace(/^(Ótimo! 🎉|Quase! |Ainda não: )/, "")}</p>

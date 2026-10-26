@@ -459,7 +459,7 @@ export function LessonPlayer({ mode, keyId, title, exercises, backHref, nextHref
             </div>
             <div className="bb-ring mt-3 !h-16 !w-16" style={{ ["--p" as string]: 100 }}>
               <span className="!h-12 !w-12">
-                <IcoCheck className="h-7 w-7 text-[var(--bb-green)]" />
+                <IcoCheck className="h-7 w-7 text-[var(--bb-ok)]" />
               </span>
             </div>
             <h2 className="mt-6 text-3xl font-extrabold text-[var(--bb-green)]">Meta diária concluída!</h2>
@@ -486,7 +486,7 @@ export function LessonPlayer({ mode, keyId, title, exercises, backHref, nextHref
               ))}
             </p>
           ) : (
-            <IcoCheck className="h-20 w-20 text-[var(--bb-green)]" />
+            <IcoCheck className="h-20 w-20 text-[var(--bb-ok)]" />
           )}
           <h2 className="mt-5 text-3xl font-extrabold text-[var(--bb-gold)]">{heading}</h2>
           <div className="mt-6 flex w-full max-w-xs gap-3">
@@ -566,7 +566,7 @@ export function LessonPlayer({ mode, keyId, title, exercises, backHref, nextHref
         <div className={`bb-sheet ${tone}`}>
           <div className="bb-sheet-in">
             <p className="bb-sheet-t">
-              <span className="bb-sheet-dot">{out.ok ? <IcoCheck className="h-5 w-5 text-[var(--bb-green)]" /> : <IcoClose className="h-5 w-5 text-[var(--bb-red)]" />}</span>
+              <span className="bb-sheet-dot">{out.ok ? <IcoCheck className="h-5 w-5 text-[var(--bb-ok)]" /> : <IcoClose className="h-5 w-5 text-[var(--bb-red)]" />}</span>
               {out.ok ? (out.typo ? "Quase! Confira a escrita" : "Correto!") : "Resposta correta:"}
             </p>
             {out.typo || !out.ok ? <p className="mt-1 text-base font-bold">{out.expected}</p> : null}

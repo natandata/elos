@@ -401,7 +401,7 @@ export default async function JogosPage({ searchParams }: { searchParams: Promis
           );
         })}
         {englishVisible ? (
-          <Link href="/app/jogos/ingles" className={`relative flex aspect-square flex-col justify-between rounded-2xl border-2 border-b-4 border-[#58a700] bg-[#58cc02] p-4 text-white transition active:scale-[0.98] ${englishDone ? "opacity-80" : ""}`}>
+          <Link href="/app/jogos/ingles" className={`relative flex aspect-square flex-col justify-between rounded-2xl border-2 border-b-4 border-[#b9761f] bg-[#e8a04c] p-4 text-white transition active:scale-[0.98] ${englishDone ? "opacity-80" : ""}`}>
             <BabelMascot mood="happy" className="h-16 w-14" />
             <div>
               <p className="text-lg font-black leading-tight">Babel</p>
