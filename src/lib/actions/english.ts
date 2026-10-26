@@ -88,7 +88,7 @@ export async function finishEnglish(input: EnglishFinish): Promise<EnglishResult
   const r = data as { xp: number; stars: number; streak: number; valid: boolean };
 
   const what = kind === "lesson" ? `lição ${LESSONS[key]?.title ?? key} (${r.stars}★)` : kind === "legendary" ? `nível lendário ${key}` : kind === "roleplay" ? `conversa "${ROLEPLAY_BY_ID[key]?.title ?? key}" (${correct}% de precisão)` : kind === "placement" ? `teste de nivelamento (unidade ${input.startUnit})` : `treino de ${key}`;
-  if (kind !== "practice") await logGameActivity(user.id, "english", "play", `Inglês de CRIA: ${what}${r.xp ? ` · +${r.xp} XP` : ""}`, 0);
+  if (kind !== "practice") await logGameActivity(user.id, "english", "play", `Babel: ${what}${r.xp ? ` · +${r.xp} XP` : ""}`, 0);
   revalidatePath("/app/jogos/ingles");
   revalidatePath("/app/jogos");
   return { xp: r.xp, stars: r.stars, streak: r.streak, valid: r.valid };

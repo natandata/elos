@@ -22,6 +22,7 @@ import { bibleGateFor, todayBR } from "@/lib/games/bibleGate";
 import { BibleGameLock } from "@/components/games/BibleGameLock";
 import { RoomBackdrop } from "@/components/games/room/RoomBackdrop";
 import { CategoryBar, CategoryCards, RoomHero } from "@/components/games/room/RoomParts";
+import { BabelTower } from "@/components/english/BabelTower";
 
 type Tile = { href: string; game: string; emoji: string; title: string; hint: string; tone: string };
 
@@ -97,7 +98,7 @@ export default async function JogosPage({ searchParams }: { searchParams: Promis
   ].filter(Boolean).length;
   const order = gameCoverOrder(dates);
   const streak = liveGameStreak(profile.game_streak ?? 0, profile.game_streak_date ?? null);
-  // Inglês de CRIA (educativo): aparece quando aberto para esta pessoa; "feito hoje" = completou lição ou conversa hoje
+  // Babel (educativo de inglês): aparece quando aberto para esta pessoa; "feito hoje" = completou lição ou conversa hoje
   const englishVisible = englishOpen && !hide("english");
   const engProf = englishVisible ? (await supabase.from("english_profile").select("last_done_date").eq("user_id", profile.id).maybeSingle<{ last_done_date: string | null }>()).data : null;
   const englishDone = englishVisible && engProf?.last_done_date === todayBR();
@@ -382,12 +383,10 @@ export default async function JogosPage({ searchParams }: { searchParams: Promis
           );
         })}
         {englishVisible ? (
-          <Link href="/app/jogos/ingles" className={`relative flex aspect-square flex-col justify-between rounded-2xl border-2 border-sky-300 bg-sky-100 p-4 text-sky-900 transition active:scale-[0.98] ${englishDone ? "opacity-80" : ""}`}>
-            <span className="text-5xl" aria-hidden>
-              🗣️
-            </span>
+          <Link href="/app/jogos/ingles" className={`relative flex aspect-square flex-col justify-between rounded-2xl border-2 border-amber-400 bg-amber-100 p-4 text-amber-950 transition active:scale-[0.98] ${englishDone ? "opacity-80" : ""}`}>
+            <BabelTower className="h-12 w-12" />
             <div>
-              <p className="text-lg font-black leading-tight">Inglês de CRIA</p>
+              <p className="text-lg font-black leading-tight">Babel</p>
               <p className="mt-1 text-xs font-bold opacity-80">{englishDone ? "✔ Feito hoje · continue treinando" : "Lições e conversas · até +5 XP/dia"}</p>
               <p className="mt-0.5 text-[11px] font-black uppercase tracking-wide opacity-70">Novo</p>
             </div>

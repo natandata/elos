@@ -20,7 +20,7 @@ export const GAME_CATALOG: { key: GameKey; emoji: string; title: string }[] = [
   { key: "ultimatribo", emoji: "🪓", title: "A Última Tribo (em construção: só admin e acesso antecipado)" },
   { key: "quemdesenha", emoji: "🎨", title: "Quem Desenha?" },
   { key: "missao", emoji: "✝️", title: "Missão Madureira (em construção: só admin e acesso antecipado)" },
-  { key: "english", emoji: "🗣️", title: "Inglês de CRIA (jogo educativo de inglês; em construção: só admin e acesso antecipado)" },
+  { key: "english", emoji: "🗼", title: "Babel (jogo educativo de inglês; em construção: só admin e acesso antecipado)" },
   { key: "tribos", emoji: "🏕️", title: "Clash of Tribos (construir a vila e atacar outras tribos; em construção: só admin e acesso antecipado)" },
   { key: "madureira", emoji: "🛍️", title: "Shopping Elos (Vista o Herói: aparece como Em breve até você liberar ou marcar a data)" },
 ];

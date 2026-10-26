@@ -19,7 +19,7 @@ export const GAME_RELEASES = {
   madureira: "2099-01-01T00:00:00-03:00",
   /** Missão Madureira (mundo aberto no bairro de Madureira, evangelismo): em construção, oculto. Só admin e acesso antecipado. */
   missao: "2099-01-01T00:00:00-03:00",
-  /** Inglês de CRIA (jogo educativo de inglês, estilo trilha, com conversas): em construção, oculto. Só admin e acesso antecipado. */
+  /** Babel (jogo educativo de inglês, estilo trilha, com conversas): em construção, oculto. Só admin e acesso antecipado. */
   english: "2099-01-01T00:00:00-03:00",
   /** Clash of Tribos (construir vila e atacar outras tribos, com os heróis da Arena): em construção, oculto. Só admin e acesso antecipado. */
   tribos: "2099-01-01T00:00:00-03:00",

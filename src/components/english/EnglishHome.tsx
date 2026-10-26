@@ -3,8 +3,9 @@ import { LESSON_ORDER, LESSONS, ROLEPLAYS, UNITS, wordCards } from "@/lib/englis
 import type { EnglishState } from "@/lib/english/data.server";
 import { legendaryId, legendaryUnlocked, lessonUnlocked, nextLesson, roleplayUnlocked } from "@/lib/english/progress";
 import { XP_DAILY_LESSONS } from "@/lib/english/grade";
+import { BabelTower } from "./BabelTower";
 
-// Trilha do Inglês de CRIA: meta do dia, próxima lição, unidades (lições, conversa e nível lendário) e treino.
+// Trilha do Babel: meta do dia, próxima lição, unidades (lições, conversa e nível lendário) e treino.
 
 function Node({ href, icon, title, sub, state, stars }: { href?: string; icon: string; title: string; sub?: string; state: "done" | "next" | "open" | "locked"; stars?: number }) {
   const tone = state === "done" ? "border-emerald-300 bg-emerald-50 text-emerald-950" : state === "next" ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[#1d1535] ring-2 ring-[var(--accent)]" : state === "open" ? "border-[var(--line)] bg-[var(--card)]" : "border-[var(--line)] bg-[var(--card)] opacity-55";
@@ -43,10 +44,11 @@ export function EnglishHome({ state }: { state: EnglishState }) {
 
   return (
     <div className="mx-auto max-w-xl">
-      <header className="overflow-hidden rounded-3xl bg-gradient-to-br from-sky-600 via-indigo-600 to-fuchsia-600 p-5 text-white shadow-lg">
-        <p className="text-xs font-black uppercase tracking-widest text-white/80">Jogo educativo</p>
-        <h1 className="mt-1 text-3xl font-black leading-tight">Inglês de CRIA 🗣️</h1>
-        <p className="mt-1 text-sm font-semibold text-white/90">Aprenda inglês conversando: lições curtas, conversas com personagens e treino dos seus erros.</p>
+      <header className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-500 via-orange-600 to-rose-800 p-5 text-white shadow-lg">
+        <BabelTower className="pointer-events-none absolute -right-2 -top-1 h-28 w-28 opacity-90" />
+        <p className="text-xs font-black uppercase tracking-widest text-white/80">Jogo educativo · inglês</p>
+        <h1 className="mt-1 text-4xl font-black leading-tight tracking-tight">Babel</h1>
+        <p className="mt-1 max-w-[16rem] text-sm font-semibold text-white/90">Aprenda inglês conversando: lições curtas, conversas com personagens e treino dos seus erros.</p>
         <div className="mt-3 flex flex-wrap gap-2 text-xs font-black">
           <span className="rounded-full bg-white/20 px-3 py-1">🔥 {state.streak} {state.streak === 1 ? "dia" : "dias"} seguidos</span>
           <span className="rounded-full bg-white/20 px-3 py-1">
@@ -54,7 +56,7 @@ export function EnglishHome({ state }: { state: EnglishState }) {
           </span>
         </div>
         {next ? (
-          <Link href={`/app/jogos/ingles/licao/${next}`} className="mt-4 inline-block rounded-full bg-white px-5 py-2.5 text-sm font-black text-indigo-900 shadow">
+          <Link href={`/app/jogos/ingles/licao/${next}`} className="mt-4 inline-block rounded-full bg-white px-5 py-2.5 text-sm font-black text-orange-900 shadow">
             ▶ {state.totalDone === 0 ? "Começar" : "Continuar"}: {nextTitle}
           </Link>
         ) : null}
