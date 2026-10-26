@@ -132,5 +132,26 @@ async function notifyDailyHabitStreaks(supabase: Admin): Promise<number> {
       notified += userIds.length;
     }
   }
+
+  // Babel (jogo de inglês): quem fez lição ontem e ainda não fez hoje está com a ofensiva em risco
+  const { data: bab } = await supabase.from("english_profile").select("user_id, streak").gt("streak", 0).eq("streak_date", yesterday);
+  const babRows = (bab ?? []) as { user_id: string; streak: number }[];
+  if (babRows.length) {
+    const { data: ok } = await supabase.from("profiles").select("id").in("id", babRows.map((r) => r.user_id)).in("role", ["cria", "leader"]);
+    const allowed = new Set(((ok ?? []) as { id: string }[]).map((r) => r.id));
+    const byStreak = new Map<number, string[]>();
+    for (const r of babRows) {
+      if (!allowed.has(r.user_id)) continue;
+      if (!byStreak.has(r.streak)) byStreak.set(r.streak, []);
+      byStreak.get(r.streak)!.push(r.user_id);
+    }
+    for (const [n, userIds] of byStreak) {
+      const title = `🔥 Sua ofensiva de ${n} ${n === 1 ? "dia" : "dias"} no Babel está em risco`;
+      const body = "Faça uma lição hoje antes da meia-noite: leva poucos minutos!";
+      await supabase.from("notifications").insert(userIds.map((user_id) => ({ user_id, title, body, link: "/app/jogos/ingles", category: "streak" })));
+      await sendPushToUsers(userIds, { title, body, url: "/app/jogos/ingles" }, supabase);
+      notified += userIds.length;
+    }
+  }
   return notified;
 }

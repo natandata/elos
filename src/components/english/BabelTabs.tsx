@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { IcoBag, IcoChest, IcoPath, IcoUser } from "./icons";
+import { IcoBag, IcoChest, IcoLeague, IcoPath, IcoUser } from "./icons";
 
 // Barra de abas do Babel (só nas telas principais; some dentro de lição e conversa).
 const HOME = "/app/jogos/ingles";
 const TABS = [
   { href: HOME, label: "Aprender", Icon: IcoPath },
+  { href: `${HOME}/ligas`, label: "Ligas", Icon: IcoLeague },
   { href: `${HOME}/missoes`, label: "Missões", Icon: IcoChest },
   { href: `${HOME}/loja`, label: "Loja", Icon: IcoBag },
   { href: `${HOME}/perfil`, label: "Perfil", Icon: IcoUser },
