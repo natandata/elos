@@ -31,7 +31,7 @@ function Speaker({ text, label = "Ouvir" }: { text: string; label?: string }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSupported(canSpeak());
   }, []);
-  const play = (rate: number) => speak(text, rate, (ok) => setFailed(!ok));
+  const play = (rate: number) => speak(text, rate, (ok) => setFailed(!ok), true);
   if (!supported) return <p className="bb-card px-3 py-2 text-sm">Sem áudio neste aparelho. Frase: “{text}”</p>;
   return (
     <div>
@@ -43,6 +43,7 @@ function Speaker({ text, label = "Ouvir" }: { text: string; label?: string }) {
           <IcoTurtle className="h-8 w-8" />
         </button>
       </div>
+      {!failed ? <p className="bb-sub mt-3 text-center text-xs">Sem som? Desative o modo silencioso do iPhone e suba o volume.</p> : null}
       {failed ? (
         <div className="mt-3 rounded-2xl bg-[#fff4cc] px-3 py-2 text-sm text-[#7a5d00]">
           <p className="font-extrabold">Não saiu som. Confira:</p>
@@ -213,7 +214,7 @@ function MtView({ ex, onSubmit }: { ex: MtEx & { id: string }; onSubmit: (o: Out
       <div className="mt-5 grid grid-cols-2 gap-3">
         <div className="grid gap-3">
           {ex.pairs.map((p, i) => (
-            <button key={i} type="button" disabled={matched.includes(i)} onClick={() => { setLeft(i); speak(p[0]); }} className={`bb-opt !text-base ${matched.includes(i) ? "bb-opt-ok opacity-40" : left === i ? "bb-opt-sel" : ""}`}>
+            <button key={i} type="button" disabled={matched.includes(i)} onClick={() => { setLeft(i); speak(p[0], 0.9, undefined, true); }} className={`bb-opt !text-base ${matched.includes(i) ? "bb-opt-ok opacity-40" : left === i ? "bb-opt-sel" : ""}`}>
               {p[0]}
             </button>
           ))}

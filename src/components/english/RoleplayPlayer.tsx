@@ -121,7 +121,7 @@ export function RoleplayPlayer({ rp, backHref, nextHref }: { rp: Roleplay; backH
             <p className="text-base font-bold">{tt.npc.en}</p>
             {showPt ? <p className="bb-sub mt-1">{tt.npc.pt}</p> : null}
             {canSpeak() ? (
-              <button type="button" onClick={() => speak(tt.npc.en)} className="mt-1 text-[var(--bb-blue)]" aria-label="Ouvir a fala">
+              <button type="button" onClick={() => speak(tt.npc.en, 0.9, undefined, true)} className="mt-1 text-[var(--bb-blue)]" aria-label="Ouvir a fala">
                 <IcoSpeaker className="h-6 w-6" />
               </button>
             ) : null}
@@ -186,7 +186,7 @@ export function RoleplayPlayer({ rp, backHref, nextHref }: { rp: Roleplay; backH
               <li key={p} className="flex items-center justify-between gap-2 rounded-xl bg-[var(--bb-sel-bg)] px-3 py-2 text-sm font-bold text-[var(--bb-sel-ink)]">
                 <span>{p}</span>
                 {canSpeak() ? (
-                  <button type="button" onClick={() => speak(p)} aria-label={`Ouvir: ${p}`}>
+                  <button type="button" onClick={() => speak(p, 0.9, undefined, true)} aria-label={`Ouvir: ${p}`}>
                     <IcoSpeaker className="h-6 w-6" />
                   </button>
                 ) : null}
