@@ -1,6 +1,6 @@
 // Teste da economia e das ligas do Babel (sem navegador nem banco): `npx tsx scripts/babel-e2e.ts`
 import { CHEST_IDX, GOALS, HEART_REGEN_MS, MAX_HEARTS, SHOP, dailyQuests, heartsNow, questProgress } from "../src/lib/babel/economy";
-import { DEMOTE, GROUP_SIZE, PROMOTE, TIERS, rankStandings, reserveBots, settleOutcome, weekEndMs, weekMonday, weekStartMs } from "../src/lib/babel/league";
+import { DEMOTE, GROUP_SIZE, PROMOTE, TIERS, rankStandings, settleOutcome, weekEndMs, weekMonday, weekStartMs, zones } from "../src/lib/babel/league";
 
 let fails = 0;
 const ok = (cond: unknown, msg: string) => {
@@ -44,24 +44,20 @@ ok(weekEndMs("2026-10-26") - weekStartMs("2026-10-26") === 7 * 86_400_000, "sema
 eq(TIERS.length, 10, "10 divisões");
 eq(GROUP_SIZE, 30, "grupo de 30");
 
-const mon = "2026-10-26";
-const early = reserveBots("g1", 1, 30, mon, weekStartMs(mon));
-ok(early.every((b) => b.xp === 0), "no início da semana todo mundo está com 0 XP");
-const mid = reserveBots("g1", 1, 30, mon, weekStartMs(mon) + 3.5 * 86_400_000);
-const end = reserveBots("g1", 1, 30, mon, weekEndMs(mon), true);
-ok(mid.some((b) => b.xp > 0), "no meio da semana há XP");
-ok(end.reduce((a, b) => a + b.xp, 0) > mid.reduce((a, b) => a + b.xp, 0), "o XP dos reservas cresce ao longo da semana");
-eq(reserveBots("g1", 1, 30, mon, weekEndMs(mon), true).map((b) => b.xp), end.map((b) => b.xp), "reservas determinísticos");
-ok(reserveBots("g2", 1, 30, mon, weekEndMs(mon), true).map((b) => b.xp).join() !== end.map((b) => b.xp).join(), "grupos diferentes têm reservas diferentes");
-eq(reserveBots("g1", 1, 0, mon, weekEndMs(mon), true).length, 0, "grupo cheio não tem reservas");
-const hard = reserveBots("g1", 10, 30, mon, weekEndMs(mon), true).reduce((a, b) => a + b.xp, 0);
-const soft = reserveBots("g1", 1, 30, mon, weekEndMs(mon), true).reduce((a, b) => a + b.xp, 0);
-ok(hard > soft * 1.5, "divisões altas têm adversários mais fortes");
-
-ok(new Set(end.map((b) => b.name)).size === end.length, "nomes dos reservas não se repetem no grupo");
-const ranked = rankStandings([...end, { id: "me", name: "x", avatar: null, xp: 9999, bot: false, me: true }]);
+const ranked = rankStandings([
+  { id: "b", name: "B", avatar: null, xp: 10, me: false },
+  { id: "me", name: "x", avatar: null, xp: 50, me: true },
+  { id: "a", name: "A", avatar: null, xp: 10, me: false },
+]);
 eq(ranked[0].id, "me", "quem tem mais XP lidera");
-ok(ranked.every((s, i) => i === 0 || ranked[i - 1].xp >= s.xp), "classificação em ordem decrescente");
+eq(ranked.map((s) => s.id), ["me", "a", "b"], "empate desempata por id, ordem decrescente");
+eq(zones(30), { promote: 10, demoteFrom: 26 }, "grupo cheio: 10 sobem, 5 descem");
+eq(zones(9), { promote: 3, demoteFrom: 9 }, "grupo de 9: 3 sobem, 1 desce");
+eq(zones(4), { promote: 1, demoteFrom: 5 }, "grupo de 4: 1 sobe, ninguém desce por posição");
+eq(zones(1), { promote: 1, demoteFrom: 2 }, "sozinho: sem zona de descida");
+eq(settleOutcome(1, 80, 3, 1), { newTier: 4, result: "promoted", gems: 0 }, "sozinho sobe mas sem gemas");
+eq(settleOutcome(4, 80, 3, 4).result, "stayed", "grupo pequeno: último não desce por posição");
+eq(settleOutcome(2, 0, 3, 4).result, "demoted", "0 XP desce mesmo em grupo pequeno");
 
 // ---------------------------------------------------------------- subir e descer
 eq(settleOutcome(1, 300, 1), { newTier: 2, result: "promoted", gems: 60 }, "1º sobe e ganha 60 gemas");

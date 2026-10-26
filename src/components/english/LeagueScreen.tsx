@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { DEMOTE, GROUP_SIZE, PROMOTE, TIERS, weekEndMs } from "@/lib/babel/league";
+import { TIERS, weekEndMs, zones } from "@/lib/babel/league";
 import type { LeagueView } from "@/lib/babel/league.server";
 import { IcoBolt, IcoShield } from "./icons";
 
@@ -22,7 +22,8 @@ export function LeagueScreen({ league }: { league: LeagueView }) {
     return () => clearInterval(t);
   }, []);
   const t = TIERS[league.tier - 1];
-  const demoteFrom = GROUP_SIZE - DEMOTE + 1;
+  const size = league.standings.length;
+  const { promote: PROMOTE, demoteFrom } = zones(size);
   const last = league.last;
 
   return (
@@ -33,7 +34,7 @@ export function LeagueScreen({ league }: { league: LeagueView }) {
           Liga {t.name}
         </h1>
         <p className="bb-sub mt-1">
-          Os {PROMOTE} primeiros sobem de divisão.{now ? ` Termina em ${left(weekEndMs(league.monday) - now)}.` : ""}
+          {size > 1 ? `Os ${PROMOTE} primeiros sobem de divisão.` : "Você é o primeiro da sua liga. Chame mais amigos para disputar!"}{now ? ` Termina em ${left(weekEndMs(league.monday) - now)}.` : ""}
         </p>
         <div className="mt-3 flex justify-center gap-1.5" aria-label={`Divisão ${league.tier} de 10`}>
           {TIERS.map((x, i) => (
@@ -52,11 +53,11 @@ export function LeagueScreen({ league }: { league: LeagueView }) {
         {league.standings.map((s, i) => {
           const rank = i + 1;
           const promo = rank <= PROMOTE;
-          const demo = rank >= demoteFrom && league.tier > 1;
+          const demo = rank >= demoteFrom && demoteFrom <= size && league.tier > 1;
           return (
             <li key={s.id}>
-              {rank === PROMOTE + 1 ? <p className="border-y-2 border-[var(--bb-line)] bg-[var(--bb-soft)] py-1 text-center text-[11px] font-extrabold uppercase tracking-widest text-[var(--bb-green)]">▲ Zona de promoção ▲</p> : null}
-              {rank === demoteFrom && league.tier > 1 ? <p className="border-y-2 border-[var(--bb-line)] bg-[var(--bb-soft)] py-1 text-center text-[11px] font-extrabold uppercase tracking-widest text-[var(--bb-red)]">▼ Zona de rebaixamento ▼</p> : null}
+              {rank === PROMOTE + 1 && PROMOTE < size ? <p className="border-y-2 border-[var(--bb-line)] bg-[var(--bb-soft)] py-1 text-center text-[11px] font-extrabold uppercase tracking-widest text-[var(--bb-green)]">▲ Zona de promoção ▲</p> : null}
+              {rank === demoteFrom && demoteFrom <= size && league.tier > 1 ? <p className="border-y-2 border-[var(--bb-line)] bg-[var(--bb-soft)] py-1 text-center text-[11px] font-extrabold uppercase tracking-widest text-[var(--bb-red)]">▼ Zona de rebaixamento ▼</p> : null}
               <div className={`flex items-center gap-3 px-3 py-2.5 ${s.me ? "bg-[var(--bb-sel-bg)]" : ""}`}>
                 <span className={`w-6 text-center text-base font-extrabold ${promo ? "text-[var(--bb-green)]" : demo ? "text-[var(--bb-red)]" : "text-[var(--bb-mute)]"}`}>{rank}</span>
                 {s.avatar ? (

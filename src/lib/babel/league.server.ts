@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { GROUP_SIZE, rankStandings, reserveBots, settleOutcome, weekMonday, weekSunday, type Standing } from "./league";
+import { rankStandings, settleOutcome, weekMonday, weekSunday, type Standing } from "./league";
 
 // Leitura e fechamento da liga (servidor, com a chave de serviço): quem vê só enxerga nome e XP da semana do próprio grupo.
 
@@ -25,13 +25,13 @@ async function weekXp(admin: SupabaseClient, ids: string[], monday: string): Pro
   return out;
 }
 
-async function groupStandings(admin: SupabaseClient, groupId: string, tier: number, monday: string, meId: string, final: boolean): Promise<Standing[]> {
+async function groupStandings(admin: SupabaseClient, groupId: string, monday: string, meId: string): Promise<Standing[]> {
   const { data: mem } = await admin.from("babel_league_members").select("user_id").eq("group_id", groupId);
   const ids = ((mem ?? []) as { user_id: string }[]).map((m) => m.user_id);
   const [xp, profRes] = await Promise.all([weekXp(admin, ids, monday), ids.length ? admin.from("profiles").select("id, first_name, full_name, avatar_url").in("id", ids) : Promise.resolve({ data: [] })]);
   const profs = new Map(((profRes.data ?? []) as Prof[]).map((p) => [p.id, p]));
-  const real: Standing[] = ids.map((id) => ({ id, name: shortName(profs.get(id)), avatar: profs.get(id)?.avatar_url ?? null, xp: xp.get(id) ?? 0, bot: false, me: id === meId }));
-  return rankStandings([...real, ...reserveBots(groupId, tier, GROUP_SIZE - real.length, monday, Date.now(), final)]);
+  const real: Standing[] = ids.map((id) => ({ id, name: shortName(profs.get(id)), avatar: profs.get(id)?.avatar_url ?? null, xp: xp.get(id) ?? 0, me: id === meId }));
+  return rankStandings(real);
 }
 
 /** Fecha a semana anterior da pessoa (se ainda aberta), coloca na liga da semana e devolve a classificação. */
@@ -45,10 +45,10 @@ export async function loadLeague(admin: SupabaseClient, userId: string): Promise
   let tier: number;
 
   if (prev && !prev.settled) {
-    const st = await groupStandings(admin, prev.group_id, prev.tier, prev.week, userId, true);
-    const rank = st.findIndex((s) => s.me) + 1 || GROUP_SIZE;
+    const st = await groupStandings(admin, prev.group_id, prev.week, userId);
+    const rank = st.findIndex((s) => s.me) + 1 || st.length;
     const me = st[rank - 1];
-    const o = settleOutcome(rank, me?.xp ?? 0, prev.tier);
+    const o = settleOutcome(rank, me?.xp ?? 0, prev.tier, st.length);
     await admin.rpc("babel_league_settle", { p_user: userId, p_week: prev.week, p_rank: rank, p_new_tier: o.newTier, p_result: o.result, p_gems: o.gems });
     prev.settled = true;
     prev.rank = rank;
@@ -63,7 +63,7 @@ export async function loadLeague(admin: SupabaseClient, userId: string): Promise
 
   const { data: gid } = await admin.rpc("babel_league_join", { p_user: userId, p_week: monday, p_tier: tier });
   const groupId = gid as string;
-  const standings = await groupStandings(admin, groupId, tier, monday, userId, false);
+  const standings = await groupStandings(admin, groupId, monday, userId);
   const prior = mine.find((m) => m.week < monday && m.settled && m.result);
   return {
     tier,

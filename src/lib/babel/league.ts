@@ -1,4 +1,4 @@
-// Regras puras das ligas do Babel (client-safe): divisões, semana, adversários de reserva e classificação.
+// Regras puras das ligas do Babel (client-safe): divisões, semana e classificação. Só jogadores reais.
 
 export const TIERS = [
   { name: "Bronze", color: "#cd7f32" },
@@ -29,47 +29,25 @@ export const weekSunday = (monday: string) => addDays(monday, 6);
 export const weekEndMs = (monday: string) => Date.parse(addDays(monday, 7) + "T03:00:00Z");
 export const weekStartMs = (monday: string) => Date.parse(monday + "T03:00:00Z");
 
-function hash(s: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return (h >>> 0) / 4294967296;
-}
-
-const BOT_NAMES = [
-  "Lucas", "Ana Clara", "Pedro", "Maria Eduarda", "Gabriel", "Beatriz", "Davi", "Larissa", "Mateus", "Julia", "Rafael", "Isabela", "Enzo", "Sofia", "Miguel",
-  "Laura", "Heitor", "Helena", "Arthur", "Valentina", "Bernardo", "Alice", "Samuel", "Manuela", "Théo", "Lorena", "Nicolas", "Yasmin", "João Pedro", "Rebeca",
-  "Caleb", "Raquel", "Daniel", "Esther", "Josué", "Débora", "Tiago", "Ester", "Benício", "Lívia",
-];
-
-export type Standing = { id: string; name: string; avatar: string | null; xp: number; bot: boolean; me: boolean };
-
-/** Adversários de reserva do grupo: sempre os mesmos para o mesmo grupo; o XP cresce ao longo da semana. */
-export function reserveBots(groupId: string, tier: number, count: number, monday: string, nowMs: number, final = false): Standing[] {
-  const span = weekEndMs(monday) - weekStartMs(monday);
-  const f = final ? 1 : Math.max(0, Math.min(1, (nowMs - weekStartMs(monday)) / span));
-  const out: Standing[] = [];
-  for (let i = 0; i < Math.max(0, count); i++) {
-    const u = hash(`${groupId}:${i}:t`);
-    const j = hash(`${groupId}:${i}:j`);
-    const base = 90 + 55 * (tier - 1);
-    const target = u < 0.15 ? 8 + Math.floor(u * 100) : base * (0.25 + 1.5 * hash(`${groupId}:${i}:x`));
-    const xp = Math.round(target * Math.pow(f, 0.9) * (0.9 + 0.2 * j));
-    out.push({ id: `bot:${groupId}:${i}`, name: BOT_NAMES[(Math.floor(hash(`${groupId}:n`) * BOT_NAMES.length) + i * 7) % BOT_NAMES.length], avatar: null, xp, bot: true, me: false });
-  }
-  return out;
-}
+export type Standing = { id: string; name: string; avatar: string | null; xp: number; me: boolean };
 
 export function rankStandings(list: Standing[]): Standing[] {
-  return [...list].sort((a, b) => b.xp - a.xp || Number(a.bot) - Number(b.bot) || a.id.localeCompare(b.id));
+  return [...list].sort((a, b) => b.xp - a.xp || a.id.localeCompare(b.id));
+}
+
+/** Zonas de subida/descida proporcionais ao tamanho real do grupo (grupo pequeno não rebaixa ninguém por posição). */
+export function zones(size: number): { promote: number; demoteFrom: number } {
+  const promote = size >= 3 ? Math.min(PROMOTE, Math.floor(size / 3)) : size >= 1 ? 1 : 0;
+  const demote = size >= 6 ? Math.min(DEMOTE, Math.floor(size / 6)) : 0;
+  return { promote, demoteFrom: demote ? size - demote + 1 : size + 1 };
 }
 
 export type LeagueOutcome = { newTier: number; result: "promoted" | "demoted" | "stayed"; gems: number };
-export function settleOutcome(rank: number, xp: number, tier: number): LeagueOutcome {
-  const gems = rank === 1 ? 60 : rank === 2 ? 40 : rank === 3 ? 20 : 0;
-  if (xp > 0 && rank <= PROMOTE && tier < 10) return { newTier: tier + 1, result: "promoted", gems: gems || 10 };
-  if ((xp === 0 || rank > GROUP_SIZE - DEMOTE) && tier > 1) return { newTier: tier - 1, result: "demoted", gems };
+export function settleOutcome(rank: number, xp: number, tier: number, size = GROUP_SIZE): LeagueOutcome {
+  const z = zones(size);
+  // sem disputa de verdade (menos de 3 jogadores) não há prêmio de gemas
+  const gems = size < 3 ? 0 : rank === 1 ? 60 : rank === 2 ? 40 : rank === 3 ? 20 : 0;
+  if (xp > 0 && rank <= z.promote && tier < 10) return { newTier: tier + 1, result: "promoted", gems: size < 3 ? 0 : gems || 10 };
+  if ((xp === 0 || rank >= z.demoteFrom) && tier > 1) return { newTier: tier - 1, result: "demoted", gems };
   return { newTier: tier, result: "stayed", gems };
 }
