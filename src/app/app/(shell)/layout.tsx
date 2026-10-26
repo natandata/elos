@@ -3,6 +3,7 @@ import { AppShell, type NavItem } from "@/components/shell/AppShell";
 import { ThemeSetter } from "@/components/shell/ThemeSetter";
 import { ViewAsBanner } from "@/components/shell/ViewAsBanner";
 import { AnnouncementModal, type ActiveAnnouncement } from "@/components/announcements/AnnouncementModal";
+import { ComebackModal, type ComebackOffer } from "@/components/announcements/ComebackModal";
 import { BirthdayModal } from "@/components/announcements/BirthdayModal";
 import { GenerosityPoll } from "@/components/announcements/GenerosityPoll";
 import { needsGuardianAck, needsStatusCheck, requireProfile } from "@/lib/auth";
@@ -226,6 +227,21 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     }
   }
 
+  // Cartão de boas-vindas (estratégia de retorno ativada pelo admin): aparece antes dos avisos, até ser resgatado ou vencer
+  let comeback: ComebackOffer | null = null;
+  if (!viewingAs && !pending && profile.role !== "admin") {
+    const { data: offer } = await supabase
+      .from("comeback_offers")
+      .select("id, title, body, cta_label, cta_href, reward_xp")
+      .eq("user_id", profile.id)
+      .is("claimed_at", null)
+      .gt("expires_at", new Date().toISOString())
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle<ComebackOffer>();
+    comeback = offer ?? null;
+  }
+
   // Pesquisa única do Elo Masculino 16–17 ("Você gostaria de ser mais generoso?"): só crias desse Elo, uma vez por pessoa
   let generosity: { others: number } | null = null;
   const eloInfo = eloRes.data as { name: string; gender?: string; age_range?: string } | null;
@@ -270,10 +286,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         {children}
       </AppShell>
       {!viewingAs && !profile.birth_date ? <BirthdayModal /> : null}
-      {announcement && profile.birth_date ? (
+      {comeback && profile.birth_date ? <ComebackModal key={comeback.id} offer={comeback} /> : null}
+      {announcement && !comeback && profile.birth_date ? (
         <AnnouncementModal key={`${announcement.id}-${announcement.version}`} announcement={announcement} />
       ) : null}
-      {generosity && !announcement && profile.birth_date ? <GenerosityPoll others={generosity.others} /> : null}
+      {generosity && !announcement && !comeback && profile.birth_date ? <GenerosityPoll others={generosity.others} /> : null}
     </>
   );
 }

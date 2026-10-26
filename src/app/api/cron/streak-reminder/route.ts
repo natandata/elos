@@ -133,6 +133,14 @@ async function notifyDailyHabitStreaks(supabase: Admin): Promise<number> {
     }
   }
 
+  // Estratégias de retorno ativadas fora do horário: o aviso sai agora (20h de Brasília)
+  const { data: waiting } = await supabase.from("comeback_offers").select("id, user_id, push_title, push_body, cta_href").eq("push_status", "pending").gt("expires_at", new Date().toISOString());
+  for (const o of (waiting ?? []) as { id: string; user_id: string; push_title: string | null; push_body: string | null; cta_href: string | null }[]) {
+    await sendPushToUsers([o.user_id], { title: o.push_title ?? "Sentimos a sua falta", body: o.push_body ?? "Tem novidade esperando por você.", url: o.cta_href ?? "/app" }, supabase);
+    await supabase.from("comeback_offers").update({ push_status: "sent" }).eq("id", o.id);
+    notified += 1;
+  }
+
   // Babel (jogo de inglês): quem fez lição ontem e ainda não fez hoje está com a ofensiva em risco
   const { data: bab } = await supabase.from("english_profile").select("user_id, streak").gt("streak", 0).eq("streak_date", yesterday);
   const babRows = (bab ?? []) as { user_id: string; streak: number }[];

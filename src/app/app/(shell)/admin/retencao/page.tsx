@@ -1,5 +1,7 @@
 import { Card, EmptyState, PageHeader } from "@/components/ui";
+import { StrategyPanel, type StrategyView } from "@/components/admin/StrategyPanel";
 import { requireRole } from "@/lib/auth";
+import { offerStatus, pickStrategy, type Bucket, type Signals } from "@/lib/retention/strategy";
 import { createClient } from "@/lib/supabase/server";
 
 type Report = {
@@ -137,6 +139,16 @@ export default async function RetentionPage() {
       </>
     );
   }
+
+  // estratégia sugerida para cada pessoa da lista de atenção (sinais lidos de uma vez só)
+  const { data: sigData } = await supabase.rpc("admin_user_signals", { p_ids: r.at_risk.map((x) => x.id) });
+  const sigs = (sigData ?? {}) as Record<string, Signals>;
+  const strategyFor = (x: Report["at_risk"][number]): StrategyView | null => {
+    const s = sigs[x.id];
+    if (!s) return null;
+    const st = pickStrategy(s, x.bucket as Bucket, r.today);
+    return { userId: x.id, title: st.title, why: st.why, push: `${st.pushTitle}: ${st.pushBody}`, gift: st.giftTitle, xp: st.xp, note: st.note, status: offerStatus(s, r.today) };
+  };
 
   const seg = r.segments;
   const maxDow = Math.max(1, ...r.weekday.map((w) => w.avg));
@@ -304,7 +316,7 @@ export default async function RetentionPage() {
 
       <Card className="mb-8 p-4">
         <p className="text-sm font-black">Quem precisa de atenção</p>
-        <p className="mb-3 text-[11px] text-[var(--muted)]">Os mais recentes primeiro (são os mais fáceis de trazer de volta). Mostra até 60 pessoas.</p>
+        <p className="mb-3 text-[11px] text-[var(--muted)]">Os mais recentes primeiro (são os mais fáceis de trazer de volta). Mostra até 60 pessoas. Embaixo de cada uma está a estratégia sugerida: o botão envia o aviso para ela abrir o app e deixa um presente de boas-vindas esperando no próximo login.</p>
         {r.at_risk.length === 0 ? (
           <p className="text-sm text-[var(--muted)]">Ninguém em risco agora. 🎉</p>
         ) : (
@@ -317,13 +329,19 @@ export default async function RetentionPage() {
                   {title} · {rows.length}
                 </p>
                 <ul className="divide-y divide-[var(--line)] rounded-xl border border-[var(--line)]">
-                  {rows.map((x) => (
-                    <li key={x.id} className="flex items-center gap-2 px-3 py-2 text-sm">
-                      <span className="min-w-0 flex-1 truncate font-semibold">{x.name}</span>
-                      <span className="hidden shrink-0 text-xs text-[var(--muted)] sm:inline">{x.role === "leader" ? "Líder" : "Cria"} · {x.elo ?? "sem Elo"}</span>
-                      <span className="shrink-0 text-xs font-bold tabular-nums text-[var(--muted)]">{x.days === null ? "nunca abriu" : `há ${x.days} dias`}</span>
-                    </li>
-                  ))}
+                  {rows.map((x) => {
+                    const sv = strategyFor(x);
+                    return (
+                      <li key={x.id}>
+                        <div className="flex items-center gap-2 px-3 py-2 text-sm">
+                          <span className="min-w-0 flex-1 truncate font-semibold">{x.name}</span>
+                          <span className="hidden shrink-0 text-xs text-[var(--muted)] sm:inline">{x.role === "leader" ? "Líder" : "Cria"} · {x.elo ?? "sem Elo"}</span>
+                          <span className="shrink-0 text-xs font-bold tabular-nums text-[var(--muted)]">{x.days === null ? "nunca abriu" : `há ${x.days} dias`}</span>
+                        </div>
+                        {sv ? <StrategyPanel v={sv} /> : null}
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             );

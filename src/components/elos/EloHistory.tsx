@@ -55,6 +55,7 @@ const TYPE_LABEL: Record<string, string> = {
   game_dress: "Vista o Herói",
   bible_reading: "Leitura da Bíblia",
   game_english: "Jogo: Babel",
+  comeback: "Presente de boas-vindas",
 };
 const typeLabel = (t: string): string => TYPE_LABEL[t] ?? (t.startsWith("game_") ? "Outros jogos" : t.replace(/_/g, " "));
 
