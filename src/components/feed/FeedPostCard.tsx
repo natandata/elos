@@ -18,6 +18,7 @@ import { plainMentions, splitMentions } from "@/lib/mentions";
 import { MentionInput } from "@/components/elogram/MentionInput";
 import { MentionText } from "@/components/elogram/MentionText";
 import { CommentIcon, EyeIcon, HeartIcon, MoreIcon, SmileIcon } from "./icons";
+import { TribeTag } from "@/components/event/TribeTag";
 
 export type FeedComment = {
   id: string;
@@ -64,7 +65,7 @@ function FeedCommentRow({ comment, canDelete }: { comment: FeedComment; canDelet
   return (
     <div className="flex items-start justify-between gap-2 text-sm">
       <p className="min-w-0 break-words">
-        <strong className="font-semibold">{comment.authorName}</strong> <MentionText text={comment.body} />
+        <strong className="font-semibold">{comment.authorName}</strong> <TribeTag userId={comment.authorId} size="xs" /> <MentionText text={comment.body} />
       </p>
       {canDelete ? (
         <form action={action} className="shrink-0">
@@ -205,7 +206,10 @@ export function FeedPostCard({
               {handle}
               <span className="font-normal text-[var(--muted)]"> · <span suppressHydrationWarning>{relativeTimeShort(post.createdAt)}</span></span>
             </p>
-            {post.authorTag ? <p className="truncate text-xs text-[var(--muted)]">{post.authorTag}</p> : null}
+            <div className="flex min-w-0 items-center gap-1.5 text-xs text-[var(--muted)]">
+              {post.authorTag ? <span className="truncate">{post.authorTag}</span> : null}
+              <TribeTag userId={post.authorId} size="xs" />
+            </div>
           </div>
         </Link>
 

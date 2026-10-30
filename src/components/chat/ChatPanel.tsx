@@ -8,6 +8,7 @@ import type { ChatMessage } from "@/lib/types";
 import { markChatRead, sendChatMessage } from "@/lib/actions/chat";
 import { MentionInput } from "@/components/elogram/MentionInput";
 import { MentionText } from "@/components/elogram/MentionText";
+import { TribeTag } from "@/components/event/TribeTag";
 
 type Participant = {
   id: string;
@@ -155,7 +156,7 @@ export function ChatPanel({
                 <Avatar url={sender?.avatar_url} name={sender?.full_name} size={28} />
                 <div className={`max-w-[75%] ${mine ? "items-end" : "items-start"} flex flex-col`}>
                   <p className="text-xs text-[var(--muted)]">
-                    {sender?.full_name ?? "Alguém"} · {formatDateTime(m.created_at)}
+                    {sender?.full_name ?? "Alguém"} <TribeTag userId={m.sender_id} size="xs" /> · {formatDateTime(m.created_at)}
                   </p>
                   <p
                     className={`mt-1 rounded-2xl px-3 py-2 text-sm ${

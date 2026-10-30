@@ -63,6 +63,20 @@
   --accent-strong: #b4123a;
 }
 
+/* Evento das tribos (Acampadentro): um tema por tribo, aplicado por ThemeSetter enquanto o evento está ativo. */
+[data-theme="tribo-feras"] {
+  --bg: #fffaf0; --card: #ffffff; --line: #f3e6b8; --ink: #241a00; --muted: #7a6a30;
+  --accent: #f2b318; --accent-ink: #241a00; --accent-soft: #fff4d1; --accent-strong: #8a6300;
+}
+[data-theme="tribo-bravos"] {
+  --bg: #f3fbf6; --card: #ffffff; --line: #cfeedd; --ink: #0b2a1a; --muted: #4d7a62;
+  --accent: #2fa866; --accent-ink: #ffffff; --accent-soft: #dff5e8; --accent-strong: #14703d;
+}
+[data-theme="tribo-reliquias"] {
+  --bg: #fdf4f4; --card: #ffffff; --line: #f6d2d4; --ink: #2a0c0e; --muted: #8a5a5d;
+  --accent: #d93a41; --accent-ink: #ffffff; --accent-soft: #fbe1e2; --accent-strong: #a3181f;
+}
+
 /* Modo escuro — independente do data-theme (que só cuida da cor de
    identidade de cada acesso). Superfícies ficam escuras pros quatro temas;
    a cor de destaque (--accent e derivadas) não muda, de propósito. */

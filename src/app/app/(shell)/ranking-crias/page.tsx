@@ -3,6 +3,7 @@ import { Avatar } from "@/components/Avatar";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatXp } from "@/lib/types";
+import { TribeTag } from "@/components/event/TribeTag";
 
 type Row = { id: string; full_name: string; avatar_url: string | null; elo_id: string | null; xp: number };
 
@@ -41,7 +42,9 @@ export default async function RankingCriasPage() {
                   </span>
                   <Avatar url={r.avatar_url} name={r.full_name} size={28} />
                   <span className="min-w-0">
-                    <span className="block truncate">{r.full_name || "Sem nome"}</span>
+                    <span className="block truncate">
+                      {r.full_name || "Sem nome"} <TribeTag userId={r.id} size="xs" />
+                    </span>
                     <span className="block truncate text-xs text-[var(--muted)]">
                       {(r.elo_id && eloNameById.get(r.elo_id)) || "Sem Elo"}
                     </span>

@@ -1,5 +1,6 @@
 "use client";
 
+import { TribeTag } from "@/components/event/TribeTag";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -220,7 +221,7 @@ export function DmThread({
               />
               <div className="min-w-0 leading-tight">
                 <p className="truncate text-[15px] font-semibold">
-                  {headerPerson.username || headerPerson.name}
+                  {headerPerson.username || headerPerson.name} <TribeTag userId={headerPerson.id} size="xs" />
                 </p>
                 {headerPerson.username ? (
                   <p className="truncate text-xs text-[var(--muted)]">

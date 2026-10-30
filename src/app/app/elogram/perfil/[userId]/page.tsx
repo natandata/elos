@@ -10,6 +10,7 @@ import { ProfileStoryRing } from "@/components/profile/ProfileStoryRing";
 import { ChevronLeftIcon } from "@/components/feed/icons";
 import { DevotionalStreakCard } from "@/components/elogram/DevotionalStreakCard";
 import { ROLE_LABEL, levelForXp, type Role } from "@/lib/types";
+import { TribeTag } from "@/components/event/TribeTag";
 
 type ProfileCard = {
   id: string;
@@ -92,7 +93,10 @@ export default async function ElogramProfilePage({ params }: { params: Promise<{
             <AvatarLightbox url={card.avatar_url} name={card.full_name} size={86} />
           </ProfileStoryRing>
           <div className="min-w-0 flex-1">
-            <p className="text-[17px] font-semibold leading-tight">{card.full_name}</p>
+            <p className="flex flex-wrap items-center gap-1.5 text-[17px] font-semibold leading-tight">
+              {card.full_name}
+              <TribeTag userId={card.id} />
+            </p>
             {tag ? <p className="text-sm text-[var(--muted)]">{tag}</p> : null}
             {card.role !== "admin" ? <p className="text-sm text-[var(--muted)]">{level.title}</p> : null}
           </div>

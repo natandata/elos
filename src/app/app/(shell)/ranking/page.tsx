@@ -3,6 +3,7 @@ import { Avatar } from "@/components/Avatar";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatXp } from "@/lib/types";
+import { TribeTag } from "@/components/event/TribeTag";
 
 type LeaderRow = {
   leader_id: string;
@@ -161,7 +162,9 @@ export default async function MeuEloPage() {
                     {i + 1}º
                   </span>
                   <Avatar url={c.avatar_url} name={c.full_name} size={28} />
-                  <span className="truncate">{c.full_name || "Sem nome"}</span>
+                  <span className="truncate">
+                    {c.full_name || "Sem nome"} <TribeTag userId={c.id} size="xs" />
+                  </span>
                 </span>
                 <span className="shrink-0 tabular-nums">{formatXp(c.xp)} XP</span>
               </li>

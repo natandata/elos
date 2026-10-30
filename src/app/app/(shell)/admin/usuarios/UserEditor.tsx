@@ -21,6 +21,7 @@ import {
   type Gender,
   type Role,
 } from "@/lib/types";
+import { TribeTag } from "@/components/event/TribeTag";
 
 type Row = {
   id: string;
@@ -89,6 +90,7 @@ export function UserEditor({
           <div className="min-w-0">
           <p className="flex items-center gap-2 truncate font-bold">
             {user.full_name || "Sem nome"}
+            <TribeTag userId={user.id} size="xs" />
             {user.role === "leader" && !user.approved ? (
               <span className="chip border-amber-200 bg-amber-100 text-amber-800">
                 Aguardando aprovação

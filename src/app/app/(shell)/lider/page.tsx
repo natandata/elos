@@ -27,6 +27,7 @@ import {
   relativeDay,
   type StatusLevel,
 } from "@/lib/types";
+import { TribeTag } from "@/components/event/TribeTag";
 
 // "Online agora" pro contador ao vivo do Elo — mesma janela usada no admin
 // pra marcar presença (ver src/app/app/(shell)/admin/usuarios/page.tsx).
@@ -354,7 +355,9 @@ export default async function LiderDashboard() {
                       {i + 1}
                     </span>
                     <Avatar url={c.avatar_url} name={c.full_name} size={30} />
-                    <span className={`truncate ${i === 0 ? "text-base font-bold" : "text-sm font-medium"}`}>{c.full_name || "Sem nome"}</span>
+                    <span className={`truncate ${i === 0 ? "text-base font-bold" : "text-sm font-medium"}`}>
+                      {c.full_name || "Sem nome"} <TribeTag userId={c.id} size="xs" />
+                    </span>
                   </span>
                   <span className={`shrink-0 tabular-nums ${i === 0 ? "text-sm font-bold" : "text-xs text-[var(--muted)]"}`}>{formatXp(c.xp)} XP</span>
                 </li>

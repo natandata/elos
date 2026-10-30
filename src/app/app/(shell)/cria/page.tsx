@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { TribeTag } from "@/components/event/TribeTag";
 import { ArenaLaunchCard } from "@/components/games/ArenaLaunchCard";
 import { EbdAnnouncement } from "@/components/games/EbdAnnouncement";
 import { DevotionalSuggestionCard } from "@/components/devotional/DevotionalSuggestionCard";
@@ -362,7 +363,7 @@ export default async function CriaDashboard() {
                   }`}
                 >
                   <span className="truncate">
-                    {i + 1}º {r.full_name || "Sem nome"}
+                    {i + 1}º {r.full_name || "Sem nome"} <TribeTag userId={r.id} size="xs" />
                   </span>
                   <span className="tabular-nums">{formatXp(r.xp)} XP</span>
                 </li>

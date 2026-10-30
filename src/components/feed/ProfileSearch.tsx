@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Avatar } from "@/components/Avatar";
 import { ROLE_LABEL, type Role } from "@/lib/types";
 import { SearchIcon } from "./icons";
+import { TribeTag } from "@/components/event/TribeTag";
 
 type Result = {
   id: string;
@@ -103,7 +104,7 @@ export function ProfileSearch() {
                     <Avatar url={r.avatar_url} name={r.full_name} size={36} />
                     <div className="min-w-0">
                       <p className="truncate text-sm font-bold">
-                        {r.username ? `@${r.username}` : r.full_name}
+                        {r.username ? `@${r.username}` : r.full_name} <TribeTag userId={r.id} size="xs" />
                       </p>
                       <p className="truncate text-xs text-[var(--muted)]">
                         {ROLE_LABEL[r.role]}

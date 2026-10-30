@@ -5,6 +5,8 @@ import { ViewAsBanner } from "@/components/shell/ViewAsBanner";
 import { AnnouncementModal, type ActiveAnnouncement } from "@/components/announcements/AnnouncementModal";
 import { ComebackModal, type ComebackOffer } from "@/components/announcements/ComebackModal";
 import { BirthdayModal } from "@/components/announcements/BirthdayModal";
+import { EventBanner } from "@/components/event/EventBanner";
+import { TribeLoginCard } from "@/components/event/TribeLoginCard";
 import { GenerosityPoll } from "@/components/announcements/GenerosityPoll";
 import { needsGuardianAck, needsStatusCheck, requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -17,6 +19,7 @@ const NAV: Record<string, NavItem[]> = {
     { href: "/app/admin/ajuda", label: "Pedidos de Ajuda", icon: "🆘" },
     { href: "/app/admin/avisos", label: "Avisos", icon: "📣" },
     { href: "/app/admin/retencao", label: "Retenção", icon: "📈" },
+    { href: "/app/admin/acampadentro", label: "Acampadentro · tribos", icon: "🏕️" },
     { href: "/app/admin/babel-conversas", label: "Conversas do Babel", icon: "🎤" },
     {
       href: "/app/admin/jogos",
@@ -284,8 +287,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         role={profile.role}
         showOnboarding={!profile.onboarding_completed_at}
       >
+        <EventBanner />
         {children}
       </AppShell>
+      {!viewingAs && !pending ? <TribeLoginCard name={profile.full_name || "Participante"} /> : null}
       {!viewingAs && !profile.birth_date ? <BirthdayModal /> : null}
       {comeback && profile.birth_date ? <ComebackModal key={comeback.id} offer={comeback} /> : null}
       {announcement && !comeback && profile.birth_date ? (

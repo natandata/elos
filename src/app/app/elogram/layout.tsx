@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { ThemeSetter } from "@/components/shell/ThemeSetter";
 import { ElogramNav } from "@/components/elogram/ElogramNav";
+import { EventBanner } from "@/components/event/EventBanner";
+import { TribeLoginCard } from "@/components/event/TribeLoginCard";
 import { PullToRefresh } from "@/components/elogram/PullToRefresh";
 import { homeFor, needsGuardianAck, needsStatusCheck, requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -38,7 +40,13 @@ export default async function ElogramLayout({ children }: { children: React.Reac
       <ThemeSetter theme={theme} />
       <div className="min-h-dvh bg-[var(--bg)] text-[var(--ink)]">
         <PullToRefresh />
-        <div className="mx-auto w-full max-w-[470px] pb-28">{children}</div>
+        <div className="mx-auto w-full max-w-[470px] pb-28">
+          <div className="px-3 pt-3">
+            <EventBanner />
+          </div>
+          {children}
+        </div>
+        {!viewingAs ? <TribeLoginCard name={profile.full_name || "Você"} /> : null}
         <ElogramNav
           myId={profile.id}
           name={profile.full_name || "Você"}

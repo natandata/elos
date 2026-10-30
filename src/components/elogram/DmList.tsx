@@ -7,6 +7,7 @@ import { Avatar } from "@/components/Avatar";
 import { ROLE_LABEL, type Role } from "@/lib/types";
 import { SearchIcon } from "@/components/feed/icons";
 import { relativeTimeShort } from "@/lib/relativeTime";
+import { TribeTag } from "@/components/event/TribeTag";
 
 export type DmListItem = {
   thread_id: string;
@@ -123,7 +124,7 @@ export function DmList({ items, myId, monitorLink }: { items: DmListItem[]; myId
                 <Avatar url={i.other_avatar} name={i.other_name} size={58} />
                 <div className="min-w-0 flex-1">
                   <p className={`truncate text-[16px] ${i.unread ? "font-bold" : "font-semibold"}`}>
-                    {i.other_username || i.other_name}
+                    {i.other_username || i.other_name} <TribeTag userId={i.other_id} size="xs" />
                   </p>
                   <p className={`truncate text-[15px] ${i.unread ? "font-semibold text-[var(--ink)]" : "text-[var(--muted)]"}`}>
                     {i.last_sender === myId ? "Você: " : ""}
