@@ -5,7 +5,7 @@ import { awardTribePoints, moveTribeMember, runTribeDraw, saveEventMission, setE
 import { TRIBES, TRIBE_KEYS, type TribeKey } from "@/lib/event/tribes";
 
 export type AdminTribe = { key: TribeKey; points: number; members: number; rank: number };
-export type AdminMember = { id: string; name: string; role: string; elo: string; tribe: TribeKey | null };
+export type AdminMember = { id: string; name: string; role: string; elo: string; tribe: TribeKey | null; seenAt?: string | null };
 export type AdminMission = { id: string; title: string; description: string | null; points: number; active: boolean };
 export type AdminPoint = { id: string; tribe: TribeKey; points: number; reason: string; at: string };
 
@@ -156,7 +156,7 @@ export function EventAdmin({ active, drawn, tribes, members, missions, points, d
         <ul className="divide-y divide-[var(--line)] text-sm">
           {shown.map((m) => (
             <li key={m.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
-              <span className="min-w-0 truncate font-semibold">{m.name} <span className="font-normal text-[var(--muted)]">· {m.role === "leader" ? "Líder" : "Cria"} · {m.elo}</span></span>
+              <span className="min-w-0 truncate font-semibold">{m.name} <span className="font-normal text-[var(--muted)]">· {m.role === "leader" ? "Líder" : "Cria"} · {m.elo}</span> <span className={`ml-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${m.seenAt ? "bg-emerald-500/15 text-emerald-700" : "bg-amber-500/15 text-amber-700"}`}>{m.seenAt ? "já viu" : "ainda não viu"}</span></span>
               <select value={m.tribe ?? ""} disabled={pending} onChange={(e) => e.target.value && run(() => moveTribeMember(m.id, e.target.value))} className="input !w-auto !py-1 text-sm">
                 {!m.tribe ? <option value="">Sem tribo</option> : null}
                 {TRIBE_KEYS.map((k) => <option key={k} value={k}>{TRIBES[k].name}</option>)}

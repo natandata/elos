@@ -17,10 +17,15 @@ export function TribeLoginCard({ name }: { name: string }) {
     let alive = true;
     (async () => {
       try {
-        const { data } = await createClient().auth.getSession();
+        const sb = createClient();
+        const { data } = await sb.auth.getSession();
         // `last_sign_in_at` muda a cada login novo (e não a cada renovação da sessão)
         const login = data.session?.user.last_sign_in_at ?? "sem-data";
-        if (localStorage.getItem(KEY) !== login && alive) setOpen(true);
+        if (localStorage.getItem(KEY) !== login && alive) {
+          setOpen(true);
+          // o admin vê no painel quem já viu a própria tribo
+          void sb.rpc("event_mark_seen").then(() => null, () => null);
+        }
       } catch {
         if (alive) setOpen(true);
       }

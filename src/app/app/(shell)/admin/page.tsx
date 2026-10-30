@@ -1,5 +1,6 @@
 import { Bar, Card, PageHeader, StatCard } from "@/components/ui";
 import { HomeHighlights } from "@/components/home/HomeHighlights";
+import { EventDashboard } from "@/components/event/EventDashboard";
 import { AdminVideoStats } from "@/components/home/AdminVideoStats";
 import { RecentActivity } from "@/components/admin/RecentActivity";
 import { needsWeeklyPushNudge, requireRole } from "@/lib/auth";
@@ -91,6 +92,8 @@ export default async function AdminDashboard() {
     <>
       <PageHeader title="Dashboard" subtitle="Visão geral dos ELOS." />
       <HomeHighlights />
+
+      <EventDashboard />
 
       <WeeklyPushNudge eligible={showPushNudge} />
 
