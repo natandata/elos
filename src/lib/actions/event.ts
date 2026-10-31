@@ -19,13 +19,15 @@ const done = (message?: string): Res => {
 export async function runTribeDraw(): Promise<Res> {
   const { profile } = await requireRole("admin");
   const supabase = await createClient();
-  const [{ data: people }, { data: members }] = await Promise.all([
+  const [{ data: people }, { data: members }, { data: neutralRows }] = await Promise.all([
     supabase.from("profiles").select("id, role, approved, elo_id, is_test_account").in("role", ["cria", "leader"]),
     supabase.from("event_members").select("user_id, tribe"),
+    supabase.from("event_neutral").select("user_id"),
   ]);
+  const neutral = new Set(((neutralRows ?? []) as { user_id: string }[]).map((n) => n.user_id));
   const existing = new Map<string, TribeKey>(((members ?? []) as { user_id: string; tribe: string }[]).filter((m) => isTribeKey(m.tribe)).map((m) => [m.user_id, m.tribe as TribeKey]));
   const eligible: DrawPerson[] = ((people ?? []) as { id: string; role: "cria" | "leader"; approved: boolean; elo_id: string | null; is_test_account: boolean | null }[])
-    .filter((p) => !p.is_test_account && (p.role === "cria" || p.approved))
+    .filter((p) => !p.is_test_account && !neutral.has(p.id) && (p.role === "cria" || p.approved))
     .map((p) => ({ id: p.id, role: p.role, eloId: p.elo_id }));
   const result = drawTribes(eligible, Date.now() % 2147483647, existing);
   if (result.size === 0 && existing.size > 0) return { error: "Todo mundo já tem tribo." };
@@ -49,11 +51,22 @@ export async function setEventActive(active: boolean): Promise<Res> {
   return done(active ? "Evento ligado: os usuários veem a tribo no próximo login." : "Evento desligado: o app voltou ao normal.");
 }
 
+/** Move alguém para uma tribo, ou tira da tribo (`tribe` = "none": fica neutro e não é sorteado de novo). */
 export async function moveTribeMember(userId: string, tribe: string): Promise<Res> {
   const { profile } = await requireRole("admin");
-  if (!isTribeKey(tribe) || !/^[0-9a-f-]{36}$/i.test(userId)) return { error: "Dados inválidos." };
-  const { error } = await (await createClient()).from("event_members").upsert({ user_id: userId, tribe, source: "admin", assigned_by: profile.id, assigned_at: new Date().toISOString() });
+  if (!/^[0-9a-f-]{36}$/i.test(userId)) return { error: "Dados inválidos." };
+  const supabase = await createClient();
+  if (tribe === "none") {
+    const { error: neutralError } = await supabase.from("event_neutral").upsert({ user_id: userId });
+    if (neutralError) return { error: "Não foi possível tirar da tribo." };
+    const { error } = await supabase.from("event_members").delete().eq("user_id", userId);
+    if (error) return { error: "Não foi possível tirar da tribo." };
+    return done();
+  }
+  if (!isTribeKey(tribe)) return { error: "Dados inválidos." };
+  const { error } = await supabase.from("event_members").upsert({ user_id: userId, tribe, source: "admin", assigned_by: profile.id, assigned_at: new Date().toISOString() });
   if (error) return { error: "Não foi possível mover." };
+  await supabase.from("event_neutral").delete().eq("user_id", userId);
   return done();
 }
 

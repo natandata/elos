@@ -160,6 +160,7 @@ export function EventAdmin({ active, drawn, tribes, members, missions, points, d
               <select value={m.tribe ?? ""} disabled={pending} onChange={(e) => e.target.value && run(() => moveTribeMember(m.id, e.target.value))} className="input !w-auto !py-1 text-sm">
                 {!m.tribe ? <option value="">Sem tribo</option> : null}
                 {TRIBE_KEYS.map((k) => <option key={k} value={k}>{TRIBES[k].name}</option>)}
+                {m.tribe ? <option value="none">Sem tribo (neutro)</option> : null}
               </select>
             </li>
           ))}
