@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AlternativaCard } from "@/components/AlternativaCard";
 import { EventMissionsCard } from "@/components/event/EventMissionsCard";
 import { TribeTag } from "@/components/event/TribeTag";
 import { ArenaLaunchCard } from "@/components/games/ArenaLaunchCard";
@@ -33,6 +34,18 @@ const ONLINE_WINDOW_MS = 60_000;
 export default async function CriaDashboard() {
   const { profile, viewingAs } = await requireRole("cria");
   const supabase = await createClient();
+
+  // 18 anos + 7 dias: a tela de início vira só o aviso de despedida (a conta é encerrada 30 dias depois)
+  const { data: alt } = await supabase.from("profiles").select("alt_notice_on, alt_delete_on").eq("id", profile.id).maybeSingle<{ alt_notice_on: string | null; alt_delete_on: string | null }>();
+  if (alt?.alt_notice_on && alt.alt_notice_on <= todayBR()) {
+    return (
+      <>
+        <PageHeader title={`Olá, ${(profile.full_name || "Cria").split(" ")[0]}!`} />
+        <AlternativaCard deleteOn={alt.alt_delete_on} />
+      </>
+    );
+  }
+
   const showPushNudge = !viewingAs && (await needsWeeklyPushNudge(supabase, profile));
 
   const [
