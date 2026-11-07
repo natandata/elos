@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 
 const KEY = "elos_rsvp_card_login";
 // Quem respondeu "Ainda não sei" precisa confirmar até terça 10/11 (fim do dia, horário de Brasília).
-const MAYBE_DEADLINE_LABEL = "terça-feira (10/11)";
+const MAYBE_DEADLINE_LABEL = "terça-feira (10/11) às 23h59";
 const MAYBE_DEADLINE_END = Date.parse("2026-11-11T02:59:59Z");
 export type Rsvp = "yes" | "no" | "maybe";
 export type RsvpState = { status: Rsvp | null; event_date: string; name: string; open: boolean } | null;
@@ -64,11 +64,12 @@ export function AttendanceCard({ state }: { state: RsvpState }) {
   const [y, m, d] = state.event_date.split("-");
   const wasMaybe = state.status === "maybe";
   const expired = Date.now() > MAYBE_DEADLINE_END;
-  const opts: { s: Rsvp; label: string; emoji: string }[] = [
+  const all: { s: Rsvp; label: string; emoji: string }[] = [
     { s: "yes", label: "Eu vou!", emoji: "✅" },
     { s: "maybe", label: "Ainda não sei", emoji: "🤔" },
     { s: "no", label: "Não vou", emoji: "❌" },
   ];
+  const opts = wasMaybe ? all.filter((o) => o.s !== "maybe") : all;
 
   return (
     <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-label="Confirmar presença no Acampadentro">
@@ -107,7 +108,7 @@ export function AttendanceCard({ state }: { state: RsvpState }) {
             ))}
             {!wasMaybe ? <p className="text-xs font-semibold text-[var(--muted)]">Se escolher “Ainda não sei”, confirme até {MAYBE_DEADLINE_LABEL}. Sem resposta, não é possível confirmar a sua inscrição.</p> : null}
             <button type="button" onClick={close} className="pt-1 text-xs font-semibold text-[var(--muted)] underline">
-              Responder depois
+              {wasMaybe ? `Continuar em talvez (até ${MAYBE_DEADLINE_LABEL})` : "Responder depois"}
             </button>
           </div>
         )}
