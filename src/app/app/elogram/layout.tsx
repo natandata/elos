@@ -2,7 +2,9 @@ import { redirect } from "next/navigation";
 import { ThemeSetter } from "@/components/shell/ThemeSetter";
 import { ElogramNav } from "@/components/elogram/ElogramNav";
 import { EventBanner } from "@/components/event/EventBanner";
+import { AttendanceCard } from "@/components/event/AttendanceCard";
 import { TribeLoginCard } from "@/components/event/TribeLoginCard";
+import { getRsvpState } from "@/lib/event/server";
 import { PullToRefresh } from "@/components/elogram/PullToRefresh";
 import { homeFor, needsGuardianAck, needsStatusCheck, requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -47,6 +49,7 @@ export default async function ElogramLayout({ children }: { children: React.Reac
           {children}
         </div>
         {!viewingAs ? <TribeLoginCard name={profile.full_name || "Você"} /> : null}
+        {!viewingAs ? <AttendanceCard state={await getRsvpState()} /> : null}
         <ElogramNav
           myId={profile.id}
           name={profile.full_name || "Você"}

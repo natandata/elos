@@ -1,0 +1,2 @@
+-- Acampadentro: confirmacao de presenca (tabela acampadentro_rsvp; RPCs acampadentro_rsvp_me e acampadentro_set_rsvp).
+-- Aplicado no banco como "acampadentro_rsvp"; card em src/components/event/AttendanceCard.tsx

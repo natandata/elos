@@ -27,3 +27,14 @@ export const getTribeMap = cache(async (): Promise<Record<string, TribeKey>> => 
     return {};
   }
 });
+
+/** Confirmação de presença da própria pessoa (card pós-login). Erro vira "sem card". */
+export const getRsvpState = cache(async () => {
+  try {
+    const { data, error } = await (await createClient()).rpc("acampadentro_rsvp_me");
+    if (error || !data) return null;
+    return data as { status: "yes" | "no" | "maybe" | null; event_date: string; name: string; open: boolean };
+  } catch {
+    return null;
+  }
+});

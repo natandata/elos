@@ -4,8 +4,15 @@ import { useState, useTransition } from "react";
 import { moveTribeMember } from "@/lib/actions/event";
 import { TRIBES, TRIBE_KEYS, type TribeKey } from "@/lib/event/tribes";
 
-export type BoardPerson = { id: string; name: string; leader: boolean; tribe: TribeKey | null; seenAt: string | null; views: number };
+export type BoardPerson = { id: string; name: string; leader: boolean; tribe: TribeKey | null; seenAt: string | null; views: number; rsvp: "yes" | "no" | "maybe" | null };
 export type BoardTribe = { key: TribeKey; rank: number; points: number };
+
+const RSVP = {
+  yes: { emoji: "✅", label: "Vai no Acampadentro" },
+  maybe: { emoji: "🤔", label: "Ainda não sabe se vai" },
+  no: { emoji: "❌", label: "Não vai" },
+  none: { emoji: "⏳", label: "Ainda não respondeu" },
+} as const;
 
 const when = (iso: string) => new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 type Zone = TribeKey | "none";
@@ -76,6 +83,7 @@ export function TribeBoard({ initial, tribes }: { initial: BoardPerson[]; tribes
         {p.leader ? <span className="ml-1 rounded-full px-1.5 text-[10px] font-bold" style={{ background: soft ?? "var(--line)", color: dark ?? "inherit" }}>Líder</span> : null}
       </span>
       <span className="flex shrink-0 items-center gap-1.5">
+        <span className="text-sm leading-none" title={RSVP[p.rsvp ?? "none"].label} aria-label={RSVP[p.rsvp ?? "none"].label}>{RSVP[p.rsvp ?? "none"].emoji}</span>
         {p.tribe ? (
           <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${p.seenAt ? "bg-emerald-500/15 text-emerald-700" : "bg-amber-500/15 text-amber-700"}`} title={p.seenAt ? `Viu pela 1ª vez em ${when(p.seenAt)} · ${p.views}x` : undefined}>
             {p.seenAt ? `viu ${when(p.seenAt)}` : "ainda não viu"}

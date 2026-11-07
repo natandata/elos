@@ -6,7 +6,9 @@ import { AnnouncementModal, type ActiveAnnouncement } from "@/components/announc
 import { ComebackModal, type ComebackOffer } from "@/components/announcements/ComebackModal";
 import { BirthdayModal } from "@/components/announcements/BirthdayModal";
 import { EventBanner } from "@/components/event/EventBanner";
+import { AttendanceCard } from "@/components/event/AttendanceCard";
 import { TribeLoginCard } from "@/components/event/TribeLoginCard";
+import { getRsvpState } from "@/lib/event/server";
 import { GenerosityPoll } from "@/components/announcements/GenerosityPoll";
 import { needsGuardianAck, needsStatusCheck, requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -291,6 +293,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         {children}
       </AppShell>
       {!viewingAs && !pending ? <TribeLoginCard name={profile.full_name || "Participante"} /> : null}
+      {!viewingAs && !pending ? <AttendanceCard state={await getRsvpState()} /> : null}
       {!viewingAs && !profile.birth_date ? <BirthdayModal /> : null}
       {comeback && profile.birth_date ? <ComebackModal key={comeback.id} offer={comeback} /> : null}
       {announcement && !comeback && profile.birth_date ? (
