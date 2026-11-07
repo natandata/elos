@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AlternativaCard } from "@/components/AlternativaCard";
 import { EventMissionsCard } from "@/components/event/EventMissionsCard";
+import { RsvpMaybeCard } from "@/components/event/RsvpMaybeCard";
 import { TribeTag } from "@/components/event/TribeTag";
 import { ArenaLaunchCard } from "@/components/games/ArenaLaunchCard";
 import { EbdAnnouncement } from "@/components/games/EbdAnnouncement";
@@ -245,6 +246,7 @@ export default async function CriaDashboard() {
   return (
     <>
       <PageHeader title={`Olá, ${(profile.full_name || "Cria").split(" ")[0]}!`} subtitle={eloName} />
+      <RsvpMaybeCard />
       <EventMissionsCard />
 
       <HomeHighlights />

@@ -16,6 +16,7 @@ import { CriaDaSemana } from "@/components/CriaDaSemana";
 import { OpenChallengeBanner } from "@/components/OpenChallengeBanner";
 import { StoriesTray } from "@/components/profile/StoriesTray";
 import { HomeHighlights } from "@/components/home/HomeHighlights";
+import { RsvpMaybeCard } from "@/components/event/RsvpMaybeCard";
 import { getEloStoriesTray } from "@/lib/stories";
 import { statusDayCutoffUTC } from "@/lib/auth";
 import {
@@ -228,6 +229,7 @@ export default async function LiderDashboard() {
         title={`Olá, ${(profile.full_name || "Líder").split(" ")[0]}!`}
         subtitle={`${eloName} · ${crias.length} cria(s) sob sua responsabilidade.`}
       />
+      <RsvpMaybeCard />
       <HomeHighlights />
 
       <WeeklyPushNudge eligible={showPushNudge} />
