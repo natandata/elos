@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 const KEY = "elos_rsvp_card_login";
+// Quem respondeu "Ainda não sei" precisa confirmar até terça 10/11 (fim do dia, horário de Brasília).
+const MAYBE_DEADLINE_LABEL = "terça-feira (10/11)";
+const MAYBE_DEADLINE_END = Date.parse("2026-11-11T02:59:59Z");
 export type Rsvp = "yes" | "no" | "maybe";
 export type RsvpState = { status: Rsvp | null; event_date: string; name: string; open: boolean } | null;
 
@@ -55,10 +58,12 @@ export function AttendanceCard({ state }: { state: RsvpState }) {
     setBusy(false);
     setDone(s);
     await remember();
-    setTimeout(() => setOpen(false), 1400);
+    if (s !== "maybe") setTimeout(() => setOpen(false), 1400);
   };
 
   const [y, m, d] = state.event_date.split("-");
+  const wasMaybe = state.status === "maybe";
+  const expired = Date.now() > MAYBE_DEADLINE_END;
   const opts: { s: Rsvp; label: string; emoji: string }[] = [
     { s: "yes", label: "Eu vou!", emoji: "✅" },
     { s: "maybe", label: "Ainda não sei", emoji: "🤔" },
@@ -71,10 +76,28 @@ export function AttendanceCard({ state }: { state: RsvpState }) {
         <p className="text-4xl" aria-hidden>
           ⛺
         </p>
-        <p className="mt-2 text-2xl font-black leading-tight">Você vai no {state.name}?</p>
+        <p className="mt-2 text-2xl font-black leading-tight">{wasMaybe ? `Falta confirmar sua presença no ${state.name}!` : `Você vai no ${state.name}?`}</p>
         <p className="mt-1 text-sm font-semibold text-[var(--muted)]">Dia {d}/{m}/{y}. Confirme sua presença para a gente se organizar.</p>
+        {wasMaybe && !done ? (
+          <p className="mt-3 rounded-xl border-2 border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm font-bold text-amber-700">
+            {expired
+              ? "O prazo acabou. Responda agora, mas sem confirmação não garantimos sua inscrição."
+              : `Você respondeu “Ainda não sei”. O prazo para confirmar é até ${MAYBE_DEADLINE_LABEL}. Se não responder, não será possível confirmar a sua inscrição.`}
+          </p>
+        ) : null}
         {done ? (
-          <p className="mt-6 text-lg font-extrabold">{done === "yes" ? "Presença confirmada! 🎉" : done === "no" ? "Anotado, sentiremos sua falta." : "Anotado! Perguntamos de novo no próximo login."}</p>
+          done === "maybe" ? (
+            <div className="mt-5">
+              <p className="rounded-xl border-2 border-amber-500/50 bg-amber-500/10 px-3 py-3 text-base font-extrabold text-amber-700">
+                ⏰ Prazo: até {MAYBE_DEADLINE_LABEL}. Se você não confirmar até lá, não será possível confirmar a sua inscrição.
+              </p>
+              <button type="button" onClick={() => setOpen(false)} className="mt-4 w-full rounded-xl border-2 border-[var(--line)] px-4 py-3 text-base font-extrabold active:scale-[0.98]">
+                Entendi
+              </button>
+            </div>
+          ) : (
+            <p className="mt-6 text-lg font-extrabold">{done === "yes" ? "Presença confirmada! 🎉" : "Anotado, sentiremos sua falta."}</p>
+          )
         ) : (
           <div className="mt-5 space-y-2.5">
             {opts.map((o) => (
@@ -82,6 +105,7 @@ export function AttendanceCard({ state }: { state: RsvpState }) {
                 <span aria-hidden>{o.emoji}</span> {o.label}
               </button>
             ))}
+            {!wasMaybe ? <p className="text-xs font-semibold text-[var(--muted)]">Se escolher “Ainda não sei”, confirme até {MAYBE_DEADLINE_LABEL}. Sem resposta, não é possível confirmar a sua inscrição.</p> : null}
             <button type="button" onClick={close} className="pt-1 text-xs font-semibold text-[var(--muted)] underline">
               Responder depois
             </button>

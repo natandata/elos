@@ -46,7 +46,7 @@ export async function EventDashboard() {
       <div className="card mb-3 p-4">
         <p className="text-sm font-bold">Presença no {state.name ?? "Acampadentro"}</p>
         <p className="mt-1 text-sm font-semibold">
-          ✅ {count("yes")} vão · 🤔 {count("maybe")} talvez · ❌ {count("no")} não vão · ⏳ {count(null)} sem resposta
+          ✅ {count("yes")} vão · 🤔 {count("maybe")} talvez (prazo: terça 10/11) · ❌ {count("no")} não vão · ⏳ {count(null)} sem resposta
         </p>
         <p className="mt-1 text-xs text-[var(--muted)]">Responderam pelo card que aparece depois do login (cria e líder). Ao lado de cada nome aparece o emoji da resposta.</p>
       </div>
