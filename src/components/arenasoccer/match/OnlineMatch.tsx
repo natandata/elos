@@ -44,6 +44,15 @@ export function OnlineMatch({ net, myUid, members, teams, lineups, seed, label, 
   const [lost, setLost] = useState(false);
   const lastMsg = useRef(0);
 
+  // a partida online ocupa a tela inteira: trava a rolagem da página por trás
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
   const controllerOf = (c: Chance): OnlineMember | null => {
     const side = members.filter((m) => m.side === c.side);
     return side.find((m) => m.pick && (m.pick === c.shooter.name || m.pick === c.assister?.name)) ?? side[0] ?? null;
@@ -319,7 +328,7 @@ export function OnlineMatch({ net, myUid, members, teams, lineups, seed, label, 
 
   if (lost) {
     return (
-      <div className="space-y-3">
+      <div className="space-y-3 pes-fs">
         {head}
         <section className="card p-4 text-center">
           <p className="text-lg font-black">Conexão perdida</p>
@@ -340,7 +349,7 @@ export function OnlineMatch({ net, myUid, members, teams, lineups, seed, label, 
     const r = result();
     const title = r.result === "win" ? "🏆 Vitória!" : r.result === "loss" ? "😕 Derrota" : "🤝 Empate";
     return (
-      <div className="space-y-3">
+      <div className="space-y-3 pes-fs">
         {head}
         <section className="card p-4 text-center">
           <p className="text-2xl font-black">{title}</p>
@@ -375,7 +384,7 @@ export function OnlineMatch({ net, myUid, members, teams, lineups, seed, label, 
 
   if (view.phase === "half") {
     return (
-      <div className="space-y-3">
+      <div className="space-y-3 pes-fs">
         {head}
         <p className="text-center text-lg font-black">⏸️ Intervalo</p>
         {myLineup ? (
@@ -437,7 +446,7 @@ export function OnlineMatch({ net, myUid, members, teams, lineups, seed, label, 
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 pes-fs">
       {head}
       {view.waiting ? (
         <div className="card animate-pulse p-3 text-center text-sm font-black text-amber-400">⚡ {view.waiting} está jogando o lance…</div>

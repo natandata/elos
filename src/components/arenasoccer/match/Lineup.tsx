@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { FORMATIONS, MENTALITIES, pickLineup, ratings, type Formation, type Lineup, type Mentality, type Player } from "@/lib/arenasoccer/sim";
+import { FORMATIONS, MENTALITIES, natural, pickLineup, placeAt, ratings, type Formation, type Lineup, type Mentality, type Player } from "@/lib/arenasoccer/sim";
 import { shortName, type Kit } from "@/lib/arenasoccer/teams";
 import { FormationPitch, StartersList } from "./FormationPitch";
 
@@ -22,9 +22,21 @@ export function swapPlayers(l: Lineup, xiIdx: number, benchIdx: number): Lineup 
   if (!out || !inn) return l;
   const xi = [...l.xi];
   const bench = [...l.bench];
-  xi[xiIdx] = { ...inn, pos: out.pos, ovr: out.pos === inn.pos ? inn.ovr : Math.max(40, inn.ovr - 7) };
-  bench[benchIdx] = out;
+  xi[xiIdx] = placeAt(inn, out.pos);
+  const n = natural(out);
+  bench[benchIdx] = { ...out, pos: n.pos, ovr: n.ovr, nat: undefined };
   return { ...l, xi, bench };
+}
+
+/** Troca de lugar dois titulares no campo: cada um assume a vaga do outro (fora da posição de origem, rende menos). */
+export function swapSlots(l: Lineup, i: number, j: number): Lineup {
+  const a = l.xi[i];
+  const b = l.xi[j];
+  if (!a || !b || i === j) return l;
+  const xi = [...l.xi];
+  xi[i] = placeAt(b, a.pos);
+  xi[j] = placeAt(a, b.pos);
+  return { ...l, xi };
 }
 
 export function withFormation(l: Lineup, f: Formation, keep?: string): Lineup {
@@ -45,10 +57,24 @@ export function Chip({ p, on, onClick, dim }: { p: Player; on?: boolean; onClick
 /**
  * Formação, mentalidade e escalação. Antes do jogo as trocas são livres; durante o jogo (`subsLeft`) valem as 3 substituições.
  */
-export function TacticsPanel({ lineup, onChange, subsLeft, onSub, keep, kit = NEUTRAL_KIT }: { lineup: Lineup; onChange: (l: Lineup) => void; subsLeft?: number; onSub?: (xiIdx: number, benchIdx: number) => void; /** jogador que não pode sair do time (o da carreira) */ keep?: string; /** camisa do seu time (para o campo) */ kit?: Kit }) {
+export function TacticsPanel({ lineup, onChange, subsLeft, onSub, onSwap, keep, kit = NEUTRAL_KIT }: { lineup: Lineup; onChange: (l: Lineup) => void; subsLeft?: number; onSub?: (xiIdx: number, benchIdx: number) => void; /** durante o jogo: troca de lugar dois titulares */ onSwap?: (a: number, b: number) => void; /** jogador que não pode sair do time (o da carreira) */ keep?: string; /** camisa do seu time (para o campo) */ kit?: Kit }) {
   const [sel, setSel] = useState<number | null>(null);
   const r = useMemo(() => ratings(lineup), [lineup]);
   const live = subsLeft !== undefined;
+  /** toque num titular: escolhe; toque noutro titular: troca de lugar; toque de novo no mesmo: solta */
+  const pickStarter = (i: number) => {
+    if (sel === null || sel === i) {
+      setSel(sel === i ? null : i);
+      return;
+    }
+    if (!live) onChange(swapSlots(lineup, sel, i));
+    else if (onSwap) onSwap(sel, i);
+    else {
+      setSel(i);
+      return;
+    }
+    setSel(null);
+  };
   const bar = (label: string, v: number) => (
     <div className="flex items-center gap-2 text-[11px] font-bold">
       <span className="w-14 text-[var(--muted)]">{label}</span>
@@ -88,11 +114,11 @@ export function TacticsPanel({ lineup, onChange, subsLeft, onSub, keep, kit = NE
       <section className="card p-3">
         <div className="mb-2 flex items-center justify-between">
           <p className="pes-title text-base">Escalação</p>
-          {live ? <p className="text-xs font-black text-[var(--muted)]">Trocas restantes: {subsLeft}</p> : <p className="text-[11px] font-bold text-[var(--muted)]">Toque num titular e depois num reserva</p>}
+          {live ? <p className="text-xs font-black text-[var(--muted)]">Trocas restantes: {subsLeft}</p> : <p className="text-[11px] font-bold text-[var(--muted)]">Toque num jogador e depois em outro para trocar de lugar, ou num reserva</p>}
         </div>
         <div className="grid gap-3">
-          <FormationPitch lineup={lineup} kit={kit} selected={sel} onSelect={(i) => setSel(sel === i ? null : i)} />
-          <StartersList lineup={lineup} kit={kit} selected={sel} onSelect={(i) => setSel(sel === i ? null : i)} />
+          <FormationPitch lineup={lineup} kit={kit} selected={sel} onSelect={pickStarter} onClear={() => setSel(null)} />
+          <StartersList lineup={lineup} kit={kit} selected={sel} onSelect={pickStarter} />
         </div>
       </section>
 

@@ -2364,3 +2364,7 @@ a.bb-node:active { transform: translateY(6px); box-shadow: 0 2px 0 var(--nd); }
 .pes-tile:hover { filter: brightness(1.18); }
 .pes-tile:active { transform: scale(0.98); }
 .pes-tile-ico { display: grid; width: 3rem; height: 3rem; flex-shrink: 0; place-items: center; font-size: 1.7rem; border-radius: 0.7rem; background: rgba(255, 255, 255, 0.1); }
+
+/* ArenaSoccer · a partida (depois do início) ocupa a tela inteira, por cima do menu do app */
+.pes-fs { position: fixed; inset: 0; z-index: 90; overflow-y: auto; overscroll-behavior: contain; padding: max(0.75rem, env(safe-area-inset-top)) 0.75rem max(0.75rem, env(safe-area-inset-bottom)); color: #fff; background: radial-gradient(120% 80% at 0% 0%, rgba(34, 197, 94, 0.18), transparent 55%), radial-gradient(90% 70% at 100% 100%, rgba(56, 189, 248, 0.12), transparent 60%), linear-gradient(165deg, #070d1f 0%, #0b1d3d 55%, #07261f 100%); }
+.pes-fs > * { max-width: 540px; margin-left: auto; margin-right: auto; }

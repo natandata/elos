@@ -5,7 +5,7 @@ import { bestFormation, createMatch, finish, pickLineup, resultOf, setTactics, s
 import { buildScene } from "@/lib/arenasoccer/scene";
 import { kitOf, resolveKits, type RosterPlayer, type Team } from "@/lib/arenasoccer/teams";
 import type { MatchResult } from "./ArenaSoccerGame";
-import { TacticsPanel } from "./match/Lineup";
+import { TacticsPanel, swapSlots } from "./match/Lineup";
 import { KitChip } from "./match/KitChip";
 import { localEngine } from "./match/engine";
 import { MomentView } from "./match/MomentView";
@@ -32,6 +32,16 @@ export function MatchFlow({ mine, opp, label, controlled, onDone, onSim, onBack 
   const [pending, setPending] = useState<Chance | null>(null);
   const [momentOn, setMomentOn] = useState(false);
   const startedAt = useRef(0);
+
+  // depois do início a partida ocupa a tela inteira: trava a rolagem da página por trás
+  useEffect(() => {
+    if (phase === "lineup") return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [phase]);
 
   function start() {
     const seed = Math.floor(Math.random() * 1e9);
@@ -104,6 +114,10 @@ export function MatchFlow({ mine, opp, label, controlled, onDone, onSim, onBack 
           substitute(m, 0, o, i);
           bump((n) => n + 1);
         }}
+        onSwap={(a, b) => {
+          m.lineups[0] = swapSlots(m.lineups[0], a, b);
+          bump((n) => n + 1);
+        }}
       />
     );
   }
@@ -163,7 +177,7 @@ export function MatchFlow({ mine, opp, label, controlled, onDone, onSim, onBack 
   if (phase === "chance" && pending) {
     if (!momentOn || !scene) {
       return (
-        <div className="space-y-3">
+        <div className="space-y-3 pes-fs">
           {head(match)}
           <div className="card grid place-items-center p-10 text-center">
             <p className="animate-pulse text-5xl font-black text-amber-400">{pending.side === 0 ? "⚡ CHANCE!" : "⚠️ PERIGO!"}</p>
@@ -177,7 +191,7 @@ export function MatchFlow({ mine, opp, label, controlled, onDone, onSim, onBack 
 
   if (phase === "half") {
     return (
-      <div className="space-y-3">
+      <div className="space-y-3 pes-fs">
         {head(match)}
         <p className="text-center text-lg font-black">⏸️ Intervalo</p>
         {liveTactics(match)}
@@ -194,7 +208,7 @@ export function MatchFlow({ mine, opp, label, controlled, onDone, onSim, onBack 
     const goalsMine = match.goals.filter((g) => g.side === 0);
     const goalsOpp = match.goals.filter((g) => g.side === 1);
     return (
-      <div className="space-y-3">
+      <div className="space-y-3 pes-fs">
         {head(match)}
         <section className="card p-4 text-center">
           <p className="text-2xl font-black">{title}</p>
@@ -224,7 +238,7 @@ export function MatchFlow({ mine, opp, label, controlled, onDone, onSim, onBack 
 
   // jogo rolando
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 pes-fs">
       {head(match)}
       <div className="flex items-center gap-2">
         <button type="button" className="btn btn-ghost !px-3" onClick={() => setPaused((p) => !p)}>
@@ -248,7 +262,7 @@ export function MatchFlow({ mine, opp, label, controlled, onDone, onSim, onBack 
         </div>
       ) : (
         <section className="card p-2">
-          <ul className="max-h-[52vh] space-y-1 overflow-y-auto sb-pitch pr-1">
+          <ul className="max-h-[calc(100dvh-21rem)] min-h-[8rem] space-y-1 overflow-y-auto sb-pitch pr-1">
             {[...match.log].reverse().slice(0, 60).map((e, i) => (
               <li key={`${match.log.length - i}`} className={`flex gap-2 rounded-lg px-2 py-1.5 text-sm ${e.big ? "bg-amber-400/20 font-black" : ""}`}>
                 <span className="w-8 shrink-0 text-right text-xs font-black tabular-nums text-[var(--muted)]">{e.min}&apos;</span>

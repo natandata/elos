@@ -5,7 +5,7 @@ import type { RosterPlayer } from "./teams";
 
 export type Pos = "GK" | "DF" | "MF" | "FW";
 export type Side = 0 | 1;
-export type Player = { num: number; pos: Pos; name: string; ovr: number; /** foto (arquivo em /public), se houver */ photo?: string };
+export type Player = { num: number; pos: Pos; name: string; ovr: number; /** foto (arquivo em /public), se houver */ photo?: string; /** posição e força de origem, quando o jogador está jogando fora do lugar dele */ nat?: { pos: Pos; ovr: number } };
 export type Formation = "4-4-2" | "4-3-3" | "3-5-2" | "4-2-3-1" | "5-3-2";
 export type Mentality = "defend" | "balanced" | "attack";
 
@@ -24,16 +24,26 @@ export const MENTALITIES: Record<Mentality, { label: string; atk: number; def: n
 
 export type Lineup = { formation: Formation; mentality: Mentality; xi: Player[]; bench: Player[] };
 
+/** Posição e força de origem do jogador (antes de qualquer troca de lugar). */
+export const natural = (p: Player): { pos: Pos; ovr: number } => p.nat ?? { pos: p.pos, ovr: p.ovr };
+
+/** Coloca o jogador numa vaga: fora da posição de origem ele rende menos (goleiro de linha ou linha no gol, muito menos). */
+export function placeAt(p: Player, slot: Pos): Player {
+  const n = natural(p);
+  const pen = n.pos === slot ? 0 : n.pos === "GK" || slot === "GK" ? 25 : (n.pos === "DF" && slot === "FW") || (n.pos === "FW" && slot === "DF") ? 10 : 7;
+  return { ...p, pos: slot, ovr: Math.max(40, n.ovr - pen), nat: n.pos === slot ? undefined : n };
+}
+
 export const toPlayer = (p: RosterPlayer): Player => ({ num: p[0], pos: p[1] as Pos, name: p[2], ovr: p[3], photo: p[4] ? `/arenasoccer/players/${p[4]}.jpg` : undefined });
 
 /** Escolhe os 11 melhores para a formação. Faltou gente numa posição? Joga um de outra posição ali, com um desconto de força. */
 export function pickLineup(squad: Player[], formation: Formation, mentality: Mentality = "balanced", force: Player[] = []): Lineup {
   const need: [Pos, number][] = [["GK", 1], ["DF", FORMATIONS[formation].df], ["MF", FORMATIONS[formation].mf], ["FW", FORMATIONS[formation].fw]];
-  const left = [...squad].sort((a, b) => b.ovr - a.ovr);
+  const left = squad.map((p) => (p.nat ? { ...p, pos: p.nat.pos, ovr: p.nat.ovr, nat: undefined } : p)).sort((a, b) => b.ovr - a.ovr);
   const xi: Player[] = [];
   const take = (p: Player, as: Pos, penalty: number) => {
     left.splice(left.indexOf(p), 1);
-    xi.push(as === p.pos ? p : { ...p, pos: as, ovr: Math.max(40, p.ovr - penalty) });
+    xi.push(as === p.pos ? p : { ...p, pos: as, ovr: Math.max(40, p.ovr - penalty), nat: { pos: p.pos, ovr: p.ovr } });
   };
   for (const [pos, n] of need) {
     for (let i = 0; i < n; i++) {
@@ -383,8 +393,8 @@ export function substitute(m: Match, side: Side, outIdx: number, benchIdx: numbe
   if (m.subsLeft[side] <= 0 || !l.xi[outIdx] || !l.bench[benchIdx]) return false;
   const out = l.xi[outIdx];
   const inn = l.bench[benchIdx];
-  l.xi[outIdx] = { ...inn, pos: out.pos, ovr: out.pos === inn.pos ? inn.ovr : Math.max(40, inn.ovr - 7) };
-  l.bench[benchIdx] = out;
+  l.xi[outIdx] = placeAt(inn, out.pos);
+  l.bench[benchIdx] = natural(out).pos === out.pos ? out : { ...out, pos: natural(out).pos, ovr: natural(out).ovr, nat: undefined };
   m.subsLeft[side]--;
   m.log.push({ min: m.min, side, icon: "🔁", text: `Substituição: sai ${nameOf(out)}, entra ${nameOf(inn)}.` });
   return true;
