@@ -1,7 +1,28 @@
+"use client";
+
+import { useState } from "react";
 import type { Team } from "@/lib/arenasoccer/teams";
 
-/** Bolinha com o uniforme do time. */
-export function KitChip({ t, size = 22 }: { t: Pick<Team, "p" | "s" | "k">; size?: number }) {
+/** Escudo do time (ou a bandeira, nas seleções). Sem imagem, ou se ela falhar, aparece a bolinha com o uniforme. */
+export function KitChip({ t, size = 22 }: { t: Pick<Team, "p" | "s" | "k"> & { crest?: string }; size?: number }) {
+  const [failed, setFailed] = useState<string | null>(null);
+  if (t.crest && failed !== t.crest) {
+    const flag = t.crest.includes("/flag/");
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- escudos pequenos, servidos de /public
+      <img
+        src={t.crest}
+        alt=""
+        width={size}
+        height={size}
+        loading="lazy"
+        decoding="async"
+        onError={() => setFailed(t.crest ?? null)}
+        className={`inline-block shrink-0 ${flag ? "rounded-[3px] object-cover shadow-[0_0_0_1px_rgba(0,0,0,0.35)]" : "object-contain"}`}
+        style={{ width: size, height: flag ? Math.round(size * 0.72) : size }}
+      />
+    );
+  }
   const bg =
     t.k === "stripes"
       ? `repeating-linear-gradient(90deg, ${t.p} 0 ${size / 5}px, ${t.s} ${size / 5}px ${(size / 5) * 2}px)`

@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { CUP_YEARS, LEAGUES, loadCup, loadLeague, type LeagueKey, type Team } from "@/lib/arenasoccer/teams";
+import { CompBadge } from "./match/CompBadge";
 import { KitChip } from "./match/KitChip";
 
-type Source = { key: string; label: string };
-const SOURCES: Source[] = [...LEAGUES.map((l) => ({ key: `league:${l.key}`, label: `${l.flag} ${l.short}` })), ...CUP_YEARS.map((y) => ({ key: `cup:${y}`, label: `🏆 Copa ${y}` }))];
+type Source = { key: string; label: string; kind: "league" | "cup"; id: string };
+const SOURCES: Source[] = [...LEAGUES.map((l) => ({ key: `league:${l.key}`, label: l.short, kind: "league" as const, id: l.key })), ...CUP_YEARS.map((y) => ({ key: `cup:${y}`, label: `Copa ${y}`, kind: "cup" as const, id: String(y) }))];
 const POS: { pos: string; label: string; color: string }[] = [
   { pos: "GK", label: "Goleiros", color: "bg-amber-500" },
   { pos: "DF", label: "Defensores", color: "bg-sky-500" },
@@ -109,7 +110,7 @@ export function TimesView({ onBack }: { onBack: () => void }) {
         <div className="mt-3 flex flex-wrap gap-1.5">
           {SOURCES.map((s) => (
             <button key={s.key} type="button" onClick={() => { setSrc(s.key); setQ(""); }} className={`rounded-full px-3 py-1.5 text-xs font-black ${src === s.key ? "bg-emerald-500 text-white" : "bg-[var(--bg)]"}`}>
-              {s.label}
+              <CompBadge kind={s.kind} id={s.id} label={s.label} />
             </button>
           ))}
         </div>

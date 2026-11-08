@@ -1,6 +1,6 @@
 import { applyOutcome, passOutcome, resolveAuto, shotOutcome, type Aim, type Chance, type Match, type Outcome } from "@/lib/arenasoccer/sim";
 
-export type PassLine = { length: number; blockers: number; aerial: boolean };
+export type PassLine = { length: number; blockers: number; aerial: boolean; /** curva do traço, de 0 a 1 */ curve?: number };
 export type ShotOpts = { distance: number; header?: boolean; wall?: boolean; curve?: number };
 
 /**

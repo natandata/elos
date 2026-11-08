@@ -112,13 +112,13 @@ export function MatchFlow({ mine, opp, label, controlled, onDone, onSim, onBack 
       <p className="text-[11px] font-black uppercase tracking-wide text-[var(--muted)]">{label}</p>
       <div className="mt-1 flex items-center justify-between gap-2">
         <span className="flex min-w-0 items-center gap-2 font-black">
-          <KitChip t={kitMine} size={26} />
+          <KitChip t={{ ...mine, ...kitMine }} size={26} />
           <span className="truncate">{mine.name}</span>
         </span>
         <span className="rounded-lg bg-black/70 px-3 py-1 text-xl font-black tabular-nums text-white">{m ? `${m.score[0]} - ${m.score[1]}` : "x"}</span>
         <span className="flex min-w-0 items-center gap-2 font-black">
           <span className="truncate">{opp.name}</span>
-          <KitChip t={kitOpp} size={26} />
+          <KitChip t={{ ...opp, ...kitOpp }} size={26} />
         </span>
       </div>
       {m ? (

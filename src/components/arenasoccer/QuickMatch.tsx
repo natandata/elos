@@ -4,13 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { LEAGUES, loadCup, loadLeague, type LeagueKey, type Team } from "@/lib/arenasoccer/teams";
 import type { MatchResult } from "./ArenaSoccerGame";
 import { MatchFlow } from "./ArenaSoccerMatch";
+import { CompBadge } from "./match/CompBadge";
 import { KitChip } from "./match/KitChip";
 
 type CompKey = LeagueKey | "cup";
-const COMPS: { key: CompKey; label: string; flag: string }[] = [
-  ...LEAGUES.map((l) => ({ key: l.key as CompKey, label: l.short, flag: l.flag })),
-  { key: "cup", label: "Copa do Mundo 2026", flag: "🏆" },
-];
+const COMPS: { key: CompKey; label: string }[] = [...LEAGUES.map((l) => ({ key: l.key as CompKey, label: l.short })), { key: "cup", label: "Copa do Mundo 2026" }];
 
 /** Amistoso: escolha a competição e o seu time; o adversário é sorteado do mesmo grupo. */
 export function QuickMatch({ onRecord, onBack }: { onRecord: (r: MatchResult) => void; onBack: () => void }) {
@@ -69,7 +67,7 @@ export function QuickMatch({ onRecord, onBack }: { onRecord: (r: MatchResult) =>
         <div className="mt-3 flex flex-wrap gap-1.5">
           {COMPS.map((c) => (
             <button key={c.key} type="button" onClick={() => setComp(c.key)} className={`rounded-full px-3 py-1.5 text-xs font-black ${comp === c.key ? "bg-emerald-500 text-white" : "bg-[var(--bg)]"}`}>
-              {c.flag} {c.label}
+              <CompBadge kind={c.key === "cup" ? "cup" : "league"} id={c.key} label={c.label} />
             </button>
           ))}
         </div>

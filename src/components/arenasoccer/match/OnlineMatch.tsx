@@ -297,7 +297,7 @@ export function OnlineMatch({ net, myUid, members, teams, lineups, seed, label, 
       <p className="text-[11px] font-black uppercase tracking-wide text-[var(--muted)]">{label}</p>
       <div className="mt-1 flex items-center justify-between gap-2">
         <span className="flex min-w-0 items-center gap-2 font-black">
-          <KitChip t={kit0} size={26} />
+          <KitChip t={{ ...teams[0], ...kit0 }} size={26} />
           <span className={`truncate ${mySide === 0 ? "text-emerald-400" : ""}`}>{names[0]}</span>
         </span>
         <span className="rounded-lg bg-black/70 px-3 py-1 text-xl font-black tabular-nums text-white">
@@ -305,7 +305,7 @@ export function OnlineMatch({ net, myUid, members, teams, lineups, seed, label, 
         </span>
         <span className="flex min-w-0 items-center gap-2 font-black">
           <span className={`truncate ${mySide === 1 ? "text-emerald-400" : ""}`}>{names[1]}</span>
-          <KitChip t={kit1} size={26} />
+          <KitChip t={{ ...teams[1], ...kit1 }} size={26} />
         </span>
       </div>
       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--line)]">

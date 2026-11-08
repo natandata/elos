@@ -5,6 +5,7 @@ import type { SoccerNet } from "@/lib/arenasoccer/net";
 import { bestFormation, pickLineup, toPlayer, type Lineup } from "@/lib/arenasoccer/sim";
 import { LEAGUES, loadCup, loadLeague, type LeagueKey, type RosterPlayer, type Team } from "@/lib/arenasoccer/teams";
 import type { MatchResult } from "./ArenaSoccerGame";
+import { CompBadge } from "./match/CompBadge";
 import { KitChip } from "./match/KitChip";
 import { TacticsPanel } from "./match/Lineup";
 import { OnlineMatch } from "./match/OnlineMatch";
@@ -12,7 +13,7 @@ import { OnlineMatch } from "./match/OnlineMatch";
 type Ready = { team: Team; lineup: Lineup };
 type Go = { teams: [Team, Team]; lineups: [Lineup, Lineup]; seed: number };
 type CompKey = LeagueKey | "cup";
-const COMPS: { key: CompKey; label: string }[] = [...LEAGUES.map((l) => ({ key: l.key as CompKey, label: `${l.flag} ${l.short}` })), { key: "cup", label: "🏆 Copa 2026" }];
+const COMPS: { key: CompKey; label: string }[] = [...LEAGUES.map((l) => ({ key: l.key as CompKey, label: l.short })), { key: "cup", label: "Copa 2026" }];
 
 /** 1 contra 1 online: cada um escolhe o seu time e a escalação; quando os dois estão prontos, a partida começa. */
 export function OnlineDuel({ net, onFinish, onExit }: { net: SoccerNet; onFinish: (r: MatchResult) => void; onExit: () => void }) {
@@ -68,7 +69,7 @@ export function OnlineDuel({ net, onFinish, onExit }: { net: SoccerNet; onFinish
           <div className="mt-3 flex flex-wrap gap-1.5">
             {COMPS.map((c) => (
               <button key={c.key} type="button" onClick={() => setComp(c.key)} className={`rounded-full px-3 py-1.5 text-xs font-black ${comp === c.key ? "bg-emerald-500 text-white" : "bg-[var(--bg)]"}`}>
-                {c.label}
+                <CompBadge kind={c.key === "cup" ? "cup" : "league"} id={c.key} label={c.label} />
               </button>
             ))}
           </div>

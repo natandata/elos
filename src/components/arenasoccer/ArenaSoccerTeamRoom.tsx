@@ -10,12 +10,13 @@ import type { MatchResult } from "./ArenaSoccerGame";
 import { bestFormation, pickLineup, toPlayer } from "@/lib/arenasoccer/sim";
 import { OnlineMatch } from "./match/OnlineMatch";
 import { KitChip } from "./ArenaSoccerPlay";
+import { CompBadge } from "./match/CompBadge";
 
 type OpenRoom = { id: string; host: string; per: number; label: string; humans: number };
 type Step = "menu" | "size" | "teamA" | "teamB" | "lobby" | "playing";
 type Loaded = [Team, Team];
 
-const SOURCES: { src: string; label: string }[] = [...CUP_YEARS.map((y) => ({ src: `cup:${y}`, label: `Copa ${y}` })), ...LEAGUES.map((l) => ({ src: `league:${l.key}`, label: `${l.flag} ${l.short}` }))];
+const SOURCES: { src: string; label: string; kind: "league" | "cup"; id: string }[] = [...CUP_YEARS.map((y) => ({ src: `cup:${y}`, label: `Copa ${y}`, kind: "cup" as const, id: String(y) })), ...LEAGUES.map((l) => ({ src: `league:${l.key}`, label: l.short, kind: "league" as const, id: l.key }))];
 
 async function listTeams(src: string): Promise<Team[]> {
   const [kind, key] = src.split(":");
@@ -40,7 +41,7 @@ function TeamPicker({ title, onPick, onBack }: { title: string; onPick: (ref: Te
       <div className="flex flex-wrap gap-1.5">
         {SOURCES.map((s) => (
           <button key={s.src} type="button" onClick={() => setSrc(s.src)} className={`rounded-full px-3 py-1 text-xs font-bold ${src === s.src ? "bg-emerald-500 text-white" : "bg-[var(--line)]"}`}>
-            {s.label}
+            <CompBadge kind={s.kind} id={s.id} label={s.label} size={16} />
           </button>
         ))}
       </div>
