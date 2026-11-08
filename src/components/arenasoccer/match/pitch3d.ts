@@ -319,7 +319,9 @@ export function drawStadium(ctx: CanvasRenderingContext2D, cam: Cam, opts: { hom
   const arc: V3[] = [];
   for (let a = -0.93; a <= 0.93; a += 0.08) arc.push([Math.sin(a) * 9.15, -11 - Math.cos(a) * 9.15, 0]);
   strokeLine(ctx, cam, arc, white, W1);
-  strokeLine(ctx, cam, [[-0.18, -11, 0], [0.18, -11, 0]], white, 0.3);
+  const spot: V3[] = [];
+  for (let a = 0; a < Math.PI * 2; a += Math.PI / 4) spot.push([Math.cos(a) * 0.22, -11 + Math.sin(a) * 0.22, 0]);
+  fillPoly(ctx, cam, spot, "rgba(255,255,255,0.92)");
   // rede
   const netCol = "rgba(255,255,255,0.35)";
   const back = 2.2;

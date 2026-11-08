@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CUP_YEARS, LEAGUES, loadCup, loadLeague, type LeagueKey, type Team } from "@/lib/arenasoccer/teams";
+import { CUP_YEARS, LEAGUES, loadCup, loadLeague, photoOf, type LeagueKey, type Team } from "@/lib/arenasoccer/teams";
 import { CompBadge } from "./match/CompBadge";
+import { Avatar } from "./match/FormationPitch";
 import { PesTitle, TeamGrid, TeamHero } from "./match/TeamSelect";
 
 type Source = { key: string; label: string; kind: "league" | "cup"; id: string };
@@ -63,7 +64,8 @@ export function TimesView({ onBack }: { onBack: () => void }) {
               <ul className="space-y-1">
                 {list.map((p) => (
                   <li key={`${p[0]}-${p[2]}`} className="flex items-center gap-2 rounded-md bg-white/[0.07] px-2 py-1.5">
-                    <span className="w-7 text-center text-xs font-black tabular-nums text-white/50">{p[0]}</span>
+                    <Avatar name={p[2]} kit={{ p: team.p, s: team.s, k: team.k }} size={30} photo={photoOf(p[4])} />
+                    <span className="w-6 text-center text-xs font-black tabular-nums text-white/50">{p[0]}</span>
                     <span className="rounded-sm px-1.5 text-[10px] font-black text-[#04120a]" style={{ background: g.color }}>
                       {p[1]}
                     </span>

@@ -43,8 +43,8 @@ function curveOf(pts: Pt[]): number {
     const d = (dx * (p.y - a.y) - dy * (p.x - a.x)) / len;
     if (Math.abs(d) > Math.abs(best)) best = d;
   }
-  const c = (best / len) * 2.6;
-  return Math.abs(c) < 0.1 ? 0 : Math.max(-1, Math.min(1, c));
+  const c = (best / len) * 1.7;
+  return Math.abs(c) < 0.12 ? 0 : Math.max(-1, Math.min(1, c));
 }
 
 /**
@@ -190,6 +190,7 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
         return;
       }
       fly(ball, [target.x, target.y, aerial ? 1.7 : 0.2], aerial ? 3.5 : 0.3, dur, () => {
+        trail = [];
         shooter = target.player;
         current = { ...current, shooter: target.player, assister: carrier.player };
         carrier = { x: target.x, y: target.y, player: target.player };
@@ -296,6 +297,8 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
           anim = null;
           a.onEnd();
         }
+      } else if (trail.length) {
+        trail.shift();
       }
       ctx.clearRect(0, 0, W, H);
       drawStadium(ctx, cam, { home: mineKit, away: theirKit, t });
@@ -305,6 +308,14 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
       for (const w of scene.wall) sprites.push({ x: w.x, y: w.y, kit: theirKit, name: `w${w.x.toFixed(1)}`, arms: "down" });
       for (const m of mates) if (m.player.name !== carrier.player.name) sprites.push({ x: m.x, y: m.y, kit: mineKit, name: m.player.name, run: t * 4 + m.x, arms: stepKind() === "cross" ? "up" : "down" });
       sprites.push({ x: carrier.x, y: carrier.y, kit: mineKit, name: carrier.player.name, run: 0, star: !anim && !result });
+      // na finalização a câmera fica atrás de quem chuta: quem está atrás ou colado nele taparia a tela
+      const shooting = stepKind() !== "pass" && stepKind() !== "cross";
+      if (shooting) {
+        for (let i = sprites.length - 1; i >= 0; i--) {
+          const sp = sprites[i];
+          if (sp.role !== "keeper" && sp.name !== carrier.player.name && sp.y < carrier.y + 0.3 && Math.abs(sp.x - carrier.x) < 5) sprites.splice(i, 1);
+        }
+      }
       sprites.sort((a, b) => b.y - a.y);
       let goalDrawn = false;
       for (const s of sprites) {
