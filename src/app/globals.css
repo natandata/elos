@@ -2308,3 +2308,24 @@ a.bb-node:active { transform: translateY(6px); box-shadow: 0 2px 0 var(--nd); }
 .bb-day.today { color: var(--bb-orange); }
 @keyframes bb-pop { 0% { transform: scale(0.4); opacity: 0; } 70% { transform: scale(1.15); } 100% { transform: scale(1); opacity: 1; } }
 .bb-pop { animation: bb-pop 0.5s ease-out both; }
+
+/* Barra de rolagem do ArenaSoccer: trilho de gramado escuro e polegar verde com brilho, com cara de campo */
+.sb-pitch { scroll-behavior: smooth; }
+/* Firefox não usa os pseudo-elementos do WebKit; no Chrome definir essas duas propriedades anularia a barra personalizada abaixo */
+@supports not selector(::-webkit-scrollbar) { .sb-pitch { scrollbar-width: thin; scrollbar-color: #22c55e rgba(5, 46, 22, 0.55); } }
+.sb-pitch::-webkit-scrollbar { width: 12px; }
+.sb-pitch::-webkit-scrollbar-track {
+  margin: 6px 0;
+  border-radius: 999px;
+  background: repeating-linear-gradient(180deg, rgba(5, 46, 22, 0.7) 0 14px, rgba(8, 62, 30, 0.7) 14px 28px);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+.sb-pitch::-webkit-scrollbar-thumb {
+  min-height: 44px;
+  border-radius: 999px;
+  border: 2px solid rgba(5, 46, 22, 0.9);
+  background: linear-gradient(180deg, #86efac 0%, #22c55e 45%, #15803d 100%);
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+.sb-pitch::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #bbf7d0 0%, #4ade80 45%, #16a34a 100%); }
+.sb-pitch::-webkit-scrollbar-thumb:active { background: linear-gradient(180deg, #fde68a 0%, #fbbf24 45%, #d97706 100%); box-shadow: 0 0 10px rgba(251, 191, 36, 0.6); }

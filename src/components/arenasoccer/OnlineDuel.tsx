@@ -77,7 +77,7 @@ export function OnlineDuel({ net, onFinish, onExit }: { net: SoccerNet; onFinish
           {!teams ? (
             <p className="p-3 text-sm text-[var(--muted)]">Carregando…</p>
           ) : (
-            <ul className="max-h-[55vh] space-y-1 overflow-y-auto">
+            <ul className="max-h-[55vh] space-y-1 overflow-y-auto sb-pitch pr-1">
               {teams.map((t) => (
                 <li key={t.id}>
                   <button

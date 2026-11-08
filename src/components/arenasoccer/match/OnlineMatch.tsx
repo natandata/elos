@@ -442,7 +442,7 @@ export function OnlineMatch({ net, myUid, members, teams, lineups, seed, label, 
         <div className="card animate-pulse p-3 text-center text-sm font-black text-amber-400">⚡ {view.waiting} está jogando o lance…</div>
       ) : null}
       <section className="card p-2">
-        <ul className="max-h-[56vh] space-y-1 overflow-y-auto">
+        <ul className="max-h-[56vh] space-y-1 overflow-y-auto sb-pitch pr-1">
           {[...view.log].reverse().slice(0, 60).map((e, i) => (
             <li key={`${view.log.length - i}`} className={`flex gap-2 rounded-lg px-2 py-1.5 text-sm ${e.big ? "bg-amber-400/20 font-black" : ""}`}>
               <span className="w-8 shrink-0 text-right text-xs font-black tabular-nums text-[var(--muted)]">{e.min}&apos;</span>

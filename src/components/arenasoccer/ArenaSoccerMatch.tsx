@@ -247,7 +247,7 @@ export function MatchFlow({ mine, opp, label, controlled, onDone, onSim, onBack 
         </div>
       ) : (
         <section className="card p-2">
-          <ul className="max-h-[52vh] space-y-1 overflow-y-auto">
+          <ul className="max-h-[52vh] space-y-1 overflow-y-auto sb-pitch pr-1">
             {[...match.log].reverse().slice(0, 60).map((e, i) => (
               <li key={`${match.log.length - i}`} className={`flex gap-2 rounded-lg px-2 py-1.5 text-sm ${e.big ? "bg-amber-400/20 font-black" : ""}`}>
                 <span className="w-8 shrink-0 text-right text-xs font-black tabular-nums text-[var(--muted)]">{e.min}&apos;</span>
