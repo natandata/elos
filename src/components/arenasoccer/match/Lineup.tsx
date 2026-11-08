@@ -24,8 +24,9 @@ export function swapPlayers(l: Lineup, xiIdx: number, benchIdx: number): Lineup 
   return { ...l, xi, bench };
 }
 
-export function withFormation(l: Lineup, f: Formation): Lineup {
-  return pickLineup([...l.xi, ...l.bench], f, l.mentality);
+export function withFormation(l: Lineup, f: Formation, keep?: string): Lineup {
+  const all = [...l.xi, ...l.bench];
+  return pickLineup(all, f, l.mentality, keep ? all.filter((p) => p.name === keep) : []);
 }
 
 export function Chip({ p, on, onClick, dim }: { p: Player; on?: boolean; onClick?: () => void; dim?: boolean }) {
@@ -41,7 +42,7 @@ export function Chip({ p, on, onClick, dim }: { p: Player; on?: boolean; onClick
 /**
  * Formação, mentalidade e escalação. Antes do jogo as trocas são livres; durante o jogo (`subsLeft`) valem as 3 substituições.
  */
-export function TacticsPanel({ lineup, onChange, subsLeft, onSub }: { lineup: Lineup; onChange: (l: Lineup) => void; subsLeft?: number; onSub?: (xiIdx: number, benchIdx: number) => void }) {
+export function TacticsPanel({ lineup, onChange, subsLeft, onSub, keep }: { lineup: Lineup; onChange: (l: Lineup) => void; subsLeft?: number; onSub?: (xiIdx: number, benchIdx: number) => void; /** jogador que não pode sair do time (o da carreira) */ keep?: string }) {
   const [sel, setSel] = useState<number | null>(null);
   const r = useMemo(() => ratings(lineup), [lineup]);
   const live = subsLeft !== undefined;
@@ -60,7 +61,7 @@ export function TacticsPanel({ lineup, onChange, subsLeft, onSub }: { lineup: Li
         <p className="text-sm font-black">📋 Formação</p>
         <div className="mt-2 flex flex-wrap gap-1.5">
           {(Object.keys(FORMATIONS) as Formation[]).map((f) => (
-            <button key={f} type="button" onClick={() => onChange(withFormation(lineup, f))} className={`rounded-full px-3 py-1.5 text-xs font-black ${lineup.formation === f ? "bg-emerald-500 text-white" : "bg-[var(--bg)]"}`}>
+            <button key={f} type="button" onClick={() => onChange(withFormation(lineup, f, keep))} className={`rounded-full px-3 py-1.5 text-xs font-black ${lineup.formation === f ? "bg-emerald-500 text-white" : "bg-[var(--bg)]"}`}>
               {f}
             </button>
           ))}
@@ -108,6 +109,7 @@ export function TacticsPanel({ lineup, onChange, subsLeft, onSub }: { lineup: Li
               dim={sel === null || (live && (subsLeft ?? 0) <= 0)}
               onClick={() => {
                 if (sel === null) return;
+                if (keep && lineup.xi[sel]?.name === keep) return;
                 if (live) {
                   if ((subsLeft ?? 0) <= 0) return;
                   onSub?.(sel, j);

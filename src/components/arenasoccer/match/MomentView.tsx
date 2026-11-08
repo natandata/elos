@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { applyOutcome, passOutcome, resolveAuto, shotOutcome, type Chance, type Match, type Outcome, type Player } from "@/lib/arenasoccer/sim";
+import type { Chance, Outcome, Player } from "@/lib/arenasoccer/sim";
+import type { MomentEngine } from "./engine";
 import { blockersOn, type Scene, type Spot, type StepKind } from "@/lib/arenasoccer/scene";
 import type { Kit } from "@/lib/arenasoccer/teams";
 import { Cam, GOAL_H, GOAL_HALF, drawBall, drawBanner, drawGoalFrame, drawPlayer, drawStadium, drawStar, type Sprite, type V3 } from "./pitch3d";
@@ -31,7 +32,7 @@ type Anim = { from: V3; to: V3; arc: number; t0: number; dur: number; onEnd: () 
  * Um lance decisivo, no estilo dos jogos de lance a lance: câmera inclinada atrás do jogador, você desenha o passe/cruzamento com o dedo
  * e arrasta para o canto do gol na finalização. O resultado sai do motor (`sim.ts`), então a força do jogador e do goleiro contam.
  */
-export function MomentView({ match, chance, scene, kits, names, onDone }: { match: Match; chance: Chance; scene: Scene; kits: [Kit, Kit]; names: [string, string]; onDone: () => void }) {
+export function MomentView({ engine, score, chance, scene, kits, names, onDone }: { engine: MomentEngine; score: [number, number]; chance: Chance; scene: Scene; kits: [Kit, Kit]; names: [string, string]; onDone: () => void }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const doneRef = useRef(onDone);
@@ -95,7 +96,7 @@ export function MomentView({ match, chance, scene, kits, names, onDone }: { matc
     const finishMoment = (o: Outcome) => {
       if (finished) return;
       finished = true;
-      applyOutcome(match, current, o);
+      engine.finish(current, o);
     };
 
     const showResult = (o: Outcome) => {
@@ -116,8 +117,11 @@ export function MomentView({ match, chance, scene, kits, names, onDone }: { matc
     const doShot = (aim: { x: number; y: number }) => {
       const kind = stepKind();
       const dist = Math.hypot(carrier.x, carrier.y);
-      const out = shotOutcome(match, { ...current, shooter }, aim, { distance: dist, header: kind === "header", wall: kind === "freekick" });
       setBusy(true);
+      void engine.shot({ ...current, shooter }, aim, { distance: dist, header: kind === "header", wall: kind === "freekick" }).then((out) => playShot(out, aim));
+    };
+    const playShot = (out: Outcome, aim: { x: number; y: number }) => {
+      if (!alive) return;
       const land = out.land ?? aim;
       const tx = Math.max(-1.35, Math.min(1.35, land.x)) * GOAL_HALF;
       const tz = Math.max(0, Math.min(1.4, land.y)) * GOAL_H;
@@ -148,7 +152,10 @@ export function MomentView({ match, chance, scene, kits, names, onDone }: { matc
       setBusy(true);
       const len = Math.hypot(target.x - carrier.x, target.y - carrier.y);
       const blockers = blockersOn(scene, carrier, target, aerial);
-      const out = passOutcome(match, { ...current, shooter: target.player, assister: carrier.player }, { length: len, blockers, aerial });
+      void engine.pass({ ...current, shooter: target.player, assister: carrier.player }, { length: len, blockers, aerial }).then((out) => playPass(out, target, aerial, len));
+    };
+    const playPass = (out: Outcome, target: (typeof mates)[number], aerial: boolean, len: number) => {
+      if (!alive) return;
       const dur = 0.45 + len / 38;
       if (out.kind === "intercepted") {
         const cut: V3 = [(carrier.x + target.x) / 2 + 0.5, (carrier.y + target.y) / 2, 0];
@@ -235,7 +242,7 @@ export function MomentView({ match, chance, scene, kits, names, onDone }: { matc
       if (finished || anim || result) return;
       alive = false;
       finished = true;
-      resolveAuto(match, chance);
+      engine.auto(chance);
       doneRef.current();
     };
 
@@ -361,9 +368,9 @@ export function MomentView({ match, chance, scene, kits, names, onDone }: { matc
       <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between gap-2 p-2">
         <span className="flex items-center gap-1.5 rounded-lg bg-black/65 px-2 py-1 text-xs font-black text-white">
           <i className="inline-block h-3 w-3 rounded-full border border-white/60" style={{ background: kits[0].p }} aria-hidden />
-          <b className="tabular-nums">{match.score[0]}</b>
+          <b className="tabular-nums">{score[0]}</b>
           <span className="rounded bg-white/15 px-1 tabular-nums">{chance.min}&apos;</span>
-          <b className="tabular-nums">{match.score[1]}</b>
+          <b className="tabular-nums">{score[1]}</b>
           <i className="inline-block h-3 w-3 rounded-full border border-white/60" style={{ background: kits[1].p }} aria-hidden />
           <span className="max-w-[7rem] truncate text-[10px] font-bold text-white/70">{names[0]} x {names[1]}</span>
         </span>

@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { bestFormation, createMatch, finish, pickLineup, resultOf, setTactics, simulateAll, stepMinute, substitute, toPlayer, type Chance, type Lineup, type Match } from "@/lib/arenasoccer/sim";
+import { bestFormation, createMatch, finish, pickLineup, resultOf, setTactics, simulateAll, stepMinute, substitute, toPlayer, type Chance, type Lineup, type Match, type Player } from "@/lib/arenasoccer/sim";
 import { buildScene } from "@/lib/arenasoccer/scene";
 import { kitOf, resolveKits, type RosterPlayer, type Team } from "@/lib/arenasoccer/teams";
 import type { MatchResult } from "./ArenaSoccerGame";
 import { TacticsPanel } from "./match/Lineup";
 import { KitChip } from "./match/KitChip";
+import { localEngine } from "./match/engine";
 import { MomentView } from "./match/MomentView";
 
 type Phase = "lineup" | "play" | "chance" | "half" | "end";
@@ -16,12 +17,13 @@ const speeds = [{ label: "1x", ms: 380 }, { label: "2x", ms: 170 }, { label: "�
  * Uma partida no estilo Brasfoot com lances decisivos: escalação e tática, jogo minuto a minuto, intervalo com trocas
  * e, quando o seu time cria uma chance, o lance para você jogar com o dedo. O lado 0 é sempre o seu time.
  */
-export function MatchFlow({ mine, opp, label, onDone, onSim, onBack }: { mine: Team; opp: Team; label: string; onDone: (r: MatchResult) => void; onSim?: () => void; onBack: () => void }) {
-  const mySquad = useMemo(() => mine.players.map((p) => toPlayer(p as RosterPlayer)), [mine]);
+export function MatchFlow({ mine, opp, label, controlled, onDone, onSim, onBack }: { mine: Team; opp: Team; label: string; /** modo carreira: o seu jogador (só os lances dele são seus) */ controlled?: Player; onDone: (r: MatchResult) => void; onSim?: () => void; onBack: () => void }) {
+  const mySquad = useMemo(() => [...mine.players.map((p) => toPlayer(p as RosterPlayer)), ...(controlled ? [controlled] : [])], [mine, controlled]);
+  const force = useMemo(() => (controlled ? [controlled] : []), [controlled]);
   const oppSquad = useMemo(() => opp.players.map((p) => toPlayer(p as RosterPlayer)), [opp]);
   const [kitMine, kitOpp] = useMemo(() => resolveKits(kitOf(mine), kitOf(opp)), [mine, opp]);
   const [phase, setPhase] = useState<Phase>("lineup");
-  const [pre, setPre] = useState(() => pickLineup(mySquad, bestFormation(mySquad)));
+  const [pre, setPre] = useState(() => pickLineup(mySquad, bestFormation(mySquad, force), "balanced", force));
   const [match, setMatch] = useState<Match | null>(null);
   const [, bump] = useState(0);
   const [speed, setSpeed] = useState(0);
@@ -34,7 +36,7 @@ export function MatchFlow({ mine, opp, label, onDone, onSim, onBack }: { mine: T
   function start() {
     const seed = Math.floor(Math.random() * 1e9);
     const oppLineup = pickLineup(oppSquad, bestFormation(oppSquad));
-    const m = createMatch([pre, oppLineup], seed, 0);
+    const m = createMatch([pre, oppLineup], seed, 0, controlled?.name ?? null);
     startedAt.current = Date.now();
     setMatch(m);
     setPhase("play");
@@ -92,6 +94,7 @@ export function MatchFlow({ mine, opp, label, onDone, onSim, onBack }: { mine: T
       <TacticsPanel
         lineup={m.lineups[0]}
         subsLeft={m.subsLeft[0]}
+        keep={controlled?.name}
         onChange={(l: Lineup) => {
           setTactics(m, 0, { formation: l.formation !== m.lineups[0].formation ? l.formation : undefined, mentality: l.mentality });
           bump((n) => n + 1);
@@ -139,7 +142,7 @@ export function MatchFlow({ mine, opp, label, onDone, onSim, onBack }: { mine: T
     return (
       <div className="space-y-3">
         {head(null)}
-        <TacticsPanel lineup={pre} onChange={setPre} />
+        <TacticsPanel lineup={pre} onChange={setPre} keep={controlled?.name} />
         <button type="button" className="btn btn-primary w-full !py-3 text-lg" onClick={start}>
           ⚽ Começar a partida
         </button>
@@ -168,7 +171,7 @@ export function MatchFlow({ mine, opp, label, onDone, onSim, onBack }: { mine: T
         </div>
       );
     }
-    return <MomentView match={match} chance={pending} scene={scene} kits={[kitMine, kitOpp]} names={[mine.name, opp.name]} onDone={afterChance} />;
+    return <MomentView engine={localEngine(match)} score={match.score} chance={pending} scene={scene} kits={[kitMine, kitOpp]} names={[mine.name, opp.name]} onDone={afterChance} />;
   }
 
   if (phase === "half") {

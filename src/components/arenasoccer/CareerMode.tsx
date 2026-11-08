@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { applyMatch, avgRating, careerDone, effStr, endSeason, finishRound, formAvg, leadsTally, lineup, myFixture, myTeam, newCareer, POSITIONS, seasonLabel, seasonPlace, simulateMine, xpFor, type CareerSave, type MatchSummary, type MyGame, type Offer, type Position } from "@/lib/arenasoccer/career";
+import { useEffect, useMemo, useState } from "react";
+import { applyMatch, avgRating, careerDone, endSeason, finishRound, formAvg, leadsTally, myFixture, myTeam, newCareer, POSITIONS, seasonLabel, simulateMine, xpFor, type CareerSave, type MatchSummary, type MyGame, type Offer, type Position } from "@/lib/arenasoccer/career";
 import { leagueGames, mulberry, table, topOf, type Result } from "@/lib/arenasoccer/comp";
-import { arrange, cpuLineup, kitOf, levelFor, LEAGUES, loadLeague, resolveKits, type LeagueKey, type Team } from "@/lib/arenasoccer/teams";
-import { ArenaSoccerGame, type MatchResult, type PlaySpec } from "./ArenaSoccerGame";
+import type { Pos } from "@/lib/arenasoccer/sim";
+import { LEAGUES, loadLeague, type LeagueKey, type Team } from "@/lib/arenasoccer/teams";
+import type { MatchResult } from "./ArenaSoccerGame";
+import { MatchFlow } from "./ArenaSoccerMatch";
 import { KitChip } from "./ArenaSoccerPlay";
 import { useSoccerSave } from "./useSoccerSave";
 
@@ -19,18 +21,17 @@ function Bar({ value, max, color = "bg-emerald-500" }: { value: number; max: num
 }
 
 /** Modo carreira: escolha a liga, entre num time por sorteio e jogue temporadas, missões, artilharia e propostas de outros clubes. */
-export function CareerMode({ color, myName, onRecord, onBack }: { color: string; myName: string; onRecord: (r: MatchResult) => void; onBack: () => void }) {
+export function CareerMode({ myName, onRecord, onBack }: { color?: string; myName: string; onRecord: (r: MatchResult) => void; onBack: () => void }) {
   const { data: save, loading, save: setSave } = useSoccerSave<CareerSave>("career");
   const [all, setAll] = useState<All | null>(null);
   const [step, setStep] = useState<"league" | "create">("league");
   const [league, setLeague] = useState<LeagueKey | null>(null);
   const [name, setName] = useState(myName);
   const [pos, setPos] = useState<Position>("FW");
-  const [spec, setSpec] = useState<PlaySpec | null>(null);
+  const [spec, setSpec] = useState<{ opp: Team; label: string } | null>(null);
   const [summary, setSummary] = useState<MatchSummary | null>(null);
   const [lastLine, setLastLine] = useState<string>("");
   const [tab, setTab] = useState<"jogo" | "tabela" | "carreira">("jogo");
-  const pending = useRef<{ res: Result; g: MyGame; result: "win" | "draw" | "loss"; conceded: number } | null>(null);
 
   useEffect(() => {
     let stop = false;
@@ -127,10 +128,7 @@ export function CareerMode({ color, myName, onRecord, onBack }: { color: string;
     if (!fx) return;
     const iAmHome = fx.home === c.team;
     const opp = tmap.get(iAmHome ? fx.away : fx.home)!;
-    const { me, mates } = lineup(c, team);
-    const [k0, k1] = resolveKits(kitOf(team), kitOf(opp));
-    const lvl = levelFor(effStr(c, team), opp.str);
-    setSpec({ match: { teams: [arrange([me, ...mates], 0), cpuLineup(opp, 3)], secs: 120, goalsToWin: 9 }, kits: [k0, k1], names: [team.name, opp.name], level: ["normal", lvl], label: `${lg.short} · rodada ${fx.round + 1} de ${c.lg.fixtures.length}` });
+    setSpec({ opp, label: `${lg.short} · rodada ${fx.round + 1} de ${c.lg.fixtures.length}` });
   };
   const simulate = () => {
     if (!fx) return;
@@ -145,24 +143,19 @@ export function CareerMode({ color, myName, onRecord, onBack }: { color: string;
   if (spec && fx) {
     const iAmHome = fx.home === c.team;
     return (
-      <ArenaSoccerGame
-        mode="3v3"
-        level="normal"
-        color={color}
-        spec={spec}
-        onFinish={(r) => {
+      <MatchFlow
+        mine={team}
+        opp={spec.opp}
+        label={spec.label}
+        controlled={{ num: c.num, pos: c.pos as Pos, name: c.name, ovr: c.ovr }}
+        onBack={() => setSpec(null)}
+        onDone={(r) => {
           onRecord(r);
           const line = (r.mine ?? []).find((x) => x.name === c.name);
           const goals = (r.scorers ?? []).map((s) => ({ team: (iAmHome ? s.team : 1 - s.team) as 0 | 1, name: s.name, assist: s.assist, at: s.at }));
           const res: Result = { hg: iAmHome ? r.goalsFor : r.goalsAgainst, ag: iAmHome ? r.goalsAgainst : r.goalsFor, goals };
-          // guarda para o botão "Continuar"
-          pending.current = { res, g: { goals: line?.goals ?? 0, assists: line?.assists ?? 0, own: line?.own ?? 0, minutes: 90 }, result: r.result, conceded: r.goalsAgainst };
-        }}
-        onExit={() => {
-          const p = pending.current;
-          pending.current = null;
           setSpec(null);
-          if (p) commit(p.res, p.g, p.result, p.conceded);
+          commit(res, { goals: line?.goals ?? 0, assists: line?.assists ?? 0, own: line?.own ?? 0, minutes: 90 }, r.result, r.goalsAgainst);
         }}
       />
     );

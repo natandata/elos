@@ -27,7 +27,7 @@ export type Lineup = { formation: Formation; mentality: Mentality; xi: Player[];
 export const toPlayer = (p: RosterPlayer): Player => ({ num: p[0], pos: p[1] as Pos, name: p[2], ovr: p[3] });
 
 /** Escolhe os 11 melhores para a formação. Faltou gente numa posição? Joga um de outra posição ali, com um desconto de força. */
-export function pickLineup(squad: Player[], formation: Formation, mentality: Mentality = "balanced"): Lineup {
+export function pickLineup(squad: Player[], formation: Formation, mentality: Mentality = "balanced", force: Player[] = []): Lineup {
   const need: [Pos, number][] = [["GK", 1], ["DF", FORMATIONS[formation].df], ["MF", FORMATIONS[formation].mf], ["FW", FORMATIONS[formation].fw]];
   const left = [...squad].sort((a, b) => b.ovr - a.ovr);
   const xi: Player[] = [];
@@ -37,7 +37,7 @@ export function pickLineup(squad: Player[], formation: Formation, mentality: Men
   };
   for (const [pos, n] of need) {
     for (let i = 0; i < n; i++) {
-      const own = left.find((p) => p.pos === pos);
+      const own = force.find((f) => f.pos === pos && left.includes(f)) ?? left.find((p) => p.pos === pos);
       if (own) take(own, pos, 0);
       else {
         const alt = pos === "GK" ? undefined : left.find((p) => p.pos !== "GK" && (pos === "DF" ? p.pos === "MF" : pos === "FW" ? p.pos === "MF" : p.pos !== "MF"));
@@ -63,11 +63,11 @@ export function ratings(l: Lineup): { att: number; mid: number; def: number; gk:
 }
 
 /** Melhor formação para o elenco (a que dá a escalação mais forte). */
-export function bestFormation(squad: Player[]): Formation {
+export function bestFormation(squad: Player[], force: Player[] = []): Formation {
   let best: Formation = "4-4-2";
   let bestScore = -1;
   for (const f of Object.keys(FORMATIONS) as Formation[]) {
-    const l = pickLineup(squad, f);
+    const l = pickLineup(squad, f, "balanced", force);
     const sc = l.xi.reduce((s, p) => s + p.ovr, 0);
     if (sc > bestScore + 0.5) {
       bestScore = sc;
@@ -116,11 +116,16 @@ export type Match = {
   stats: { shots: [number, number]; onTarget: [number, number] };
   chanceSeq: number;
   /** o lado controlado por uma pessoa (null = tudo automático) */
-  human: Side | null;
+  human: Side | null | "both";
+  /** modo carreira: só os lances em que esse jogador participa (chute ou passe) são seus; os outros saem no automático */
+  control: string | null;
 };
 
-export function createMatch(lineups: [Lineup, Lineup], seed: number, human: Side | null = 0): Match {
-  const m: Match = { rng: mulberry(seed), min: 0, half: 1, score: [0, 0], lineups, subsLeft: [3, 3], log: [], goals: [], stats: { shots: [0, 0], onTarget: [0, 0] }, chanceSeq: 0, human };
+/** Esse lado é jogado por uma pessoa? */
+export const isHuman = (m: Match, s: Side): boolean => m.human === "both" || m.human === s;
+
+export function createMatch(lineups: [Lineup, Lineup], seed: number, human: Side | null | "both" = 0, control: string | null = null): Match {
+  const m: Match = { rng: mulberry(seed), min: 0, half: 1, score: [0, 0], lineups, subsLeft: [3, 3], log: [], goals: [], stats: { shots: [0, 0], onTarget: [0, 0] }, chanceSeq: 0, human, control };
   m.log.push({ min: 0, side: null, icon: "📣", text: "Bola rolando!" });
   return m;
 }
@@ -139,7 +144,7 @@ function weightedShooter(m: Match, side: Side, kind: ChanceKind): Player {
   const xi = m.lineups[side].xi.filter((p) => p.pos !== "GK");
   const w = xi.map((p) => {
     const posW = kind === "corner" ? { DF: 2.4, MF: 1.2, FW: 3.5, GK: 0 }[p.pos] : { DF: 0.5, MF: 2.2, FW: 5, GK: 0 }[p.pos];
-    return posW * Math.max(0.2, (p.ovr - 40) / 30);
+    return posW * Math.max(0.2, (p.ovr - 40) / 30) * (m.control && p.name === m.control ? 2.6 : 1);
   });
   let r = m.rng() * w.reduce((a, b) => a + b, 0);
   for (let i = 0; i < xi.length; i++) {
@@ -199,9 +204,12 @@ export function stepMinute(m: Match): { chance?: Chance; ended?: "half" | "full"
     const kind = rollKind(m, s);
     const shooter = weightedShooter(m, s, kind);
     const mates = m.lineups[s].xi.filter((x) => x !== shooter && x.pos !== "GK");
-    const assister = kind === "penalty" || kind === "freekick" ? undefined : pick(m.rng, mates);
+    let assister = kind === "penalty" || kind === "freekick" ? undefined : pick(m.rng, mates);
+    const star = m.control && isHuman(m, s) ? mates.find((x) => x.name === m.control) : undefined;
+    if (star && assister && assister !== star && m.rng() < 0.3) assister = star;
     const chance: Chance = { id: ++m.chanceSeq, min: m.min, side: s, kind, shooter, assister };
-    if (m.human === s && !human) {
+    const mine = m.control ? shooter.name === m.control || assister?.name === m.control : true;
+    if (isHuman(m, s) && !human && mine) {
       human = chance;
       continue;
     }
@@ -303,7 +311,8 @@ export function setTactics(m: Match, side: Side, opts: { formation?: Formation; 
   if (opts.formation && opts.formation !== l.formation) {
     const all = [...l.xi, ...l.bench].map((p) => ({ ...p }));
     // volta os jogadores para a posição de origem antes de remontar
-    const next = pickLineup(all, opts.formation, l.mentality);
+    const keep = isHuman(m, side) && m.control ? all.filter((p) => p.name === m.control) : [];
+    const next = pickLineup(all, opts.formation, l.mentality, keep);
     m.lineups[side] = next;
   }
 }
@@ -323,7 +332,7 @@ export function substitute(m: Match, side: Side, outIdx: number, benchIdx: numbe
 /** O computador mexe no time: mais ataque quando perde no fim, recuo quando ganha, uma troca aos 60. */
 function aiManage(m: Match): void {
   for (const s of [0, 1] as Side[]) {
-    if (m.human === s) continue;
+    if (isHuman(m, s)) continue;
     const l = m.lineups[s];
     const diff = m.score[s] - m.score[1 - s];
     if (m.min === 70 && diff < 0 && l.mentality !== "attack") {

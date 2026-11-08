@@ -6,7 +6,9 @@ import type { SoccerNet } from "@/lib/arenasoccer/net";
 import { buildMatch, countSide, loadTeam, type RoomState, type TeamRef } from "@/lib/arenasoccer/teamRoom";
 import { CUP_YEARS, LEAGUES, loadCup, loadLeague, type LeagueKey, type Team } from "@/lib/arenasoccer/teams";
 import { createClient } from "@/lib/supabase/client";
-import { ArenaSoccerGame, type MatchResult } from "./ArenaSoccerGame";
+import type { MatchResult } from "./ArenaSoccerGame";
+import { bestFormation, pickLineup, toPlayer } from "@/lib/arenasoccer/sim";
+import { OnlineMatch } from "./match/OnlineMatch";
 import { KitChip } from "./ArenaSoccerPlay";
 
 type OpenRoom = { id: string; host: string; per: number; label: string; humans: number };
@@ -77,6 +79,7 @@ export function ArenaSoccerTeamRoom({ color, myId, myName, onFinish, onBack }: {
   const [teams, setTeams] = useState<Loaded | null>(null);
   const [net, setNet] = useState<SoccerNet | null>(null);
   const [isHost, setIsHost] = useState(false);
+  const [seed, setSeed] = useState(0);
 
   const chRef = useRef<RealtimeChannel | null>(null);
   const roomRef = useRef<string | null>(null);
@@ -172,6 +175,7 @@ export function ArenaSoccerTeamRoom({ color, myId, myName, onFinish, onBack }: {
       const ch = chRef.current;
       const opp = s.members.find((m) => m.side !== mine.side);
       setTeams(loaded);
+      setSeed(Math.floor(Math.random() * 1e9));
       setNet({
         role: isHostRef.current ? "host" : "guest",
         seat: mine,
@@ -382,14 +386,22 @@ export function ArenaSoccerTeamRoom({ color, myId, myName, onFinish, onBack }: {
   const humansLabel = useMemo(() => (state ? `${state.members.length} de ${state.per * 2} vagas com gente` : ""), [state]);
 
   if (step === "playing" && net && teams && state) {
-    const { spec } = buildMatch(state, teams);
+    const members = state.members.map((m) => ({ uid: m.uid, name: m.name, side: m.side, pick: m.pick >= 0 ? teams[m.side].players[m.pick]?.[2] : undefined }));
+    const lineups = ([0, 1] as const).map((side) => {
+      const squad = teams[side].players.map(toPlayer);
+      const forced = members.filter((m) => m.side === side && m.pick).map((m) => squad.find((p) => p.name === m.pick)).filter((p): p is NonNullable<typeof p> => !!p);
+      return pickLineup(squad, bestFormation(squad, forced), "balanced", forced);
+    }) as [ReturnType<typeof pickLineup>, ReturnType<typeof pickLineup>];
     return (
-      <ArenaSoccerGame
-        mode={`${state.per}v${state.per}` as "2v2" | "3v3" | "4v4"}
-        level="normal"
-        color={color}
+      <OnlineMatch
         net={net}
-        spec={spec}
+        myUid={myId}
+        members={members}
+        teams={teams}
+        lineups={lineups}
+        seed={seed}
+        label={`${state.per} × ${state.per} · ${teams[0].name} x ${teams[1].name}`}
+        modeLabel={`${state.per}v${state.per}` as "2v2" | "3v3" | "4v4"}
         onFinish={onFinish}
         onExit={() => reset("finished")}
       />

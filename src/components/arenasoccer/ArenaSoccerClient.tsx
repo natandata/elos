@@ -12,6 +12,7 @@ import { CupMode } from "./CupMode";
 import { WorldMode } from "./WorldMode";
 import { LeagueMode } from "./LeagueMode";
 import { QuickMatch } from "./QuickMatch";
+import { TimesView } from "./TimesView";
 
 export type SoccerStats = { matches: number; wins: number; losses: number; draws: number; goals: number; minutes: number };
 
@@ -30,6 +31,7 @@ export function ArenaSoccerClient({ stats, myName = "Jogador", myId = "" }: { st
   const [color, setColor] = useState(COLORS[0]);
   const [playing, setPlaying] = useState(false);
   const [quick, setQuick] = useState(false);
+  const [times, setTimes] = useState(false);
   const [online, setOnline] = useState(false);
   const [teamOnline, setTeamOnline] = useState(false);
   const [comp, setComp] = useState<"cup" | "br" | "career" | null>(null);
@@ -78,6 +80,7 @@ export function ArenaSoccerClient({ stats, myName = "Jogador", myId = "" }: { st
     }));
   }
 
+  if (times) return <TimesView onBack={() => setTimes(false)} />;
   if (quick) return <QuickMatch onRecord={(r) => void finished(r)} onBack={() => setQuick(false)} />;
   if (comp === "cup") return <CupMode color={color} onRecord={(r) => void finished(r)} onBack={() => setComp(null)} />;
   if (comp === "br") return <LeagueMode color={color} onRecord={(r) => void finished(r)} onBack={() => setComp(null)} />;
@@ -132,6 +135,9 @@ export function ArenaSoccerClient({ stats, myName = "Jogador", myId = "" }: { st
 
       <button type="button" onClick={() => setQuick(true)} className="btn btn-primary w-full !py-4 text-lg">
         ⚽ Amistoso: escalar e jogar
+      </button>
+      <button type="button" onClick={() => setTimes(true)} className="btn w-full !py-3 text-base ring-2 ring-sky-400">
+        📋 Times e elencos
       </button>
 
       <p className="px-1 pt-2 text-xs font-black uppercase tracking-wide text-[var(--muted)]">Modo clássico (disco)</p>
