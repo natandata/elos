@@ -19,7 +19,33 @@ export type SoccerStats = { matches: number; wins: number; losses: number; draws
 const COLOR = "#3b82f6";
 
 /** Menu do ArenaSoccer: amistoso, campeonatos, carreira, online e a lista de times; mostra suas estatísticas. */
-export function ArenaSoccerClient({ stats, myName = "Jogador", myId = "" }: { stats: SoccerStats; myName?: string; myId?: string }) {
+export function ArenaSoccerClient(props: { stats: SoccerStats; myName?: string; myId?: string }) {
+  return (
+    <div className="pes-scope">
+      <Menu {...props} />
+    </div>
+  );
+}
+
+type Tile = { icon: React.ReactNode; title: string; sub: string; rgb: string; onClick: () => void };
+function MenuTile({ icon, title, sub, rgb, onClick }: Tile) {
+  return (
+    <button type="button" onClick={onClick} className="pes-tile" style={{ ["--tile" as string]: rgb }}>
+      <span className="pes-tile-ico" aria-hidden>
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <b className="pes-title block truncate text-base leading-tight">{title}</b>
+        <small className="mt-0.5 block text-[11px] font-semibold leading-snug text-white/65">{sub}</small>
+      </span>
+      <span className="text-xl font-black text-white/40" aria-hidden>
+        ›
+      </span>
+    </button>
+  );
+}
+
+function Menu({ stats, myName = "Jogador", myId = "" }: { stats: SoccerStats; myName?: string; myId?: string }) {
   const [quick, setQuick] = useState(false);
   const [times, setTimes] = useState(false);
   const [online, setOnline] = useState(false);
@@ -76,63 +102,54 @@ export function ArenaSoccerClient({ stats, myName = "Jogador", myId = "" }: { st
   if (online) return <ArenaSoccerOnline color={COLOR} myName={myName} onFinish={(r) => void finished(r)} onBack={() => setOnline(false)} />;
 
   return (
-    <div className="space-y-4">
-      <section className="relative overflow-hidden rounded-2xl border-[3px] border-emerald-400 bg-gradient-to-br from-[#0d3b22] via-[#146c3a] to-[#0b2a1a] p-5 text-white shadow-lg">
-        <span className="absolute -right-3 -top-4 text-8xl opacity-25" aria-hidden>
-          ⚽
-        </span>
-        <p className="text-3xl font-black tracking-wide [text-shadow:0_2px_0_#04180d]">ArenaSoccer</p>
-        <p className="mt-1 max-w-xs text-sm font-bold text-emerald-100">Escale o seu time, defina a tática e decida os lances de gol com o dedo: desenhe o passe e mire no ângulo.</p>
-        <div className="mt-3 grid grid-cols-4 gap-2 text-center">
+    <div className="space-y-3">
+      <section className="pes-panel">
+        <p className="text-[11px] font-black uppercase tracking-[0.25em] text-emerald-300">Bem-vindo, {myName} · sua campanha</p>
+        <div className="mt-2 grid grid-cols-4 gap-2 text-center">
           {[
             ["Partidas", mine.matches],
             ["Vitórias", mine.wins],
             ["Gols", mine.goals],
             ["Minutos", mine.minutes],
           ].map(([l, v]) => (
-            <span key={l as string} className="rounded-xl bg-black/30 px-1 py-2">
-              <b className="block text-xl font-black tabular-nums text-amber-300">{v}</b>
-              <span className="text-[10px] font-bold uppercase">{l}</span>
+            <span key={l as string} className="rounded-lg bg-white/[0.08] px-1 py-2">
+              <b className="pes-title block text-2xl leading-none tabular-nums text-amber-300">{v}</b>
+              <span className="text-[9px] font-black uppercase tracking-widest text-white/60">{l}</span>
             </span>
           ))}
         </div>
       </section>
 
-      <button type="button" onClick={() => setQuick(true)} className="btn btn-primary w-full !py-4 text-lg">
-        ⚽ Amistoso: escalar e jogar
-      </button>
-      <button type="button" onClick={() => setTimes(true)} className="btn w-full !py-3 text-base ring-2 ring-sky-400">
-        📋 Times e elencos
+      <button type="button" onClick={() => setQuick(true)} className="pes-card pes-cut-lg w-full bg-gradient-to-r from-emerald-400 to-emerald-600 px-4 py-4 text-left shadow-[0_0_26px_rgba(52,211,153,0.45)]">
+        <span className="flex items-center gap-3 text-[#04200f]">
+          <span className="text-4xl" aria-hidden>
+            ⚽
+          </span>
+          <span className="min-w-0 flex-1">
+            <b className="pes-title block text-xl leading-tight">Amistoso</b>
+            <small className="block text-[11px] font-bold">Escolha o time, monte a equipe e jogue agora</small>
+          </span>
+          <b className="pes-title text-2xl">▶</b>
+        </span>
       </button>
 
-      <section className="space-y-2">
-        <p className="px-1 text-sm font-black">Campeonatos (contra o computador)</p>
-        <button type="button" onClick={() => setComp("cup")} className="card flex w-full items-center gap-3 p-3 text-left">
-          <span className="text-3xl" aria-hidden>🏆</span>
-          <span><b className="block">Copa do Mundo</b><small className="text-xs text-[var(--muted)]">As últimas 7 Copas (2002–2026), com as seleções e elencos de verdade.</small></span>
-        </button>
-        <button type="button" onClick={() => setComp("br")} className="card flex w-full items-center gap-3 p-3 text-left">
-          <span className="text-3xl" aria-hidden>🇧🇷</span>
-          <span><b className="block">Campeonato Brasileiro 2026</b><small className="text-xs text-[var(--muted)]">20 times, 38 rodadas e os elencos de hoje.</small></span>
-        </button>
-        <button type="button" onClick={() => setComp("career")} className="card flex w-full items-center gap-3 p-3 text-left">
-          <span className="text-3xl" aria-hidden>⭐</span>
-          <span><b className="block">Modo carreira</b><small className="text-xs text-[var(--muted)]">Comece num time de uma liga, jogue temporadas, vire artilheiro e receba propostas.</small></span>
-        </button>
-      </section>
+      <p className="px-1 pt-1 text-[11px] font-black uppercase tracking-[0.25em] text-emerald-300">Campeonatos</p>
+      <MenuTile icon="🏆" title="Copa do Mundo" sub="As últimas 7 Copas (2002–2026), com as seleções e elencos de verdade." rgb="251, 191, 36" onClick={() => setComp("cup")} />
+      <MenuTile icon={/* eslint-disable-next-line @next/next/no-img-element */ <img src="/arenasoccer/crests/league/br.png" alt="" className="h-9 w-9 rounded-md bg-white object-contain p-0.5" />} title="Campeonato Brasileiro 2026" sub="20 times, 38 rodadas e os elencos de hoje." rgb="52, 211, 153" onClick={() => setComp("br")} />
+      <MenuTile icon="⭐" title="Modo carreira" sub="Comece num time, jogue temporadas, vire artilheiro e receba propostas." rgb="167, 139, 250" onClick={() => setComp("career")} />
 
-      <button type="button" onClick={() => setOnline(true)} className="btn w-full !py-4 text-lg ring-2 ring-emerald-400">
-        🌐 Jogar online contra outro jogador
-      </button>
-      <button type="button" onClick={() => setTeamOnline(true)} className="btn w-full !py-4 text-lg ring-2 ring-sky-400">
-        🌐 Online em equipe (2×2, 3×3, 4×4) com times de verdade
-      </button>
-      {saveError ? <p className="text-center text-xs font-semibold text-rose-600">{saveError}</p> : null}
+      <p className="px-1 pt-1 text-[11px] font-black uppercase tracking-[0.25em] text-emerald-300">Online</p>
+      <MenuTile icon="🌐" title="1 contra 1" sub="Jogue contra outro jogador, de qualquer Elo." rgb="56, 189, 248" onClick={() => setOnline(true)} />
+      <MenuTile icon="👥" title="Online em equipe" sub="2×2, 3×3 e 4×4 com times de verdade." rgb="244, 114, 182" onClick={() => setTeamOnline(true)} />
+
+      <p className="px-1 pt-1 text-[11px] font-black uppercase tracking-[0.25em] text-emerald-300">Consulta</p>
+      <MenuTile icon="📋" title="Times e elencos" sub="Todos os times do jogo, com os jogadores e o overall de cada um." rgb="148, 163, 184" onClick={() => setTimes(true)} />
+      {saveError ? <p className="text-center text-xs font-semibold text-rose-400">{saveError}</p> : null}
 
       <section className="card p-3 text-xs text-[var(--muted)]">
-        <p className="mb-1 text-sm font-black text-[var(--fg)]">Como jogar</p>
+        <p className="mb-1 text-sm font-black uppercase italic tracking-wider text-white">Como jogar</p>
         <p>
-          <b>Antes do jogo:</b> escolha a formação, a mentalidade e os titulares. <b>Durante a partida:</b> o jogo corre minuto a minuto; quando o seu time cria uma chance, abre o lance decisivo. <b>No lance:</b> desenhe com o dedo o passe ou o cruzamento até um companheiro livre e, na finalização, arraste da bola até o canto do gol. Quanto melhor o jogador, mais certeira a mira; o goleiro e a zaga podem defender. Se preferir, toque em &ldquo;Deixar o time resolver&rdquo;.
+          <b className="text-white">Antes do jogo:</b> escolha a formação, a mentalidade e os titulares. <b className="text-white">Durante a partida:</b> o jogo corre minuto a minuto; quando o seu time cria uma chance, abre o lance decisivo. <b className="text-white">No lance:</b> desenhe com o dedo o passe ou o cruzamento até um companheiro livre e, na finalização, arraste da bola até o canto do gol. Faça uma curva para contornar a defesa e enganar o goleiro. Se preferir, toque em &ldquo;Deixar o time resolver&rdquo;.
         </p>
       </section>
 

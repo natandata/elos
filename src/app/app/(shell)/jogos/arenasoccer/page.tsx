@@ -16,7 +16,7 @@ export default async function ArenaSoccerPage() {
     const day = new Date(dates.arenasoccer).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", timeZone: "America/Sao_Paulo" });
     return (
       <>
-        <PageHeader title="⚽ ArenaSoccer" subtitle="Futebol arcade de física." />
+        <PageHeader title="⚽ ArenaSoccer" subtitle="Futebol com lances decisivos." />
         <div className="relative mb-5 overflow-hidden rounded-2xl border-[3px] border-emerald-400 bg-[#0d3b22] shadow-lg">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/arenasoccer/capa.webp" alt="ArenaSoccer" className="block aspect-[4/3] w-full object-cover" draggable={false} />
@@ -40,7 +40,7 @@ export default async function ArenaSoccerPage() {
   const stats = (data ?? { matches: 0, wins: 0, losses: 0, draws: 0, goals: 0, minutes: 0 }) as SoccerStats;
   return (
     <>
-      <PageHeader title="⚽ ArenaSoccer" subtitle="Um disco, uma bola e um botão de chute." />
+      <PageHeader title="⚽ ArenaSoccer" subtitle="Escale o time e decida os lances com o dedo." />
       <div className="relative mb-5 overflow-hidden rounded-2xl border-[3px] border-emerald-400 bg-[#0d3b22] shadow-lg">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/arenasoccer/capa.webp" alt="ArenaSoccer" className="block aspect-[4/3] w-full object-cover" draggable={false} />

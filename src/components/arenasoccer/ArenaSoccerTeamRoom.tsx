@@ -11,6 +11,7 @@ import { bestFormation, pickLineup, toPlayer } from "@/lib/arenasoccer/sim";
 import { OnlineMatch } from "./match/OnlineMatch";
 import { KitChip } from "./ArenaSoccerPlay";
 import { CompBadge } from "./match/CompBadge";
+import { PesTitle, TeamGrid } from "./match/TeamSelect";
 
 type OpenRoom = { id: string; host: string; per: number; label: string; humans: number };
 type Step = "menu" | "size" | "teamA" | "teamB" | "lobby" | "playing";
@@ -36,29 +37,23 @@ function TeamPicker({ title, onPick, onBack }: { title: string; onPick: (ref: Te
   }, [src]);
   const teams = loaded?.src === src ? loaded.teams : null;
   return (
-    <section className="card space-y-3 p-4">
-      <p className="text-lg font-black">{title}</p>
-      <div className="flex flex-wrap gap-1.5">
+    <section className="pes-panel space-y-3">
+      <PesTitle kicker="Online em equipe" title={title} />
+      <div className="pes-scroll-x -mx-1 flex gap-2 px-1 pb-2 pt-1">
         {SOURCES.map((s) => (
-          <button key={s.src} type="button" onClick={() => setSrc(s.src)} className={`rounded-full px-3 py-1 text-xs font-bold ${src === s.src ? "bg-emerald-500 text-white" : "bg-[var(--line)]"}`}>
-            <CompBadge kind={s.kind} id={s.id} label={s.label} size={16} />
+          <button key={s.src} type="button" onClick={() => setSrc(s.src)} className={`pes-tab shrink-0 rounded-md px-4 py-2 text-xs font-black uppercase tracking-wide ${src === s.src ? "bg-gradient-to-r from-emerald-400 to-emerald-600 text-[#04200f] shadow-[0_0_18px_rgba(52,211,153,0.55)]" : "bg-white/10 text-white/85"}`}>
+            <span>
+              <CompBadge kind={s.kind} id={s.id} label={s.label} size={18} />
+            </span>
           </button>
         ))}
       </div>
       {teams ? (
-        <ul className="grid max-h-[50vh] grid-cols-1 gap-1.5 overflow-y-auto sm:grid-cols-2">
-          {teams.map((t) => (
-            <li key={t.id}>
-              <button type="button" onClick={() => onPick({ src, id: t.id }, t)} className="flex w-full items-center gap-2 rounded-xl bg-[var(--line)] p-2 text-left">
-                <KitChip t={t} />
-                <span className="min-w-0 flex-1 truncate text-sm font-bold">{t.name}</span>
-                <small className="text-xs text-[var(--muted)]">{t.str}</small>
-              </button>
-            </li>
-          ))}
-        </ul>
+        <div className="sb-pitch max-h-[55vh] overflow-y-auto pr-1">
+          <TeamGrid teams={teams} selectedId={null} onSelect={(t) => onPick({ src, id: t.id }, t)} />
+        </div>
       ) : (
-        <p className="text-xs text-[var(--muted)]">Carregando times…</p>
+        <p className="text-xs font-bold text-white/60">Carregando times…</p>
       )}
       <button type="button" onClick={onBack} className="btn btn-ghost w-full">
         ← Voltar
