@@ -2329,3 +2329,22 @@ a.bb-node:active { transform: translateY(6px); box-shadow: 0 2px 0 var(--nd); }
 }
 .sb-pitch::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #bbf7d0 0%, #4ade80 45%, #16a34a 100%); }
 .sb-pitch::-webkit-scrollbar-thumb:active { background: linear-gradient(180deg, #fde68a 0%, #fbbf24 45%, #d97706 100%); box-shadow: 0 0 10px rgba(251, 191, 36, 0.6); }
+
+/* ArenaSoccer · telas de escolha de time com cara de videogame de futebol (painel de transmissão, cantos cortados, tabs inclinadas) */
+.pes-panel { position: relative; overflow: hidden; border-radius: 1.5rem; border: 1px solid rgba(255, 255, 255, 0.1); padding: 1rem; color: #fff; box-shadow: 0 20px 50px rgba(2, 8, 23, 0.45); background: radial-gradient(120% 80% at 0% 0%, rgba(34, 197, 94, 0.22), transparent 55%), radial-gradient(90% 70% at 100% 100%, rgba(56, 189, 248, 0.16), transparent 60%), linear-gradient(165deg, #0a1226 0%, #0d2347 55%, #0a2f2a 100%); }
+.pes-panel::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0.05; background: repeating-linear-gradient(115deg, #fff 0 2px, transparent 2px 28px); }
+.pes-panel > * { position: relative; }
+.pes-title { font-style: italic; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; }
+.pes-cut { clip-path: polygon(0 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%); }
+.pes-cut-lg { clip-path: polygon(0 0, 100% 0, 100% calc(100% - 26px), calc(100% - 26px) 100%, 0 100%); }
+.pes-tab { transform: skewX(-10deg); transition: transform 0.12s ease, background 0.12s ease; }
+.pes-tab > * { transform: skewX(10deg); }
+.pes-tab:active { transform: skewX(-10deg) scale(0.96); }
+.pes-card { transition: transform 0.12s ease, filter 0.12s ease; }
+.pes-card:hover { filter: brightness(1.15); }
+.pes-card:active { transform: scale(0.97); }
+.pes-glow { filter: drop-shadow(0 0 14px var(--glow, rgba(255, 255, 255, 0.45))); }
+@keyframes pes-in { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }
+.pes-in { animation: pes-in 0.25s ease-out both; }
+.pes-scroll-x { scrollbar-width: none; -ms-overflow-style: none; overflow-x: auto; }
+.pes-scroll-x::-webkit-scrollbar { display: none; }
