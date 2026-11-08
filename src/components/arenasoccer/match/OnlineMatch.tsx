@@ -380,6 +380,7 @@ export function OnlineMatch({ net, myUid, members, teams, lineups, seed, label, 
         <p className="text-center text-lg font-black">⏸️ Intervalo</p>
         {myLineup ? (
           <TacticsPanel
+            kit={kits[mySide]}
             lineup={myLineup}
             subsLeft={view.subsLeft[mySide]}
             onChange={(l) => {
