@@ -5,7 +5,7 @@ export type KitPattern = "solid" | "stripes" | "hoops" | "sash" | "halves" | "ch
 export type Kit = { p: string; s: string; k: KitPattern };
 /** n = número da camisa, pos = GK/DF/MF/FW, name = nome, ovr = força (50–99) */
 export type RosterPlayer = [n: number, pos: string, name: string, ovr: number];
-export type Team = { id: string; name: string; coach?: string; p: string; s: string; k: KitPattern; str: number; players: RosterPlayer[] };
+export type Team = { id: string; name: string; coach?: string; /** escudo (clubes) ou bandeira (seleções), em /public */ crest?: string; p: string; s: string; k: KitPattern; str: number; players: RosterPlayer[] };
 
 export type CupMeta = { year: number; host: string; teams: number; groups: number };
 export type CupData = { year: number; host: string; groups: Record<string, string[]>; teams: Team[] };

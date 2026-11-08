@@ -4,14 +4,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import * as realApi from "@/lib/actions/soccerWorld";
 import type { WorldPlayerView, WorldView } from "@/lib/arenasoccer/worldServer";
-import { effStr, lineup, POSITIONS, seasonLabel, type CareerSave, type Position } from "@/lib/arenasoccer/career";
+import { POSITIONS, seasonLabel, type Position } from "@/lib/arenasoccer/career";
 import { table, type Fixture } from "@/lib/arenasoccer/comp";
-import { arrange, cpuLineup, kitOf, levelFor, LEAGUES, loadLeague, resolveKits, type LeagueKey, type Team } from "@/lib/arenasoccer/teams";
+import type { Pos } from "@/lib/arenasoccer/sim";
+import { LEAGUES, loadLeague, type LeagueKey, type Team } from "@/lib/arenasoccer/teams";
 import { inLabel, whenLabel } from "@/lib/arenasoccer/worldCalendar";
 import { getFootballNews } from "@/lib/actions/soccerNews";
 import type { NewsItem } from "@/lib/arenasoccer/news";
 import { createClient } from "@/lib/supabase/client";
-import { ArenaSoccerGame, type MatchResult, type PlaySpec } from "./ArenaSoccerGame";
+import type { MatchResult } from "./ArenaSoccerGame";
+import { MatchFlow } from "./ArenaSoccerMatch";
 import { ArenaSoccerOnline } from "./ArenaSoccerOnline";
 import { KitChip } from "./ArenaSoccerPlay";
 
@@ -57,7 +59,7 @@ export function WorldMode({ color, myId, myName, onRecord, onBack, api = realApi
   const [name, setName] = useState(myName);
   const [pos, setPos] = useState<Position>("FW");
   const [teams, setTeams] = useState<Team[] | null>(null);
-  const [spec, setSpec] = useState<PlaySpec | null>(null);
+  const [spec, setSpec] = useState<{ opp: Team; label: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
   const [now, setNow] = useState(0);
@@ -72,12 +74,11 @@ export function WorldMode({ color, myId, myName, onRecord, onBack, api = realApi
   const [online, setOnline] = useState<Online[]>([]);
   const [duel, setDuel] = useState<{ mode: "create" | "join"; room?: string; to?: string } | null>(null);
   const [news, setNews] = useState<NewsItem[] | null>(null);
-  const [trainSpec, setTrainSpec] = useState<PlaySpec | null>(null);
+  const [trainSpec, setTrainSpec] = useState<{ opp: Team; label: string } | null>(null);
   const [trainOpp, setTrainOpp] = useState<string | null>(null);
   const [trainLevel, setTrainLevel] = useState<"easy" | "normal" | "hard">("normal");
   const [invite, setInvite] = useState<{ from: string; room: string } | null>(null);
   const chRef = useRef<RealtimeChannel | null>(null);
-  const pending = useRef<MatchResult | null>(null);
 
   const load = useCallback(async () => {
     const r = await getWorld();
@@ -245,44 +246,34 @@ export function WorldMode({ color, myId, myName, onRecord, onBack, api = realApi
   // ------------------------------------------------------------ partida
   const play = () => {
     if (!team || !opp) return;
-    const c = { pos: m.pos, name: m.name, num: m.num, ovr: m.ovr } as CareerSave;
-    const { me: meP, mates } = lineup(c, team);
-    const [k0, k1] = resolveKits(kitOf(team), kitOf(opp));
-    const lvl = levelFor(effStr(c, team), opp.str);
-    setSpec({ match: { teams: [arrange([meP, ...mates], 0), cpuLineup(opp, 3)], secs: 120, goalsToWin: 9 }, kits: [k0, k1], names: [team.name, opp.name], level: ["normal", lvl], label: `${LEAGUES.find((l) => l.key === m.league)?.short} · rodada ${view.round + 1}` });
+    setSpec({ opp, label: `${LEAGUES.find((l) => l.key === m.league)?.short} · rodada ${view.round + 1}` });
   };
 
   const startTraining = () => {
     const tOpp = trainOpp ? tmap.get(trainOpp) : null;
     if (!team || !tOpp) return;
-    const c = { pos: m.pos, name: m.name, num: m.num, ovr: m.ovr } as CareerSave;
-    const { me: meP, mates } = lineup(c, team);
-    const [k0, k1] = resolveKits(kitOf(team), kitOf(tOpp));
-    setTrainSpec({ match: { teams: [arrange([meP, ...mates], 0), cpuLineup(tOpp, 3)], secs: 120, goalsToWin: 9 }, kits: [k0, k1], names: [team.name, tOpp.name], level: ["normal", trainLevel], label: "Treino · não vale na tabela" });
+    setTrainSpec({ opp: tOpp, label: "Treino · não vale na tabela" });
   };
 
-  if (trainSpec) {
-    return <ArenaSoccerGame mode="3v3" level="normal" color={color} spec={trainSpec} onFinish={() => {}} onExit={() => setTrainSpec(null)} />;
+  const ctrl: { num: number; pos: Pos; name: string; ovr: number } = { num: m.num, pos: m.pos as Pos, name: m.name, ovr: m.ovr };
+
+  if (trainSpec && team) {
+    return <MatchFlow mine={team} opp={trainSpec.opp} label={trainSpec.label} controlled={ctrl} onBack={() => setTrainSpec(null)} onDone={() => setTrainSpec(null)} />;
   }
 
-  if (spec) {
+  if (spec && team) {
     return (
-      <ArenaSoccerGame
-        mode="3v3"
-        level="normal"
-        color={color}
-        spec={spec}
-        onFinish={(r) => {
-          pending.current = r;
+      <MatchFlow
+        mine={team}
+        opp={spec.opp}
+        label={spec.label}
+        controlled={ctrl}
+        onBack={() => setSpec(null)}
+        onDone={async (r) => {
           onRecord(r);
-        }}
-        onExit={async () => {
-          const r = pending.current;
-          pending.current = null;
           setSpec(null);
-          if (!r) return;
           const line = (r.mine ?? []).find((x) => x.name === m.name);
-          const res = await worldSubmit({ goalsFor: r.goalsFor, goalsAgainst: r.goalsAgainst, goals: (r.scorers ?? []).map((s) => ({ team: s.team, name: s.name, assist: s.assist, at: s.at })), mine: { goals: line?.goals ?? 0, assists: line?.assists ?? 0, own: line?.own ?? 0 } });
+          const res = await worldSubmit({ goalsFor: r.goalsFor, goalsAgainst: r.goalsAgainst, goals: (r.scorers ?? []).map((s) => ({ team: s.team, name: s.name, assist: s.assist, at: Math.max(1, Math.min(120, Math.round((s.at / 60) * (120 / 90)))) })), mine: { goals: line?.goals ?? 0, assists: line?.assists ?? 0, own: line?.own ?? 0 } });
           setSummary(res.error ? `Não foi possível registrar: ${res.error}` : `${res.summary!.line} · nota ${res.summary!.rating.toFixed(1).replace(".", ",")} · +${res.summary!.xp} XP${res.summary!.official ? "" : " (o placar oficial da tabela foi o do primeiro jogo registrado)"}${res.summary!.doneMissions.length ? ` · missão: ${res.summary!.doneMissions.join("; ")}` : ""}`);
           await load();
         }}

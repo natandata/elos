@@ -6,14 +6,17 @@ import type { SoccerNet } from "@/lib/arenasoccer/net";
 import { buildMatch, countSide, loadTeam, type RoomState, type TeamRef } from "@/lib/arenasoccer/teamRoom";
 import { CUP_YEARS, LEAGUES, loadCup, loadLeague, type LeagueKey, type Team } from "@/lib/arenasoccer/teams";
 import { createClient } from "@/lib/supabase/client";
-import { ArenaSoccerGame, type MatchResult } from "./ArenaSoccerGame";
+import type { MatchResult } from "./ArenaSoccerGame";
+import { bestFormation, pickLineup, toPlayer } from "@/lib/arenasoccer/sim";
+import { OnlineMatch } from "./match/OnlineMatch";
 import { KitChip } from "./ArenaSoccerPlay";
+import { CompBadge } from "./match/CompBadge";
 
 type OpenRoom = { id: string; host: string; per: number; label: string; humans: number };
 type Step = "menu" | "size" | "teamA" | "teamB" | "lobby" | "playing";
 type Loaded = [Team, Team];
 
-const SOURCES: { src: string; label: string }[] = [...CUP_YEARS.map((y) => ({ src: `cup:${y}`, label: `Copa ${y}` })), ...LEAGUES.map((l) => ({ src: `league:${l.key}`, label: `${l.flag} ${l.short}` }))];
+const SOURCES: { src: string; label: string; kind: "league" | "cup"; id: string }[] = [...CUP_YEARS.map((y) => ({ src: `cup:${y}`, label: `Copa ${y}`, kind: "cup" as const, id: String(y) })), ...LEAGUES.map((l) => ({ src: `league:${l.key}`, label: l.short, kind: "league" as const, id: l.key }))];
 
 async function listTeams(src: string): Promise<Team[]> {
   const [kind, key] = src.split(":");
@@ -38,7 +41,7 @@ function TeamPicker({ title, onPick, onBack }: { title: string; onPick: (ref: Te
       <div className="flex flex-wrap gap-1.5">
         {SOURCES.map((s) => (
           <button key={s.src} type="button" onClick={() => setSrc(s.src)} className={`rounded-full px-3 py-1 text-xs font-bold ${src === s.src ? "bg-emerald-500 text-white" : "bg-[var(--line)]"}`}>
-            {s.label}
+            <CompBadge kind={s.kind} id={s.id} label={s.label} size={16} />
           </button>
         ))}
       </div>
@@ -77,6 +80,7 @@ export function ArenaSoccerTeamRoom({ color, myId, myName, onFinish, onBack }: {
   const [teams, setTeams] = useState<Loaded | null>(null);
   const [net, setNet] = useState<SoccerNet | null>(null);
   const [isHost, setIsHost] = useState(false);
+  const [seed, setSeed] = useState(0);
 
   const chRef = useRef<RealtimeChannel | null>(null);
   const roomRef = useRef<string | null>(null);
@@ -172,6 +176,7 @@ export function ArenaSoccerTeamRoom({ color, myId, myName, onFinish, onBack }: {
       const ch = chRef.current;
       const opp = s.members.find((m) => m.side !== mine.side);
       setTeams(loaded);
+      setSeed(Math.floor(Math.random() * 1e9));
       setNet({
         role: isHostRef.current ? "host" : "guest",
         seat: mine,
@@ -382,14 +387,22 @@ export function ArenaSoccerTeamRoom({ color, myId, myName, onFinish, onBack }: {
   const humansLabel = useMemo(() => (state ? `${state.members.length} de ${state.per * 2} vagas com gente` : ""), [state]);
 
   if (step === "playing" && net && teams && state) {
-    const { spec } = buildMatch(state, teams);
+    const members = state.members.map((m) => ({ uid: m.uid, name: m.name, side: m.side, pick: m.pick >= 0 ? teams[m.side].players[m.pick]?.[2] : undefined }));
+    const lineups = ([0, 1] as const).map((side) => {
+      const squad = teams[side].players.map(toPlayer);
+      const forced = members.filter((m) => m.side === side && m.pick).map((m) => squad.find((p) => p.name === m.pick)).filter((p): p is NonNullable<typeof p> => !!p);
+      return pickLineup(squad, bestFormation(squad, forced), "balanced", forced);
+    }) as [ReturnType<typeof pickLineup>, ReturnType<typeof pickLineup>];
     return (
-      <ArenaSoccerGame
-        mode={`${state.per}v${state.per}` as "2v2" | "3v3" | "4v4"}
-        level="normal"
-        color={color}
+      <OnlineMatch
         net={net}
-        spec={spec}
+        myUid={myId}
+        members={members}
+        teams={teams}
+        lineups={lineups}
+        seed={seed}
+        label={`${state.per} × ${state.per} · ${teams[0].name} x ${teams[1].name}`}
+        modeLabel={`${state.per}v${state.per}` as "2v2" | "3v3" | "4v4"}
         onFinish={onFinish}
         onExit={() => reset("finished")}
       />

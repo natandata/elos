@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import type { SoccerNet } from "@/lib/arenasoccer/net";
 import { createClient } from "@/lib/supabase/client";
-import { ArenaSoccerGame, type MatchResult } from "./ArenaSoccerGame";
+import type { MatchResult } from "./ArenaSoccerGame";
+import { OnlineDuel } from "./OnlineDuel";
 
 type OpenRoom = { id: string; host: string; color: string; since: string };
 type Playing = { net: SoccerNet; roomId: string };
@@ -185,10 +186,7 @@ export function ArenaSoccerOnline({ color, myName, onFinish, onBack, autoCreate 
 
   if (playing) {
     return (
-      <ArenaSoccerGame
-        mode="1v1"
-        level="normal"
-        color={color}
+      <OnlineDuel
         net={playing.net}
         onFinish={(r) => {
           onFinish(r);
@@ -207,7 +205,7 @@ export function ArenaSoccerOnline({ color, myName, onFinish, onBack, autoCreate 
     <div className="space-y-4">
       <section className="card p-4">
         <p className="text-lg font-black">🌐 Online · 1 contra 1</p>
-        <p className="mt-1 text-xs text-[var(--muted)]">Jogue contra outro jogador, de qualquer Elo. Vence quem chegar a 3 gols ou tiver mais gols em 3 minutos; empatou, gol de ouro. Você joga com a cor que escolheu (o adversário recebe a cor mais diferente da sua).</p>
+        <p className="mt-1 text-xs text-[var(--muted)]">Jogue contra outro jogador, de qualquer Elo. Cada um escolhe o seu time e a tática; vocês jogam os lances decisivos do próprio time, e o placar sai da partida de 90 minutos.</p>
         {mine ? (
           <div className="mt-3 rounded-xl bg-emerald-500/10 p-3 text-center">
             <p className="font-black">Sala criada. Esperando um adversário…</p>
