@@ -97,7 +97,8 @@ export function bowOffset(from: Spot, to: Spot, curve: number): [number, number]
   const dx = to.x - from.x;
   const dy = to.y - from.y;
   const len = Math.hypot(dx, dy) || 1;
-  const amp = Math.max(-0.8, Math.min(0.8, curve)) * len * 0.5;
+  // uma bola curvada de verdade se afasta poucos metros da reta (cerca de 12% do caminho, no máximo 3 m)
+  const amp = Math.max(-1, Math.min(1, curve)) * Math.min(3, len * 0.12);
   return [(dy / len) * amp, (-dx / len) * amp];
 }
 

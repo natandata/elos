@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { FORMATIONS, type Formation, type Lineup, type Player } from "@/lib/arenasoccer/sim";
 import { shortName, type Kit } from "@/lib/arenasoccer/teams";
 
@@ -34,8 +35,15 @@ const hash = (s: string): number => {
   return h >>> 0;
 };
 
-/** Busto do jogador (desenhado, sem foto): cabeça, cabelo e a camisa do time. */
-export function Avatar({ name, kit, size = 40 }: { name: string; kit: Kit; size?: number }) {
+/** Foto do jogador; sem foto (ou se ela falhar), um busto desenhado com a camisa do time. */
+export function Avatar({ name, kit, size = 40, photo }: { name: string; kit: Kit; size?: number; photo?: string }) {
+  const [failed, setFailed] = useState<string | null>(null);
+  if (photo && failed !== photo) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- fotos pequenas, servidas de /public
+      <img src={photo} alt="" width={size} height={size} loading="lazy" decoding="async" onError={() => setFailed(photo)} className="rounded-full border-[1.5px] border-white/60 bg-[#0f2a4a] object-cover object-top" style={{ width: size, height: size }} />
+    );
+  }
   const h = hash(name);
   const skin = SKIN[h % SKIN.length];
   const hair = HAIR[(h >> 4) % HAIR.length];
@@ -66,7 +74,7 @@ export function Avatar({ name, kit, size = 40 }: { name: string; kit: Kit; size?
 export function FormationPitch({ lineup, kit, selected, onSelect }: { lineup: Lineup; kit: Kit; selected: number | null; onSelect: (i: number) => void }) {
   const slots = slotsFor(lineup.formation);
   return (
-    <div className="relative mx-auto w-full overflow-hidden rounded-2xl border border-white/15 shadow-[0_10px_30px_rgba(0,0,0,0.45)]" style={{ aspectRatio: "5 / 6.2", background: "repeating-linear-gradient(180deg, #2c8a43 0 8.33%, #34a04f 8.33% 16.66%)" }}>
+    <div className="relative mx-auto w-full max-w-[480px] overflow-hidden rounded-2xl border border-white/15 shadow-[0_10px_30px_rgba(0,0,0,0.45)]" style={{ aspectRatio: "5 / 6.2", background: "repeating-linear-gradient(180deg, #2c8a43 0 8.33%, #34a04f 8.33% 16.66%)" }}>
       <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 124" preserveAspectRatio="none" aria-hidden>
         <g fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="0.55">
           <rect x="3" y="3" width="94" height="118" rx="1" />
@@ -87,7 +95,7 @@ export function FormationPitch({ lineup, kit, selected, onSelect }: { lineup: Li
         return (
           <button key={p.name + i} type="button" onClick={() => onSelect(i)} className={`absolute flex w-[22%] -translate-x-1/2 -translate-y-1/2 flex-col items-center transition-transform ${on ? "z-10 scale-110" : "hover:scale-105"}`} style={{ left: `${s.x}%`, top: `${s.y}%` }}>
             <span className={`rounded-full ${on ? "shadow-[0_0_0_3px_#fbbf24,0_0_16px_rgba(251,191,36,0.9)]" : ""}`}>
-              <Avatar name={p.name} kit={kit} size={40} />
+              <Avatar name={p.name} kit={kit} size={40} photo={p.photo} />
             </span>
             <span className="mt-0.5 flex overflow-hidden rounded-[4px] text-[10px] font-black leading-none shadow-md">
               <span className="px-1 py-[3px] text-[#04120a]" style={{ background: TAG[p.pos] }}>
@@ -104,13 +112,14 @@ export function FormationPitch({ lineup, kit, selected, onSelect }: { lineup: Li
 }
 
 /** Lista dos titulares ao lado do campo: posição, nome e overall. */
-export function StartersList({ lineup, selected, onSelect }: { lineup: Lineup; selected: number | null; onSelect: (i: number) => void }) {
+export function StartersList({ lineup, kit, selected, onSelect }: { lineup: Lineup; kit: Kit; selected: number | null; onSelect: (i: number) => void }) {
   const slots = slotsFor(lineup.formation);
   return (
     <ul className="space-y-1">
       {lineup.xi.map((p, i) => (
         <li key={p.name + i}>
           <button type="button" onClick={() => onSelect(i)} className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left ${selected === i ? "bg-amber-400/25 ring-2 ring-amber-400" : "bg-white/[0.07] hover:bg-white/[0.12]"}`}>
+            <Avatar name={p.name} kit={kit} size={28} photo={p.photo} />
             <span className="w-10 rounded-[4px] py-[3px] text-center text-[10px] font-black text-[#04120a]" style={{ background: TAG[p.pos] }}>
               {slots[i]?.label ?? p.pos}
             </span>

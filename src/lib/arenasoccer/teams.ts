@@ -4,7 +4,7 @@ import type { Slot } from "./engine";
 export type KitPattern = "solid" | "stripes" | "hoops" | "sash" | "halves" | "checker";
 export type Kit = { p: string; s: string; k: KitPattern };
 /** n = número da camisa, pos = GK/DF/MF/FW, name = nome, ovr = força (50–99) */
-export type RosterPlayer = [n: number, pos: string, name: string, ovr: number];
+export type RosterPlayer = [n: number, pos: string, name: string, ovr: number, /** número do jogador no Transfermarkt = nome do arquivo da foto em /public/arenasoccer/players */ photo?: number];
 export type Team = { id: string; name: string; coach?: string; /** escudo (clubes) ou bandeira (seleções), em /public */ crest?: string; p: string; s: string; k: KitPattern; str: number; players: RosterPlayer[] };
 
 export type CupMeta = { year: number; host: string; teams: number; groups: number };
@@ -105,3 +105,6 @@ export function levelFor(mine: number, theirs: number): "easy" | "normal" | "har
 export function cpuLineup(team: Team, n: number): Slot[] {
   return arrange(autoPick(team, n), 0);
 }
+
+/** Caminho da foto do jogador (ou undefined se não houver). */
+export const photoOf = (id?: number): string | undefined => (id ? `/arenasoccer/players/${id}.jpg` : undefined);

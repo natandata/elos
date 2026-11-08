@@ -5,7 +5,7 @@ import type { RosterPlayer } from "./teams";
 
 export type Pos = "GK" | "DF" | "MF" | "FW";
 export type Side = 0 | 1;
-export type Player = { num: number; pos: Pos; name: string; ovr: number };
+export type Player = { num: number; pos: Pos; name: string; ovr: number; /** foto (arquivo em /public), se houver */ photo?: string };
 export type Formation = "4-4-2" | "4-3-3" | "3-5-2" | "4-2-3-1" | "5-3-2";
 export type Mentality = "defend" | "balanced" | "attack";
 
@@ -24,7 +24,7 @@ export const MENTALITIES: Record<Mentality, { label: string; atk: number; def: n
 
 export type Lineup = { formation: Formation; mentality: Mentality; xi: Player[]; bench: Player[] };
 
-export const toPlayer = (p: RosterPlayer): Player => ({ num: p[0], pos: p[1] as Pos, name: p[2], ovr: p[3] });
+export const toPlayer = (p: RosterPlayer): Player => ({ num: p[0], pos: p[1] as Pos, name: p[2], ovr: p[3], photo: p[4] ? `/arenasoccer/players/${p[4]}.jpg` : undefined });
 
 /** Escolhe os 11 melhores para a formação. Faltou gente numa posição? Joga um de outra posição ali, com um desconto de força. */
 export function pickLineup(squad: Player[], formation: Formation, mentality: Mentality = "balanced", force: Player[] = []): Lineup {
@@ -166,6 +166,9 @@ export function createMatch(lineups: [Lineup, Lineup], seed: number, human: Side
 
 const KIND_BASE: Record<ChanceKind, number> = { open: 0.13, counter: 0.19, cross: 0.12, corner: 0.085, freekick: 0.065, penalty: 0.77 };
 
+/** Quanto a pontaria de quem joga o lance melhora a chance de gol em relação ao sorteio (ainda abaixo do dobro e meio). */
+export const HUMAN_EDGE = 1.7;
+
 /** Probabilidade de gol de uma chance resolvida no automático. */
 export function autoGoalProb(m: Match, c: Chance): number {
   const me = ratings(m.lineups[c.side]);
@@ -248,7 +251,7 @@ export function stepMinute(m: Match): { chance?: Chance; ended?: "half" | "full"
     const me = s === 0 ? r0 : r1;
     const op = s === 0 ? r1 : r0;
     const share = s === 0 ? share0 : 1 - share0;
-    const p = clamp(0.1 * tempo * MENTALITIES[m.lineups[s].mentality].tempo * (0.5 + share) * (1 + (me.att - op.def) / 150), 0.02, 0.4);
+    const p = clamp(0.1 * tempo * MENTALITIES[m.lineups[s].mentality].tempo * (0.5 + share) * (1 + (me.att - op.def) / 200), 0.02, 0.4);
     if (m.rng() >= p) continue;
     const kind = rollKind(m, s);
     const shooter = weightedShooter(m, s, kind);
@@ -258,7 +261,9 @@ export function stepMinute(m: Match): { chance?: Chance; ended?: "half" | "full"
     if (star && assister && assister !== star && m.rng() < 0.3) assister = star;
     const chance: Chance = { id: ++m.chanceSeq, min: m.min, side: s, kind, shooter, assister };
     const mine = m.control ? shooter.name === m.control || assister?.name === m.control : true;
-    if (isHuman(m, s) && !human && mine) {
+    // lances de bola parada são sempre seus; os de jogo corrido só viram lance decisivo quando são "grandes" (cerca de 6 em cada 10)
+    const big = kind === "penalty" || kind === "freekick" || kind === "corner" || m.rng() < 0.6;
+    if (isHuman(m, s) && !human && mine && big) {
       human = chance;
       continue;
     }
@@ -337,6 +342,11 @@ export function shotOutcome(m: Match, c: Chance, aim: Aim, opts: { distance: num
   const reach = (0.36 + (gkOvr - 60) * 0.004) * (corner ? 0.5 : 1) * (c.kind === "freekick" ? 0.9 : 1) * (1 - 0.3 * curve);
   const dist = Math.hypot((x - kx) * 0.9, (y - ky) * 1.25);
   if (dist < reach) return { kind: "saved", goal: false, text: `${gk ? nameOf(gk) : "O goleiro"} voa e defende o chute de ${who}!`, land, keeper: { x: x * 0.85, y: Math.max(0.2, y * 0.8) } };
+  // mesmo no alvo e longe do goleiro, nem tudo entra: a conversão tem um teto realista (pênalti é a exceção)
+  const cap = c.kind === "penalty" ? 0.92 : clamp(autoGoalProb(m, c) * HUMAN_EDGE, 0.08, 0.38);
+  if (c.kind !== "penalty" && rng() > cap / 0.62) {
+    return { kind: "saved", goal: false, text: `${gk ? nameOf(gk) : "O goleiro"} se estica todo e espalma o chute de ${who}!`, land, keeper: { x: x * 0.9, y: Math.max(0.25, y * 0.85) } };
+  }
   return { kind: "goal", goal: true, text: `${who} ${corner ? "coloca no ângulo" : "manda para a rede"}! GOL!`, land, keeper };
 }
 

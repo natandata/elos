@@ -90,9 +90,9 @@ export function TacticsPanel({ lineup, onChange, subsLeft, onSub, keep, kit = NE
           <p className="pes-title text-base">Escalação</p>
           {live ? <p className="text-xs font-black text-[var(--muted)]">Trocas restantes: {subsLeft}</p> : <p className="text-[11px] font-bold text-[var(--muted)]">Toque num titular e depois num reserva</p>}
         </div>
-        <div className="grid gap-3 md:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+        <div className="grid gap-3">
           <FormationPitch lineup={lineup} kit={kit} selected={sel} onSelect={(i) => setSel(sel === i ? null : i)} />
-          <StartersList lineup={lineup} selected={sel} onSelect={(i) => setSel(sel === i ? null : i)} />
+          <StartersList lineup={lineup} kit={kit} selected={sel} onSelect={(i) => setSel(sel === i ? null : i)} />
         </div>
       </section>
 
