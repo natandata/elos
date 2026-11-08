@@ -441,7 +441,7 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
   }, []);
 
   return (
-    <div className="relative mx-auto h-[calc(100dvh-8rem)] max-h-[760px] min-h-[420px] w-full max-w-[460px] overflow-hidden rounded-2xl border-2 border-white/20 bg-[#0b1530] shadow-2xl">
+    <div className="fixed inset-y-0 left-1/2 z-[90] w-full max-w-[560px] -translate-x-1/2 overflow-hidden bg-[#0b1530] shadow-2xl">
       <div ref={wrapRef} className="absolute inset-0">
         <canvas ref={canvasRef} className="block touch-none select-none" />
       </div>

@@ -71,10 +71,10 @@ export function Avatar({ name, kit, size = 40, photo }: { name: string; kit: Kit
  * Escalação no campo, no estilo dos jogos de futebol: cada titular no seu lugar da formação, com a posição, o overall e o nome.
  * Toque num jogador para escolher e depois num reserva para trocar.
  */
-export function FormationPitch({ lineup, kit, selected, onSelect }: { lineup: Lineup; kit: Kit; selected: number | null; onSelect: (i: number) => void }) {
+export function FormationPitch({ lineup, kit, selected, onSelect, onClear }: { lineup: Lineup; kit: Kit; selected: number | null; onSelect: (i: number) => void; /** toque no campo, fora de um jogador: solta a seleção */ onClear?: () => void }) {
   const slots = slotsFor(lineup.formation);
   return (
-    <div className="relative mx-auto w-full max-w-[480px] overflow-hidden rounded-2xl border border-white/15 shadow-[0_10px_30px_rgba(0,0,0,0.45)]" style={{ aspectRatio: "5 / 6.2", background: "repeating-linear-gradient(180deg, #2c8a43 0 8.33%, #34a04f 8.33% 16.66%)" }}>
+    <div onClick={(e) => { if (!(e.target as HTMLElement).closest("button")) onClear?.(); }} className="relative mx-auto w-full max-w-[480px] overflow-hidden rounded-2xl border border-white/15 shadow-[0_10px_30px_rgba(0,0,0,0.45)]" style={{ aspectRatio: "5 / 6.2", background: "repeating-linear-gradient(180deg, #2c8a43 0 8.33%, #34a04f 8.33% 16.66%)" }}>
       <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 124" preserveAspectRatio="none" aria-hidden>
         <g fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="0.55">
           <rect x="3" y="3" width="94" height="118" rx="1" />
