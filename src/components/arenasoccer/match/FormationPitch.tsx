@@ -93,9 +93,9 @@ export function FormationPitch({ lineup, kit, selected, onSelect }: { lineup: Li
         if (!s) return null;
         const on = selected === i;
         return (
-          <button key={p.name + i} type="button" onClick={() => onSelect(i)} className={`absolute flex w-[22%] -translate-x-1/2 -translate-y-1/2 flex-col items-center transition-transform ${on ? "z-10 scale-110" : "hover:scale-105"}`} style={{ left: `${s.x}%`, top: `${s.y}%` }}>
+          <button key={p.name + i} type="button" onClick={() => onSelect(i)} className={`absolute flex w-[20%] -translate-x-1/2 -translate-y-1/2 flex-col items-center transition-transform ${on ? "z-10 scale-110" : "hover:scale-105"}`} style={{ left: `${s.x}%`, top: `${s.y}%` }}>
             <span className={`rounded-full ${on ? "shadow-[0_0_0_3px_#fbbf24,0_0_16px_rgba(251,191,36,0.9)]" : ""}`}>
-              <Avatar name={p.name} kit={kit} size={40} photo={p.photo} />
+              <Avatar name={p.name} kit={kit} size={32} photo={p.photo} />
             </span>
             <span className="mt-0.5 flex overflow-hidden rounded-[4px] text-[10px] font-black leading-none shadow-md">
               <span className="px-1 py-[3px] text-[#04120a]" style={{ background: TAG[p.pos] }}>

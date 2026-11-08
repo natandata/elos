@@ -8,7 +8,8 @@ import { LEAGUES, loadLeague, type LeagueKey, type Team } from "@/lib/arenasocce
 import type { MatchResult } from "./ArenaSoccerGame";
 import { MatchFlow } from "./ArenaSoccerMatch";
 import { KitChip } from "./ArenaSoccerPlay";
-import { useSoccerSave } from "./useSoccerSave";
+import { SaveBar, SaveSlots } from "./SaveSlots";
+import { slotKind, useSoccerSave, type Slot } from "./useSoccerSave";
 
 type All = Record<LeagueKey, Team[]>;
 
@@ -22,7 +23,8 @@ function Bar({ value, max, color = "bg-emerald-500" }: { value: number; max: num
 
 /** Modo carreira: escolha a liga, entre num time por sorteio e jogue temporadas, missões, artilharia e propostas de outros clubes. */
 export function CareerMode({ myName, onRecord, onBack }: { color?: string; myName: string; onRecord: (r: MatchResult) => void; onBack: () => void }) {
-  const { data: save, loading, save: setSave } = useSoccerSave<CareerSave>("career");
+  const [slot, setSlot] = useState<Slot | null>(null);
+  const { data: save, loading, save: setSave, status, savedAt, flushNow } = useSoccerSave<CareerSave>(slot ? slotKind("career", slot) : "career#none");
   const [all, setAll] = useState<All | null>(null);
   const [step, setStep] = useState<"league" | "create">("league");
   const [league, setLeague] = useState<LeagueKey | null>(null);
@@ -49,13 +51,27 @@ export function CareerMode({ myName, onRecord, onBack }: { color?: string; myNam
   const teams = save && all ? all[save.league] : null;
   const tmap = useMemo(() => new Map((teams ?? []).map((t) => [t.id, t])), [teams]);
 
-  if (loading || !all) return <p className="card p-4 text-center text-sm font-bold">Carregando o modo carreira…</p>;
+  if (!all) return <p className="card p-4 text-center text-sm font-bold">Carregando o modo carreira…</p>;
+  if (!slot) {
+    return (
+      <SaveSlots<CareerSave>
+        base="career"
+        kicker="Modo carreira"
+        title="Escolha o seu espaço"
+        summarize={(sv) => `${sv.name} · ${all[sv.league]?.find((t) => t.id === sv.team)?.name ?? sv.team} · temporada ${seasonLabel(sv.year)}`}
+        onPick={setSlot}
+        onBack={onBack}
+      />
+    );
+  }
+  if (loading) return <p className="card p-4 text-center text-sm font-bold">Carregando o seu jogo salvo…</p>;
 
   // ------------------------------------------------------------ começar a carreira
   if (!save) {
     if (step === "league" || !league) {
       return (
         <div className="space-y-3">
+          <SaveBar slot={slot} status={status} savedAt={savedAt} onSave={() => void flushNow()} onSwitch={() => setSlot(null)} />
           <section className="card p-4">
             <p className="text-lg font-black">⭐ Modo carreira</p>
             <p className="mt-1 text-xs text-[var(--muted)]">Você é um jogador novo, de 19 anos. Escolha a liga em que quer começar: o time sai por sorteio, entre os do meio e de baixo da tabela. Jogue as partidas, cumpra missões, dispute a artilharia e as assistências e, jogando bem, receba propostas de outros times, de qualquer uma das quatro ligas.</p>
@@ -168,6 +184,7 @@ export function CareerMode({ myName, onRecord, onBack }: { color?: string; myNam
 
   return (
     <div className="space-y-3">
+      <SaveBar slot={slot} status={status} savedAt={savedAt} onSave={() => void flushNow()} onSwitch={() => setSlot(null)} />
       {/* cartão do jogador */}
       <section className="card p-3">
         <div className="flex items-center gap-3">
