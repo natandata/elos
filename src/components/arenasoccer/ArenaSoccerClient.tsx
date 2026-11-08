@@ -10,6 +10,7 @@ import { CareerMode } from "./CareerMode";
 import { CupMode } from "./CupMode";
 import { WorldMode } from "./WorldMode";
 import { LeagueMode } from "./LeagueMode";
+import { MenuEmblem, type EmblemKind } from "./match/Emblems";
 import { QuickMatch } from "./QuickMatch";
 import { TimesView } from "./TimesView";
 
@@ -27,15 +28,13 @@ export function ArenaSoccerClient(props: { stats: SoccerStats; myName?: string; 
   );
 }
 
-type Tile = { icon: React.ReactNode; title: string; sub: string; rgb: string; onClick: () => void };
-function MenuTile({ icon, title, sub, rgb, onClick }: Tile) {
+type Tile = { emblem: EmblemKind; title: string; sub: string; rgb: string; onClick: () => void };
+function MenuTile({ emblem, title, sub, rgb, onClick }: Tile) {
   return (
     <button type="button" onClick={onClick} className="pes-tile" style={{ ["--tile" as string]: rgb }}>
-      <span className="pes-tile-ico" aria-hidden>
-        {icon}
-      </span>
+      <MenuEmblem kind={emblem} size={54} />
       <span className="min-w-0 flex-1">
-        <b className="pes-title block truncate text-base leading-tight">{title}</b>
+        <b className="pes-title block text-base leading-tight">{title}</b>
         <small className="mt-0.5 block text-[11px] font-semibold leading-snug text-white/65">{sub}</small>
       </span>
       <span className="text-xl font-black text-white/40" aria-hidden>
@@ -122,9 +121,7 @@ function Menu({ stats, myName = "Jogador", myId = "" }: { stats: SoccerStats; my
 
       <button type="button" onClick={() => setQuick(true)} className="pes-card pes-cut-lg w-full bg-gradient-to-r from-emerald-400 to-emerald-600 px-4 py-4 text-left shadow-[0_0_26px_rgba(52,211,153,0.45)]">
         <span className="flex items-center gap-3 text-[#04200f]">
-          <span className="text-4xl" aria-hidden>
-            ⚽
-          </span>
+          <MenuEmblem kind="friendly" size={58} />
           <span className="min-w-0 flex-1">
             <b className="pes-title block text-xl leading-tight">Amistoso</b>
             <small className="block text-[11px] font-bold">Escolha o time, monte a equipe e jogue agora</small>
@@ -134,16 +131,16 @@ function Menu({ stats, myName = "Jogador", myId = "" }: { stats: SoccerStats; my
       </button>
 
       <p className="px-1 pt-1 text-[11px] font-black uppercase tracking-[0.25em] text-emerald-300">Campeonatos</p>
-      <MenuTile icon="🏆" title="Copa do Mundo" sub="As últimas 7 Copas (2002–2026), com as seleções e elencos de verdade." rgb="251, 191, 36" onClick={() => setComp("cup")} />
-      <MenuTile icon={/* eslint-disable-next-line @next/next/no-img-element */ <img src="/arenasoccer/crests/league/br.png" alt="" className="h-9 w-9 rounded-md bg-white object-contain p-0.5" />} title="Campeonato Brasileiro 2026" sub="20 times, 38 rodadas e os elencos de hoje." rgb="52, 211, 153" onClick={() => setComp("br")} />
-      <MenuTile icon="⭐" title="Modo carreira" sub="Comece num time, jogue temporadas, vire artilheiro e receba propostas." rgb="167, 139, 250" onClick={() => setComp("career")} />
+      <MenuTile emblem="cup" title="Copa do Mundo" sub="As últimas 7 Copas (2002–2026), com as seleções e elencos de verdade." rgb="251, 191, 36" onClick={() => setComp("cup")} />
+      <MenuTile emblem="brasileirao" title="Campeonato Brasileiro 2026" sub="20 times, 38 rodadas e os elencos de hoje." rgb="52, 211, 153" onClick={() => setComp("br")} />
+      <MenuTile emblem="career" title="Modo carreira" sub="Comece num time, jogue temporadas, vire artilheiro e receba propostas." rgb="167, 139, 250" onClick={() => setComp("career")} />
 
       <p className="px-1 pt-1 text-[11px] font-black uppercase tracking-[0.25em] text-emerald-300">Online</p>
-      <MenuTile icon="🌐" title="1 contra 1" sub="Jogue contra outro jogador, de qualquer Elo." rgb="56, 189, 248" onClick={() => setOnline(true)} />
-      <MenuTile icon="👥" title="Online em equipe" sub="2×2, 3×3 e 4×4 com times de verdade." rgb="244, 114, 182" onClick={() => setTeamOnline(true)} />
+      <MenuTile emblem="duel" title="1 contra 1" sub="Jogue contra outro jogador, de qualquer Elo." rgb="56, 189, 248" onClick={() => setOnline(true)} />
+      <MenuTile emblem="squad" title="Online em equipe" sub="2×2, 3×3 e 4×4 com times de verdade." rgb="244, 114, 182" onClick={() => setTeamOnline(true)} />
 
       <p className="px-1 pt-1 text-[11px] font-black uppercase tracking-[0.25em] text-emerald-300">Consulta</p>
-      <MenuTile icon="📋" title="Times e elencos" sub="Todos os times do jogo, com os jogadores e o overall de cada um." rgb="148, 163, 184" onClick={() => setTimes(true)} />
+      <MenuTile emblem="teams" title="Times e elencos" sub="Todos os times do jogo, com os jogadores e o overall de cada um." rgb="148, 163, 184" onClick={() => setTimes(true)} />
       {saveError ? <p className="text-center text-xs font-semibold text-rose-400">{saveError}</p> : null}
 
       <section className="card p-3 text-xs text-[var(--muted)]">

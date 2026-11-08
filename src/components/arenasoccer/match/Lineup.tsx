@@ -2,7 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { FORMATIONS, MENTALITIES, pickLineup, ratings, type Formation, type Lineup, type Mentality, type Player } from "@/lib/arenasoccer/sim";
-import { shortName } from "@/lib/arenasoccer/teams";
+import { shortName, type Kit } from "@/lib/arenasoccer/teams";
+import { FormationPitch, StartersList } from "./FormationPitch";
+
+const NEUTRAL_KIT: Kit = { p: "#2563eb", s: "#ffffff", k: "solid" };
 
 const POS_COLOR: Record<string, string> = { GK: "bg-amber-500", DF: "bg-sky-500", MF: "bg-emerald-500", FW: "bg-rose-500" };
 const POS_ROWS: { pos: Player["pos"]; label: string }[] = [
@@ -42,7 +45,7 @@ export function Chip({ p, on, onClick, dim }: { p: Player; on?: boolean; onClick
 /**
  * Formação, mentalidade e escalação. Antes do jogo as trocas são livres; durante o jogo (`subsLeft`) valem as 3 substituições.
  */
-export function TacticsPanel({ lineup, onChange, subsLeft, onSub, keep }: { lineup: Lineup; onChange: (l: Lineup) => void; subsLeft?: number; onSub?: (xiIdx: number, benchIdx: number) => void; /** jogador que não pode sair do time (o da carreira) */ keep?: string }) {
+export function TacticsPanel({ lineup, onChange, subsLeft, onSub, keep, kit = NEUTRAL_KIT }: { lineup: Lineup; onChange: (l: Lineup) => void; subsLeft?: number; onSub?: (xiIdx: number, benchIdx: number) => void; /** jogador que não pode sair do time (o da carreira) */ keep?: string; /** camisa do seu time (para o campo) */ kit?: Kit }) {
   const [sel, setSel] = useState<number | null>(null);
   const r = useMemo(() => ratings(lineup), [lineup]);
   const live = subsLeft !== undefined;
@@ -83,19 +86,13 @@ export function TacticsPanel({ lineup, onChange, subsLeft, onSub, keep }: { line
       </section>
 
       <section className="card p-3">
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-black">Titulares</p>
-          {live ? <p className="text-xs font-black text-[var(--muted)]">Trocas restantes: {subsLeft}</p> : <p className="text-xs text-[var(--muted)]">Toque num titular e depois num reserva.</p>}
+        <div className="mb-2 flex items-center justify-between">
+          <p className="pes-title text-base">Escalação</p>
+          {live ? <p className="text-xs font-black text-[var(--muted)]">Trocas restantes: {subsLeft}</p> : <p className="text-[11px] font-bold text-[var(--muted)]">Toque num titular e depois num reserva</p>}
         </div>
-        <div className="mt-2 space-y-1.5">
-          {POS_ROWS.map((row) => (
-            <div key={row.pos}>
-              <p className="text-[10px] font-black uppercase text-[var(--muted)]">{row.label}</p>
-              <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-                {lineup.xi.map((p, i) => (p.pos === row.pos ? <Chip key={p.name + i} p={p} on={sel === i} onClick={() => setSel(sel === i ? null : i)} /> : null))}
-              </div>
-            </div>
-          ))}
+        <div className="grid gap-3 md:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+          <FormationPitch lineup={lineup} kit={kit} selected={sel} onSelect={(i) => setSel(sel === i ? null : i)} />
+          <StartersList lineup={lineup} selected={sel} onSelect={(i) => setSel(sel === i ? null : i)} />
         </div>
       </section>
 

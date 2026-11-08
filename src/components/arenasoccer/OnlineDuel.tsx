@@ -97,7 +97,7 @@ export function OnlineDuel({ net, onFinish, onExit }: { net: SoccerNet; onFinish
         </div>
         <p className="mt-1 text-xs text-[var(--muted)]">Monte a equipe e a tática. Quando os dois estiverem prontos, a partida começa.</p>
       </section>
-      <TacticsPanel lineup={lineup} onChange={setLineup} />
+      <TacticsPanel lineup={lineup} onChange={setLineup} kit={{ p: team.p, s: team.s, k: team.k }} />
       {sent ? (
         <p className="card animate-pulse p-3 text-center text-sm font-black">{oppReady ? "Começando…" : `Aguardando ${net.oppName} ficar pronto…`}</p>
       ) : (

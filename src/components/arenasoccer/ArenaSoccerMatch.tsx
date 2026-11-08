@@ -95,6 +95,7 @@ export function MatchFlow({ mine, opp, label, controlled, onDone, onSim, onBack 
         lineup={m.lineups[0]}
         subsLeft={m.subsLeft[0]}
         keep={controlled?.name}
+        kit={kitMine}
         onChange={(l: Lineup) => {
           setTactics(m, 0, { formation: l.formation !== m.lineups[0].formation ? l.formation : undefined, mentality: l.mentality });
           bump((n) => n + 1);
@@ -142,7 +143,7 @@ export function MatchFlow({ mine, opp, label, controlled, onDone, onSim, onBack 
     return (
       <div className="space-y-3">
         {head(null)}
-        <TacticsPanel lineup={pre} onChange={setPre} keep={controlled?.name} />
+        <TacticsPanel lineup={pre} onChange={setPre} keep={controlled?.name} kit={kitMine} />
         <button type="button" className="btn btn-primary w-full !py-3 text-lg" onClick={start}>
           ⚽ Começar a partida
         </button>
