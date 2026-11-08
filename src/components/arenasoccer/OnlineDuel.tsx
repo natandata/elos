@@ -3,17 +3,15 @@
 import { useEffect, useState } from "react";
 import type { SoccerNet } from "@/lib/arenasoccer/net";
 import { bestFormation, pickLineup, toPlayer, type Lineup } from "@/lib/arenasoccer/sim";
-import { LEAGUES, loadCup, loadLeague, type LeagueKey, type RosterPlayer, type Team } from "@/lib/arenasoccer/teams";
+import { loadCup, loadLeague, type RosterPlayer, type Team } from "@/lib/arenasoccer/teams";
 import type { MatchResult } from "./ArenaSoccerGame";
-import { CompBadge } from "./match/CompBadge";
 import { KitChip } from "./match/KitChip";
 import { TacticsPanel } from "./match/Lineup";
 import { OnlineMatch } from "./match/OnlineMatch";
+import { CompTabs, PesTitle, TeamGrid, type CompKey } from "./match/TeamSelect";
 
 type Ready = { team: Team; lineup: Lineup };
 type Go = { teams: [Team, Team]; lineups: [Lineup, Lineup]; seed: number };
-type CompKey = LeagueKey | "cup";
-const COMPS: { key: CompKey; label: string }[] = [...LEAGUES.map((l) => ({ key: l.key as CompKey, label: l.short })), { key: "cup", label: "Copa 2026" }];
 
 /** 1 contra 1 online: cada um escolhe o seu time e a escalação; quando os dois estão prontos, a partida começa. */
 export function OnlineDuel({ net, onFinish, onExit }: { net: SoccerNet; onFinish: (r: MatchResult) => void; onExit: () => void }) {
@@ -63,40 +61,24 @@ export function OnlineDuel({ net, onFinish, onExit }: { net: SoccerNet; onFinish
   if (!team || !lineup) {
     return (
       <div className="space-y-3">
-        <section className="card p-4">
-          <p className="text-lg font-black">🌐 Online · 1 contra 1</p>
-          <p className="mt-1 text-xs text-[var(--muted)]">Você contra {net.oppName}. Escolha o seu time: cada um joga com o time que quiser.</p>
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {COMPS.map((c) => (
-              <button key={c.key} type="button" onClick={() => setComp(c.key)} className={`rounded-full px-3 py-1.5 text-xs font-black ${comp === c.key ? "bg-emerald-500 text-white" : "bg-[var(--bg)]"}`}>
-                <CompBadge kind={c.key === "cup" ? "cup" : "league"} id={c.key} label={c.label} />
-              </button>
-            ))}
-          </div>
+        <section className="pes-panel">
+          <PesTitle kicker={`Online · você x ${net.oppName}`} title="Escolha o seu time" />
+          <p className="mb-2 text-xs font-bold text-white/60">Cada um joga com o time que quiser. Depois vocês montam a equipe e a partida começa.</p>
+          <CompTabs value={comp} onChange={setComp} />
         </section>
-        <section className="card p-2">
+        <section className="pes-panel !p-3">
           {!teams ? (
-            <p className="p-3 text-sm text-[var(--muted)]">Carregando…</p>
+            <p className="p-3 text-sm font-bold text-white/60">Carregando…</p>
           ) : (
-            <ul className="max-h-[55vh] space-y-1 overflow-y-auto sb-pitch pr-1">
-              {teams.map((t) => (
-                <li key={t.id}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const sq = t.players.map((p) => toPlayer(p as RosterPlayer));
-                      setTeam(t);
-                      setLineup(pickLineup(sq, bestFormation(sq)));
-                    }}
-                    className="flex w-full items-center gap-2 rounded-lg bg-[var(--bg)] px-2 py-2 text-left"
-                  >
-                    <KitChip t={t} size={22} />
-                    <span className="min-w-0 flex-1 truncate text-sm font-bold">{t.name}</span>
-                    <span className="text-xs font-black tabular-nums text-[var(--muted)]">{t.str}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <TeamGrid
+              teams={teams}
+              selectedId={null}
+              onSelect={(t) => {
+                const sq = t.players.map((p) => toPlayer(p as RosterPlayer));
+                setTeam(t);
+                setLineup(pickLineup(sq, bestFormation(sq)));
+              }}
+            />
           )}
         </section>
         <button type="button" className="btn btn-ghost w-full" onClick={onExit}>
