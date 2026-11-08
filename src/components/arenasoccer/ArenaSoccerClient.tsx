@@ -11,6 +11,7 @@ import { CareerMode } from "./CareerMode";
 import { CupMode } from "./CupMode";
 import { WorldMode } from "./WorldMode";
 import { LeagueMode } from "./LeagueMode";
+import { QuickMatch } from "./QuickMatch";
 
 export type SoccerStats = { matches: number; wins: number; losses: number; draws: number; goals: number; minutes: number };
 
@@ -28,6 +29,7 @@ export function ArenaSoccerClient({ stats, myName = "Jogador", myId = "" }: { st
   const [level, setLevel] = useState<Level>("normal");
   const [color, setColor] = useState(COLORS[0]);
   const [playing, setPlaying] = useState(false);
+  const [quick, setQuick] = useState(false);
   const [online, setOnline] = useState(false);
   const [teamOnline, setTeamOnline] = useState(false);
   const [comp, setComp] = useState<"cup" | "br" | "career" | null>(null);
@@ -76,6 +78,7 @@ export function ArenaSoccerClient({ stats, myName = "Jogador", myId = "" }: { st
     }));
   }
 
+  if (quick) return <QuickMatch onRecord={(r) => void finished(r)} onBack={() => setQuick(false)} />;
   if (comp === "cup") return <CupMode color={color} onRecord={(r) => void finished(r)} onBack={() => setComp(null)} />;
   if (comp === "br") return <LeagueMode color={color} onRecord={(r) => void finished(r)} onBack={() => setComp(null)} />;
   if (comp === "career") {
@@ -111,7 +114,7 @@ export function ArenaSoccerClient({ stats, myName = "Jogador", myId = "" }: { st
           ⚽
         </span>
         <p className="text-3xl font-black tracking-wide [text-shadow:0_2px_0_#04180d]">ArenaSoccer</p>
-        <p className="mt-1 max-w-xs text-sm font-bold text-emerald-100">Futebol arcade de física: um disco, uma bola e um botão de chute. Posicione-se, mire e marque.</p>
+        <p className="mt-1 max-w-xs text-sm font-bold text-emerald-100">Escale o seu time, defina a tática e decida os lances de gol com o dedo: desenhe o passe e mire no ângulo.</p>
         <div className="mt-3 grid grid-cols-4 gap-2 text-center">
           {[
             ["Partidas", mine.matches],
@@ -127,6 +130,11 @@ export function ArenaSoccerClient({ stats, myName = "Jogador", myId = "" }: { st
         </div>
       </section>
 
+      <button type="button" onClick={() => setQuick(true)} className="btn btn-primary w-full !py-4 text-lg">
+        ⚽ Amistoso: escalar e jogar
+      </button>
+
+      <p className="px-1 pt-2 text-xs font-black uppercase tracking-wide text-[var(--muted)]">Modo clássico (disco)</p>
       <section className="card p-3">
         <p className="mb-2 text-sm font-black">Modo de jogo</p>
         <div className="grid grid-cols-4 gap-2">
