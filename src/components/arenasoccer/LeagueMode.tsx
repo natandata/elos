@@ -5,7 +5,8 @@ import { leagueDone, leagueGames, myFixture, newLeague, playRound, table, topOf,
 import { loadLeague, type LeagueData } from "@/lib/arenasoccer/teams";
 import type { MatchResult } from "./ArenaSoccerGame";
 import { KitChip, PlayFlow } from "./ArenaSoccerPlay";
-import { useSoccerSave } from "./useSoccerSave";
+import { SaveBar, SaveSlots } from "./SaveSlots";
+import { slotKind, useSoccerSave, type Slot } from "./useSoccerSave";
 
 function toResult(r: MatchResult, iAmHome: boolean): Result {
   const goals = (r.scorers ?? []).map((s) => ({ team: (iAmHome ? s.team : 1 - s.team) as 0 | 1, name: s.name, assist: s.assist, at: s.at }));
@@ -15,7 +16,8 @@ function toResult(r: MatchResult, iAmHome: boolean): Result {
 /** Campeonato Brasileiro 2026: 20 times e os elencos de hoje, 38 rodadas, contra o computador. */
 export function LeagueMode({ color, onRecord, onBack }: { color: string; onRecord: (r: MatchResult) => void; onBack: () => void }) {
   const [data, setData] = useState<LeagueData | null>(null);
-  const { data: save, loading, save: setSave } = useSoccerSave<LeagueSave>("league:br");
+  const [slot, setSlot] = useState<Slot | null>(null);
+  const { data: save, loading, save: setSave, status, savedAt, flushNow } = useSoccerSave<LeagueSave>(slot ? slotKind("league:br", slot) : "league:br#none");
   const [playing, setPlaying] = useState(false);
   const [view, setView] = useState<"table" | "round" | "scorers">("table");
 
@@ -29,11 +31,25 @@ export function LeagueMode({ color, onRecord, onBack }: { color: string; onRecor
     };
   }, []);
   const teams = useMemo(() => new Map((data?.teams ?? []).map((t) => [t.id, t])), [data]);
-  if (!data || loading) return <p className="card p-4 text-center text-sm font-bold">Carregando o Brasileirão…</p>;
+  if (!data) return <p className="card p-4 text-center text-sm font-bold">Carregando o Brasileirão…</p>;
+  if (!slot) {
+    return (
+      <SaveSlots<LeagueSave>
+        base="league:br"
+        kicker="Campeonato Brasileiro 2026"
+        title="Escolha o seu espaço"
+        summarize={(sv) => `${teams.get(sv.mine)?.name ?? sv.mine} · ${leagueDone(sv) ? "temporada encerrada" : `rodada ${sv.round + 1} de ${sv.fixtures.length}`}`}
+        onPick={setSlot}
+        onBack={onBack}
+      />
+    );
+  }
+  if (loading) return <p className="card p-4 text-center text-sm font-bold">Carregando o seu jogo salvo…</p>;
 
   if (!save) {
     return (
       <div className="space-y-3">
+        <SaveBar slot={slot} status={status} savedAt={savedAt} onSave={() => void flushNow()} onSwitch={() => setSlot(null)} />
         <section className="card p-4">
           <p className="text-lg font-black">🇧🇷 Campeonato Brasileiro 2026</p>
           <p className="mt-1 text-xs text-[var(--muted)]">20 times, 38 rodadas, com os elencos de outubro de 2026. Escolha o seu time: você joga as partidas dele (ou simula) e o computador joga as outras. Cada time entra com até 4 jogadores, escolhidos no plano de jogo.</p>
@@ -93,6 +109,7 @@ export function LeagueMode({ color, onRecord, onBack }: { color: string; onRecor
 
   return (
     <div className="space-y-3">
+      <SaveBar slot={slot} status={status} savedAt={savedAt} onSave={() => void flushNow()} onSwitch={() => setSlot(null)} />
       <section className="card p-3">
         <div className="flex items-center gap-3">
           <KitChip t={mine} size={34} />

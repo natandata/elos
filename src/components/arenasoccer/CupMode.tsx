@@ -5,7 +5,8 @@ import { cupAdvance, cupAlive, cupFinish, cupFinish_label, cupNext, cupStageLabe
 import { CUP_HOST, CUP_YEARS, loadCup, type CupData } from "@/lib/arenasoccer/teams";
 import type { MatchResult } from "./ArenaSoccerGame";
 import { KitChip, PlayFlow } from "./ArenaSoccerPlay";
-import { useSoccerSave } from "./useSoccerSave";
+import { SaveBar, SaveSlots } from "./SaveSlots";
+import { slotKind, useSoccerSave, type Slot } from "./useSoccerSave";
 
 /** Converte o resultado jogado (o meu time é sempre o lado 0) para o formato da Copa. */
 function toResult(r: MatchResult, iAmHome: boolean, tie: "knockout" | "group", penaltiesFn: () => [number, number]): Result {
@@ -25,8 +26,9 @@ export function CupMode({ color, onRecord, onBack }: { color: string; onRecord: 
   const [year, setYear] = useState<number | null>(null);
   const [data, setData] = useState<CupData | null>(null);
   const [loadingCup, setLoadingCup] = useState(false);
-  const kind = year ? `cup:${year}` : "cup:none";
-  const { data: save, loading, save: setSave } = useSoccerSave<CupSave>(kind);
+  const [slot, setSlot] = useState<Slot | null>(null);
+  const kind = year && slot ? slotKind(`cup:${year}`, slot) : "cup:none";
+  const { data: save, loading, save: setSave, status, savedAt, flushNow } = useSoccerSave<CupSave>(kind);
   const [playing, setPlaying] = useState(false);
   const [view, setView] = useState<"table" | "bracket" | "scorers">("table");
 
@@ -57,7 +59,7 @@ export function CupMode({ color, onRecord, onBack }: { color: string; onRecord: 
         <ul className="grid grid-cols-2 gap-2">
           {CUP_YEARS.map((y) => (
             <li key={y}>
-              <button type="button" onClick={() => setYear(y)} className="card w-full p-3 text-left">
+              <button type="button" onClick={() => { setSlot(null); setYear(y); }} className="card w-full p-3 text-left">
                 <span className="block text-2xl font-black tabular-nums">{y}</span>
                 <span className="block text-xs text-[var(--muted)]">{CUP_HOST[y]}</span>
               </button>
@@ -70,13 +72,30 @@ export function CupMode({ color, onRecord, onBack }: { color: string; onRecord: 
       </div>
     );
   }
-  if (loadingCup || !data || loading) return <p className="card p-4 text-center text-sm font-bold">Carregando a Copa de {year}…</p>;
+  if (loadingCup || !data) return <p className="card p-4 text-center text-sm font-bold">Carregando a Copa de {year}…</p>;
+  if (!slot) {
+    return (
+      <SaveSlots<CupSave>
+        base={`cup:${year}`}
+        kicker={`Copa do Mundo ${year}`}
+        title="Escolha o seu espaço"
+        summarize={(sv) => `${teams.get(sv.mine)?.name ?? sv.mine} · ${cupNext(sv)?.stage ?? (sv.champion === sv.mine ? "campeão!" : "Copa encerrada")}`}
+        onPick={setSlot}
+        onBack={() => {
+          setYear(null);
+          setData(null);
+        }}
+      />
+    );
+  }
+  if (loading) return <p className="card p-4 text-center text-sm font-bold">Carregando o seu jogo salvo…</p>;
 
   // escolher o time
   if (!save) {
     const letters = Object.keys(data.groups).sort();
     return (
       <div className="space-y-3">
+        <SaveBar slot={slot} status={status} savedAt={savedAt} onSave={() => void flushNow()} onSwitch={() => setSlot(null)} />
         <section className="card p-4">
           <p className="text-lg font-black">🏆 Copa de {year}</p>
           <p className="text-xs text-[var(--muted)]">{CUP_HOST[year]} · escolha o seu time. Os grupos são os da Copa de verdade.</p>
@@ -100,7 +119,7 @@ export function CupMode({ color, onRecord, onBack }: { color: string; onRecord: 
             </div>
           </section>
         ))}
-        <button type="button" onClick={() => { setYear(null); setData(null); }} className="btn btn-ghost w-full">
+        <button type="button" onClick={() => { setYear(null); setSlot(null); setData(null); }} className="btn btn-ghost w-full">
           ← Outras Copas
         </button>
       </div>
@@ -145,6 +164,7 @@ export function CupMode({ color, onRecord, onBack }: { color: string; onRecord: 
 
   return (
     <div className="space-y-3">
+      <SaveBar slot={slot} status={status} savedAt={savedAt} onSave={() => void flushNow()} onSwitch={() => setSlot(null)} />
       <section className="card p-3">
         <div className="flex items-center gap-3">
           <KitChip t={mine} size={34} />
@@ -272,7 +292,7 @@ export function CupMode({ color, onRecord, onBack }: { color: string; onRecord: 
       >
         {done ? "🔄 Jogar outra Copa" : "Recomeçar esta Copa"}
       </button>
-      <button type="button" onClick={() => { setYear(null); setData(null); }} className="btn btn-ghost w-full">
+      <button type="button" onClick={() => { setYear(null); setSlot(null); setData(null); }} className="btn btn-ghost w-full">
         ← Outras Copas
       </button>
     </div>
