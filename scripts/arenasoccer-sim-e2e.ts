@@ -4,7 +4,7 @@
 import br from "../src/lib/arenasoccer/data/league-br.json";
 import en from "../src/lib/arenasoccer/data/league-en.json";
 import cup from "../src/lib/arenasoccer/data/cup2026.json";
-import { bestFormation, createMatch, FORMATIONS, pickLineup, resultOf, simulateAll, substitute, toPlayer, type Formation, type Match } from "../src/lib/arenasoccer/sim";
+import { bestFormation, createMatch, FAIR_CHANCES, FORMATIONS, pickLineup, resolveAuto, resultOf, simulateAll, stepMinute, substitute, toPlayer, type Formation, type Match } from "../src/lib/arenasoccer/sim";
 import type { RosterPlayer, Team } from "../src/lib/arenasoccer/teams";
 
 const problems = new Map<string, number>();
@@ -65,6 +65,25 @@ for (const f of Object.keys(FORMATIONS) as Formation[]) {
 }
 const r = resultOf(a);
 if (r.goalsFor + r.goalsAgainst !== a.goals.length) bad("resultOf inconsistente");
+
+// partida entre duas pessoas: mesmo número e mesmos tipos de lance para os dois lados
+for (let seed = 1; seed <= 300; seed++) {
+  const mm = createMatch([mk(find(BR, "Flamengo")), mk(find(BR, "Chapecoense"))], seed, "both");
+  const sch = mm.schedule;
+  if (!sch) { bad("agenda justa não criada"); break; }
+  const per = [0, 1].map((s) => sch.filter((e) => e.side === s).map((e) => e.kind).sort().join());
+  if (per[0] !== per[1]) bad("lados com tipos de lance diferentes");
+  if (sch.length !== FAIR_CHANCES * 2) bad("quantidade de lances inesperada");
+  if (new Set(sch.map((e) => e.min)).size !== sch.length) bad("dois lances no mesmo minuto");
+  if (sch.some((e) => e.min < 3 || e.min > 89 || e.min === 45 || e.min === 46)) bad("lance fora da faixa");
+  const got = [0, 0];
+  for (;;) {
+    const r = stepMinute(mm);
+    if (r.chance) { got[r.chance.side]++; resolveAuto(mm, r.chance); }
+    if (r.ended === "full" || mm.min >= 90) break;
+  }
+  if (got[0] !== FAIR_CHANCES || got[1] !== FAIR_CHANCES) bad(`lances jogados ${got.join("x")} em vez de ${FAIR_CHANCES}x${FAIR_CHANCES}`);
+}
 
 if (problems.size) { console.log("\nPROBLEMAS:"); for (const [k, v] of problems) console.log(` - ${k} (${v}x)`); process.exit(1); }
 console.log("\nOK: sem problemas.");

@@ -119,13 +119,47 @@ export type Match = {
   human: Side | null | "both";
   /** modo carreira: só os lances em que esse jogador participa (chute ou passe) são seus; os outros saem no automático */
   control: string | null;
+  /** partida entre duas pessoas: os lances decisivos saem de uma agenda justa (mesmo número e mesmos tipos para os dois lados) */
+  schedule: { min: number; side: Side; kind: ChanceKind }[] | null;
 };
+
+/** Lances decisivos por lado numa partida entre duas pessoas. */
+export const FAIR_CHANCES = 7;
+
+/**
+ * Agenda justa: cada lado recebe exatamente `n` lances, dos mesmos tipos (a mesma quantidade de pênaltis, faltas, escanteios...),
+ * espalhados pelos 90 minutos e alternando entre os lados.
+ */
+export function buildSchedule(rng: Rng, n: number): { min: number; side: Side; kind: ChanceKind }[] {
+  const roll = (): ChanceKind => {
+    const r = rng();
+    return r < 0.035 ? "penalty" : r < 0.11 ? "freekick" : r < 0.22 ? "corner" : r < 0.42 ? "cross" : r < 0.52 ? "counter" : "open";
+  };
+  const kinds = Array.from({ length: n }, roll);
+  const shuffled = (): ChanceKind[] => [...kinds].sort(() => rng() - 0.5);
+  const own: [ChanceKind[], ChanceKind[]] = [shuffled(), shuffled()];
+  const slots = n * 2;
+  const width = 84 / slots;
+  const out: { min: number; side: Side; kind: ChanceKind }[] = [];
+  const used = new Set<number>();
+  for (let k = 0; k < n; k++) {
+    const first: Side = rng() < 0.5 ? 0 : 1;
+    for (const [j, side] of ([first, (1 - first) as Side] as Side[]).entries()) {
+      let min = 3 + Math.floor((k * 2 + j) * width + rng() * (width - 1));
+      while (min === 45 || min === 46 || used.has(min)) min++;
+      used.add(min);
+      out.push({ min, side, kind: own[side].pop() as ChanceKind });
+    }
+  }
+  return out.sort((a, b) => a.min - b.min);
+}
 
 /** Esse lado é jogado por uma pessoa? */
 export const isHuman = (m: Match, s: Side): boolean => m.human === "both" || m.human === s;
 
 export function createMatch(lineups: [Lineup, Lineup], seed: number, human: Side | null | "both" = 0, control: string | null = null): Match {
-  const m: Match = { rng: mulberry(seed), min: 0, half: 1, score: [0, 0], lineups, subsLeft: [3, 3], log: [], goals: [], stats: { shots: [0, 0], onTarget: [0, 0] }, chanceSeq: 0, human, control };
+  const m: Match = { rng: mulberry(seed), min: 0, half: 1, score: [0, 0], lineups, subsLeft: [3, 3], log: [], goals: [], stats: { shots: [0, 0], onTarget: [0, 0] }, chanceSeq: 0, human, control, schedule: null };
+  if (human === "both") m.schedule = buildSchedule(m.rng, FAIR_CHANCES);
   m.log.push({ min: 0, side: null, icon: "📣", text: "Bola rolando!" });
   return m;
 }
@@ -188,6 +222,21 @@ export function stepMinute(m: Match): { chance?: Chance; ended?: "half" | "full"
     m.log.push({ min: 45, side: null, icon: "⏸️", text: `Fim do primeiro tempo: ${m.score[0]} x ${m.score[1]}` });
     m.min = 45;
     return { ended: "half" };
+  }
+  if (m.schedule) {
+    // partida entre duas pessoas: só os lances da agenda justa acontecem
+    let pending: Chance | undefined;
+    const due = m.schedule.find((e) => e.min === m.min);
+    if (due) {
+      const shooter = weightedShooter(m, due.side, due.kind);
+      const mates = m.lineups[due.side].xi.filter((x) => x !== shooter && x.pos !== "GK");
+      const assister = due.kind === "penalty" || due.kind === "freekick" ? undefined : pick(m.rng, mates);
+      const chance: Chance = { id: ++m.chanceSeq, min: m.min, side: due.side, kind: due.kind, shooter, assister };
+      if (isHuman(m, due.side)) pending = chance;
+      else applyOutcome(m, chance, autoOutcome(m, chance));
+    }
+    aiManage(m);
+    return pending ? { chance: pending } : {};
   }
   const r0 = ratings(m.lineups[0]);
   const r1 = ratings(m.lineups[1]);
