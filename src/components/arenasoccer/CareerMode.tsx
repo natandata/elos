@@ -214,7 +214,7 @@ export function CareerMode({ myName, onRecord, onBack }: { color?: string; myNam
       {summary ? (
         <section className="card border-2 border-emerald-400 p-3 text-sm">
           <p className="font-black">{lastLine}</p>
-          <p className="text-xs">Nota <b>{summary.rating.toFixed(1).replace(".", ",")}</b> · +{summary.xp} XP · reputação {summary.repDelta >= 0 ? "+" : ""}{summary.repDelta.toFixed(1).replace(".", ",")}{summary.levelUps ? ` · ⬆️ evoluiu (força ${c.ovr})` : ""}</p>
+          <p className="text-xs">Nota <b>{summary.rating.toFixed(1).replace(".", ",")}</b> · +{summary.xp} XP de carreira · reputação {summary.repDelta >= 0 ? "+" : ""}{summary.repDelta.toFixed(1).replace(".", ",")}{summary.levelUps ? ` · ⬆️ evoluiu (força ${c.ovr})` : ""}</p>
           {summary.doneMissions.map((m) => <p key={m} className="text-xs text-emerald-600">✅ Missão cumprida: {m}</p>)}
           <button type="button" className="mt-1 text-xs font-black text-[var(--muted)]" onClick={() => setSummary(null)}>Fechar</button>
         </section>
@@ -291,7 +291,7 @@ export function CareerMode({ myName, onRecord, onBack }: { color?: string; myNam
                 <li key={m.id} className="text-xs">
                   <div className="flex items-center justify-between gap-2">
                     <span className={m.done ? "text-emerald-600 line-through" : ""}>{m.kind === "match" ? "🎮" : "📅"} {m.text}</span>
-                    <b className="shrink-0 text-[var(--muted)]">+{m.xp} XP</b>
+                    <b className="shrink-0 text-[var(--muted)]">+{m.xp} XP de carreira</b>
                   </div>
                   {m.kind === "season" ? <Bar value={m.key === "top" ? Math.max(0, m.goal + 1 - Math.min(place || 99, m.goal + 1)) : m.progress} max={m.key === "top" ? m.goal : m.goal} color="bg-amber-400" /> : null}
                 </li>

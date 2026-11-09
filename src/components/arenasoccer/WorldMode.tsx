@@ -274,7 +274,7 @@ export function WorldMode({ color, myId, myName, onRecord, onBack, api = realApi
           setSpec(null);
           const line = (r.mine ?? []).find((x) => x.name === m.name);
           const res = await worldSubmit({ goalsFor: r.goalsFor, goalsAgainst: r.goalsAgainst, goals: (r.scorers ?? []).map((s) => ({ team: s.team, name: s.name, assist: s.assist, at: Math.max(1, Math.min(120, Math.round((s.at / 60) * (120 / 90)))) })), mine: { goals: line?.goals ?? 0, assists: line?.assists ?? 0, own: line?.own ?? 0 } });
-          setSummary(res.error ? `Não foi possível registrar: ${res.error}` : `${res.summary!.line} · nota ${res.summary!.rating.toFixed(1).replace(".", ",")} · +${res.summary!.xp} XP${res.summary!.official ? "" : " (o placar oficial da tabela foi o do primeiro jogo registrado)"}${res.summary!.doneMissions.length ? ` · missão: ${res.summary!.doneMissions.join("; ")}` : ""}`);
+          setSummary(res.error ? `Não foi possível registrar: ${res.error}` : `${res.summary!.line} · nota ${res.summary!.rating.toFixed(1).replace(".", ",")} · +${res.summary!.xp} XP de carreira${res.summary!.official ? "" : " (o placar oficial da tabela foi o do primeiro jogo registrado)"}${res.summary!.doneMissions.length ? ` · missão: ${res.summary!.doneMissions.join("; ")}` : ""}`);
           await load();
         }}
       />
@@ -404,7 +404,7 @@ export function WorldMode({ color, myId, myName, onRecord, onBack, api = realApi
             <p className="mb-2 text-sm font-black">🎯 Missões</p>
             <ul className="space-y-1 text-xs">
               {m.missions.map((x) => (
-                <li key={x.id} className="flex justify-between gap-2"><span className={x.done ? "text-emerald-600 line-through" : ""}>{x.kind === "match" ? "🎮" : "📅"} {x.text}</span><b className="shrink-0 text-[var(--muted)]">+{x.xp} XP</b></li>
+                <li key={x.id} className="flex justify-between gap-2"><span className={x.done ? "text-emerald-600 line-through" : ""}>{x.kind === "match" ? "🎮" : "📅"} {x.text}</span><b className="shrink-0 text-[var(--muted)]">+{x.xp} XP de carreira</b></li>
               ))}
             </ul>
           </section>
