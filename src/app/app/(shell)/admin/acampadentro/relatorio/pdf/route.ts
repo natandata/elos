@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   await requireRole("admin");
   const supabase = await createClient();
   const [payRes, profRes, setRes] = await Promise.all([
-    supabase.from("acampadentro_payment").select("user_id, file_name, status, uploaded_at").in("status", ["pending", "approved"]).limit(1000),
+    supabase.from("acampadentro_payment").select("user_id, file_name, status, uploaded_at").in("status", ["pending", "approved", "waived"]).limit(1000),
     supabase.from("profiles").select("id, full_name, is_test_account").in("role", ["cria", "leader"]).limit(2000),
     supabase.from("event_settings").select("name").eq("id", true).maybeSingle(),
   ]);
@@ -29,8 +29,9 @@ export async function GET(req: NextRequest) {
   const profs = new Map(((profRes.data ?? []) as { id: string; full_name: string; is_test_account: boolean | null }[]).map((p) => [p.id, p]));
   const rows = ((payRes.data ?? []) as { user_id: string; file_name: string; status: string; uploaded_at: string }[])
     .filter((r) => profs.has(r.user_id) && !profs.get(r.user_id)!.is_test_account)
-    .sort((a, b) => a.uploaded_at.localeCompare(b.uploaded_at));
+    .sort((a, b) => Number(a.status === "waived") - Number(b.status === "waived") || a.uploaded_at.localeCompare(b.uploaded_at));
   const approved = rows.filter((r) => r.status === "approved").length;
+  const waived = rows.filter((r) => r.status === "waived").length;
 
   const now = new Date();
   const dateStr = now.toLocaleDateString("pt-BR", { timeZone: TZ, day: "2-digit", month: "long", year: "numeric" });
@@ -74,7 +75,7 @@ export async function GET(req: NextRequest) {
   y -= 20;
   page.drawText(`Emitido em ${dateStr} às ${timeStr}`, { x: M, y, size: 11, font, color: ink });
   y -= 15;
-  page.drawText(`${rows.length} comprovante(s) recebido(s)  |  ${approved} aprovado(s)  |  ${rows.length - approved} aguardando aprovação`, { x: M, y, size: 10, font, color: grey });
+  page.drawText(`${rows.length - waived} comprovante(s) recebido(s)  |  ${approved} aprovado(s)  |  ${rows.length - waived - approved} aguardando aprovação  |  ${waived} isento(s)`, { x: M, y, size: 9, font, color: grey });
   y -= 12;
   page.drawLine({ start: { x: M, y }, end: { x: W - M, y }, thickness: 1.5, color: ink });
   y -= 24;
@@ -86,13 +87,20 @@ export async function GET(req: NextRequest) {
       y = H - M;
       header();
     }
+    const isWaived = r.status === "waived";
     const when = new Date(r.uploaded_at);
     const pdfFile = r.file_name.toLowerCase().endsWith(".pdf");
     page.drawText(String(i + 1), { x: cols.n + 3, y, size: 10, font, color: grey });
     page.drawText(fit(profs.get(r.user_id)!.full_name || "Sem nome", bold, 10, 156), { x: cols.name + 3, y, size: 10, font: bold, color: ink });
-    page.drawText(when.toLocaleDateString("pt-BR", { timeZone: TZ }), { x: cols.date + 3, y, size: 10, font, color: ink });
-    page.drawText(when.toLocaleTimeString("pt-BR", { timeZone: TZ, hour: "2-digit", minute: "2-digit" }), { x: cols.time + 3, y, size: 10, font, color: ink });
-    page.drawText(r.status === "approved" ? "Aprovado" : "Aguardando", { x: cols.status + 3, y, size: 9.5, font: bold, color: r.status === "approved" ? rgb(0.05, 0.5, 0.3) : rgb(0.7, 0.45, 0) });
+    page.drawText(isWaived ? "-" : when.toLocaleDateString("pt-BR", { timeZone: TZ }), { x: cols.date + 3, y, size: 10, font, color: ink });
+    page.drawText(isWaived ? "-" : when.toLocaleTimeString("pt-BR", { timeZone: TZ, hour: "2-digit", minute: "2-digit" }), { x: cols.time + 3, y, size: 10, font, color: ink });
+    page.drawText(isWaived ? "Isento" : r.status === "approved" ? "Aprovado" : "Aguardando", { x: cols.status + 3, y, size: 9.5, font: bold, color: isWaived ? rgb(0.1, 0.4, 0.7) : r.status === "approved" ? rgb(0.05, 0.5, 0.3) : rgb(0.7, 0.45, 0) });
+    if (isWaived) {
+      page.drawText("Isento pelo admin", { x: cols.link + 3, y, size: 9, font, color: grey });
+      page.drawLine({ start: { x: M, y: y - 8 }, end: { x: W - M, y: y - 8 }, thickness: 0.4, color: rgb(0.85, 0.85, 0.88) });
+      y -= 24;
+      return;
+    }
     const label = pdfFile ? "Abrir documento (PDF)" : "Abrir imagem";
     const lw = font.widthOfTextAtSize(label, 10);
     page.drawText(label, { x: cols.link + 3, y, size: 10, font, color: blue });
