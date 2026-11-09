@@ -22,10 +22,10 @@ export async function sendPaymentReminderPush(): Promise<Res> {
   const supabase = await createClient();
   const [{ data: yes }, { data: paid }, { data: profs }] = await Promise.all([
     supabase.from("acampadentro_rsvp").select("user_id").eq("status", "yes").limit(1000),
-    supabase.from("acampadentro_payment").select("user_id").in("status", ["approved", "waived"]).limit(1000),
+    supabase.from("acampadentro_payment").select("user_id, status, later_offered").limit(1000),
     supabase.from("profiles").select("id, is_test_account").in("role", ["cria", "leader"]).limit(2000),
   ]);
-  const skip = new Set([...(paid ?? []).map((p) => p.user_id as string), ...(profs ?? []).filter((p) => p.is_test_account).map((p) => p.id as string)]);
+  const skip = new Set([...(paid ?? []).filter((p) => p.later_offered || p.status === "approved" || p.status === "waived").map((p) => p.user_id as string), ...(profs ?? []).filter((p) => p.is_test_account).map((p) => p.id as string)]);
   const ids = (yes ?? []).map((r) => r.user_id as string).filter((id) => !skip.has(id));
   await sendPushToUsers(ids, { title: "⏰ Pague a inscrição do Acampadentro", body: "Pagamento até terça (10/11). A inscrição só é confirmada com o comprovante: envie no card da tela inicial.", url: "/app" });
   return { ok: true, message: `Aviso enviado para ${ids.length} pessoa(s).` };

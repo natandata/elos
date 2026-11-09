@@ -9,7 +9,7 @@ const PIX_LABEL = "34.107.987/0001-60";
 const MAX = 10 * 1024 * 1024;
 const OK_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "application/pdf"];
 
-type Props = { status: "pending" | "approved" | "rejected" | "waived" | null; note: string | null; fileName: string | null };
+type Props = { status: "pending" | "approved" | "rejected" | "waived" | "later" | null; note: string | null; fileName: string | null; later: boolean; payDate: string | null; eventDate: string | null };
 
 /** "HOJE" ou "AMANHÃ" conforme o dia em Brasília (prazo: terça 10/11). */
 function deadlineWord(): string {
@@ -19,7 +19,7 @@ function deadlineWord(): string {
   return "";
 }
 
-export function PaymentCardClient({ status, note, fileName }: Props) {
+export function PaymentCardClient({ status, note, fileName, later, payDate, eventDate }: Props) {
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -27,6 +27,10 @@ export function PaymentCardClient({ status, note, fileName }: Props) {
   const [copied, setCopied] = useState(false);
   const [sent, setSent] = useState(false);
   const [again, setAgain] = useState(false);
+  const [date, setDate] = useState(payDate ?? "");
+  const [savedDate, setSavedDate] = useState(payDate);
+  const [dateBusy, setDateBusy] = useState(false);
+  const [dateErr, setDateErr] = useState<string | null>(null);
 
   if (status === "waived") {
     return (
@@ -91,17 +95,52 @@ export function PaymentCardClient({ status, note, fileName }: Props) {
     if (input.current) input.current.value = "";
   };
 
+  const minDate = eventDate ? new Date(Date.parse(`${eventDate}T12:00:00Z`) + 86400000).toISOString().slice(0, 10) : undefined;
+  const maxDate = eventDate ? new Date(Date.parse(`${eventDate}T12:00:00Z`) + 120 * 86400000).toISOString().slice(0, 10) : undefined;
+  const fmt = (d: string) => d.split("-").reverse().join("/");
+  const saveDate = async () => {
+    setDateErr(null);
+    if (!date || (minDate && date < minDate) || (maxDate && date > maxDate)) return setDateErr("Escolha uma data depois do evento.");
+    setDateBusy(true);
+    const { data: ok, error } = await createClient().rpc("acampadentro_pay_set_date", { p_date: date });
+    setDateBusy(false);
+    if (error || !ok) return setDateErr("Não foi possível salvar a data. Tente de novo.");
+    setSavedDate(date);
+    router.refresh();
+  };
+
   const pending = (status === "pending" || sent) && !again;
   const word = deadlineWord();
 
   return (
     <section className="mb-3 overflow-hidden rounded-2xl border-2 border-rose-500/70 bg-[var(--card)] shadow-lg">
-      <div className="bg-rose-600 px-4 py-2.5 text-white">
-        <p className="text-[11px] font-black uppercase tracking-wider">⏰ Pagamento até terça-feira (10/11){word ? ` · ${word}` : ""}</p>
-        <p className="mt-0.5 text-base font-black leading-snug">A sua inscrição no Acampadentro só é confirmada quando você envia o comprovante de pagamento.</p>
-      </div>
+      {later ? (
+        <div className="bg-emerald-600 px-4 py-2.5 text-white">
+          <p className="text-[11px] font-black uppercase tracking-wider">✅ Inscrição confirmada pelo admin</p>
+          <p className="mt-0.5 text-base font-black leading-snug">Sua inscrição foi confirmada pelo admin, com o pagamento agendado para depois do evento.</p>
+        </div>
+      ) : (
+        <div className="bg-rose-600 px-4 py-2.5 text-white">
+          <p className="text-[11px] font-black uppercase tracking-wider">⏰ Pagamento até terça-feira (10/11){word ? ` · ${word}` : ""}</p>
+          <p className="mt-0.5 text-base font-black leading-snug">A sua inscrição no Acampadentro só é confirmada quando você envia o comprovante de pagamento.</p>
+        </div>
+      )}
 
       <div className="space-y-4 p-4">
+        {later ? (
+          <div className="rounded-xl border-2 border-emerald-500/50 bg-emerald-500/10 p-3">
+            <p className="text-sm font-black text-emerald-700">📅 Em que dia você vai pagar?</p>
+            <p className="mt-0.5 text-xs font-semibold text-emerald-700">Escolha uma data depois do evento. Quando pagar, envie o comprovante aqui para o admin aprovar.</p>
+            <div className="mt-2 flex gap-2">
+              <input type="date" value={date} min={minDate} max={maxDate} onChange={(e) => setDate(e.target.value)} className="min-w-0 flex-1 rounded-xl border-2 border-[var(--line)] bg-[var(--card)] px-3 py-2.5 text-base font-bold" />
+              <button type="button" disabled={dateBusy || !date} onClick={saveDate} className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-black text-white disabled:opacity-60">
+                {dateBusy ? "Salvando…" : "Salvar data"}
+              </button>
+            </div>
+            {savedDate ? <p className="mt-1.5 text-sm font-black text-emerald-700">Pagamento agendado para {fmt(savedDate)}.</p> : null}
+            {dateErr ? <p className="mt-1 text-xs font-bold text-rose-600">{dateErr}</p> : null}
+          </div>
+        ) : null}
         {pending ? (
           <div className="rounded-xl border-2 border-amber-500/50 bg-amber-500/10 p-3">
             <p className="text-sm font-black text-amber-700">📨 Comprovante enviado! Aguardando aprovação.</p>

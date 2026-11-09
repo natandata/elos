@@ -5,5 +5,5 @@ import { PaymentCardClient } from "./PaymentCardClient";
 export async function PaymentCard() {
   const s = await getPayState();
   if (!s?.applies || s.rsvp !== "yes") return null;
-  return <PaymentCardClient status={s.status} note={s.note} fileName={s.file_name} />;
+  return <PaymentCardClient status={s.status} note={s.note} fileName={s.file_name} later={s.later_offered} payDate={s.pay_date} eventDate={s.event_date} />;
 }

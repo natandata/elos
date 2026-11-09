@@ -28,7 +28,7 @@ export const getTribeMap = cache(async (): Promise<Record<string, TribeKey>> => 
   }
 });
 
-export type PayState = { status: "pending" | "approved" | "rejected" | "waived" | null; note: string | null; file_name: string | null; rsvp: "yes" | "no" | "maybe" | null; applies: boolean };
+export type PayState = { status: "pending" | "approved" | "rejected" | "waived" | "later" | null; note: string | null; file_name: string | null; later_offered: boolean; pay_date: string | null; event_date: string | null; rsvp: "yes" | "no" | "maybe" | null; applies: boolean };
 
 /** Situação do pagamento da inscrição da própria pessoa (card de pagamento da tela inicial). */
 export const getPayState = cache(async (): Promise<PayState | null> => {
