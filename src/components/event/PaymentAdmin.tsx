@@ -50,6 +50,9 @@ export function PaymentAdmin({ rows }: { rows: PayRow[] }) {
       <p className="mt-0.5 text-xs font-semibold text-[var(--muted)]">
         {rows.length} confirmaram presença · {count("approved")} aprovados · {count("pending")} aguardando · {count("rejected")} recusados · {count("none")} sem comprovante
       </p>
+      <a href="/app/admin/acampadentro/relatorio" target="_blank" rel="noreferrer" className="mr-2 mt-3 inline-block rounded-xl bg-[var(--ink)] px-3 py-2 text-sm font-extrabold text-[var(--bg)]">
+        📄 Relatório
+      </a>
       <button
         type="button"
         disabled={busy === "push"}
