@@ -59,7 +59,7 @@ export default async function AcampadentroReportPage() {
               <th className="px-2 py-2">Data de envio</th>
               <th className="px-2 py-2">Hora</th>
               <th className="px-2 py-2">Situação</th>
-              <th className="px-2 py-2">Comprovante</th>
+              <th className="px-2 py-2">Imagem (ou documento)</th>
             </tr>
           </thead>
           <tbody>
@@ -82,7 +82,7 @@ export default async function AcampadentroReportPage() {
                       </a>
                     ) : url ? (
                       <a href={url} target="_blank" rel="noreferrer" className="font-bold underline">
-                        📄 PDF: {r.file_name || "abrir comprovante"}
+                        📄 Documento (PDF): {r.file_name || "abrir"}
                       </a>
                     ) : (
                       <span className="text-neutral-400">indisponível</span>
