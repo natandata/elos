@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { SoccerNet } from "@/lib/arenasoccer/net";
 import { buildScene, type Scene } from "@/lib/arenasoccer/scene";
 import { applyOutcome, createMatch, finish, passOutcome, resolveAuto, setTactics, shotOutcome, stepMinute, substitute, type Chance, type Formation, type Goal, type Lineup, type LogEntry, type Match, type Mentality, type Outcome, type Side } from "@/lib/arenasoccer/sim";
-import { kitOf, resolveKits, type Team } from "@/lib/arenasoccer/teams";
+import { kitOf, resolveKits, teamLabel, type Team } from "@/lib/arenasoccer/teams";
 import type { MatchResult } from "../ArenaSoccerGame";
 import { localEngine, type MomentEngine } from "./engine";
 import { KitChip } from "./KitChip";
@@ -307,13 +307,13 @@ export function OnlineMatch({ net, myUid, members, teams, lineups, seed, label, 
       <div className="mt-1 flex items-center justify-between gap-2">
         <span className="flex min-w-0 items-center gap-2 font-black">
           <KitChip t={{ ...teams[0], ...kit0 }} size={26} />
-          <span className={`truncate ${mySide === 0 ? "text-emerald-400" : ""}`}>{names[0]}</span>
+          <span className={`truncate ${mySide === 0 ? "text-emerald-400" : ""}`}>{teamLabel(names[0])}</span>
         </span>
         <span className="shrink-0 whitespace-nowrap rounded-lg bg-black/70 px-2.5 py-1 text-xl font-black tabular-nums text-white">
           {view.score[0]} - {view.score[1]}
         </span>
         <span className="flex min-w-0 items-center gap-2 font-black">
-          <span className={`truncate ${mySide === 1 ? "text-emerald-400" : ""}`}>{names[1]}</span>
+          <span className={`truncate ${mySide === 1 ? "text-emerald-400" : ""}`}>{teamLabel(names[1])}</span>
           <KitChip t={{ ...teams[1], ...kit1 }} size={26} />
         </span>
       </div>

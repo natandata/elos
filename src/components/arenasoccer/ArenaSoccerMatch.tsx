@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { bestFormation, createMatch, finish, pickLineup, resultOf, setTactics, simulateAll, stepMinute, substitute, toPlayer, type Chance, type Lineup, type Match, type Player } from "@/lib/arenasoccer/sim";
 import { buildScene } from "@/lib/arenasoccer/scene";
-import { kitOf, resolveKits, type RosterPlayer, type Team } from "@/lib/arenasoccer/teams";
+import { kitOf, resolveKits, teamLabel, type RosterPlayer, type Team } from "@/lib/arenasoccer/teams";
 import type { MatchResult } from "./ArenaSoccerGame";
 import { TacticsPanel, swapSlots } from "./match/Lineup";
 import { KitChip } from "./match/KitChip";
@@ -128,11 +128,11 @@ export function MatchFlow({ mine, opp, label, controlled, onDone, onSim, onBack 
       <div className="mt-1 flex items-center justify-between gap-2">
         <span className="flex min-w-0 items-center gap-2 font-black">
           <KitChip t={{ ...mine, ...kitMine }} size={26} />
-          <span className="truncate">{mine.name}</span>
+          <span className="truncate">{teamLabel(mine.name)}</span>
         </span>
         <span className="shrink-0 whitespace-nowrap rounded-lg bg-black/70 px-2.5 py-1 text-xl font-black tabular-nums text-white">{m ? `${m.score[0]} - ${m.score[1]}` : "x"}</span>
         <span className="flex min-w-0 items-center gap-2 font-black">
-          <span className="truncate">{opp.name}</span>
+          <span className="truncate">{teamLabel(opp.name)}</span>
           <KitChip t={{ ...opp, ...kitOpp }} size={26} />
         </span>
       </div>

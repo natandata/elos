@@ -59,6 +59,21 @@ export function resolveKits(a: Kit, b: Kit): [Kit, Kit] {
 const POS_ORDER: Record<string, number> = { GK: 0, DF: 1, MF: 2, FW: 3 };
 const slotOf = (p: RosterPlayer): Slot => ({ num: p[0], pos: p[1], name: p[2], ovr: p[3] });
 
+const ABBR: Record<string, string> = {
+  "Vasco da Gama": "VAS", Fluminense: "FLU", Corinthians: "COR", Internacional: "INT", Chapecoense: "CHA", "Athletico Paranaense": "CAP", "Atlético Mineiro": "CAM", "Red Bull Bragantino": "RBB",
+  "Manchester City": "MCI", "Manchester United": "MUN", "Newcastle United": "NEW", "Nottingham Forest": "NFO", "Tottenham Hotspur": "TOT", "Brighton & Hove Albion": "BHA", "Crystal Palace": "CRY", "Aston Villa": "AVL", Bournemouth: "BOU", Sunderland: "SUN", "Leeds United": "LEE", "Coventry City": "COV", "Ipswich Town": "IPS",
+  "Real Madrid": "RMA", "Real Sociedad": "RSO", "Real Betis": "BET", "Atlético Madrid": "ATM", "Athletic Bilbao": "ATH", "Rayo Vallecano": "RAY", "Celta Vigo": "CEL", Villarreal: "VIL", "Deportivo A Coruña": "DEP", "Racing Santander": "RAC", "Paris Saint-Germain": "PSG", Strasbourg: "STR",
+  "Arábia Saudita": "ARA", "Bósnia e Herzegovina": "BIH", "Coreia do Norte": "PRK", "Coreia do Sul": "KOR", "Costa do Marfim": "CIV", "Estados Unidos": "EUA", "Nova Zelândia": "NZL", "País de Gales": "WAL", "Países Baixos": "NED", "Sérvia e Montenegro": "SCG", "Trinidad e Tobago": "TRI", Uzbequistão: "UZB", "África do Sul": "RSA", "Cabo Verde": "CPV", "Costa Rica": "CRC", Eslováquia: "SVK", Inglaterra: "ING",
+};
+
+/** Nome do time para espaços apertados: nomes compridos viram sigla de três letras. */
+export function teamLabel(name: string, max = 9): string {
+  if (name.length <= max) return name;
+  if (ABBR[name]) return ABBR[name];
+  const w = name.normalize("NFD").replace(/[̀-ͯ]/g, "").split(/[\s-]+/).filter((x) => x.length > 2);
+  return (w.length > 1 ? w.map((x) => x[0]).join("").slice(0, 3) : (w[0] ?? name).slice(0, 3)).toUpperCase();
+}
+
 /** Sobrenome para a etiqueta em campo. */
 export function shortName(full: string): string {
   const parts = full.trim().split(/\s+/);
