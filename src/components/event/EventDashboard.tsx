@@ -8,21 +8,23 @@ type Row = { user_id: string; tribe: string; seen_at: string | null; views: numb
 /** Bloco do Dashboard do admin: as tribos, os integrantes (arrastar para mover ou tirar) e quem já viu a própria tribo (card pós-login). */
 export async function EventDashboard() {
   const supabase = await createClient();
-  const [stateRes, memRes, profRes, rsvpRes] = await Promise.all([
+  const [stateRes, memRes, profRes, rsvpRes, payRes] = await Promise.all([
     supabase.rpc("event_state"),
     supabase.from("event_members").select("user_id, tribe, seen_at, views").limit(1000),
     supabase.from("profiles").select("id, full_name, role").in("role", ["cria", "leader"]).eq("approved", true).neq("is_test_account", true).limit(1000),
     supabase.from("acampadentro_rsvp").select("user_id, status").limit(1000),
+    supabase.from("acampadentro_payment").select("user_id, status").in("status", ["pending", "approved"]).limit(1000),
   ]);
   const state = (stateRes.data ?? { visible: false }) as EventState;
   const rows = ((memRes.data ?? []) as unknown as Row[]).filter((r) => isTribeKey(r.tribe));
   if (!state.visible || rows.length === 0) return null;
 
   const byId = new Map(rows.map((r) => [r.user_id, r]));
+  const proof = new Set(((payRes.data ?? []) as { user_id: string }[]).map((r) => r.user_id));
   const rsvp = new Map(((rsvpRes.data ?? []) as { user_id: string; status: "yes" | "no" | "maybe" }[]).map((r) => [r.user_id, r.status]));
   const board: BoardPerson[] = ((profRes.data ?? []) as { id: string; full_name: string | null; role: string }[]).map((p) => {
     const m = byId.get(p.id);
-    return { id: p.id, name: p.full_name || "Sem nome", leader: p.role === "leader", tribe: m ? (m.tribe as TribeKey) : null, seenAt: m?.seen_at ?? null, views: m?.views ?? 0, rsvp: rsvp.get(p.id) ?? null };
+    return { id: p.id, name: p.full_name || "Sem nome", leader: p.role === "leader", tribe: m ? (m.tribe as TribeKey) : null, seenAt: m?.seen_at ?? null, views: m?.views ?? 0, rsvp: rsvp.get(p.id) ?? null, proof: proof.has(p.id) };
   });
 
   const count = (k: "yes" | "no" | "maybe" | null) => board.filter((p) => (p.rsvp ?? null) === k).length;

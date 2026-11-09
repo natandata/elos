@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { moveTribeMember } from "@/lib/actions/event";
 import { TRIBES, TRIBE_KEYS, type TribeKey } from "@/lib/event/tribes";
 
-export type BoardPerson = { id: string; name: string; leader: boolean; tribe: TribeKey | null; seenAt: string | null; views: number; rsvp: "yes" | "no" | "maybe" | null };
+export type BoardPerson = { id: string; name: string; leader: boolean; tribe: TribeKey | null; seenAt: string | null; views: number; rsvp: "yes" | "no" | "maybe" | null; proof?: boolean };
 export type BoardTribe = { key: TribeKey; rank: number; points: number };
 
 const RSVP = {
@@ -79,7 +79,7 @@ export function TribeBoard({ initial, tribes }: { initial: BoardPerson[]; tribes
     >
       <span className="min-w-0 truncate">
         <span className="mr-1 text-[var(--muted)]" aria-hidden>⠿</span>
-        {p.name}
+        <span className={p.proof ? "font-extrabold text-emerald-500" : undefined} title={p.proof ? "Comprovante de pagamento enviado" : undefined}>{p.name}</span>
         {p.leader ? <span className="ml-1 rounded-full px-1.5 text-[10px] font-bold" style={{ background: soft ?? "var(--line)", color: dark ?? "inherit" }}>Líder</span> : null}
       </span>
       <span className="flex shrink-0 items-center gap-1.5">
