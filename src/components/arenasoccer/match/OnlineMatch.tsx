@@ -309,7 +309,7 @@ export function OnlineMatch({ net, myUid, members, teams, lineups, seed, label, 
           <KitChip t={{ ...teams[0], ...kit0 }} size={26} />
           <span className={`truncate ${mySide === 0 ? "text-emerald-400" : ""}`}>{names[0]}</span>
         </span>
-        <span className="rounded-lg bg-black/70 px-3 py-1 text-xl font-black tabular-nums text-white">
+        <span className="shrink-0 whitespace-nowrap rounded-lg bg-black/70 px-2.5 py-1 text-xl font-black tabular-nums text-white">
           {view.score[0]} - {view.score[1]}
         </span>
         <span className="flex min-w-0 items-center gap-2 font-black">
