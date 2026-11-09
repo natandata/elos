@@ -37,11 +37,11 @@ export default async function AcampadentroAdminPage() {
 
   // Pagamento: quem disse "Eu vou" + comprovante enviado (link temporário de 1 h para o admin abrir o arquivo).
   const pays = new Map(((payRes.data ?? []) as { user_id: string; file_path: string; file_name: string; status: PayRow["status"]; note: string | null; uploaded_at: string }[]).map((p) => [p.user_id, p]));
-  const paths = [...pays.values()].map((p) => p.file_path);
+  const paths = [...pays.values()].map((p) => p.file_path).filter(Boolean);
   const signed = paths.length ? await supabase.storage.from("payment_proofs").createSignedUrls(paths, 3600) : { data: [] };
   const urlOf = new Map((signed.data ?? []).map((s) => [s.path, s.signedUrl]));
   const profById = new Map(((profRes.data ?? []) as { id: string; full_name: string; role: string }[]).map((p) => [p.id, p]));
-  const order: Record<PayRow["status"], number> = { pending: 0, rejected: 1, none: 2, approved: 3 };
+  const order: Record<PayRow["status"], number> = { pending: 0, rejected: 1, none: 2, approved: 3, waived: 4 };
   const payRows: PayRow[] = ((rsvpRes.data ?? []) as { user_id: string }[])
     .filter((r) => profById.has(r.user_id) && !(profRes.data ?? []).find((p) => p.id === r.user_id)?.is_test_account)
     .map((r) => {

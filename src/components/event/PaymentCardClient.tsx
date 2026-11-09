@@ -9,7 +9,7 @@ const PIX_LABEL = "34.107.987/0001-60";
 const MAX = 10 * 1024 * 1024;
 const OK_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "application/pdf"];
 
-type Props = { status: "pending" | "approved" | "rejected" | null; note: string | null; fileName: string | null };
+type Props = { status: "pending" | "approved" | "rejected" | "waived" | null; note: string | null; fileName: string | null };
 
 /** "HOJE" ou "AMANHÃ" conforme o dia em Brasília (prazo: terça 10/11). */
 function deadlineWord(): string {
@@ -27,6 +27,15 @@ export function PaymentCardClient({ status, note, fileName }: Props) {
   const [copied, setCopied] = useState(false);
   const [sent, setSent] = useState(false);
   const [again, setAgain] = useState(false);
+
+  if (status === "waived") {
+    return (
+      <div className="mb-3 rounded-2xl border-2 border-emerald-500/60 bg-emerald-500/10 p-4 text-center">
+        <p className="text-base font-black text-emerald-700">✅ Sua inscrição foi confirmada pelo admin.</p>
+        <p className="mt-0.5 text-sm font-bold text-emerald-700">Não há necessidade de pagamento.</p>
+      </div>
+    );
+  }
 
   if (status === "approved") {
     return (

@@ -22,7 +22,7 @@ export async function sendPaymentReminderPush(): Promise<Res> {
   const supabase = await createClient();
   const [{ data: yes }, { data: paid }, { data: profs }] = await Promise.all([
     supabase.from("acampadentro_rsvp").select("user_id").eq("status", "yes").limit(1000),
-    supabase.from("acampadentro_payment").select("user_id").eq("status", "approved").limit(1000),
+    supabase.from("acampadentro_payment").select("user_id").in("status", ["approved", "waived"]).limit(1000),
     supabase.from("profiles").select("id, is_test_account").in("role", ["cria", "leader"]).limit(2000),
   ]);
   const skip = new Set([...(paid ?? []).map((p) => p.user_id as string), ...(profs ?? []).filter((p) => p.is_test_account).map((p) => p.id as string)]);
