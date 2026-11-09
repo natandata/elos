@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 const KEY = "elos_rsvp_card_login";
@@ -12,6 +13,7 @@ export type RsvpState = { status: Rsvp | null; event_date: string; name: string;
 
 /** Card de confirmação de presença no Acampadentro, logo após o login, até a pessoa responder "vou" ou "não vou". */
 export function AttendanceCard({ state }: { state: RsvpState }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [done, setDone] = useState<Rsvp | null>(null);
   const [busy, setBusy] = useState(false);
@@ -58,6 +60,7 @@ export function AttendanceCard({ state }: { state: RsvpState }) {
     setBusy(false);
     setDone(s);
     await remember();
+    if (s === "yes") router.refresh();
     if (s !== "maybe") setTimeout(() => setOpen(false), 1400);
   };
 
@@ -97,7 +100,7 @@ export function AttendanceCard({ state }: { state: RsvpState }) {
               </button>
             </div>
           ) : (
-            <p className="mt-6 text-lg font-extrabold">{done === "yes" ? "Presença confirmada! 🎉" : "Anotado, sentiremos sua falta."}</p>
+            <p className="mt-6 text-lg font-extrabold">{done === "yes" ? "Presença confirmada! 🎉 Falta pagar a inscrição: veja o card de pagamento no topo da tela inicial." : "Anotado, sentiremos sua falta."}</p>
           )
         ) : (
           <div className="mt-5 space-y-2.5">

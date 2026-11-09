@@ -28,6 +28,19 @@ export const getTribeMap = cache(async (): Promise<Record<string, TribeKey>> => 
   }
 });
 
+export type PayState = { status: "pending" | "approved" | "rejected" | null; note: string | null; file_name: string | null; rsvp: "yes" | "no" | "maybe" | null; applies: boolean };
+
+/** Situação do pagamento da inscrição da própria pessoa (card de pagamento da tela inicial). */
+export const getPayState = cache(async (): Promise<PayState | null> => {
+  try {
+    const { data, error } = await (await createClient()).rpc("acampadentro_pay_me");
+    if (error || !data) return null;
+    return data as PayState;
+  } catch {
+    return null;
+  }
+});
+
 /** Confirmação de presença da própria pessoa (card pós-login). Erro vira "sem card". */
 export const getRsvpState = cache(async () => {
   try {

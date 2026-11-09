@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 type Answer = "yes" | "no";
 
 export function RsvpMaybeButtons({ name }: { name: string }) {
+  const router = useRouter();
   const [done, setDone] = useState<Answer | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
@@ -16,7 +18,10 @@ export function RsvpMaybeButtons({ name }: { name: string }) {
     const { error: err } = await createClient().rpc("acampadentro_set_rsvp", { p_status: s });
     setBusy(false);
     if (err) setError(true);
-    else setDone(s);
+    else {
+      setDone(s);
+      if (s === "yes") router.refresh();
+    }
   };
 
   if (done) {

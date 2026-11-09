@@ -1,0 +1,83 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+
+export type PayRow = {
+  userId: string;
+  name: string;
+  role: string;
+  status: "pending" | "approved" | "rejected" | "none";
+  fileName: string;
+  url: string | null;
+  isPdf: boolean;
+  at: string | null;
+  note: string | null;
+};
+
+const LABEL: Record<PayRow["status"], string> = { pending: "Aguardando", approved: "Aprovado", rejected: "Recusado", none: "Sem comprovante" };
+const TONE: Record<PayRow["status"], string> = {
+  pending: "bg-amber-500/15 text-amber-700",
+  approved: "bg-emerald-500/15 text-emerald-700",
+  rejected: "bg-rose-500/15 text-rose-700",
+  none: "bg-[var(--line)] text-[var(--muted)]",
+};
+
+/** Admin: quem marcou "Eu vou", se já mandou o comprovante e a aprovação (aprovado = inscrição confirmada). */
+export function PaymentAdmin({ rows }: { rows: PayRow[] }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState<string | null>(null);
+  const count = (s: PayRow["status"]) => rows.filter((r) => r.status === s).length;
+
+  const review = async (r: PayRow, approve: boolean) => {
+    let note: string | null = null;
+    if (!approve) {
+      note = window.prompt("Motivo da recusa (aparece para a pessoa):", "Comprovante ilegível ou errado");
+      if (note === null) return;
+    }
+    setBusy(r.userId);
+    await createClient().rpc("acampadentro_pay_review", { p_user: r.userId, p_approve: approve, p_note: note });
+    setBusy(null);
+    router.refresh();
+  };
+
+  return (
+    <section className="card mt-4 p-4">
+      <h2 className="text-lg font-black">💸 Pagamento das inscrições</h2>
+      <p className="mt-0.5 text-xs font-semibold text-[var(--muted)]">
+        {rows.length} confirmaram presença · {count("approved")} aprovados · {count("pending")} aguardando · {count("rejected")} recusados · {count("none")} sem comprovante
+      </p>
+      <ul className="mt-3 divide-y divide-[var(--line)]">
+        {rows.map((r) => (
+          <li key={r.userId} className="flex flex-wrap items-center gap-2 py-2.5">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-extrabold">
+                {r.name} <span className="text-[10px] font-bold text-[var(--muted)]">{r.role === "leader" ? "líder" : "cria"}</span>
+              </p>
+              {r.at ? <p className="text-[11px] font-semibold text-[var(--muted)]">enviado em {new Date(r.at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</p> : null}
+              {r.note ? <p className="text-[11px] font-semibold text-rose-700">Recusa: {r.note}</p> : null}
+            </div>
+            <span className={`rounded-full px-2 py-0.5 text-[11px] font-black ${TONE[r.status]}`}>{LABEL[r.status]}</span>
+            {r.url ? (
+              <a href={r.url} target="_blank" rel="noreferrer" className="rounded-lg border border-[var(--line)] px-2.5 py-1 text-xs font-bold underline">
+                {r.isPdf ? "Abrir PDF" : "Ver comprovante"}
+              </a>
+            ) : null}
+            {r.status === "pending" || r.status === "rejected" ? (
+              <button type="button" disabled={busy === r.userId} onClick={() => review(r, true)} className="rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-black text-white disabled:opacity-60">
+                Aprovar
+              </button>
+            ) : null}
+            {r.status === "pending" || r.status === "approved" ? (
+              <button type="button" disabled={busy === r.userId} onClick={() => review(r, false)} className="rounded-lg border border-rose-500/60 px-2.5 py-1 text-xs font-black text-rose-700 disabled:opacity-60">
+                {r.status === "approved" ? "Desfazer" : "Recusar"}
+              </button>
+            ) : null}
+          </li>
+        ))}
+        {rows.length === 0 ? <li className="py-3 text-sm font-semibold text-[var(--muted)]">Ninguém confirmou presença ainda.</li> : null}
+      </ul>
+    </section>
+  );
+}
