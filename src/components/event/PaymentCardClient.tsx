@@ -121,16 +121,18 @@ export function PaymentCardClient({ status, note, fileName }: Props) {
 
         <div>
           <p className="text-sm font-black">{pending ? "Pagar ou compartilhar o Pix" : "2. Pague via Pix"}</p>
-          <div className="mt-2 flex flex-col items-center gap-3 sm:flex-row">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/acampadentro/pix-qr.png" alt="QR code do Pix da inscrição" width={176} height={176} className="h-44 w-44 shrink-0 rounded-xl border border-[var(--line)] bg-white object-contain" />
-            <div className="w-full min-w-0 text-center sm:text-left">
+          <div className="mt-2 rounded-xl border-2 border-rose-500/60 bg-rose-500/10 p-3 text-center">
+            <p className="text-[11px] font-black uppercase tracking-wider text-rose-700">Valor da inscrição</p>
+            <p className="text-4xl font-black tabular-nums text-rose-700">R$ 15,00</p>
+          </div>
+          <div className="mt-3 flex flex-col items-center gap-3">
+            <div className="w-full min-w-0 text-center">
               <p className="text-[11px] font-black uppercase tracking-wider text-[var(--muted)]">Chave Pix (CNPJ)</p>
-              <p className="mt-0.5 select-all text-xl font-black tabular-nums">{PIX_LABEL}</p>
+              <p className="mt-0.5 select-all text-2xl font-black tabular-nums">{PIX_LABEL}</p>
               <button type="button" onClick={copy} className="mt-2 w-full rounded-xl border-2 border-[var(--line)] px-4 py-3 text-sm font-black active:scale-[0.98]">
                 {copied ? "✅ Chave copiada!" : "📋 Copiar chave Pix"}
               </button>
-              <p className="mt-1.5 text-[11px] font-semibold text-[var(--muted)]">Escaneie o QR code ou cole a chave no app do seu banco. Dá para enviar a chave a quem vai pagar por você.</p>
+              <p className="mt-1.5 text-[11px] font-semibold text-[var(--muted)]">Cole a chave no app do seu banco e pague R$ 15,00. Dá para enviar a chave a quem vai pagar por você.</p>
             </div>
           </div>
         </div>
