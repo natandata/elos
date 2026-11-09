@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
   const ink = rgb(0.09, 0.09, 0.11);
   const grey = rgb(0.4, 0.4, 0.45);
   const blue = rgb(0.1, 0.3, 0.8);
-  const cols = { n: M, name: M + 24, date: M + 215, time: M + 285, status: M + 330, link: M + 440 };
+  const cols = { n: M, name: M + 24, date: M + 190, time: M + 258, status: M + 298, link: M + 390 };
 
   const annots = new Map<PDFPage, ReturnType<typeof pdf.context.register>[]>();
   const addLink = (page: PDFPage, x: number, y: number, w: number, h: number, url: string) => {
@@ -89,7 +89,7 @@ export async function GET(req: NextRequest) {
     const when = new Date(r.uploaded_at);
     const pdfFile = r.file_name.toLowerCase().endsWith(".pdf");
     page.drawText(String(i + 1), { x: cols.n + 3, y, size: 10, font, color: grey });
-    page.drawText(fit(profs.get(r.user_id)!.full_name || "Sem nome", bold, 10, 180), { x: cols.name + 3, y, size: 10, font: bold, color: ink });
+    page.drawText(fit(profs.get(r.user_id)!.full_name || "Sem nome", bold, 10, 156), { x: cols.name + 3, y, size: 10, font: bold, color: ink });
     page.drawText(when.toLocaleDateString("pt-BR", { timeZone: TZ }), { x: cols.date + 3, y, size: 10, font, color: ink });
     page.drawText(when.toLocaleTimeString("pt-BR", { timeZone: TZ, hour: "2-digit", minute: "2-digit" }), { x: cols.time + 3, y, size: 10, font, color: ink });
     page.drawText(r.status === "approved" ? "Aprovado" : "Aguardando", { x: cols.status + 3, y, size: 9.5, font: bold, color: r.status === "approved" ? rgb(0.05, 0.5, 0.3) : rgb(0.7, 0.45, 0) });
