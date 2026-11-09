@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth";
 import { drawTribes, type DrawPerson } from "@/lib/event/draw";
 import { isTribeKey, type TribeKey } from "@/lib/event/tribes";
+import { sendPushToUsers } from "@/lib/push-server";
 import { createClient } from "@/lib/supabase/server";
 
 // Evento das tribos (Acampadentro): ações do admin. As regras de quem vê o quê estão no banco (RLS); aqui o admin sorteia,
@@ -14,6 +15,21 @@ const done = (message?: string): Res => {
   revalidatePath("/app", "layout");
   return { ok: true, message };
 };
+
+/** Push (com o app fechado) para quem marcou "Eu vou" e ainda não teve o pagamento aprovado. */
+export async function sendPaymentReminderPush(): Promise<Res> {
+  await requireRole("admin");
+  const supabase = await createClient();
+  const [{ data: yes }, { data: paid }, { data: profs }] = await Promise.all([
+    supabase.from("acampadentro_rsvp").select("user_id").eq("status", "yes").limit(1000),
+    supabase.from("acampadentro_payment").select("user_id").eq("status", "approved").limit(1000),
+    supabase.from("profiles").select("id, is_test_account").in("role", ["cria", "leader"]).limit(2000),
+  ]);
+  const skip = new Set([...(paid ?? []).map((p) => p.user_id as string), ...(profs ?? []).filter((p) => p.is_test_account).map((p) => p.id as string)]);
+  const ids = (yes ?? []).map((r) => r.user_id as string).filter((id) => !skip.has(id));
+  await sendPushToUsers(ids, { title: "⏰ Pague a inscrição do Acampadentro", body: "Pagamento até terça (10/11). A inscrição só é confirmada com o comprovante: envie no card da tela inicial.", url: "/app" });
+  return { ok: true, message: `Aviso enviado para ${ids.length} pessoa(s).` };
+}
 
 /** Sorteia quem ainda não tem tribo (cria e líder aprovados, sem contas de teste), equilibrando por Elo. Quem já tem tribo não muda. */
 export async function runTribeDraw(): Promise<Res> {

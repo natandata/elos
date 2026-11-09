@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { sendPaymentReminderPush } from "@/lib/actions/event";
 
 export type PayRow = {
   userId: string;
@@ -28,6 +29,7 @@ const TONE: Record<PayRow["status"], string> = {
 export function PaymentAdmin({ rows }: { rows: PayRow[] }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
+  const [msg, setMsg] = useState("");
   const count = (s: PayRow["status"]) => rows.filter((r) => r.status === s).length;
 
   const review = async (r: PayRow, approve: boolean) => {
@@ -48,6 +50,21 @@ export function PaymentAdmin({ rows }: { rows: PayRow[] }) {
       <p className="mt-0.5 text-xs font-semibold text-[var(--muted)]">
         {rows.length} confirmaram presença · {count("approved")} aprovados · {count("pending")} aguardando · {count("rejected")} recusados · {count("none")} sem comprovante
       </p>
+      <button
+        type="button"
+        disabled={busy === "push"}
+        onClick={async () => {
+          if (!window.confirm("Enviar notificação (push) para todos que marcaram Sim e ainda não foram aprovados?")) return;
+          setBusy("push");
+          const r = await sendPaymentReminderPush();
+          setBusy(null);
+          setMsg(r.message ?? r.error ?? "");
+        }}
+        className="mt-3 rounded-xl border-2 border-[var(--line)] px-3 py-2 text-sm font-extrabold disabled:opacity-60"
+      >
+        🔔 Enviar aviso de pagamento (push)
+      </button>
+      {msg ? <p className="mt-1 text-xs font-bold text-emerald-700">{msg}</p> : null}
       <ul className="mt-3 divide-y divide-[var(--line)]">
         {rows.map((r) => (
           <li key={r.userId} className="flex flex-wrap items-center gap-2 py-2.5">
