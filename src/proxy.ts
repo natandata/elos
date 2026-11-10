@@ -1,10 +1,20 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/config";
+import { isMaintenance } from "@/lib/maintenance";
 
-const PUBLIC_PATHS = ["/", "/auth/callback", "/admin-access"];
+const PUBLIC_PATHS = ["/", "/auth/callback", "/admin-access", "/manutencao"];
 
 export async function proxy(request: NextRequest) {
+  // manutenção: a partir de 27/11 às 00h00 (Brasília) todo o aplicativo fecha. Vem antes de qualquer consulta ao Supabase,
+  // porque nesse momento o banco pode já estar fora do ar.
+  if (isMaintenance()) {
+    if (request.nextUrl.pathname === "/manutencao") return NextResponse.next();
+    const url = request.nextUrl.clone();
+    url.pathname = "/manutencao";
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {

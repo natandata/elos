@@ -1,4 +1,5 @@
 import { SpotPlayerRoot } from "@/components/spotcria/SpotPlayerRoot";
+import { MaintenanceNotice } from "@/components/MaintenanceNotice";
 import { EventProvider } from "@/components/event/EventProvider";
 import { getEventState, getTribeMap } from "@/lib/event/server";
 
@@ -8,6 +9,7 @@ export default async function AppRootLayout({ children }: { children: React.Reac
   const [state, map] = await Promise.all([getEventState(), getTribeMap()]);
   return (
     <EventProvider state={state} map={map}>
+      <MaintenanceNotice />
       <SpotPlayerRoot>{children}</SpotPlayerRoot>
     </EventProvider>
   );
