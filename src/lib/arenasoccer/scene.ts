@@ -2,7 +2,7 @@
 import { mulberry, type Chance, type Match, type Player } from "./sim";
 
 export type StepKind = "pass" | "cross" | "shot" | "header" | "freekick" | "penalty";
-export type Spot = { x: number; y: number };
+export type Spot = { x: number; y: number; /** jogador real do adversário nesse lugar (nome e aparência) */ p?: Player };
 export type ScenePlayer = Spot & { player: Player };
 export type Scene = {
   steps: StepKind[];
@@ -11,6 +11,8 @@ export type Scene = {
   mates: ScenePlayer[];
   defenders: Spot[];
   keeperX: number;
+  /** goleiro adversário */
+  keeper?: Player;
   wall: Spot[];
   /** para onde a câmera olha */
   focus: [number, number];
@@ -26,12 +28,16 @@ export function buildScene(m: Match, c: Chance): Scene {
   const passer = c.assister ?? others[0] ?? c.shooter;
   const decoys = others.filter((p) => p.name !== passer.name).sort(() => r() - 0.5).slice(0, 2);
   const keeperX = rnd(r, -0.8, 0.8);
-  const base = { keeperX, wall: [] as Spot[], defenders: [] as Spot[] };
+  const foes = m.lineups[1 - c.side].xi;
+  const field = foes.filter((p) => p.pos !== "GK").sort(() => r() - 0.5);
+  const base = { keeperX, keeper: foes.find((p) => p.pos === "GK"), wall: [] as Spot[], defenders: [] as Spot[] };
+  let nextFoe = 0;
+  const foe = (): Player | undefined => field[nextFoe++ % Math.max(1, field.length)];
   const placeDef = (n: number, near: Spot[]): Spot[] =>
     Array.from({ length: n }, (_, i) => {
       const t = near[i % Math.max(1, near.length)] ?? { x: 0, y: -10 };
       const mark = r() < 0.55;
-      return mark ? { x: t.x + rnd(r, -1.6, 1.6), y: t.y + rnd(r, -2.5, -0.4) } : { x: rnd(r, -9, 9), y: rnd(r, -16, -7) };
+      return mark ? { x: t.x + rnd(r, -1.6, 1.6), y: t.y + rnd(r, -2.5, -0.4), p: foe() } : { x: rnd(r, -9, 9), y: rnd(r, -16, -7), p: foe() };
     });
 
   if (c.kind === "penalty") {
@@ -45,12 +51,12 @@ export function buildScene(m: Match, c: Chance): Scene {
     const len = Math.hypot(dx, dy);
     const wx = bx + (dx / len) * 9.15;
     const wy = by + (dy / len) * 9.15;
-    const wall = [-1.2, -0.4, 0.4, 1.2].map((o) => ({ x: wx + (dy / len) * o, y: wy - (dx / len) * o }));
+    const wall = [-1.2, -0.4, 0.4, 1.2].map((o) => ({ x: wx + (dy / len) * o, y: wy - (dx / len) * o, p: foe() }));
     return { ...base, wall, steps: ["freekick"], carrier: { x: bx, y: by, player: c.shooter }, mates: [], focus: [0, 0], tip: "Falta direta! Desenhe uma curva por cima da barreira e mire alto." };
   }
   if (c.kind === "counter") {
     const x = rnd(r, -9, 9);
-    return { ...base, steps: ["shot"], carrier: { x, y: rnd(r, -24, -17), player: c.shooter }, mates: [], defenders: [{ x: x + rnd(r, -2.5, 2.5), y: rnd(r, -30, -26) }], focus: [0, 0], tip: "Contra-ataque! Só você e o goleiro. Arraste até o canto, com ou sem curva." };
+    return { ...base, steps: ["shot"], carrier: { x, y: rnd(r, -24, -17), player: c.shooter }, mates: [], defenders: [{ x: x + rnd(r, -2.5, 2.5), y: rnd(r, -30, -26), p: foe() }], focus: [0, 0], tip: "Contra-ataque! Só você e o goleiro. Arraste até o canto, com ou sem curva." };
   }
   const wing = c.kind === "cross" || c.kind === "corner";
   const mates: ScenePlayer[] = [c.shooter, ...decoys].map((p, i) => ({ player: p, x: rnd(r, -4.5, 4.5) + (i === 0 ? 0 : i % 2 ? -3.2 : 3.2), y: wing ? rnd(r, -13, -5) : rnd(r, -19, -9) }));

@@ -19,27 +19,22 @@ const SKINS: [string, string][] = [
 // preto, castanho, loiro, ruivo, grisalho, careca (cor da pele)
 const HAIRS = ["#1b1b1b", "#4a3020", "#d9b45a", "#b5502a", "#bdbdbd", ""];
 
-const sheets = new Map<Anim, { w: number; h: number; roles: Uint8Array; cell: number } | "loading" | "failed">();
+type Sheet = { img: HTMLImageElement; cell: number; h: number };
+const sheets = new Map<Anim, Sheet | "loading" | "failed">();
 const cache = new Map<string, HTMLCanvasElement>();
+const ROLE_COUNT = 9;
 
 function load(anim: Anim): void {
   if (sheets.has(anim) || typeof window === "undefined") return;
   sheets.set(anim, "loading");
   const img = new Image();
   img.onload = () => {
-    const c = document.createElement("canvas");
-    c.width = img.width;
-    c.height = img.height;
-    const g = c.getContext("2d", { willReadFrequently: true });
-    if (!g) return void sheets.set(anim, "failed");
-    g.drawImage(img, 0, 0);
-    const d = g.getImageData(0, 0, c.width, c.height).data;
-    const roles = new Uint8Array(c.width * c.height);
-    for (let i = 0; i < roles.length; i++) roles[i] = d[i * 4 + 3] > 128 ? d[i * 4] : 0;
-    sheets.set(anim, { w: c.width, h: c.height, roles, cell: c.width / FRAMES });
+    // atlas de máscaras: ROLE_COUNT faixas empilhadas, FRAMES quadros lado a lado
+    const h = img.height / ROLE_COUNT;
+    sheets.set(anim, h > 0 && img.width > 0 ? { img, cell: img.width / FRAMES, h } : "failed");
   };
   img.onerror = () => sheets.set(anim, "failed");
-  img.src = `/arenasoccer/sprites/${anim}.png`;
+  img.src = `/arenasoccer/sprites/${anim}-mask.png`;
 }
 
 /** Começa a baixar todas as faixas (chame uma vez ao montar a cena). */
@@ -47,7 +42,11 @@ export function preloadSprites(): void {
   (["run", "kick", "header", "celebrate"] as Anim[]).forEach(load);
 }
 
-const hex = (h: string): [number, number, number] => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+const hex = (h: string): [number, number, number] => {
+  const v = h.length === 4 ? `#${h[1]}${h[1]}${h[2]}${h[2]}${h[3]}${h[3]}` : h;
+  const n = [parseInt(v.slice(1, 3), 16), parseInt(v.slice(3, 5), 16), parseInt(v.slice(5, 7), 16)];
+  return [n[0] || 0, n[1] || 0, n[2] || 0];
+};
 const shade = (rgb: [number, number, number], k: number): [number, number, number] => [Math.round(rgb[0] * k), Math.round(rgb[1] * k), Math.round(rgb[2] * k)];
 
 /** Cara do jogador a partir da foto do busto; quem não tem foto recebe uma cara sorteada pelo nome. */
@@ -61,6 +60,9 @@ export function lookOf(photo: string | undefined, name: string): Look {
   return { skin: [1, 1, 2, 2, 3, 4, 5][h % 7], hair: [0, 0, 0, 1, 1, 2][(h >> 4) % 6], style: 1 };
 }
 
+const css = (c: [number, number, number]): string => `rgb(${c[0]},${c[1]},${c[2]})`;
+
+/** Monta um quadro recolorido só com composição de canvas (sem ler pixels, que navegadores de privacidade falsificam). */
 function frameCanvas(anim: Anim, frame: number, look: Look, kit: Kit): HTMLCanvasElement | null {
   const sh = sheets.get(anim);
   if (!sh || typeof sh === "string") return null;
@@ -72,30 +74,30 @@ function frameCanvas(anim: Anim, frame: number, look: Look, kit: Kit): HTMLCanva
   const hair = look.hair === 5 ? skin : hex(HAIRS[look.hair]);
   const shirt = hex(kit.p);
   const shorts = hex(kit.s);
-  const pal: ([number, number, number] | null)[] = [null, skin, skinShade, hair, shirt, shade(shirt, 0.78), shorts, [255, 255, 255], [17, 17, 17], [10, 10, 10]];
+  const pal = [skin, skinShade, hair, shirt, shade(shirt, 0.78), shorts, [255, 255, 255], [17, 17, 17], [10, 10, 10]] as [number, number, number][];
   const cw = Math.round(sh.cell);
-  const c = document.createElement("canvas");
-  c.width = cw;
-  c.height = sh.h;
-  const g = c.getContext("2d");
-  if (!g) return null;
-  const out = g.createImageData(cw, sh.h);
+  const ch = Math.round(sh.h);
+  const out = document.createElement("canvas");
+  out.width = cw;
+  out.height = ch;
+  const g = out.getContext("2d");
+  const tmp = document.createElement("canvas");
+  tmp.width = cw;
+  tmp.height = ch;
+  const t = tmp.getContext("2d");
+  if (!g || !t) return null;
   const f = Math.max(0, Math.min(FRAMES - 1, frame));
-  for (let y = 0; y < sh.h; y++) {
-    for (let x = 0; x < cw; x++) {
-      const role = sh.roles[y * sh.w + f * cw + x];
-      const col = role ? pal[role] : null;
-      if (!col) continue;
-      const o = (y * cw + x) * 4;
-      out.data[o] = col[0];
-      out.data[o + 1] = col[1];
-      out.data[o + 2] = col[2];
-      out.data[o + 3] = 255;
-    }
+  for (let r = 0; r < ROLE_COUNT; r++) {
+    t.globalCompositeOperation = "source-over";
+    t.clearRect(0, 0, cw, ch);
+    t.drawImage(sh.img, f * cw, r * ch, cw, ch, 0, 0, cw, ch);
+    t.globalCompositeOperation = "source-in";
+    t.fillStyle = css(pal[r]);
+    t.fillRect(0, 0, cw, ch);
+    g.drawImage(tmp, 0, 0);
   }
-  g.putImageData(out, 0, 0);
-  cache.set(key, c);
-  return c;
+  cache.set(key, out);
+  return out;
 }
 
 /** Quadro de uma animação pelo tempo: `t` em segundos desde o início, `fps` quadros por segundo; `loop` repete, senão trava no último. */

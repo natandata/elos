@@ -78,6 +78,16 @@ def main():
     dst = os.path.join("public", "arenasoccer", "sprites", f"{name}.png")
     os.makedirs(os.path.dirname(dst), exist_ok=True)
     out.save(dst)
+    # atlas de máscaras (uma faixa por papel, branco onde o papel existe): o jogo recolore com composição de canvas, sem ler pixels
+    H = height + 2
+    atlas = Image.new("RGBA", (cw * n, H * len(ROLES)), (0, 0, 0, 0))
+    op, ap = out.load(), atlas.load()
+    for y in range(H):
+        for x in range(cw * n):
+            r = op[x, y][0] if op[x, y][3] else 0
+            if r:
+                ap[x, (r - 1) * H + y] = (255, 255, 255, 255)
+    atlas.save(os.path.join("public", "arenasoccer", "sprites", f"{name}-mask.png"))
     print(f"{dst}: {n} quadros de {cw}x{height + 2}")
 
 

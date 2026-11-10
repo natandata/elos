@@ -6,7 +6,7 @@ import type { MomentEngine } from "./engine";
 import { blockersOnCurve, bowOffset, type Scene, type Spot, type StepKind } from "@/lib/arenasoccer/scene";
 import type { Kit } from "@/lib/arenasoccer/teams";
 import { frameAt, lookOf, preloadSprites } from "./sprites";
-import { Cam, GOAL_H, GOAL_HALF, drawBall, drawBanner, drawGoalFrame, drawPlayer, drawStadium, drawStar, type Sprite, type V3 } from "./pitch3d";
+import { Cam, GOAL_H, GOAL_HALF, drawBall, drawBanner, drawGoalFrame, drawLabels, drawPlayer, type LabelItem, drawStadium, drawStar, type Sprite, type V3 } from "./pitch3d";
 
 const KEEPER_KIT: Kit = { p: "#16a34a", s: "#052e16", k: "solid" };
 const STEP_TIP: Record<StepKind, string> = {
@@ -313,12 +313,12 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
       ctx.clearRect(0, 0, W, H);
       drawStadium(ctx, cam, { home: mineKit, away: theirKit, t });
       const sprites: Sprite[] = [];
-      sprites.push({ x: keeper.x + keeper.dx, y: -0.6, kit: KEEPER_KIT, name: "goleiro", role: "keeper", tilt: keeper.tilt, lift: keeper.lift, arms: "up" });
-      for (const d of scene.defenders) sprites.push({ x: d.x, y: d.y, kit: theirKit, name: `d${d.x.toFixed(1)}${d.y.toFixed(1)}`, run: t * 6 + d.x, pix: { anim: "run", frame: frameAt(t + d.x, 8, true), look: lookOf(undefined, `d${d.x.toFixed(1)}${d.y.toFixed(1)}`) } });
-      for (const w of scene.wall) sprites.push({ x: w.x, y: w.y, kit: theirKit, name: `w${w.x.toFixed(1)}`, arms: "down", pix: { anim: "run", frame: 0, look: lookOf(undefined, `w${w.x.toFixed(1)}`) } });
-      for (const m of mates) if (m.player.name !== carrier.player.name) sprites.push({ x: m.x, y: m.y, kit: mineKit, name: m.player.name, run: t * 4 + m.x, arms: stepKind() === "cross" ? "up" : "down", pix: { anim: "run", frame: 0, look: lookOf(m.player.photo, m.player.name) } });
+      sprites.push({ x: keeper.x + keeper.dx, y: -0.6, kit: KEEPER_KIT, name: scene.keeper?.name ?? "goleiro", label: scene.keeper?.name, role: "keeper", tilt: keeper.tilt, lift: keeper.lift, arms: "up" });
+      for (const d of scene.defenders) sprites.push({ x: d.x, y: d.y, kit: theirKit, name: d.p?.name ?? `d${d.x.toFixed(1)}${d.y.toFixed(1)}`, label: d.p?.name, run: t * 6 + d.x, pix: { anim: "run", frame: frameAt(t + d.x, 8, true), look: lookOf(d.p?.photo, d.p?.name ?? `d${d.x.toFixed(1)}${d.y.toFixed(1)}`) } });
+      for (const w of scene.wall) sprites.push({ x: w.x, y: w.y, kit: theirKit, name: w.p?.name ?? `w${w.x.toFixed(1)}`, label: w.p?.name, arms: "down", pix: { anim: "run", frame: 0, look: lookOf(w.p?.photo, w.p?.name ?? `w${w.x.toFixed(1)}`) } });
+      for (const m of mates) if (m.player.name !== carrier.player.name) sprites.push({ x: m.x, y: m.y, kit: mineKit, name: m.player.name, label: m.player.name, run: t * 4 + m.x, arms: stepKind() === "cross" ? "up" : "down", pix: { anim: "run", frame: 0, look: lookOf(m.player.photo, m.player.name) } });
       const carrierPix = act ? { anim: act, frame: frameAt((now - actStart) / 1000, act === "celebrate" ? 6 : 12, act === "celebrate" && now - actStart > 1500 ? true : false), look: lookOf(carrier.player.photo, carrier.player.name) } : { anim: "run" as const, frame: 0, look: lookOf(carrier.player.photo, carrier.player.name) };
-      sprites.push({ x: carrier.x, y: carrier.y, kit: mineKit, name: carrier.player.name, run: 0, star: !anim && !result, pix: carrierPix });
+      sprites.push({ x: carrier.x, y: carrier.y, kit: mineKit, name: carrier.player.name, label: carrier.player.name, run: 0, star: !anim && !result, pix: carrierPix });
       // na finalização a câmera fica atrás de quem chuta: quem está atrás ou colado nele taparia a tela
       const shooting = stepKind() !== "pass" && stepKind() !== "cross";
       if (shooting) {
@@ -328,6 +328,7 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
         }
       }
       sprites.sort((a, b) => b.y - a.y);
+      const labels: LabelItem[] = [];
       let goalDrawn = false;
       for (const s of sprites) {
         if (!goalDrawn && s.y < 0) {
@@ -335,9 +336,11 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
           goalDrawn = true;
         }
         const head = drawPlayer(ctx, cam, s);
-        if (s.star && head) drawStar(ctx, head.x, head.y - head.s * 0.55, Math.max(10, head.s * 0.42), t);
+        if (s.label && head) labels.push({ head, name: s.label, color: s.star ? "#ffe14a" : "#fff" });
+        if (s.star && head) drawStar(ctx, head.x, head.y - head.s * (s.label ? 0.62 : 0.55), Math.max(10, head.s * 0.42), t);
       }
       if (!goalDrawn) drawGoalFrame(ctx, cam);
+      drawLabels(ctx, labels);
       if (trail.length > 2) {
         ctx.save();
         ctx.lineCap = "round";
