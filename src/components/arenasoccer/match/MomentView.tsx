@@ -32,6 +32,15 @@ const BANNER: Record<string, [string, string]> = {
 type Anim = { from: V3; to: V3; arc: number; /** curva: quanto a bola se afasta da linha reta (metros, no chão) */ bow?: [number, number]; t0: number; dur: number; onEnd: () => void };
 type Pt = { x: number; y: number };
 
+/** Força do chute pelo comprimento da linha (só o comprimento: o tempo que você demora não conta). */
+function powerOf(pts: { x: number; y: number }[], width: number): number {
+  if (pts.length < 2) return 0;
+  const a = pts[0];
+  const b = pts[pts.length - 1];
+  const len = Math.hypot(b.x - a.x, b.y - a.y);
+  return Math.max(0, Math.min(1, (len - 60) / Math.max(60, width * 0.36 - 60)));
+}
+
 /** Curva do traço do dedo, de -1 (para a esquerda) a 1 (para a direita), pelo quanto ele se afasta da reta entre o primeiro e o último ponto. */
 function curveOf(pts: Pt[]): number {
   if (pts.length < 4) return 0;
@@ -93,6 +102,7 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
     let dragPts: Pt[] = [];
     let trail: Pt[] = [];
     let shotCurve = 0;
+    let shotPower = 1;
     let touched = false;
     let actStart = 0;
     let act: "kick" | "header" | "celebrate" | null = null;
@@ -158,14 +168,15 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
       trail = [];
     };
 
-    const doShot = (aim: { x: number; y: number }, curve: number) => {
+    const doShot = (aim: { x: number; y: number }, curve: number, power: number) => {
       const kind = stepKind();
       const dist = Math.hypot(carrier.x, carrier.y);
       shotCurve = curve;
+      shotPower = power;
       act = kind === "header" ? "header" : "kick";
       actStart = performance.now();
       setBusy(true);
-      void engine.shot({ ...current, shooter }, aim, { distance: dist, header: kind === "header", wall: kind === "freekick", curve: Math.abs(curve), keeperX: scene.keeperX / GOAL_HALF, blockers: kind === "freekick" ? 0 : blockersOnCurve(scene, carrier, { x: aim.x * GOAL_HALF, y: 0 }, curve, false) }).then((out) => playShot(out, aim));
+      void engine.shot({ ...current, shooter }, aim, { distance: dist, header: kind === "header", wall: kind === "freekick", curve: Math.abs(curve), power, keeperX: scene.keeperX / GOAL_HALF, blockers: kind === "freekick" ? 0 : blockersOnCurve(scene, carrier, { x: aim.x * GOAL_HALF, y: 0 }, curve, false) }).then((out) => playShot(out, aim));
     };
     const playShot = (out: Outcome, aim: { x: number; y: number }) => {
       if (!alive) return;
@@ -191,7 +202,7 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
       const to: V3 = blocked ? (blocker ? [blocker.x, blocker.y + 0.6, 0.7] : [carrier.x * 0.55, carrier.y * 0.5, 0.6]) : [tx, out.goal ? 1.4 : out.kind === "saved" ? 0.2 : 0.2, tz];
       const end: Spot = blocked ? { x: to[0], y: to[1] } : { x: tx, y: 0 };
       const bow = bowOffset(carrier, end, shotCurve);
-      fly(ball, blocked ? to : [tx, 0, tz], blocked ? 0.4 : 0, 0.55, () => {
+      fly(ball, blocked ? to : [tx, 0, tz], blocked ? 0.4 : 0, 0.55 + (1 - shotPower) * 0.6, () => {
         if (out.goal) fly([tx, 0, tz], [tx * 0.8, 1.7, Math.max(0.1, tz * 0.4)], 0, 0.3, () => undefined);
         else if (out.kind === "saved") fly([tx, 0, tz], [tx + (tx >= 0 ? 2.5 : -2.5), -4, 0], 1.2, 0.5, () => undefined);
         else if (out.kind === "post" || out.kind === "bar") fly([tx, 0, tz], [tx * 1.3, -6, 0], 1.5, 0.6, () => undefined);
@@ -230,10 +241,10 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
       }, bow);
     };
 
-    const aimShot = (sx: number, sy: number, curve: number) => {
+    const aimShot = (sx: number, sy: number, curve: number, power: number) => {
       const p = cam.goalPlaneAt(sx, sy);
       if (!p) return false;
-      doShot({ x: p[0] / GOAL_HALF, y: p[1] / GOAL_H }, curve);
+      doShot({ x: p[0] / GOAL_HALF, y: p[1] / GOAL_H }, curve, power);
       return true;
     };
     const aimPass = (sx: number, sy: number, aerial: boolean, curve: number) => {
@@ -298,7 +309,7 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
         return;
       }
       if (k === "pass" || k === "cross") aimPass(p.x, p.y, k === "cross", curve);
-      else if (!aimShot(p.x, p.y, curve)) setTip("Arraste para dentro do gol.");
+      else if (!aimShot(p.x, p.y, curve, powerOf(dragPts, W))) setTip("Arraste para dentro do gol.");
     };
     canvas.addEventListener("pointerdown", down);
     canvas.addEventListener("pointermove", move);
@@ -437,6 +448,17 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
         ctx.beginPath();
         ctx.arc(last.x, last.y, 9, 0, Math.PI * 2);
         ctx.fill();
+        if (stepKind() !== "pass" && stepKind() !== "cross") {
+          const pw = powerOf(dragPts, W);
+          const pt = pw < 0.35 ? "chute fraco" : pw < 0.8 ? "força " + Math.round(pw * 100) + "%" : "chute forte";
+          ctx.font = "800 14px system-ui, sans-serif";
+          ctx.textAlign = "center";
+          ctx.lineWidth = 4;
+          ctx.strokeStyle = "rgba(0,0,0,0.7)";
+          ctx.strokeText(pt, last.x, last.y + 32);
+          ctx.fillStyle = pw < 0.35 ? "#fca5a5" : pw < 0.8 ? "#fde68a" : "#86efac";
+          ctx.fillText(pt, last.x, last.y + 32);
+        }
         if (Math.abs(live) >= 0.1) {
           const txt = (live > 0 ? "↷" : "↶") + " curva " + Math.round(Math.abs(live) * 100) + "%";
           ctx.font = "800 15px system-ui, sans-serif";

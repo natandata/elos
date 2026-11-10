@@ -327,20 +327,21 @@ export function resolveAuto(m: Match, c: Chance): Outcome {
 export type Aim = { x: number; y: number };
 
 /** O chute que você mirou, como no Score Hero: a mira decide. Só erra se mirar mal ou se o goleiro estiver no caminho. */
-export function shotOutcome(m: Match, c: Chance, aim: Aim, opts: { distance: number; header?: boolean; wall?: boolean; curve?: number; keeperX?: number; /** marcadores em cima da trajetória do chute */ blockers?: number }): Outcome {
+export function shotOutcome(m: Match, c: Chance, aim: Aim, opts: { distance: number; header?: boolean; wall?: boolean; curve?: number; keeperX?: number; /** marcadores em cima da trajetória do chute */ blockers?: number; /** força do chute, de 0 (fraco) a 1 (forte), pelo comprimento da linha */ power?: number }): Outcome {
   const rng = m.rng;
   m.stats.shots[c.side]++;
   const op = ratings(m.lineups[1 - c.side]);
   const gk = m.lineups[1 - c.side].xi.find((p) => p.pos === "GK");
   const who = nameOf(c.shooter);
   const curve = clamp(opts.curve ?? 0, 0, 1);
+  const weak = 1 - clamp(opts.power ?? 1, 0, 1); // 0 = chute forte
   // pontaria: erro pequeno, menor para craques; cabeceio e distância pioram um pouco
   const base = 0.02 + (92 - c.shooter.ovr) * 0.002 + (opts.header ? 0.03 : 0) + Math.max(0, opts.distance - 12) * 0.0015;
-  const sigma = clamp(base, 0.015, 0.13) * (c.kind === "penalty" ? 0.6 : 1) * (1 + 0.4 * curve);
+  const sigma = clamp(base, 0.015, 0.13) * (c.kind === "penalty" ? 0.6 : 1) * (1 + 0.4 * curve) * (1 + weak * 0.9);
   // mirou dentro do gol: a bola vai dentro do gol (com um pequeno desvio), exceto numa escorregada rara,
   // mais comum em jogador fraco, chute de longe e cabeceio. Mirou fora: o erro de pontaria vale inteiro.
   const aimedIn = Math.abs(aim.x) <= 1 && aim.y >= 0 && aim.y <= 1;
-  const slip = rng() < clamp(0.03 + (86 - c.shooter.ovr) * 0.002 + Math.max(0, opts.distance - 14) * 0.003 + (opts.header ? 0.03 : 0), 0.02, 0.14) * (c.kind === "penalty" ? 0.4 : 1);
+  const slip = rng() < clamp(0.03 + (86 - c.shooter.ovr) * 0.002 + Math.max(0, opts.distance - 14) * 0.003 + (opts.header ? 0.03 : 0) + weak * 0.12, 0.02, 0.3) * (c.kind === "penalty" ? 0.4 : 1);
   let x = aim.x + gauss(rng) * sigma;
   let y = aim.y + gauss(rng) * sigma * 0.8;
   if (aimedIn && !slip) {
@@ -361,7 +362,7 @@ export function shotOutcome(m: Match, c: Chance, aim: Aim, opts: { distance: num
   const ky = 0.2 + rng() * 0.2;
   const keeper = { x: kx, y: ky };
   const corner = Math.abs(x) > 0.68 && y > 0.62;
-  const reach = (0.3 + (gkOvr - 60) * 0.003) * (corner ? 0.45 : 1) * (c.kind === "freekick" ? 0.9 : 1) * (1 - 0.25 * curve);
+  const reach = (0.3 + (gkOvr - 60) * 0.003) * (corner ? 0.45 : 1) * (c.kind === "freekick" ? 0.9 : 1) * (1 - 0.25 * curve) * (1 + weak * 1.4);
   const dist = Math.hypot((x - kx) * 0.9, (y - ky) * 1.25);
   if (dist < reach) return { kind: "saved", goal: false, text: `${gk ? nameOf(gk) : "O goleiro"} voa e defende o chute de ${who}!`, land, keeper: { x: x * 0.85, y: Math.max(0.2, y * 0.8) } };
   // defesa espetacular rara: nem o canto é gol garantido
@@ -372,7 +373,10 @@ export function shotOutcome(m: Match, c: Chance, aim: Aim, opts: { distance: num
 /** O passe ou cruzamento que você desenhou. `blockers` = marcadores perto da linha; `length` em metros. */
 export function passOutcome(m: Match, c: Chance, line: { length: number; blockers: number; aerial: boolean; curve?: number }): Outcome {
   const passer = c.assister ?? c.shooter;
-  const p = clamp(0.07 + line.length / 70 * 0.4 + line.blockers * 0.16 + (line.curve ?? 0) * 0.06 - (passer.ovr - 70) * 0.004, 0.03, 0.85) * (line.aerial ? 0.55 : 1);
+  // só corta quem tem marcador na linha; passe livre quase sempre chega (um erro raro em passe longo de jogador fraco)
+  const free = clamp(0.01 + line.length / 900 - (passer.ovr - 70) * 0.0008, 0, 0.06);
+  const marked = clamp(line.blockers * 0.38 + line.length / 1400 + (line.curve ?? 0) * 0.05 - (passer.ovr - 70) * 0.003, 0.05, 0.85) * (line.aerial ? 0.6 : 1);
+  const p = line.blockers > 0 ? marked : free;
   if (m.rng() < p) return { kind: "intercepted", goal: false, text: `${nameOf(passer)} tenta o passe, mas a defesa corta!` };
   return { kind: "saved", goal: false, text: "Passe certo!" };
 }
