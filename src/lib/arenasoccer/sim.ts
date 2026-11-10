@@ -337,13 +337,21 @@ export function shotOutcome(m: Match, c: Chance, aim: Aim, opts: { distance: num
   // pontaria: erro pequeno, menor para craques; cabeceio e distância pioram um pouco
   const base = 0.02 + (92 - c.shooter.ovr) * 0.002 + (opts.header ? 0.03 : 0) + Math.max(0, opts.distance - 12) * 0.0015;
   const sigma = clamp(base, 0.015, 0.13) * (c.kind === "penalty" ? 0.6 : 1) * (1 + 0.4 * curve);
-  const x = aim.x + gauss(rng) * sigma;
-  const y = aim.y + gauss(rng) * sigma * 0.8;
+  // mirou dentro do gol: a bola vai dentro do gol (com um pequeno desvio), exceto numa escorregada rara,
+  // mais comum em jogador fraco, chute de longe e cabeceio. Mirou fora: o erro de pontaria vale inteiro.
+  const aimedIn = Math.abs(aim.x) <= 1 && aim.y >= 0 && aim.y <= 1;
+  const slip = rng() < clamp(0.03 + (86 - c.shooter.ovr) * 0.002 + Math.max(0, opts.distance - 14) * 0.003 + (opts.header ? 0.03 : 0), 0.02, 0.14) * (c.kind === "penalty" ? 0.4 : 1);
+  let x = aim.x + gauss(rng) * sigma;
+  let y = aim.y + gauss(rng) * sigma * 0.8;
+  if (aimedIn && !slip) {
+    x = clamp(x, -0.985, 0.985);
+    y = clamp(y, 0.02, 0.985);
+  }
   const land = { x, y };
   if (opts.wall && y < 0.4 && rng() < 0.7 - curve * 0.55) return { kind: "blocked", goal: false, text: `A barreira bloqueia a cobrança de ${who}.`, land: { x: x * 0.4, y: 0.15 } };
   // só bloqueia quem está de fato na frente: um marcador sobre a trajetória (a curva ajuda a contornar)
   if (c.kind !== "penalty" && (opts.blockers ?? 0) > 0 && rng() < Math.min(0.7, (opts.blockers ?? 0) * (0.35 + Math.max(0, op.def - 75) * 0.004)) * (1 - curve * 0.7)) return { kind: "blocked", goal: false, text: `Um zagueiro se joga na frente e bloqueia o chute de ${who}!`, land: { x: x * 0.3, y: 0.1 } };
-  if (Math.abs(x) > 1.06 || y > 1.06 || y < -0.02) return { kind: "miss", goal: false, text: `${who} chuta para fora.`, land };
+  if (Math.abs(x) > 1.06 || y > 1.06 || y < -0.02) return { kind: "miss", goal: false, text: y > 1.06 && Math.abs(x) <= 1.06 ? `${who} chuta por cima do travessão.` : `${who} chuta para fora.`, land };
   if (Math.abs(x) > 1 || y > 1) return { kind: Math.abs(x) > 1 ? "post" : "bar", goal: false, text: `${who} acerta ${Math.abs(x) > 1 ? "a trave" : "o travessão"}! Que susto!`, land };
   const gkOvr = gk?.ovr ?? 60;
   // o goleiro parte de onde você o viu; só chega no chute no meio do gol ou bem colocado de um lado
@@ -356,6 +364,8 @@ export function shotOutcome(m: Match, c: Chance, aim: Aim, opts: { distance: num
   const reach = (0.3 + (gkOvr - 60) * 0.003) * (corner ? 0.45 : 1) * (c.kind === "freekick" ? 0.9 : 1) * (1 - 0.25 * curve);
   const dist = Math.hypot((x - kx) * 0.9, (y - ky) * 1.25);
   if (dist < reach) return { kind: "saved", goal: false, text: `${gk ? nameOf(gk) : "O goleiro"} voa e defende o chute de ${who}!`, land, keeper: { x: x * 0.85, y: Math.max(0.2, y * 0.8) } };
+  // defesa espetacular rara: nem o canto é gol garantido
+  if (c.kind !== "penalty" && rng() < 0.06) return { kind: "saved", goal: false, text: `${gk ? nameOf(gk) : "O goleiro"} faz uma defesa espetacular no chute de ${who}!`, land, keeper: { x: x * 0.95, y: Math.max(0.25, y * 0.9) } };
   return { kind: "goal", goal: true, text: `${who} ${corner ? "coloca no ângulo" : "manda para a rede"}! GOL!`, land, keeper };
 }
 
