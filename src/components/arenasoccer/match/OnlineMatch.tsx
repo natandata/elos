@@ -1,5 +1,6 @@
 "use client";
 
+import { LogAvatar } from "./LogAvatar";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { SoccerNet } from "@/lib/arenasoccer/net";
 import { buildScene, type Scene } from "@/lib/arenasoccer/scene";
@@ -454,9 +455,10 @@ export function OnlineMatch({ net, myUid, members, teams, lineups, seed, label, 
       <section className="card p-2">
         <ul className="max-h-[56vh] space-y-1 overflow-y-auto sb-pitch pr-1">
           {[...view.log].reverse().slice(0, 60).map((e, i) => (
-            <li key={`${view.log.length - i}`} className={`flex gap-2 rounded-lg px-2 py-1.5 text-sm ${e.big ? "bg-amber-400/20 font-black" : ""}`}>
+            <li key={`${view.log.length - i}`} className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm ${e.big ? "bg-amber-400/20 font-black" : ""}`}>
               <span className="w-8 shrink-0 text-right text-xs font-black tabular-nums text-[var(--muted)]">{e.min}&apos;</span>
-              <span aria-hidden>{e.icon}</span>
+              <LogAvatar photo={e.photo} big={e.big} />
+                <span aria-hidden>{e.icon}</span>
               <span className={e.side === (1 - mySide) ? "text-rose-400" : ""}>{e.text}</span>
             </li>
           ))}

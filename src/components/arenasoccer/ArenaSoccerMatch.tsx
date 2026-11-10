@@ -1,5 +1,6 @@
 "use client";
 
+import { LogAvatar } from "./match/LogAvatar";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { bestFormation, createMatch, finish, pickLineup, resultOf, setTactics, simulateAll, stepMinute, substitute, toPlayer, type Chance, type Lineup, type Match, type Player } from "@/lib/arenasoccer/sim";
 import { buildScene } from "@/lib/arenasoccer/scene";
@@ -264,8 +265,9 @@ export function MatchFlow({ mine, opp, label, controlled, onDone, onSim, onBack 
         <section className="card p-2">
           <ul className="max-h-[calc(100dvh-21rem)] min-h-[8rem] space-y-1 overflow-y-auto sb-pitch pr-1">
             {[...match.log].reverse().slice(0, 60).map((e, i) => (
-              <li key={`${match.log.length - i}`} className={`flex gap-2 rounded-lg px-2 py-1.5 text-sm ${e.big ? "bg-amber-400/20 font-black" : ""}`}>
+              <li key={`${match.log.length - i}`} className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm ${e.big ? "bg-amber-400/20 font-black" : ""}`}>
                 <span className="w-8 shrink-0 text-right text-xs font-black tabular-nums text-[var(--muted)]">{e.min}&apos;</span>
+                <LogAvatar photo={e.photo} big={e.big} />
                 <span aria-hidden>{e.icon}</span>
                 <span className={e.side === 1 ? "text-rose-400" : ""}>{e.text}</span>
               </li>

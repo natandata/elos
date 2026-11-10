@@ -111,7 +111,7 @@ export type Chance = { id: number; min: number; side: Side; kind: ChanceKind; sh
 export type OutcomeKind = "goal" | "saved" | "post" | "bar" | "miss" | "blocked" | "intercepted";
 /** `land` = onde a bola foi parar no gol e `keeper` = onde o goleiro foi (mesma escala da mira), para a animação. */
 export type Outcome = { kind: OutcomeKind; goal: boolean; text: string; land?: Aim; keeper?: Aim };
-export type LogEntry = { min: number; side: Side | null; icon: string; text: string; big?: boolean };
+export type LogEntry = { min: number; side: Side | null; icon: string; text: string; big?: boolean; /** busto de quem fez a jogada */ photo?: string };
 export type Goal = { side: Side; min: number; scorer: string; assist?: string };
 
 export type Match = {
@@ -310,7 +310,8 @@ export function applyOutcome(m: Match, c: Chance, o: Outcome): void {
     m.score[c.side]++;
     m.goals.push({ side: c.side, min: c.min, scorer: c.shooter.name, assist: c.assister?.name });
   }
-  m.log.push({ min: c.min, side: c.side, icon, text: `${KIND_TEXT[c.kind]}. ${o.text}`, big: o.goal });
+  const actor = o.kind === "intercepted" ? (c.assister ?? c.shooter) : c.shooter;
+  m.log.push({ min: c.min, side: c.side, icon, text: `${KIND_TEXT[c.kind]}. ${o.text}`, big: o.goal, photo: actor.photo });
 }
 
 /** Deixa o time resolver uma chance sua. */
@@ -394,7 +395,7 @@ export function substitute(m: Match, side: Side, outIdx: number, benchIdx: numbe
   l.xi[outIdx] = placeAt(inn, out.pos);
   l.bench[benchIdx] = natural(out).pos === out.pos ? out : { ...out, pos: natural(out).pos, ovr: natural(out).ovr, nat: undefined };
   m.subsLeft[side]--;
-  m.log.push({ min: m.min, side, icon: "🔁", text: `Substituição: sai ${nameOf(out)}, entra ${nameOf(inn)}.` });
+  m.log.push({ min: m.min, side, icon: "🔁", text: `Substituição: sai ${nameOf(out)}, entra ${nameOf(inn)}.`, photo: inn.photo });
   return true;
 }
 

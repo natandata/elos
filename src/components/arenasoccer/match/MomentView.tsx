@@ -8,6 +8,8 @@ import type { Kit } from "@/lib/arenasoccer/teams";
 import { frameAt, lookOf, preloadSprites } from "./sprites";
 import { Cam, GOAL_H, GOAL_HALF, drawBall, drawBanner, drawBackdrop, drawGoalFrame, drawLabels, drawPlayer, type LabelItem, drawStadium, drawStar, type Sprite, type V3 } from "./pitch3d";
 
+/* eslint-disable-next-line @next/next/no-img-element */
+const PlayerBust = ({ photo }: { photo?: string }) => (photo ? <img src={photo} alt="" draggable={false} className="h-14 w-11 rounded-lg bg-black/40 object-cover object-top ring-1 ring-white/20" /> : <span className="h-14 w-11 rounded-lg bg-white/10" aria-hidden />);
 const KEEPER_KIT: Kit = { p: "#16a34a", s: "#052e16", k: "solid" };
 const STEP_TIP: Record<StepKind, string> = {
   pass: "Desenhe uma linha até um companheiro livre. Curve o traço para contornar o marcador.",
@@ -58,6 +60,7 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
   const doneRef = useRef(onDone);
   const [tip, setTip] = useState(scene.tip);
   const [busy, setBusy] = useState(false);
+  const [who, setWho] = useState<Player>(scene.carrier.player);
   const autoRef = useRef<() => void>(() => {});
 
   useEffect(() => {
@@ -215,6 +218,7 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
       fly(ball, [target.x, target.y, aerial ? 1.7 : 0.2], aerial ? 3.5 : 0.3, dur, () => {
         trail = [];
         shooter = target.player;
+        setWho(target.player);
         current = { ...current, shooter: target.player, assister: carrier.player };
         carrier = { x: target.x, y: target.y, player: target.player };
         stepIdx++;
@@ -508,6 +512,22 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
           Deixar o time resolver
         </button>
       </div>
+      <div className="pointer-events-none absolute left-2 top-11 flex items-center gap-2 rounded-xl bg-black/65 p-1.5 pr-3 text-white">
+        <PlayerBust photo={who.photo} />
+        <span className="leading-tight">
+          <b className="block text-sm font-black">{who.name.trim().split(/\s+/).slice(-1)[0]}</b>
+          <span className="text-[10px] font-bold text-white/70">{who.pos} · {who.ovr}</span>
+        </span>
+      </div>
+      {scene.keeper ? (
+        <div className="pointer-events-none absolute right-2 top-11 flex items-center gap-2 rounded-xl bg-black/65 p-1.5 pl-3 text-white">
+          <span className="text-right leading-tight">
+            <b className="block text-sm font-black">{scene.keeper.name.trim().split(/\s+/).slice(-1)[0]}</b>
+            <span className="text-[10px] font-bold text-white/70">GOL · {scene.keeper.ovr}</span>
+          </span>
+          <PlayerBust photo={scene.keeper.photo} />
+        </div>
+      ) : null}
       <div className="pointer-events-none absolute inset-x-2 bottom-2 flex items-center gap-2 rounded-xl border-2 border-yellow-300/90 bg-black/70 p-2.5 text-white">
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-yellow-300 text-xl font-black text-black" aria-hidden>
           !
