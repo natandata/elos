@@ -83,7 +83,7 @@ def main():
     os.makedirs("public/arenasoccer/sprites", exist_ok=True)
     out.save("public/arenasoccer/sprites/keeper.png")
     H = CH
-    atlas = Image.new("RGBA", (CW * len(POSES), H * 9), (0, 0, 0, 0))
+    atlas = Image.new("RGBA", (CW * len(POSES), H * 11), (0, 0, 0, 0))
     op, ap = out.load(), atlas.load()
     for y in range(H):
         for x in range(CW * len(POSES)):

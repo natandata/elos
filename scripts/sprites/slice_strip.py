@@ -97,7 +97,7 @@ def main():
     json.dump(meta, open(meta_path, "w"), separators=(",", ":"))
     # atlas de máscaras (uma faixa por papel, branco onde o papel existe): o jogo recolore com composição de canvas, sem ler pixels
     H = height + 2
-    atlas = Image.new("RGBA", (cw * n, H * len(ROLES)), (0, 0, 0, 0))
+    atlas = Image.new("RGBA", (cw * n, H * 11), (0, 0, 0, 0))
     op, ap = out.load(), atlas.load()
     for y in range(H):
         for x in range(cw * n):

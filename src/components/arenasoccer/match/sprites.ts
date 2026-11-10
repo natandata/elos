@@ -4,11 +4,16 @@ import looksData from "@/lib/arenasoccer/data/looks.json";
 import metaData from "@/lib/arenasoccer/data/sprite-meta.json";
 import type { Kit } from "@/lib/arenasoccer/teams";
 
-export type Anim = "run" | "kick" | "header" | "celebrate" | "keeper";
+export type Anim = "run" | "kick" | "header" | "celebrate" | "keeper" | "f-anthem" | "f-walk" | "f-run" | "f-cry" | "f-lift" | "f-slide" | "f-ref";
+const ALL_ANIMS: Anim[] = ["run", "kick", "header", "celebrate", "keeper", "f-anthem", "f-walk", "f-run", "f-cry", "f-lift", "f-slide", "f-ref"];
+/** animações de frente (o rosto aparece): cabelo longo, trança e coque viram volume para não cobrir o rosto */
+const isFront = (a: Anim): boolean => a === "keeper" || a.startsWith("f-");
 export type Look = { skin: number; hair: number; style: number };
 const LOOKS = looksData as unknown as Record<string, [number, number, number]>;
 
-const FRAMES: Record<Anim, number> = { run: 6, kick: 6, header: 6, celebrate: 6, keeper: 7 };
+const FRAMES: Record<Anim, number> = { run: 6, kick: 6, header: 6, celebrate: 6, keeper: 7, "f-anthem": 6, "f-walk": 6, "f-run": 6, "f-cry": 6, "f-lift": 6, "f-slide": 7, "f-ref": 6 };
+/** quantos quadros a animação tem */
+export const framesOf = (a: Anim): number => FRAMES[a];
 // 8 tons de pele (do mais claro ao mais escuro): cor e sombra
 const SKINS: [string, string][] = [
   ["#f8dcc8", "#deb99f"],
@@ -28,7 +33,7 @@ const META = metaData as unknown as Record<string, [number, number, number, numb
 type Sheet = { img: HTMLImageElement; cell: number; h: number };
 const sheets = new Map<Anim, Sheet | "loading" | "failed">();
 const cache = new Map<string, HTMLCanvasElement>();
-const ROLE_COUNT = 9;
+const ROLE_COUNT = 11;
 
 function load(anim: Anim): void {
   if (sheets.has(anim) || typeof window === "undefined") return;
@@ -45,7 +50,8 @@ function load(anim: Anim): void {
 
 /** Começa a baixar todas as faixas (chame uma vez ao montar a cena). */
 export function preloadSprites(): void {
-  (["run", "kick", "header", "celebrate", "keeper"] as Anim[]).forEach(load);
+  ALL_ANIMS.forEach(load);
+  loadTrophy();
 }
 
 const hex = (h: string): [number, number, number] => {
@@ -84,7 +90,7 @@ function frameCanvas(anim: Anim, frame: number, look: Look, kit: Kit): HTMLCanva
   const hairCss = bald ? css(skin) : HAIRS[Math.min(5, look.hair)];
   const shirt = hex(kit.p);
   const shorts = hex(kit.s);
-  const pal = [skin, skinShade, skin, shirt, shade(shirt, 0.78), shorts, [255, 255, 255], [17, 17, 17], [10, 10, 10]] as [number, number, number][];
+  const pal = [skin, skinShade, skin, shirt, shade(shirt, 0.78), shorts, [255, 255, 255], [17, 17, 17], [10, 10, 10], [96, 165, 250], [250, 204, 21]] as [number, number, number][];
   const cw = Math.round(sh.cell);
   const ch = Math.round(sh.h);
   const mk = (): [HTMLCanvasElement, CanvasRenderingContext2D] | null => {
@@ -130,7 +136,7 @@ function frameCanvas(anim: Anim, frame: number, look: Look, kit: Kit): HTMLCanva
   };
   const box = META[anim]?.[f] ?? [0, 0, 0, 0];
   const cx = (box[0] + box[2]) / 2;
-  const style = anim === "keeper" ? ([0, 1, 2, 3, 4, 3, 4, 4][look.style] ?? 2) : look.style;
+  const style = isFront(anim) ? ([0, 1, 2, 3, 4, 3, 4, 4][look.style] ?? 2) : look.style;
   switch (style) {
     case 1: // raspado: sombra de cabelo sobre a pele
       band(lx, ROLE_HAIR);
@@ -205,4 +211,35 @@ export function drawSprite(ctx: CanvasRenderingContext2D, x: number, y: number, 
   } else ctx.drawImage(fc, x - w / 2, y - h - lift * s, w, h);
   ctx.restore();
   return { x, y: y - h - lift * s, s };
+}
+
+let trophyImg: HTMLImageElement | null = null;
+let trophyState: "idle" | "loading" | "ready" | "failed" = "idle";
+function loadTrophy(): void {
+  if (trophyState !== "idle" || typeof window === "undefined") return;
+  trophyState = "loading";
+  const img = new Image();
+  img.onload = () => {
+    trophyImg = img;
+    trophyState = "ready";
+  };
+  img.onerror = () => {
+    trophyState = "failed";
+  };
+  img.src = "/arenasoccer/sprites/trophy.png";
+}
+
+/** Taça em pixel art (4 quadros com brilhos). (x, y) é a base; `h` a altura em pixels da tela. Devolve false se ainda não carregou. */
+export function drawTrophySprite(ctx: CanvasRenderingContext2D, x: number, y: number, h: number, t: number): boolean {
+  loadTrophy();
+  if (!trophyImg) return false;
+  const n = 4;
+  const cw = trophyImg.width / n;
+  const f = Math.floor(t * 5) % n;
+  const w = (cw / trophyImg.height) * h;
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(trophyImg, f * cw, 0, cw, trophyImg.height, x - w / 2, y - h, w, h);
+  ctx.restore();
+  return true;
 }

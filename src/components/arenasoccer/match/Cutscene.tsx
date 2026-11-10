@@ -4,17 +4,17 @@ import { useEffect, useRef } from "react";
 import { bestFormation, pickLineup, toPlayer, type Player } from "@/lib/arenasoccer/sim";
 import { Sfx } from "@/lib/arenasoccer/sound";
 import type { Kit, RosterPlayer, Team } from "@/lib/arenasoccer/teams";
-import { Cam, drawBackdrop, drawBanner, drawPlayer, drawStadium, type Sprite } from "./pitch3d";
-import { frameAt, lookOf, preloadSprites, type Anim, type Look } from "./sprites";
+import { Cam, drawBackdrop, drawBanner, drawLabels, drawPlayer, drawStadium, type LabelItem, type Sprite } from "./pitch3d";
+import { drawTrophySprite, frameAt, framesOf, lookOf, preloadSprites, type Anim, type Look } from "./sprites";
+
+export type CutsceneKind = "intro" | "trophy";
+type Actor = { id: string; kit: Kit; look: Look; name: string };
 
 /** Os 11 titulares de um time (para as cutscenes usarem os jogadores de verdade). */
 export function xiOf(team: Team): Player[] {
   const sq = team.players.map((p) => toPlayer(p as RosterPlayer));
   return pickLineup(sq, bestFormation(sq)).xi;
 }
-
-export type CutsceneKind = "intro" | "trophy";
-type Actor = { id: string; kit: Kit; look: Look; name: string };
 
 const REF_KIT: Kit = { p: "#16161a", s: "#16161a", k: "solid" };
 const lerp = (a: number, b: number, t: number): number => a + (b - a) * Math.max(0, Math.min(1, t));
@@ -23,9 +23,11 @@ const ease = (t: number): number => {
   return k * k * (3 - 2 * k);
 };
 const seg = (t: number, a: number, b: number): number => Math.max(0, Math.min(1, (t - a) / (b - a)));
-
-/** 4-4-2 de cada metade: x lateral e y (profundidade) de cada um dos 10 jogadores de linha + goleiro. */
 const FORM: [number, number][] = [[0, -3], [-8, -9], [-3, -9], [3, -9], [8, -9], [-9, -17], [-3, -16], [3, -16], [9, -17], [-3, -24], [3, -24]];
+const pseudo = (i: number, k: number): number => {
+  const x = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453;
+  return x - Math.floor(x);
+};
 
 function squad(xi: Player[] | undefined, kit: Kit, tag: string): Actor[] {
   return Array.from({ length: 11 }, (_, i) => {
@@ -35,12 +37,14 @@ function squad(xi: Player[] | undefined, kit: Kit, tag: string): Actor[] {
   });
 }
 
+type Cam3 = { x: number; y: number; fx: number; fy: number; back: number; zoom: number; tilt?: number; height?: number };
+
 /**
- * Cutscene de final de campeonato, desenhada em canvas com os mesmos jogadores em pixel art do jogo.
- * `intro`: os times entram em fila, o hino, a arrumação em campo e o apito do juiz.
- * `trophy`: apito final, a corrida até a torcida, o choro e os gritos, a taça erguida por todos e levada à torcida.
+ * Cutscene de final de campeonato em canvas, com os jogadores em pixel art (de frente e de costas) e vários planos de câmera.
+ * `intro`: estádio e fogos, os times entram andando, hino com a mão no peito, o juiz e o apito.
+ * `trophy`: apito final, corrida e deslize de joelhos até a torcida, choro e gritos, a taça erguida por todos e a volta olímpica.
  */
-export function Cutscene({ kind, title, mineName, oppName, kits, mineXI, oppXI, onEnd }: { kind: CutsceneKind; title: string; mineName: string; oppName: string; kits: [Kit, Kit]; mineXI?: Player[]; oppXI?: Player[]; onEnd: () => void }) {
+export function Cutscene({ kind, title, mineName, oppName, kits, mineXI, oppXI, startAt = 0, onEnd }: { kind: CutsceneKind; title: string; mineName: string; oppName: string; kits: [Kit, Kit]; mineXI?: Player[]; oppXI?: Player[]; /** começa já neste segundo (só para teste) */ startAt?: number; onEnd: () => void }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const endRef = useRef(onEnd);
@@ -55,23 +59,24 @@ export function Cutscene({ kind, title, mineName, oppName, kits, mineXI, oppXI, 
     if (!canvas || !wrap || !ctx) return;
     preloadSprites();
     const sfx = new Sfx();
-    const total = kind === "intro" ? 15 : 19;
+    const total = kind === "intro" ? 27 : 34;
     const A = squad(mineXI, kits[0], "a");
     const B = squad(oppXI, kits[1], "b");
+    const REF: Actor = { id: "ref", kit: REF_KIT, look: lookOf(undefined, "juiz"), name: "juiz" };
     const lo = document.createElement("canvas");
     const loCtx = lo.getContext("2d");
     const PX = 3;
     let W = 360;
     let H = 640;
-    let cam = new Cam(W, H, [0, -40], [0, -10], { back: 8, zoom: 1 });
+    let cs: Cam3 = { x: 0, y: -48, fx: 0, fy: -20, back: 6, zoom: 1 };
+    let cam = new Cam(W, H, [cs.x, cs.y], [cs.fx, cs.fy], { back: cs.back, zoom: cs.zoom });
     let loCam = cam;
-    let camState = { x: 0, y: -40, fx: 0, fy: -10, back: 8, zoom: 1 };
-    const setCam = (): void => {
-      const o = { back: camState.back, zoom: camState.zoom };
-      cam = new Cam(W, H, [camState.x, camState.y], [camState.fx, camState.fy], o);
+    const applyCam = (): void => {
+      const o = { back: cs.back, zoom: cs.zoom, tilt: cs.tilt, height: cs.height };
+      cam = new Cam(W, H, [cs.x, cs.y], [cs.fx, cs.fy], o);
       lo.width = Math.ceil(W / PX);
       lo.height = Math.ceil(H / PX);
-      loCam = new Cam(lo.width, lo.height, [camState.x, camState.y], [camState.fx, camState.fy], o);
+      loCam = new Cam(lo.width, lo.height, [cs.x, cs.y], [cs.fx, cs.fy], o);
     };
     const resize = (): void => {
       const r = wrap.getBoundingClientRect();
@@ -83,13 +88,13 @@ export function Cutscene({ kind, title, mineName, oppName, kits, mineXI, oppXI, 
       canvas.style.width = `${W}px`;
       canvas.style.height = `${H}px`;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      setCam();
+      applyCam();
     };
     resize();
     const ro = new ResizeObserver(resize);
     ro.observe(wrap);
 
-    const started = performance.now();
+    const started = performance.now() - startAt * 1000;
     let alive = true;
     let ended = false;
     const fired = new Set<string>();
@@ -110,127 +115,226 @@ export function Cutscene({ kind, title, mineName, oppName, kits, mineXI, oppXI, 
     };
     (canvas as HTMLCanvasElement & { __skip?: () => void }).__skip = finish;
 
-    // confete da festa
-    const confetti = Array.from({ length: 90 }, (_, i) => ({ x: Math.random(), v: 0.25 + Math.random() * 0.5, ph: Math.random() * 6, c: ["#fde047", "#f87171", "#60a5fa", "#4ade80", "#fff"][i % 5], s: 3 + Math.random() * 4 }));
-
     const sprites: Sprite[] = [];
-    const add = (a: Actor, x: number, y: number, anim: Anim, frame: number, extra: Partial<Sprite> = {}): void => {
-      sprites.push({ x, y, kit: a.kit, name: a.id, pix: { anim, frame, look: a.look }, ...extra });
+    const labels: { x: number; y: number; name: string }[] = [];
+    const bubbles: { x: number; y: number; z: number; txt: string }[] = [];
+    let banner: [string, string, string | null] | null = null;
+    let flash = 0;
+    const state: { trophy: { x: number; y: number; h: number } | null } = { trophy: null };
+    let flags = 0;
+    let confettiOn = 0;
+    const put = (a: Actor, x: number, y: number, anim: Anim, frame: number, extra: Partial<Sprite> = {}): void => {
+      sprites.push({ x, y, kit: a.kit, name: a.id, pix: { anim, frame: Math.max(0, Math.min(framesOf(anim) - 1, frame)), look: a.look }, ...extra });
     };
-    const bubbles: { x: number; y: number; txt: string }[] = [];
 
-    const scene = (t: number): void => {
-      sprites.length = 0;
-      bubbles.length = 0;
-      if (kind === "intro") {
-        // câmera atrás da fila, olhando o centro do campo
-        const cz = ease(seg(t, 0, 14));
-        camState = { x: 0, y: -45, fx: 0, fy: lerp(-24, -20, cz), back: 5, zoom: lerp(1.1, 1.35, cz) };
-        const walk = seg(t, 0.5, 5.5); // entrada em fila
-        const line = ease(seg(t, 5.5, 7)); // forma a fila lado a lado
-        const spread = ease(seg(t, 9.5, 12)); // vai para as posições
-        const ref = { id: "ref", kit: REF_KIT, look: lookOf(undefined, "juiz"), name: "juiz" };
-        // juiz entra na frente com a bola e para no centro
-        const refY = lerp(-64, -38, ease(seg(t, 0, 5.5)));
-        add(ref, lerp(0, 0, 1), refY, "run", frameAt(t * 1.3, 8, true));
-        const sides: [Actor[], number][] = [[A, -1], [B, 1]];
-        for (const [team, sd] of sides) {
+    // linhas de hino: A à esquerda, B à direita, de frente para a câmera
+    const lineX = (sd: -1 | 1, i: number): number => sd * (1.4 + i * 0.95);
+    const LINE_Y = -30;
+
+    const introScene = (t: number): void => {
+      // 0-4: estádio e fogos; 4-12: entrada; 12-21: hino; 21-27: juiz, apito e posições
+      if (t < 4.2) {
+        cs = { x: lerp(-6, 6, t / 4.2), y: -52, fx: 0, fy: -6, back: 4, zoom: 0.78 };
+        flags = 1;
+        banner = t > 0.4 && t < 3.9 ? [title.toUpperCase(), "#fde047", `${mineName} x ${oppName}`] : null;
+        once("cheer0", () => sfx.cheer(7, 0.07));
+        return;
+      }
+      if (t < 12.2) {
+        // os dois times entram andando, de frente para a câmera
+        const w = t - 4.2;
+        cs = { x: 0, y: -35, fx: 0, fy: -12, back: 4, zoom: lerp(1.0, 1.25, seg(t, 4.2, 12)), tilt: 32, height: 9 };
+        flags = 1;
+        banner = t < 6 ? ["OS TIMES ENTRAM EM CAMPO", "#fff", null] : null;
+        const refY = lerp(-6, -26, ease(seg(w, 0, 6.5)));
+        put(REF, 0, refY, "f-walk", frameAt(w * 1.1, 8, true));
+        for (const [team, sd] of [[A, -1], [B, 1]] as [Actor[], -1 | 1][]) {
           team.forEach((a, i) => {
-            // fila indiana: cada um 2,4 m atrás do anterior; depois abre em linha de 10 m
-            const fileY = lerp(-68 - i * 2.4, -42 - i * 2.4, ease(walk));
-            const fileX = sd * 4;
-            const lineX = sd * (1.8 + i * 0.78);
-            const lineY = -39;
-            // posição em campo: cada time na sua metade, no desenho 4-4-2
-            const formX = sd * 6 + FORM[i][0] * 0.5;
-            const formY = -34 + FORM[i][1] * 0.4;
-            const x = lerp(lerp(fileX, lineX, line), formX, spread);
-            const y = lerp(lerp(fileY, lineY, line), formY, spread);
-            const moving = (t > 0.5 && t < 7.2) || (t > 9.5 && t < 12.2);
-            add(a, x, y, "run", moving ? frameAt(t + i * 0.13, 8, true) : 0);
+            const d = seg(w, 0.4 + i * 0.28, 5.6 + i * 0.28);
+            const colX = sd * 3.2;
+            const x = lerp(colX, lineX(sd, i), ease(seg(d, 0.55, 1)));
+            const y = lerp(-3, LINE_Y, ease(d));
+            put(a, x, y, "f-walk", d > 0 && d < 1 ? frameAt(w + i * 0.15, 8, true) : 0);
           });
         }
-        // notas do hino
-        if (t > 7 && t < 9.6) for (let i = 0; i < 6; i++) bubbles.push({ x: lerp(-9, 9, i / 5) + Math.sin(t * 2 + i) * 1.2, y: -25 - ((t * 4 + i * 2.2) % 5), txt: i % 2 ? "♪" : "♫" });
-        if (t > 4.5) once("cheer1", () => sfx.cheer(5, 0.05));
-        if (t > 12.4) once("whistle", () => sfx.whistle());
-      } else {
-        const dolly = ease(seg(t, 1.5, 6)) * 9 - ease(seg(t, 9, 11)) * 7 + ease(seg(t, 13, 17.5)) * 9; // a câmera acompanha a corrida, volta para a roda e segue à torcida
-        camState = { x: 0, y: -45 + dolly, fx: 0, fy: -20 + dolly * 0.7, back: 5, zoom: lerp(1.1, 1.4, ease(seg(t, 9, 13))) };
-        // fase 0-1.5 apito final; 1.5-6 corrida até a torcida; 6-9.5 choro e gritos; 9.5-13 taça ao alto; 13-18.5 taça até a torcida
-        const run = ease(seg(t, 1.5, 6));
-        const gather = ease(seg(t, 9, 11));
-        const toFans = ease(seg(t, 13, 17.5));
-        const trophyUp = ease(seg(t, 10.2, 12));
-        const ref = { id: "ref", kit: REF_KIT, look: lookOf(undefined, "juiz"), name: "juiz" };
-        add(ref, 6, lerp(-37, -35, ease(seg(t, 0, 1.5))), "run", 0);
-        A.forEach((a, i) => {
-          const startX = FORM[i][0] * 0.6, startY = -34 + FORM[i][1] * 0.4;
-          const crowdX = (i - 5) * 1.3 + Math.sin(i * 7) * 1.2, crowdY = -16 - (i % 3) * 1.3;
-          const circleX = (i - 5) * 0.8, circleY = -31 + (i % 2) * 1.3 - Math.abs(i - 5) * 0.1;
-          let x = lerp(startX, crowdX, run);
-          let y = lerp(startY, crowdY, run);
-          x = lerp(x, circleX, gather);
-          y = lerp(y, circleY, gather);
-          y = lerp(y, circleY - 0.2 + 14 * toFans, toFans);
-          x = lerp(x, circleX * 1.1, toFans);
-          const running = (t > 1.5 && t < 6.4) || (t > 9 && t < 11.2) || (t > 13 && t < 17.7);
-          let anim: Anim = "run";
-          let frame = running ? frameAt(t + i * 0.11, 9, true) : 0;
-          if (t > 6.2 && t < 9.2 || (t > 1.8 && t < 6 && i % 3 === 0)) {
-            anim = "celebrate";
-            frame = frameAt(t + i * 0.2, 5, true);
-          }
-          if (t > 11.5 && t < 13) {
-            anim = "celebrate";
-            frame = frameAt(t + i * 0.13, 6, true);
-          }
-          add(a, x, y, anim, frame, { lift: (anim === "celebrate" && (frame === 2 || frame === 3) ? 0.15 : 0) });
-          if (t > 6.2 && t < 9.4 && i % 2 === 0) bubbles.push({ x, y: y - 0.6, txt: (i + Math.floor(t * 2)) % 4 === 0 ? "😭" : (i + Math.floor(t * 2)) % 4 === 1 ? "🗣️" : "🙌" });
-        });
-        // adversários caídos (de cabeça baixa), parados mais atrás
-        B.slice(0, 6).forEach((a, i) => add(a, (i % 2 ? 1 : -1) * (11 + (i >> 1) * 3.4), -20 - (i % 3) * 2.2, "run", 0)); // adversários parados, longe, de lado
-        if (t > 0.1) once("end", () => sfx.whistle());
-        if (t > 1.2) once("cheer", () => sfx.cheer(9, 0.08));
-        if (t > 11) once("goal", () => sfx.goal());
-        if (t > 12.5) once("cheer2", () => sfx.cheer(6, 0.09));
-        // posição da taça (centro do grupo, sobe e vai com ele para a torcida)
-        trophyPos = { x: 0, y: lerp(-31, -17, toFans), up: trophyUp };
+        return;
       }
-      sprites.sort((a, b) => b.y - a.y);
+      if (t < 21.5) {
+        // hino: mão no peito; três planos (geral, time da casa, time visitante)
+        const h = t - 12.2;
+        flags = 1;
+        const wide = h < 3.2;
+        const pan = h < 3.2 ? 0 : h < 6.2 ? seg(h, 3.2, 6.2) : seg(h, 6.2, 9.3);
+        if (wide) cs = { x: 0, y: -44, fx: 0, fy: -26, back: 5, zoom: 0.75, tilt: 40, height: 16 };
+        else if (h < 6.2) cs = { x: lerp(-9.5, -3, ease(pan)), y: -35, fx: lerp(-9.5, -3, ease(pan)), fy: -26, back: 4, zoom: 1.2, tilt: 32, height: 9 };
+        else cs = { x: lerp(3, 9.5, ease(pan)), y: -35, fx: lerp(3, 9.5, ease(pan)), fy: -26, back: 4, zoom: 1.2, tilt: 32, height: 9 };
+        banner = h < 2.6 ? ["HINO NACIONAL", "#fff", null] : null;
+        put(REF, 0, -26, "f-ref", 0);
+        for (const [team, sd] of [[A, -1], [B, 1]] as [Actor[], -1 | 1][]) {
+          team.forEach((a, i) => {
+            put(a, lineX(sd, i), LINE_Y, "f-anthem", frameAt(h * 1.9 + i * 0.37, 2.4, true));
+            if (!wide) labels.push({ x: lineX(sd, i), y: LINE_Y, name: a.name });
+          });
+        }
+        if (h > 0.6) for (let i = 0; i < 8; i++) bubbles.push({ x: lerp(-10, 10, i / 7) + Math.sin(h * 2 + i) * 1.3, y: -31, z: 3 + ((h * 1.4 + i * 0.7) % 3), txt: i % 2 ? "♪" : "♫" });
+        once("cheer1", () => sfx.cheer(9, 0.06));
+        return;
+      }
+      // juiz com o apito, depois os times correm para as posições (de costas)
+      const r = t - 21.5;
+      flags = 0;
+      cs = { x: 0, y: -36, fx: 0, fy: lerp(-24, -18, ease(seg(r, 0, 5.5))), back: 4, zoom: lerp(1.3, 0.95, ease(seg(r, 2.2, 5.5))), tilt: 32, height: 9 };
+      const run = ease(seg(r, 1.4, 3.8));
+      const form = (sd: -1 | 1, i: number): [number, number] => [sd * 6.2 + FORM[i][0] * 0.5, -23 + FORM[i][1] * 0.4];
+      for (const [team, sd] of [[A, -1], [B, 1]] as [Actor[], -1 | 1][]) {
+        team.forEach((a, i) => {
+          const [fx, fy] = form(sd, i);
+          const x = lerp(lineX(sd, i), fx, run);
+          const y = lerp(LINE_Y, fy, run);
+          if (run <= 0) put(a, x, y, "f-anthem", 0);
+          else put(a, x, y, "run", run < 1 ? frameAt(r + i * 0.12, 9, true) : 0);
+        });
+      }
+      const refFrame = r < 0.7 ? 0 : r < 1.3 ? 1 : r < 2.6 ? 2 : r < 3.3 ? 3 : 5;
+      put(REF, 0, -26, "f-ref", refFrame);
+      banner = r > 1.4 && r < 2.8 ? ["APITO INICIAL!", "#fde047", null] : null;
+      if (r > 1.4) once("whistle", () => sfx.whistle());
+      if (r > 1.4 && r < 1.55) flash = 0.7;
     };
-    let trophyPos = { x: 0, y: -31, up: 0 };
 
-    const drawTrophy = (): void => {
-      const base = cam.project([trophyPos.x, trophyPos.y, 2.9 + trophyPos.up * 0.6]);
-      if (!base || trophyPos.up <= 0) return;
-      const s = base.s * 0.55 * trophyPos.up;
-      ctx.save();
-      ctx.translate(base.x, base.y);
-      ctx.imageSmoothingEnabled = false;
-      const u = Math.max(2, Math.round(s / 6));
-      const px = (c: string, x: number, y: number, w: number, h: number): void => {
-        ctx.fillStyle = c;
-        ctx.fillRect(x * u, -y * u, w * u, -h * u);
-      };
-      // taça em pixel art (dourada)
-      px("#b45309", -5, 0, 10, 2);
-      px("#fbbf24", -2, 2, 4, 5);
-      px("#fbbf24", -6, 7, 12, 8);
-      px("#fde68a", -5, 14, 3, 6);
-      px("#fbbf24", -9, 13, 3, 3);
-      px("#fbbf24", 6, 13, 3, 3);
-      px("#f59e0b", 2, 7, 4, 8);
-      px("#fff7", -4, 13, 1, 1);
-      ctx.restore();
-      // brilho
-      ctx.save();
-      ctx.globalAlpha = 0.25 + 0.15 * Math.sin(performance.now() / 120);
-      ctx.fillStyle = "#fde68a";
-      ctx.beginPath();
-      ctx.arc(base.x, base.y - s * 2.2, s * 2.4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
+    const trophyScene = (t: number): void => {
+      // 0-3 apito final; 3-10 corrida e deslize; 10-17 choro e gritos; 17-24 a taça; 24-34 volta à torcida
+      confettiOn = t > 3.5 ? Math.min(1, (t - 3.5) / 2) : 0;
+      if (t < 3.2) {
+        cs = { x: 0, y: -44, fx: 0, fy: -26, back: 5, zoom: lerp(1.0, 1.2, seg(t, 0, 3)) };
+        put(REF, 0, -30, "f-ref", t < 0.4 ? 1 : t < 1.1 ? 2 : t < 2 ? 3 : 4);
+        A.forEach((a, i) => put(a, FORM[i][0] * 0.9, -22 + FORM[i][1] * 0.5, "f-lift", t > 1.1 ? 2 : 0));
+        B.forEach((a, i) => put(a, FORM[i][0] * 0.4 + 12 * (i % 2 ? 1 : -1), -20 - (i % 3) * 2, "f-cry", 1));
+        banner = ["FIM DE JOGO!", "#fde047", null];
+        once("end", () => sfx.whistle());
+        if (t > 1.2) once("cheer", () => sfx.cheer(10, 0.09));
+        return;
+      }
+      if (t < 10.5) {
+        // todos correm para a câmera (a torcida); alguns deslizam de joelhos
+        const r = t - 3.2;
+        cs = { x: 0, y: -48 + seg(r, 0, 7) * 6, fx: 0, fy: -26, back: 5, zoom: lerp(0.95, 1.15, seg(r, 0, 7)) };
+        A.forEach((a, i) => {
+          const d = seg(r, i * 0.16, 4.6 + i * 0.16);
+          const sx = FORM[i][0] * 0.9;
+          const tx = (i - 5) * 1.5 + (pseudo(i, 1) - 0.5) * 2;
+          const x = lerp(sx, tx, ease(d));
+          const y = lerp(-22 + FORM[i][1] * 0.5, -37 - (i % 3) * 1.2, ease(d));
+          const slide = i % 3 === 0 && d >= 1;
+          if (slide) put(a, x, y, "f-slide", Math.min(3, Math.floor((r - (4.6 + i * 0.16)) * 3)), { lift: 0 });
+          else put(a, x, y, "f-run", d < 1 ? frameAt(r * 1.2 + i * 0.2, 9, true) : frameAt(r + i * 0.3, 6, true));
+        });
+        B.slice(0, 7).forEach((a, i) => put(a, (i % 2 ? 1 : -1) * (7 + (i >> 1) * 3.2), -18 - (i % 3) * 2, i % 2 ? "f-slide" : "f-cry", i % 2 ? 6 : 0));
+        banner = r < 2.2 ? ["É CAMPEÃO!", "#fff", null] : null;
+        return;
+      }
+      if (t < 17.5) {
+        // choro, gritos, abraços (plano fechado)
+        const c = t - 10.5;
+        cs = { x: lerp(-2, 2, c / 7), y: -44, fx: lerp(-2, 2, c / 7), fy: -30, back: 5, zoom: lerp(1.2, 1.55, seg(c, 0, 7)) };
+        A.forEach((a, i) => {
+          const x = (i - 5) * 1.35 + (pseudo(i, 2) - 0.5) * 1.2;
+          const y = -33 - (i % 3) * 1.1;
+          const mode = (i + Math.floor(c / 2.2)) % 4;
+          if (mode === 0) put(a, x, y, "f-cry", frameAt(c * 1.6 + i * 0.4, 2.6, true));
+          else if (mode === 1) put(a, x, y, "f-run", frameAt(c * 1.6 + i * 0.3, 7, true), { lift: Math.abs(Math.sin(c * 5 + i)) * 0.18 });
+          else if (mode === 2) put(a, x, y, "f-slide", 2 + (Math.floor(c * 1.4 + i) % 3));
+          else put(a, x, y, "f-cry", 2 + (Math.floor(c * 1.8 + i) % 4));
+          if ((i + Math.floor(c * 2)) % 5 === 0) bubbles.push({ x, y, z: 2.5, txt: "🙌" });
+        });
+        banner = c < 2 ? ["EMOÇÃO!", "#fde047", null] : null;
+        once("goal", () => sfx.goal());
+        if (c > 2) once("cheer2", () => sfx.cheer(8, 0.09));
+        return;
+      }
+      if (t < 24.5) {
+        // todos juntos: braços para o alto e a taça sobe
+        const u = t - 17.5;
+        cs = { x: 0, y: -41, fx: 0, fy: -31, back: 4, zoom: lerp(1.0, 1.35, ease(seg(u, 0, 7))), tilt: 30, height: 8 };
+        const raise = ease(seg(u, 0.4, 2.2));
+        A.forEach((a, i) => {
+          const row = i < 6 ? 0 : 1;
+          const k = row === 0 ? i - 2.5 : i - 8;
+          const x = k * 1.5;
+          const y = -33 - row * 1.3;
+          put(a, x, y, "f-lift", Math.round(raise * 4) + (u > 2.6 ? 1 + (Math.floor(u * 3 + i) % 2) : 0), { lift: u > 2.6 ? Math.abs(Math.sin(u * 4 + i)) * 0.12 : 0 });
+        });
+        const rise = ease(seg(u, 1.4, 3));
+        state.trophy = { x: 0, y: -33.5, h: lerp(0.4, 6, rise) };
+        banner = u > 3.4 ? [`${mineName.toUpperCase()}`, "#fde047", `${title}`] : null;
+        once("cheer3", () => sfx.cheer(9, 0.1));
+        return;
+      }
+      // volta olímpica: caminham em direção à torcida com a taça
+      const v = t - 24.5;
+      cs = { x: 0, y: lerp(-44, -50, ease(seg(v, 0, 9.5))), fx: 0, fy: -26, back: 5, zoom: lerp(1.35, 0.85, ease(seg(v, 0, 9.5))) };
+      const toFans = ease(seg(v, 0.5, 9));
+      A.forEach((a, i) => {
+        const x = (i - 5) * 1.5 * lerp(1, 1.6, toFans) + (pseudo(i, 3) - 0.5);
+        const y = lerp(-34, -41, toFans) - (i % 3) * 0.9;
+        put(a, x, y, "f-walk", v < 9.5 ? frameAt(v * 1.1 + i * 0.15, 8, true) : 0, { lift: 0 });
+      });
+      // o capitão (11º) leva a taça
+      const cap = A[10];
+      const cx = lerp(0, 0, 1);
+      const cy = lerp(-34, -41, toFans);
+      put(cap, cx, cy, "f-lift", 3 + (Math.floor(v * 3) % 2));
+      state.trophy = { x: cx, y: cy, h: 5.5 };
+      confettiOn = 1;
+      banner = v < 4 ? [`${mineName.toUpperCase()} CAMPEÃO!`, "#fde047", title] : null;
+    };
+
+    // confete, fogos e bandeiras
+    const confetti = Array.from({ length: 140 }, (_, i) => ({ x: pseudo(i, 4), v: 0.25 + pseudo(i, 5) * 0.6, ph: pseudo(i, 6) * 6, c: ["#fde047", "#f87171", "#60a5fa", "#4ade80", "#fff", "#f472b6"][i % 6], s: 3 + pseudo(i, 7) * 4 }));
+    const drawFlags = (t: number): void => {
+      const hy = Math.max(0, Math.min(H, cam.horizonY()));
+      const n = Math.ceil(W / 42);
+      for (let i = 0; i < n; i++) {
+        const x = (i + 0.5) * (W / n) + Math.sin(i * 3.1) * 8;
+        const y = hy - 4 - ((i * 37) % 22);
+        const col = i % 3 === 0 ? kits[0].p : i % 3 === 1 ? kits[1].p : "#fde047";
+        ctx.strokeStyle = "#e2e8f0";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x, y - 34);
+        ctx.stroke();
+        ctx.fillStyle = col;
+        const wave = (k: number): number => Math.sin(t * 5 + i + k * 1.4) * 3;
+        ctx.beginPath();
+        ctx.moveTo(x, y - 34);
+        ctx.lineTo(x + 14, y - 33 + wave(1));
+        ctx.lineTo(x + 26, y - 31 + wave(2));
+        ctx.lineTo(x + 26, y - 19 + wave(2));
+        ctx.lineTo(x + 14, y - 21 + wave(1));
+        ctx.lineTo(x, y - 20);
+        ctx.closePath();
+        ctx.fill();
+      }
+    };
+    const drawFireworks = (t: number): void => {
+      const hy = Math.max(0, Math.min(H, cam.horizonY()));
+      for (let b = 0; b < 5; b++) {
+        const t0 = b * 0.8 + 0.2;
+        const age = t - t0;
+        if (age < 0 || age > 1.8) continue;
+        const cx = W * (0.15 + pseudo(b, 8) * 0.7);
+        const cy = hy * (0.25 + pseudo(b, 9) * 0.35);
+        const col = ["#fde047", "#f472b6", "#60a5fa", "#4ade80", "#fb923c"][b % 5];
+        for (let k = 0; k < 26; k++) {
+          const ang = (k / 26) * Math.PI * 2;
+          const rad = age * (46 + pseudo(k, b) * 34);
+          ctx.globalAlpha = Math.max(0, 1 - age / 1.8);
+          ctx.fillStyle = col;
+          ctx.fillRect(cx + Math.cos(ang) * rad, cy + Math.sin(ang) * rad + age * age * 14, 3, 3);
+        }
+      }
+      ctx.globalAlpha = 1;
     };
 
     let raf = 0;
@@ -239,10 +343,22 @@ export function Cutscene({ kind, title, mineName, oppName, kits, mineXI, oppXI, 
       const now = performance.now();
       const t = (now - started) / 1000;
       if (t >= total) return finish();
-      scene(t);
-      setCam();
+      sprites.length = 0;
+      labels.length = 0;
+      bubbles.length = 0;
+      banner = null;
+      state.trophy = null;
+      flags = 0;
+      confettiOn = 0;
+      flash = 0;
+      if (kind === "intro") introScene(t);
+      else trophyScene(t);
+      sprites.sort((a, b) => b.y - a.y);
+      applyCam();
       ctx.clearRect(0, 0, W, H);
       drawBackdrop(ctx, cam, { home: kits[0], away: kits[1], t });
+      if (flags) drawFlags(t);
+      if (kind === "intro" && t < 4.4) drawFireworks(t);
       if (loCtx) {
         loCtx.clearRect(0, 0, lo.width, lo.height);
         drawStadium(loCtx, loCam, { home: kits[0], away: kits[1], t, backdrop: false });
@@ -251,47 +367,57 @@ export function Cutscene({ kind, title, mineName, oppName, kits, mineXI, oppXI, 
         ctx.drawImage(lo, 0, 0, lo.width * PX, lo.height * PX);
         ctx.restore();
       }
-      for (const s of sprites) drawPlayer(ctx, cam, s);
-      drawTrophy();
-      // balões (notas do hino, choro, gritos)
+      const items: LabelItem[] = [];
+      for (const s of sprites) {
+        const head = drawPlayer(ctx, cam, s);
+        const lb = labels.find((l) => l.x === s.x && l.y === s.y);
+        if (lb && head) items.push({ head, name: lb.name });
+      }
+      const tr = state.trophy as { x: number; y: number; h: number } | null;
+      if (tr) {
+        const base = cam.project([tr.x, tr.y, 1.5]);
+        if (base) {
+          const up = kind === "trophy" ? 0.9 : 0;
+          const hpx = tr.h * base.s * 0.5;
+          const ok = drawTrophySprite(ctx, base.x, base.y - (1.6 + up) * base.s - 0.2 * base.s, hpx, now / 1000);
+          if (ok) {
+            ctx.save();
+            ctx.globalAlpha = 0.22 + 0.1 * Math.sin(now / 130);
+            ctx.fillStyle = "#fde68a";
+            ctx.beginPath();
+            ctx.arc(base.x, base.y - (1.6 + up) * base.s - hpx * 0.55, hpx * 0.8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          }
+        }
+      }
+      drawLabels(ctx, items);
       ctx.save();
       ctx.textAlign = "center";
       for (const b of bubbles) {
-        const p = cam.project([b.x, b.y, 2.2]);
+        const p = cam.project([b.x, b.y, b.z]);
         if (!p) continue;
-        ctx.font = `${Math.round(Math.max(12, p.s * 0.7))}px system-ui, sans-serif`;
+        ctx.font = `${Math.round(Math.max(12, p.s * 0.6))}px system-ui, sans-serif`;
         ctx.fillStyle = "#fff";
         ctx.fillText(b.txt, p.x, p.y);
       }
       ctx.restore();
-      // confete na parte final da comemoração
-      if (kind === "trophy" && t > 11) {
-        const k = Math.min(1, (t - 11) / 2);
+      if (confettiOn > 0) {
         ctx.save();
         for (const c of confetti) {
-          const y = ((now / 1000) * c.v * 220 + c.ph * 90) % (H + 20) - 10;
+          const y = ((now / 1000) * c.v * 230 + c.ph * 90) % (H + 20) - 10;
           const x = c.x * W + Math.sin(now / 400 + c.ph) * 14;
-          ctx.globalAlpha = k;
+          ctx.globalAlpha = confettiOn;
           ctx.fillStyle = c.c;
           ctx.fillRect(x, y, c.s, c.s * 1.6);
         }
         ctx.restore();
       }
-      // faixas de texto por momento
-      const banner = ((): [string, string, string | null] | null => {
-        if (kind === "intro") {
-          if (t < 3.2) return [title.toUpperCase(), "#fde047", `${mineName} x ${oppName}`];
-          if (t > 6.6 && t < 9.4) return ["HINO NACIONAL", "#fff", null];
-          if (t > 12.5 && t < 14) return ["APITO INICIAL!", "#fde047", null];
-          return null;
-        }
-        if (t < 2.4) return ["FIM DE JOGO!", "#fde047", null];
-        if (t > 6.5 && t < 9) return ["É CAMPEÃO!", "#fff", null];
-        if (t > 12 && t < 15) return [`${mineName.toUpperCase()} CAMPEÃO!`, "#fde047", title];
-        return null;
-      })();
-      if (banner) drawBanner(ctx, W, H, banner[0], banner[2], banner[1], Math.min(1, 0.7 + (t % 1) * 0.3));
-      // entrada e saída em preto
+      if (banner) drawBanner(ctx, W, H, banner[0], banner[2], banner[1], Math.min(1, 0.75 + (t % 1) * 0.25));
+      if (flash > 0) {
+        ctx.fillStyle = `rgba(255,255,255,${flash})`;
+        ctx.fillRect(0, 0, W, H);
+      }
       const fade = Math.max(1 - t / 0.8, (t - (total - 0.9)) / 0.9);
       if (fade > 0) {
         ctx.fillStyle = `rgba(0,0,0,${Math.min(1, fade)})`;
