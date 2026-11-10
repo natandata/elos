@@ -326,7 +326,7 @@ export function resolveAuto(m: Match, c: Chance): Outcome {
 export type Aim = { x: number; y: number };
 
 /** O chute que você mirou, como no Score Hero: a mira decide. Só erra se mirar mal ou se o goleiro estiver no caminho. */
-export function shotOutcome(m: Match, c: Chance, aim: Aim, opts: { distance: number; header?: boolean; wall?: boolean; curve?: number; keeperX?: number }): Outcome {
+export function shotOutcome(m: Match, c: Chance, aim: Aim, opts: { distance: number; header?: boolean; wall?: boolean; curve?: number; keeperX?: number; /** marcadores em cima da trajetória do chute */ blockers?: number }): Outcome {
   const rng = m.rng;
   m.stats.shots[c.side]++;
   const op = ratings(m.lineups[1 - c.side]);
@@ -340,7 +340,8 @@ export function shotOutcome(m: Match, c: Chance, aim: Aim, opts: { distance: num
   const y = aim.y + gauss(rng) * sigma * 0.8;
   const land = { x, y };
   if (opts.wall && y < 0.4 && rng() < 0.7 - curve * 0.55) return { kind: "blocked", goal: false, text: `A barreira bloqueia a cobrança de ${who}.`, land: { x: x * 0.4, y: 0.15 } };
-  if (c.kind !== "penalty" && rng() < (0.02 + Math.max(0, op.def - 75) * 0.001) * (1 - curve * 0.7)) return { kind: "blocked", goal: false, text: `Um zagueiro se joga na frente e bloqueia o chute de ${who}!`, land: { x: x * 0.3, y: 0.1 } };
+  // só bloqueia quem está de fato na frente: um marcador sobre a trajetória (a curva ajuda a contornar)
+  if (c.kind !== "penalty" && (opts.blockers ?? 0) > 0 && rng() < Math.min(0.7, (opts.blockers ?? 0) * (0.35 + Math.max(0, op.def - 75) * 0.004)) * (1 - curve * 0.7)) return { kind: "blocked", goal: false, text: `Um zagueiro se joga na frente e bloqueia o chute de ${who}!`, land: { x: x * 0.3, y: 0.1 } };
   if (Math.abs(x) > 1.06 || y > 1.06 || y < -0.02) return { kind: "miss", goal: false, text: `${who} chuta para fora.`, land };
   if (Math.abs(x) > 1 || y > 1) return { kind: Math.abs(x) > 1 ? "post" : "bar", goal: false, text: `${who} acerta ${Math.abs(x) > 1 ? "a trave" : "o travessão"}! Que susto!`, land };
   const gkOvr = gk?.ovr ?? 60;

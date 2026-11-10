@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Chance, Outcome, Player } from "@/lib/arenasoccer/sim";
 import type { MomentEngine } from "./engine";
-import { blockersOnCurve, bowOffset, type Scene, type Spot, type StepKind } from "@/lib/arenasoccer/scene";
+import { blockersOnCurve, bowOffset, distToSegment, type Scene, type Spot, type StepKind } from "@/lib/arenasoccer/scene";
 import type { Kit } from "@/lib/arenasoccer/teams";
 import { frameAt, lookOf, preloadSprites } from "./sprites";
 import { Cam, GOAL_H, GOAL_HALF, drawBall, drawBanner, drawBackdrop, drawGoalFrame, drawLabels, drawPlayer, type LabelItem, drawStadium, drawStar, type Sprite, type V3 } from "./pitch3d";
@@ -162,7 +162,7 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
       act = kind === "header" ? "header" : "kick";
       actStart = performance.now();
       setBusy(true);
-      void engine.shot({ ...current, shooter }, aim, { distance: dist, header: kind === "header", wall: kind === "freekick", curve: Math.abs(curve), keeperX: scene.keeperX / GOAL_HALF }).then((out) => playShot(out, aim));
+      void engine.shot({ ...current, shooter }, aim, { distance: dist, header: kind === "header", wall: kind === "freekick", curve: Math.abs(curve), keeperX: scene.keeperX / GOAL_HALF, blockers: kind === "freekick" ? 0 : blockersOnCurve(scene, carrier, { x: aim.x * GOAL_HALF, y: 0 }, curve, false) }).then((out) => playShot(out, aim));
     };
     const playShot = (out: Outcome, aim: { x: number; y: number }) => {
       if (!alive) return;
@@ -183,7 +183,9 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
         if (performance.now() - start > 520) window.clearInterval(kTimer);
       }, 16);
       const blocked = out.kind === "blocked";
-      const to: V3 = blocked ? [carrier.x * 0.55, carrier.y * 0.5, 0.6] : [tx, out.goal ? 1.4 : out.kind === "saved" ? 0.2 : 0.2, tz];
+      const wallers = [...scene.defenders, ...scene.wall];
+      const blocker = blocked && wallers.length ? wallers.reduce((b, d) => (distToSegment(d, carrier, { x: tx, y: 0 }) < distToSegment(b, carrier, { x: tx, y: 0 }) ? d : b)) : null;
+      const to: V3 = blocked ? (blocker ? [blocker.x, blocker.y + 0.6, 0.7] : [carrier.x * 0.55, carrier.y * 0.5, 0.6]) : [tx, out.goal ? 1.4 : out.kind === "saved" ? 0.2 : 0.2, tz];
       const end: Spot = blocked ? { x: to[0], y: to[1] } : { x: tx, y: 0 };
       const bow = bowOffset(carrier, end, shotCurve);
       fly(ball, blocked ? to : [tx, 0, tz], blocked ? 0.4 : 0, 0.55, () => {
@@ -279,6 +281,12 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
       dragPts.push(p);
       const curve = curveOf(dragPts);
       if (anim || result || finished) return;
+      // toque (ou arrasto muito curto) não é jogada: só vale desenhar a linha com o dedo
+      const first = dragPts[0];
+      if (first && Math.hypot(p.x - first.x, p.y - first.y) < Math.max(60, W * 0.14)) {
+        setTip("Arraste o dedo: desenhe a linha da bola até o alvo.");
+        return;
+      }
       const k = stepKind();
       const b = cam.project([carrier.x, carrier.y, 0.9]);
       if (b && Math.hypot(p.x - b.x, p.y - b.y) < 36) {
