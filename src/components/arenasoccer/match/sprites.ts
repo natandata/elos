@@ -4,11 +4,11 @@ import looksData from "@/lib/arenasoccer/data/looks.json";
 import metaData from "@/lib/arenasoccer/data/sprite-meta.json";
 import type { Kit } from "@/lib/arenasoccer/teams";
 
-export type Anim = "run" | "kick" | "header" | "celebrate";
+export type Anim = "run" | "kick" | "header" | "celebrate" | "keeper";
 export type Look = { skin: number; hair: number; style: number };
 const LOOKS = looksData as unknown as Record<string, [number, number, number]>;
 
-const FRAMES = 6;
+const FRAMES: Record<Anim, number> = { run: 6, kick: 6, header: 6, celebrate: 6, keeper: 7 };
 // 8 tons de pele (do mais claro ao mais escuro): cor e sombra
 const SKINS: [string, string][] = [
   ["#f7d9c4", "#dcb59a"],
@@ -37,7 +37,7 @@ function load(anim: Anim): void {
   img.onload = () => {
     // atlas de máscaras: ROLE_COUNT faixas empilhadas, FRAMES quadros lado a lado
     const h = img.height / ROLE_COUNT;
-    sheets.set(anim, h > 0 && img.width > 0 ? { img, cell: img.width / FRAMES, h } : "failed");
+    sheets.set(anim, h > 0 && img.width > 0 ? { img, cell: img.width / FRAMES[anim], h } : "failed");
   };
   img.onerror = () => sheets.set(anim, "failed");
   img.src = `/arenasoccer/sprites/${anim}-mask.png`;
@@ -45,7 +45,7 @@ function load(anim: Anim): void {
 
 /** Começa a baixar todas as faixas (chame uma vez ao montar a cena). */
 export function preloadSprites(): void {
-  (["run", "kick", "header", "celebrate"] as Anim[]).forEach(load);
+  (["run", "kick", "header", "celebrate", "keeper"] as Anim[]).forEach(load);
 }
 
 const hex = (h: string): [number, number, number] => {
@@ -101,7 +101,7 @@ function frameCanvas(anim: Anim, frame: number, look: Look, kit: Kit): HTMLCanva
   if (!o || !t || !hm || !layer) return null;
   const [out, g] = o;
   const [tmp, tc] = t;
-  const f = Math.max(0, Math.min(FRAMES - 1, frame));
+  const f = Math.max(0, Math.min(FRAMES[anim] - 1, frame));
   const band = (ctx: CanvasRenderingContext2D, r: number): void => {
     ctx.globalCompositeOperation = "source-over";
     ctx.clearRect(0, 0, cw, ch);
@@ -130,7 +130,8 @@ function frameCanvas(anim: Anim, frame: number, look: Look, kit: Kit): HTMLCanva
   };
   const box = META[anim]?.[f] ?? [0, 0, 0, 0];
   const cx = (box[0] + box[2]) / 2;
-  switch (look.style) {
+  const style = anim === "keeper" ? ([0, 1, 2, 3, 4, 3, 4, 4][look.style] ?? 2) : look.style;
+  switch (style) {
     case 1: // raspado: sombra de cabelo sobre a pele
       band(lx, ROLE_HAIR);
       lx.globalCompositeOperation = "source-in";
@@ -176,20 +177,20 @@ function frameCanvas(anim: Anim, frame: number, look: Look, kit: Kit): HTMLCanva
 }
 
 /** Quadro de uma animação pelo tempo: `t` em segundos desde o início, `fps` quadros por segundo; `loop` repete, senão trava no último. */
-export function frameAt(t: number, fps: number, loop: boolean): number {
+export function frameAt(t: number, fps: number, loop: boolean, n = 6): number {
   const i = Math.floor(t * fps);
-  return loop ? ((i % FRAMES) + FRAMES) % FRAMES : Math.min(FRAMES - 1, Math.max(0, i));
+  return loop ? ((i % n) + n) % n : Math.min(n - 1, Math.max(0, i));
 }
 
 /**
  * Desenha o jogador em pixel art com o pé em (x, y) da tela. `s` = pixels por metro nessa profundidade (a mesma escala do desenho
  * vetorial); o boneco tem 1,95 m. Devolve a posição da cabeça, ou null se a faixa ainda não carregou (aí vale o desenho antigo).
  */
-export function drawSprite(ctx: CanvasRenderingContext2D, x: number, y: number, s: number, anim: Anim, frame: number, look: Look, kit: Kit, lift = 0): { x: number; y: number; s: number } | null {
+export function drawSprite(ctx: CanvasRenderingContext2D, x: number, y: number, s: number, anim: Anim, frame: number, look: Look, kit: Kit, lift = 0, flip = false): { x: number; y: number; s: number } | null {
   load(anim);
   const fc = frameCanvas(anim, frame, look, kit);
   if (!fc) return null;
-  const h = 1.95 * s;
+  const h = (fc.height / 68) * 1.95 * s; // 68 px de célula = 1,95 m (os quadros do goleiro são mais altos por causa do mergulho)
   const w = (fc.width / fc.height) * h;
   ctx.save();
   ctx.imageSmoothingEnabled = false;
@@ -197,7 +198,11 @@ export function drawSprite(ctx: CanvasRenderingContext2D, x: number, y: number, 
   ctx.beginPath();
   ctx.ellipse(x, y, 0.55 * s, 0.2 * s, 0, 0, Math.PI * 2);
   ctx.fill();
-  ctx.drawImage(fc, x - w / 2, y - h - lift * s, w, h);
+  if (flip) {
+    ctx.translate(x, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(fc, -w / 2, y - h - lift * s, w, h);
+  } else ctx.drawImage(fc, x - w / 2, y - h - lift * s, w, h);
   ctx.restore();
   return { x, y: y - h - lift * s, s };
 }

@@ -6,7 +6,7 @@ import type { MomentEngine } from "./engine";
 import { blockersOnCurve, bowOffset, type Scene, type Spot, type StepKind } from "@/lib/arenasoccer/scene";
 import type { Kit } from "@/lib/arenasoccer/teams";
 import { frameAt, lookOf, preloadSprites } from "./sprites";
-import { Cam, GOAL_H, GOAL_HALF, drawBall, drawBanner, drawGoalFrame, drawLabels, drawPlayer, type LabelItem, drawStadium, drawStar, type Sprite, type V3 } from "./pitch3d";
+import { Cam, GOAL_H, GOAL_HALF, drawBall, drawBanner, drawBackdrop, drawGoalFrame, drawLabels, drawPlayer, type LabelItem, drawStadium, drawStar, type Sprite, type V3 } from "./pitch3d";
 
 const KEEPER_KIT: Kit = { p: "#16a34a", s: "#052e16", k: "solid" };
 const STEP_TIP: Record<StepKind, string> = {
@@ -84,6 +84,7 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
     let ball: V3 = [carrier.x, carrier.y, 0.2];
     let anim: Anim | null = null;
     let keeper = { x: scene.keeperX, dx: 0, lift: 0, tilt: 0 };
+    let dive: { start: number; flip: boolean } | null = null;
     let result: { out: Outcome; t0: number } | null = null;
     let dragging = false;
     let dragPts: Pt[] = [];
@@ -97,11 +98,20 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
     let finished = false;
     const mates = scene.mates.map((m) => ({ ...m }));
 
+    // cenário em pixel art: o gramado, as linhas, as placas, a rede e as traves são desenhados em baixa resolução e ampliados sem suavizar
+    const PX = 3;
+    const lo = document.createElement("canvas");
+    const loCtx = lo.getContext("2d");
+    let loCam = cam;
     const stepKind = (): StepKind => scene.steps[stepIdx];
     const setCamera = () => {
       const passing = stepKind() === "pass" || stepKind() === "cross";
       const focus: [number, number] = passing ? scene.focus : [carrier.x * 0.25, 0];
-      cam = new Cam(W, H, [carrier.x, carrier.y], focus, { back: passing ? 10 : 8, zoom: passing ? 1.05 : 1.3 });
+      const opts = { back: passing ? 10 : 8, zoom: passing ? 1.05 : 1.3 };
+      cam = new Cam(W, H, [carrier.x, carrier.y], focus, opts);
+      lo.width = Math.ceil(W / PX);
+      lo.height = Math.ceil(H / PX);
+      loCam = new Cam(lo.width, lo.height, [carrier.x, carrier.y], focus, opts);
     };
     const resize = () => {
       const r = wrap.getBoundingClientRect();
@@ -163,9 +173,10 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
       const kp = out.keeper ?? { x: keeper.x / GOAL_HALF, y: 0 };
       const kdx = out.keeper ? kp.x * GOAL_HALF - keeper.x : 0;
       const start = performance.now();
+      if (Math.abs(kdx) > 0.35) dive = { start, flip: kdx > 0 };
       const kAnim = () => {
         const t = Math.min(1, (performance.now() - start) / 480);
-        keeper = { ...keeper, dx: kdx * t, lift: Math.sin(t * Math.PI) * Math.max(0.2, kp.y * 1.2), tilt: Math.sign(kdx || 1) * 1.2 * Math.min(1, t * 1.4) };
+        keeper = { ...keeper, dx: kdx * t };
       };
       const kTimer = window.setInterval(() => {
         kAnim();
@@ -311,9 +322,32 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
         trail.shift();
       }
       ctx.clearRect(0, 0, W, H);
-      drawStadium(ctx, cam, { home: mineKit, away: theirKit, t });
+      drawBackdrop(ctx, cam, { home: mineKit, away: theirKit, t });
+      if (loCtx) {
+        loCtx.clearRect(0, 0, lo.width, lo.height);
+        drawStadium(loCtx, loCam, { home: mineKit, away: theirKit, t, backdrop: false });
+        drawGoalFrame(loCtx, loCam);
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(lo, 0, 0, lo.width * PX, lo.height * PX);
+        ctx.restore();
+      } else {
+        drawStadium(ctx, cam, { home: mineKit, away: theirKit, t, backdrop: false });
+        drawGoalFrame(ctx, cam);
+      }
       const sprites: Sprite[] = [];
-      sprites.push({ x: keeper.x + keeper.dx, y: -0.6, kit: KEEPER_KIT, name: scene.keeper?.name ?? "goleiro", label: scene.keeper?.name, role: "keeper", tilt: keeper.tilt, lift: keeper.lift, arms: "up" });
+      // goleiro de frente: espera, mergulha para o lado da bola, cai e se levanta
+      let kFrame = 0;
+      if (dive) {
+        const td = (now - dive.start) / 1000;
+        kFrame = td < 0.12 ? 1 : td < 0.26 ? 2 : 3;
+        if (result) {
+          const age = (now - result.t0) / 1000;
+          kFrame = age < 0.45 ? 3 : age < 0.9 ? 4 : age < 1.3 ? 5 : 6;
+        }
+      }
+      const kLift = [0, 0, 0.5, 0.95, 0, 0, 0][kFrame];
+      sprites.push({ x: keeper.x + keeper.dx, y: -0.6, kit: KEEPER_KIT, name: scene.keeper?.name ?? "goleiro", label: scene.keeper?.name, role: "keeper", lift: kLift, pix: { anim: "keeper", frame: kFrame, flip: dive?.flip, look: lookOf(scene.keeper?.photo, scene.keeper?.name ?? "goleiro") } });
       for (const d of scene.defenders) sprites.push({ x: d.x, y: d.y, kit: theirKit, name: d.p?.name ?? `d${d.x.toFixed(1)}${d.y.toFixed(1)}`, label: d.p?.name, run: t * 6 + d.x, pix: { anim: "run", frame: frameAt(t + d.x, 8, true), look: lookOf(d.p?.photo, d.p?.name ?? `d${d.x.toFixed(1)}${d.y.toFixed(1)}`) } });
       for (const w of scene.wall) sprites.push({ x: w.x, y: w.y, kit: theirKit, name: w.p?.name ?? `w${w.x.toFixed(1)}`, label: w.p?.name, arms: "down", pix: { anim: "run", frame: 0, look: lookOf(w.p?.photo, w.p?.name ?? `w${w.x.toFixed(1)}`) } });
       for (const m of mates) if (m.player.name !== carrier.player.name) sprites.push({ x: m.x, y: m.y, kit: mineKit, name: m.player.name, label: m.player.name, run: t * 4 + m.x, arms: stepKind() === "cross" ? "up" : "down", pix: { anim: "run", frame: 0, look: lookOf(m.player.photo, m.player.name) } });
@@ -329,17 +363,11 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
       }
       sprites.sort((a, b) => b.y - a.y);
       const labels: LabelItem[] = [];
-      let goalDrawn = false;
       for (const s of sprites) {
-        if (!goalDrawn && s.y < 0) {
-          drawGoalFrame(ctx, cam);
-          goalDrawn = true;
-        }
         const head = drawPlayer(ctx, cam, s);
         if (s.label && head) labels.push({ head, name: s.label, color: s.star ? "#ffe14a" : "#fff" });
         if (s.star && head) drawStar(ctx, head.x, head.y - head.s * (s.label ? 0.62 : 0.55), Math.max(10, head.s * 0.42), t);
       }
-      if (!goalDrawn) drawGoalFrame(ctx, cam);
       drawLabels(ctx, labels);
       if (trail.length > 2) {
         ctx.save();
