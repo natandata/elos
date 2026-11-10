@@ -1,6 +1,7 @@
 // ArenaSoccer · campo em perspectiva (câmera inclinada, como nos jogos de lance a lance). Tudo desenhado em canvas, sem imagens.
 // Medidas em metros: x = lateral, y = para o gol (a linha de fundo é y = 0, o jogador fica em y negativo), z = altura.
 import type { Kit } from "@/lib/arenasoccer/teams";
+import { drawSprite, type Anim, type Look } from "./sprites";
 
 export type V3 = [number, number, number];
 export const GOAL_HALF = 3.66;
@@ -141,13 +142,17 @@ const hash = (s: string): number => {
 const SKIN = ["#f1c27d", "#e0a370", "#c68642", "#8d5524", "#5c3a21"];
 const HAIR = ["#1b1b1b", "#3b2a1a", "#6b4a2b", "#d8b45a", "#111"];
 
-export type Sprite = { x: number; y: number; z?: number; kit: Kit; name: string; role?: "player" | "keeper"; tilt?: number; lift?: number; run?: number; star?: boolean; arms?: "up" | "down"; id?: string };
+export type Sprite = { x: number; y: number; z?: number; kit: Kit; name: string; role?: "player" | "keeper"; tilt?: number; lift?: number; run?: number; star?: boolean; arms?: "up" | "down"; id?: string; /** pixel art: animação, quadro e aparência (pele e cabelo) */ pix?: { anim: Anim; frame: number; look: Look } };
 
 /** Desenha um jogador em pé (ou voando, no caso do goleiro) com a escala da perspectiva. */
 export function drawPlayer(ctx: CanvasRenderingContext2D, cam: Cam, sp: Sprite): { x: number; y: number; s: number } | null {
   const base = cam.project([sp.x, sp.y, sp.z ?? 0]);
   if (!base) return null;
   const s = base.s;
+  if (sp.pix && sp.role !== "keeper") {
+    const d = drawSprite(ctx, base.x, base.y, s, sp.pix.anim, sp.pix.frame, sp.pix.look, sp.kit, sp.lift ?? 0);
+    if (d) return d;
+  }
   const h = hash(sp.name);
   const skin = SKIN[h % SKIN.length];
   const hair = HAIR[(h >> 4) % HAIR.length];

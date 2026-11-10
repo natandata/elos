@@ -5,6 +5,7 @@ import type { Chance, Outcome, Player } from "@/lib/arenasoccer/sim";
 import type { MomentEngine } from "./engine";
 import { blockersOnCurve, bowOffset, type Scene, type Spot, type StepKind } from "@/lib/arenasoccer/scene";
 import type { Kit } from "@/lib/arenasoccer/teams";
+import { frameAt, lookOf, preloadSprites } from "./sprites";
 import { Cam, GOAL_H, GOAL_HALF, drawBall, drawBanner, drawGoalFrame, drawPlayer, drawStadium, drawStar, type Sprite, type V3 } from "./pitch3d";
 
 const KEEPER_KIT: Kit = { p: "#16a34a", s: "#052e16", k: "solid" };
@@ -69,6 +70,7 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
     if (!canvas || !wrap) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+    preloadSprites();
     const mineKit = kits[chance.side];
     const theirKit = kits[1 - chance.side];
     let W = 360;
@@ -88,6 +90,8 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
     let trail: Pt[] = [];
     let shotCurve = 0;
     let touched = false;
+    let actStart = 0;
+    let act: "kick" | "header" | "celebrate" | null = null;
     const started = performance.now();
     let fade = 0;
     let finished = false;
@@ -123,6 +127,10 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
 
     const showResult = (o: Outcome) => {
       result = { out: o, t0: performance.now() };
+      if (o.goal) {
+        act = "celebrate";
+        actStart = performance.now();
+      }
       setTip(o.text);
       setBusy(true);
       setTimeout(() => {
@@ -141,6 +149,8 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
       const kind = stepKind();
       const dist = Math.hypot(carrier.x, carrier.y);
       shotCurve = curve;
+      act = kind === "header" ? "header" : "kick";
+      actStart = performance.now();
       setBusy(true);
       void engine.shot({ ...current, shooter }, aim, { distance: dist, header: kind === "header", wall: kind === "freekick", curve: Math.abs(curve), keeperX: scene.keeperX / GOAL_HALF }).then((out) => playShot(out, aim));
     };
@@ -304,10 +314,11 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
       drawStadium(ctx, cam, { home: mineKit, away: theirKit, t });
       const sprites: Sprite[] = [];
       sprites.push({ x: keeper.x + keeper.dx, y: -0.6, kit: KEEPER_KIT, name: "goleiro", role: "keeper", tilt: keeper.tilt, lift: keeper.lift, arms: "up" });
-      for (const d of scene.defenders) sprites.push({ x: d.x, y: d.y, kit: theirKit, name: `d${d.x.toFixed(1)}${d.y.toFixed(1)}`, run: t * 6 + d.x });
-      for (const w of scene.wall) sprites.push({ x: w.x, y: w.y, kit: theirKit, name: `w${w.x.toFixed(1)}`, arms: "down" });
-      for (const m of mates) if (m.player.name !== carrier.player.name) sprites.push({ x: m.x, y: m.y, kit: mineKit, name: m.player.name, run: t * 4 + m.x, arms: stepKind() === "cross" ? "up" : "down" });
-      sprites.push({ x: carrier.x, y: carrier.y, kit: mineKit, name: carrier.player.name, run: 0, star: !anim && !result });
+      for (const d of scene.defenders) sprites.push({ x: d.x, y: d.y, kit: theirKit, name: `d${d.x.toFixed(1)}${d.y.toFixed(1)}`, run: t * 6 + d.x, pix: { anim: "run", frame: frameAt(t + d.x, 8, true), look: lookOf(undefined, `d${d.x.toFixed(1)}${d.y.toFixed(1)}`) } });
+      for (const w of scene.wall) sprites.push({ x: w.x, y: w.y, kit: theirKit, name: `w${w.x.toFixed(1)}`, arms: "down", pix: { anim: "run", frame: 0, look: lookOf(undefined, `w${w.x.toFixed(1)}`) } });
+      for (const m of mates) if (m.player.name !== carrier.player.name) sprites.push({ x: m.x, y: m.y, kit: mineKit, name: m.player.name, run: t * 4 + m.x, arms: stepKind() === "cross" ? "up" : "down", pix: { anim: "run", frame: 0, look: lookOf(m.player.photo, m.player.name) } });
+      const carrierPix = act ? { anim: act, frame: frameAt((now - actStart) / 1000, act === "celebrate" ? 6 : 12, act === "celebrate" && now - actStart > 1500 ? true : false), look: lookOf(carrier.player.photo, carrier.player.name) } : { anim: "run" as const, frame: 0, look: lookOf(carrier.player.photo, carrier.player.name) };
+      sprites.push({ x: carrier.x, y: carrier.y, kit: mineKit, name: carrier.player.name, run: 0, star: !anim && !result, pix: carrierPix });
       // na finalização a câmera fica atrás de quem chuta: quem está atrás ou colado nele taparia a tela
       const shooting = stepKind() !== "pass" && stepKind() !== "cross";
       if (shooting) {
