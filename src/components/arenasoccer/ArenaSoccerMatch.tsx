@@ -10,15 +10,16 @@ import { TacticsPanel, swapSlots } from "./match/Lineup";
 import { KitChip } from "./match/KitChip";
 import { localEngine } from "./match/engine";
 import { MomentView } from "./match/MomentView";
+import { Cutscene } from "./match/Cutscene";
 
-type Phase = "lineup" | "play" | "chance" | "half" | "end";
+type Phase = "lineup" | "intro" | "play" | "chance" | "half" | "end";
 const speeds = [{ label: "1x", ms: 380 }, { label: "2x", ms: 170 }, { label: "⏩", ms: 45 }];
 
 /**
  * Uma partida no estilo Brasfoot com lances decisivos: escalação e tática, jogo minuto a minuto, intervalo com trocas
  * e, quando o seu time cria uma chance, o lance para você jogar com o dedo. O lado 0 é sempre o seu time.
  */
-export function MatchFlow({ mine, opp, label, controlled, onDone, onSim, onBack }: { mine: Team; opp: Team; label: string; /** modo carreira: o seu jogador (só os lances dele são seus) */ controlled?: Player; onDone: (r: MatchResult) => void; onSim?: () => void; onBack: () => void }) {
+export function MatchFlow({ mine, opp, label, controlled, final, onDone, onSim, onBack }: { mine: Team; opp: Team; label: string; /** final de campeonato (o texto da faixa de abertura): toca a cutscene de entrada antes do apito */ final?: string; /** modo carreira: o seu jogador (só os lances dele são seus) */ controlled?: Player; onDone: (r: MatchResult) => void; onSim?: () => void; onBack: () => void }) {
   const mySquad = useMemo(() => [...mine.players.map((p) => toPlayer(p as RosterPlayer)), ...(controlled ? [controlled] : [])], [mine, controlled]);
   const force = useMemo(() => (controlled ? [controlled] : []), [controlled]);
   const oppSquad = useMemo(() => opp.players.map((p) => toPlayer(p as RosterPlayer)), [opp]);
@@ -50,7 +51,7 @@ export function MatchFlow({ mine, opp, label, controlled, onDone, onSim, onBack 
     const m = createMatch([pre, oppLineup], seed, 0, controlled?.name ?? null);
     startedAt.current = Date.now();
     setMatch(m);
-    setPhase("play");
+    setPhase(final ? "intro" : "play");
   }
 
   function result(m: Match): MatchResult {
@@ -174,6 +175,10 @@ export function MatchFlow({ mine, opp, label, controlled, onDone, onSim, onBack 
     );
   }
   if (!match) return null;
+
+  if (phase === "intro") {
+    return <Cutscene kind="intro" title={final ?? label} mineName={mine.name} oppName={opp.name} kits={[kitMine, kitOpp]} mineXI={match.lineups[0].xi} oppXI={match.lineups[1].xi} onEnd={() => setPhase("play")} />;
+  }
 
   if (phase === "chance" && pending) {
     if (!momentOn || !scene) {

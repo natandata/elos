@@ -11,11 +11,11 @@ const LOOKS = looksData as unknown as Record<string, [number, number, number]>;
 const FRAMES: Record<Anim, number> = { run: 6, kick: 6, header: 6, celebrate: 6, keeper: 7 };
 // 8 tons de pele (do mais claro ao mais escuro): cor e sombra
 const SKINS: [string, string][] = [
-  ["#f7d9c4", "#dcb59a"],
-  ["#efc3a1", "#d4a07c"],
-  ["#dfa97a", "#c08a5e"],
-  ["#c98e5f", "#a86f44"],
-  ["#b07445", "#8e5630"],
+  ["#f8dcc8", "#deb99f"],
+  ["#f2c9aa", "#d8a782"],
+  ["#e8b88f", "#c99770"],
+  ["#d49c70", "#b27c52"],
+  ["#b97b4b", "#95582f"],
   ["#8d5a34", "#6b3f20"],
   ["#6b4026", "#4a2a16"],
   ["#4a2c1a", "#321c0f"],

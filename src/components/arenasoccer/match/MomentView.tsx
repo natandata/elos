@@ -120,7 +120,8 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
     const setCamera = () => {
       const passing = stepKind() === "pass" || stepKind() === "cross";
       const focus: [number, number] = passing ? scene.focus : [carrier.x * 0.25, 0];
-      const opts = { back: passing ? 10 : 8, zoom: passing ? 1.05 : 1.3 };
+      const far = passing && Math.abs(carrier.x) > 20; // escanteio e cruzamento: a bola sai de longe, então aproxima a câmera
+      const opts = { back: passing ? (far ? 12 : 10) : 8, zoom: passing ? (far ? 1.6 : 1.05) : 1.3 };
       cam = new Cam(W, H, [carrier.x, carrier.y], focus, opts);
       lo.width = Math.ceil(W / PX);
       lo.height = Math.ceil(H / PX);

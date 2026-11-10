@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { cupAdvance, cupAlive, cupFinish, cupFinish_label, cupNext, cupStageLabel, groupTable, newCup, penalties, topOf, mulberry, type CupSave, type Result } from "@/lib/arenasoccer/comp";
-import { CUP_HOST, CUP_YEARS, loadCup, type CupData } from "@/lib/arenasoccer/teams";
+import { CUP_HOST, CUP_YEARS, kitOf, loadCup, resolveKits, type CupData } from "@/lib/arenasoccer/teams";
 import type { MatchResult } from "./ArenaSoccerGame";
 import { KitChip, PlayFlow } from "./ArenaSoccerPlay";
+import { Cutscene, xiOf } from "./match/Cutscene";
 import { SaveBar, SaveSlots } from "./SaveSlots";
 import { slotKind, useSoccerSave, type Slot } from "./useSoccerSave";
 
@@ -30,6 +31,7 @@ export function CupMode({ color, onRecord, onBack }: { color: string; onRecord: 
   const kind = year && slot ? slotKind(`cup:${year}`, slot) : "cup:none";
   const { data: save, loading, save: setSave, status, savedAt, flushNow } = useSoccerSave<CupSave>(kind);
   const [playing, setPlaying] = useState(false);
+  const [celebrate, setCelebrate] = useState<string | null>(null);
   const [view, setView] = useState<"table" | "bracket" | "scorers">("table");
 
   useEffect(() => {
@@ -129,6 +131,12 @@ export function CupMode({ color, onRecord, onBack }: { color: string; onRecord: 
   const mine = teams.get(save.mine)!;
   const next = cupNext(save);
 
+  if (celebrate && teams.get(celebrate)) {
+    const opp = teams.get(celebrate)!;
+    const [km, ko] = resolveKits(kitOf(mine), kitOf(opp));
+    return <Cutscene kind="trophy" title={`Copa do Mundo ${year}`} mineName={mine.name} oppName={opp.name} kits={[km, ko]} mineXI={xiOf(mine)} oppXI={xiOf(opp)} onEnd={() => setCelebrate(null)} />;
+  }
+
   if (playing && next) {
     const oppId = next.home === save.mine ? next.away : next.home;
     const iAmHome = next.home === save.mine;
@@ -137,6 +145,7 @@ export function CupMode({ color, onRecord, onBack }: { color: string; onRecord: 
         mine={mine}
         opp={teams.get(oppId)!}
         label={`${next.stage} · Copa ${year}`}
+        final={next.stage === "Final" ? `Final · Copa do Mundo ${year}` : undefined}
         color={color}
         secs={120}
         goalsToWin={next.knockout ? 99 : 7}
@@ -148,8 +157,10 @@ export function CupMode({ color, onRecord, onBack }: { color: string; onRecord: 
         onDone={(r) => {
           onRecord(r);
           const res = toResult(r, iAmHome, next.knockout ? "knockout" : "group", () => penalties(teams.get(next.home)!, teams.get(next.away)!, mulberry(Date.now() % 1e9)));
-          setSave(cupAdvance(save, teams, res));
+          const ns = cupAdvance(save, teams, res);
+          setSave(ns);
           setPlaying(false);
+          if (ns.champion === save.mine) setCelebrate(next.home === save.mine ? next.away : next.home);
         }}
       />
     );
