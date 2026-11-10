@@ -3,10 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import type { Chance, Outcome, Player } from "@/lib/arenasoccer/sim";
 import type { MomentEngine } from "./engine";
-import { blockersOnCurve, bowOffset, type Scene, type Spot, type StepKind } from "@/lib/arenasoccer/scene";
+import { blockersOnCurve, bowOffset, distToSegment, type Scene, type Spot, type StepKind } from "@/lib/arenasoccer/scene";
 import type { Kit } from "@/lib/arenasoccer/teams";
-import { Cam, GOAL_H, GOAL_HALF, drawBall, drawBanner, drawGoalFrame, drawPlayer, drawStadium, drawStar, type Sprite, type V3 } from "./pitch3d";
+import { frameAt, lookOf, preloadSprites } from "./sprites";
+import { Cam, GOAL_H, GOAL_HALF, drawBall, drawBanner, drawBackdrop, drawGoalFrame, drawLabels, drawPlayer, type LabelItem, drawStadium, drawStar, type Sprite, type V3 } from "./pitch3d";
 
+/* eslint-disable-next-line @next/next/no-img-element */
+const PlayerBust = ({ photo }: { photo?: string }) => (photo ? <img src={photo} alt="" draggable={false} className="h-14 w-11 rounded-lg bg-black/40 object-cover object-top ring-1 ring-white/20" /> : <span className="h-14 w-11 rounded-lg bg-white/10" aria-hidden />);
 const KEEPER_KIT: Kit = { p: "#16a34a", s: "#052e16", k: "solid" };
 const STEP_TIP: Record<StepKind, string> = {
   pass: "Desenhe uma linha até um companheiro livre. Curve o traço para contornar o marcador.",
@@ -28,6 +31,15 @@ const BANNER: Record<string, [string, string]> = {
 
 type Anim = { from: V3; to: V3; arc: number; /** curva: quanto a bola se afasta da linha reta (metros, no chão) */ bow?: [number, number]; t0: number; dur: number; onEnd: () => void };
 type Pt = { x: number; y: number };
+
+/** Força do chute pelo comprimento da linha (só o comprimento: o tempo que você demora não conta). */
+function powerOf(pts: { x: number; y: number }[], width: number): number {
+  if (pts.length < 2) return 0;
+  const a = pts[0];
+  const b = pts[pts.length - 1];
+  const len = Math.hypot(b.x - a.x, b.y - a.y);
+  return Math.max(0, Math.min(1, (len - 60) / Math.max(60, width * 0.36 - 60)));
+}
 
 /** Curva do traço do dedo, de -1 (para a esquerda) a 1 (para a direita), pelo quanto ele se afasta da reta entre o primeiro e o último ponto. */
 function curveOf(pts: Pt[]): number {
@@ -57,6 +69,7 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
   const doneRef = useRef(onDone);
   const [tip, setTip] = useState(scene.tip);
   const [busy, setBusy] = useState(false);
+  const [who, setWho] = useState<Player>(scene.carrier.player);
   const autoRef = useRef<() => void>(() => {});
 
   useEffect(() => {
@@ -69,6 +82,7 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
     if (!canvas || !wrap) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+    preloadSprites();
     const mineKit = kits[chance.side];
     const theirKit = kits[1 - chance.side];
     let W = 360;
@@ -82,22 +96,36 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
     let ball: V3 = [carrier.x, carrier.y, 0.2];
     let anim: Anim | null = null;
     let keeper = { x: scene.keeperX, dx: 0, lift: 0, tilt: 0 };
+    let dive: { start: number; flip: boolean } | null = null;
     let result: { out: Outcome; t0: number } | null = null;
     let dragging = false;
     let dragPts: Pt[] = [];
     let trail: Pt[] = [];
     let shotCurve = 0;
+    let shotPower = 1;
     let touched = false;
+    let actStart = 0;
+    let act: "kick" | "header" | "celebrate" | null = null;
     const started = performance.now();
     let fade = 0;
     let finished = false;
     const mates = scene.mates.map((m) => ({ ...m }));
 
+    // cenário em pixel art: o gramado, as linhas, as placas, a rede e as traves são desenhados em baixa resolução e ampliados sem suavizar
+    const PX = 3;
+    const lo = document.createElement("canvas");
+    const loCtx = lo.getContext("2d");
+    let loCam = cam;
     const stepKind = (): StepKind => scene.steps[stepIdx];
     const setCamera = () => {
       const passing = stepKind() === "pass" || stepKind() === "cross";
       const focus: [number, number] = passing ? scene.focus : [carrier.x * 0.25, 0];
-      cam = new Cam(W, H, [carrier.x, carrier.y], focus, { back: passing ? 10 : 8, zoom: passing ? 1.05 : 1.3 });
+      const far = passing && Math.abs(carrier.x) > 20; // escanteio e cruzamento: a bola sai de longe, então aproxima a câmera
+      const opts = { back: passing ? (far ? 12 : 10) : 8, zoom: passing ? (far ? 1.6 : 1.05) : 1.3 };
+      cam = new Cam(W, H, [carrier.x, carrier.y], focus, opts);
+      lo.width = Math.ceil(W / PX);
+      lo.height = Math.ceil(H / PX);
+      loCam = new Cam(lo.width, lo.height, [carrier.x, carrier.y], focus, opts);
     };
     const resize = () => {
       const r = wrap.getBoundingClientRect();
@@ -123,6 +151,10 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
 
     const showResult = (o: Outcome) => {
       result = { out: o, t0: performance.now() };
+      if (o.goal) {
+        act = "celebrate";
+        actStart = performance.now();
+      }
       setTip(o.text);
       setBusy(true);
       setTimeout(() => {
@@ -137,12 +169,15 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
       trail = [];
     };
 
-    const doShot = (aim: { x: number; y: number }, curve: number) => {
+    const doShot = (aim: { x: number; y: number }, curve: number, power: number) => {
       const kind = stepKind();
       const dist = Math.hypot(carrier.x, carrier.y);
       shotCurve = curve;
+      shotPower = power;
+      act = kind === "header" ? "header" : "kick";
+      actStart = performance.now();
       setBusy(true);
-      void engine.shot({ ...current, shooter }, aim, { distance: dist, header: kind === "header", wall: kind === "freekick", curve: Math.abs(curve), keeperX: scene.keeperX / GOAL_HALF }).then((out) => playShot(out, aim));
+      void engine.shot({ ...current, shooter }, aim, { distance: dist, header: kind === "header", wall: kind === "freekick", curve: Math.abs(curve), power, keeperX: scene.keeperX / GOAL_HALF, blockers: kind === "freekick" ? 0 : blockersOnCurve(scene, carrier, { x: aim.x * GOAL_HALF, y: 0 }, curve, false) }).then((out) => playShot(out, aim));
     };
     const playShot = (out: Outcome, aim: { x: number; y: number }) => {
       if (!alive) return;
@@ -153,19 +188,22 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
       const kp = out.keeper ?? { x: keeper.x / GOAL_HALF, y: 0 };
       const kdx = out.keeper ? kp.x * GOAL_HALF - keeper.x : 0;
       const start = performance.now();
+      if (Math.abs(kdx) > 0.35) dive = { start, flip: kdx > 0 };
       const kAnim = () => {
         const t = Math.min(1, (performance.now() - start) / 480);
-        keeper = { ...keeper, dx: kdx * t, lift: Math.sin(t * Math.PI) * Math.max(0.2, kp.y * 1.2), tilt: Math.sign(kdx || 1) * 1.2 * Math.min(1, t * 1.4) };
+        keeper = { ...keeper, dx: kdx * t };
       };
       const kTimer = window.setInterval(() => {
         kAnim();
         if (performance.now() - start > 520) window.clearInterval(kTimer);
       }, 16);
       const blocked = out.kind === "blocked";
-      const to: V3 = blocked ? [carrier.x * 0.55, carrier.y * 0.5, 0.6] : [tx, out.goal ? 1.4 : out.kind === "saved" ? 0.2 : 0.2, tz];
+      const wallers = [...scene.defenders, ...scene.wall];
+      const blocker = blocked && wallers.length ? wallers.reduce((b, d) => (distToSegment(d, carrier, { x: tx, y: 0 }) < distToSegment(b, carrier, { x: tx, y: 0 }) ? d : b)) : null;
+      const to: V3 = blocked ? (blocker ? [blocker.x, blocker.y + 0.6, 0.7] : [carrier.x * 0.55, carrier.y * 0.5, 0.6]) : [tx, out.goal ? 1.4 : out.kind === "saved" ? 0.2 : 0.2, tz];
       const end: Spot = blocked ? { x: to[0], y: to[1] } : { x: tx, y: 0 };
       const bow = bowOffset(carrier, end, shotCurve);
-      fly(ball, blocked ? to : [tx, 0, tz], blocked ? 0.4 : 0, 0.55, () => {
+      fly(ball, blocked ? to : [tx, 0, tz], blocked ? 0.4 : 0, 0.55 + (1 - shotPower) * 0.6, () => {
         if (out.goal) fly([tx, 0, tz], [tx * 0.8, 1.7, Math.max(0.1, tz * 0.4)], 0, 0.3, () => undefined);
         else if (out.kind === "saved") fly([tx, 0, tz], [tx + (tx >= 0 ? 2.5 : -2.5), -4, 0], 1.2, 0.5, () => undefined);
         else if (out.kind === "post" || out.kind === "bar") fly([tx, 0, tz], [tx * 1.3, -6, 0], 1.5, 0.6, () => undefined);
@@ -192,6 +230,7 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
       fly(ball, [target.x, target.y, aerial ? 1.7 : 0.2], aerial ? 3.5 : 0.3, dur, () => {
         trail = [];
         shooter = target.player;
+        setWho(target.player);
         current = { ...current, shooter: target.player, assister: carrier.player };
         carrier = { x: target.x, y: target.y, player: target.player };
         stepIdx++;
@@ -203,10 +242,10 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
       }, bow);
     };
 
-    const aimShot = (sx: number, sy: number, curve: number) => {
+    const aimShot = (sx: number, sy: number, curve: number, power: number) => {
       const p = cam.goalPlaneAt(sx, sy);
       if (!p) return false;
-      doShot({ x: p[0] / GOAL_HALF, y: p[1] / GOAL_H }, curve);
+      doShot({ x: p[0] / GOAL_HALF, y: p[1] / GOAL_H }, curve, power);
       return true;
     };
     const aimPass = (sx: number, sy: number, aerial: boolean, curve: number) => {
@@ -258,6 +297,12 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
       dragPts.push(p);
       const curve = curveOf(dragPts);
       if (anim || result || finished) return;
+      // toque (ou arrasto muito curto) não é jogada: só vale desenhar a linha com o dedo
+      const first = dragPts[0];
+      if (first && Math.hypot(p.x - first.x, p.y - first.y) < Math.max(60, W * 0.14)) {
+        setTip("Arraste o dedo: desenhe a linha da bola até o alvo.");
+        return;
+      }
       const k = stepKind();
       const b = cam.project([carrier.x, carrier.y, 0.9]);
       if (b && Math.hypot(p.x - b.x, p.y - b.y) < 36) {
@@ -265,7 +310,7 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
         return;
       }
       if (k === "pass" || k === "cross") aimPass(p.x, p.y, k === "cross", curve);
-      else if (!aimShot(p.x, p.y, curve)) setTip("Arraste para dentro do gol.");
+      else if (!aimShot(p.x, p.y, curve, powerOf(dragPts, W))) setTip("Arraste para dentro do gol.");
     };
     canvas.addEventListener("pointerdown", down);
     canvas.addEventListener("pointermove", move);
@@ -301,13 +346,37 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
         trail.shift();
       }
       ctx.clearRect(0, 0, W, H);
-      drawStadium(ctx, cam, { home: mineKit, away: theirKit, t });
+      drawBackdrop(ctx, cam, { home: mineKit, away: theirKit, t });
+      if (loCtx) {
+        loCtx.clearRect(0, 0, lo.width, lo.height);
+        drawStadium(loCtx, loCam, { home: mineKit, away: theirKit, t, backdrop: false });
+        drawGoalFrame(loCtx, loCam);
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(lo, 0, 0, lo.width * PX, lo.height * PX);
+        ctx.restore();
+      } else {
+        drawStadium(ctx, cam, { home: mineKit, away: theirKit, t, backdrop: false });
+        drawGoalFrame(ctx, cam);
+      }
       const sprites: Sprite[] = [];
-      sprites.push({ x: keeper.x + keeper.dx, y: -0.6, kit: KEEPER_KIT, name: "goleiro", role: "keeper", tilt: keeper.tilt, lift: keeper.lift, arms: "up" });
-      for (const d of scene.defenders) sprites.push({ x: d.x, y: d.y, kit: theirKit, name: `d${d.x.toFixed(1)}${d.y.toFixed(1)}`, run: t * 6 + d.x });
-      for (const w of scene.wall) sprites.push({ x: w.x, y: w.y, kit: theirKit, name: `w${w.x.toFixed(1)}`, arms: "down" });
-      for (const m of mates) if (m.player.name !== carrier.player.name) sprites.push({ x: m.x, y: m.y, kit: mineKit, name: m.player.name, run: t * 4 + m.x, arms: stepKind() === "cross" ? "up" : "down" });
-      sprites.push({ x: carrier.x, y: carrier.y, kit: mineKit, name: carrier.player.name, run: 0, star: !anim && !result });
+      // goleiro de frente: espera, mergulha para o lado da bola, cai e se levanta
+      let kFrame = 0;
+      if (dive) {
+        const td = (now - dive.start) / 1000;
+        kFrame = td < 0.12 ? 1 : td < 0.26 ? 2 : 3;
+        if (result) {
+          const age = (now - result.t0) / 1000;
+          kFrame = age < 0.45 ? 3 : age < 0.9 ? 4 : age < 1.3 ? 5 : 6;
+        }
+      }
+      const kLift = [0, 0, 0.5, 0.95, 0, 0, 0][kFrame];
+      sprites.push({ x: keeper.x + keeper.dx, y: -0.6, kit: KEEPER_KIT, name: scene.keeper?.name ?? "goleiro", label: scene.keeper?.name, role: "keeper", lift: kLift, pix: { anim: "keeper", frame: kFrame, flip: dive?.flip, look: lookOf(scene.keeper?.photo, scene.keeper?.name ?? "goleiro") } });
+      for (const d of scene.defenders) sprites.push({ x: d.x, y: d.y, kit: theirKit, name: d.p?.name ?? `d${d.x.toFixed(1)}${d.y.toFixed(1)}`, label: d.p?.name, run: t * 6 + d.x, pix: { anim: "run", frame: frameAt(t + d.x, 8, true), look: lookOf(d.p?.photo, d.p?.name ?? `d${d.x.toFixed(1)}${d.y.toFixed(1)}`) } });
+      for (const w of scene.wall) sprites.push({ x: w.x, y: w.y, kit: theirKit, name: w.p?.name ?? `w${w.x.toFixed(1)}`, label: w.p?.name, arms: "down", pix: { anim: "run", frame: 0, look: lookOf(w.p?.photo, w.p?.name ?? `w${w.x.toFixed(1)}`) } });
+      for (const m of mates) if (m.player.name !== carrier.player.name) sprites.push({ x: m.x, y: m.y, kit: mineKit, name: m.player.name, label: m.player.name, run: t * 4 + m.x, arms: stepKind() === "cross" ? "up" : "down", pix: { anim: "run", frame: 0, look: lookOf(m.player.photo, m.player.name) } });
+      const carrierPix = act ? { anim: act, frame: frameAt((now - actStart) / 1000, act === "celebrate" ? 6 : 12, act === "celebrate" && now - actStart > 1500 ? true : false), look: lookOf(carrier.player.photo, carrier.player.name) } : { anim: "run" as const, frame: 0, look: lookOf(carrier.player.photo, carrier.player.name) };
+      sprites.push({ x: carrier.x, y: carrier.y, kit: mineKit, name: carrier.player.name, label: carrier.player.name, run: 0, star: !anim && !result, pix: carrierPix });
       // na finalização a câmera fica atrás de quem chuta: quem está atrás ou colado nele taparia a tela
       const shooting = stepKind() !== "pass" && stepKind() !== "cross";
       if (shooting) {
@@ -317,16 +386,13 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
         }
       }
       sprites.sort((a, b) => b.y - a.y);
-      let goalDrawn = false;
+      const labels: LabelItem[] = [];
       for (const s of sprites) {
-        if (!goalDrawn && s.y < 0) {
-          drawGoalFrame(ctx, cam);
-          goalDrawn = true;
-        }
         const head = drawPlayer(ctx, cam, s);
-        if (s.star && head) drawStar(ctx, head.x, head.y - head.s * 0.55, Math.max(10, head.s * 0.42), t);
+        if (s.label && head) labels.push({ head, name: s.label, color: s.star ? "#ffe14a" : "#fff" });
+        if (s.star && head) drawStar(ctx, head.x, head.y - head.s * (s.label ? 0.62 : 0.55), Math.max(10, head.s * 0.42), t);
       }
-      if (!goalDrawn) drawGoalFrame(ctx, cam);
+      drawLabels(ctx, labels);
       if (trail.length > 2) {
         ctx.save();
         ctx.lineCap = "round";
@@ -383,6 +449,17 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
         ctx.beginPath();
         ctx.arc(last.x, last.y, 9, 0, Math.PI * 2);
         ctx.fill();
+        if (stepKind() !== "pass" && stepKind() !== "cross") {
+          const pw = powerOf(dragPts, W);
+          const pt = pw < 0.35 ? "chute fraco" : pw < 0.8 ? "força " + Math.round(pw * 100) + "%" : "chute forte";
+          ctx.font = "800 14px system-ui, sans-serif";
+          ctx.textAlign = "center";
+          ctx.lineWidth = 4;
+          ctx.strokeStyle = "rgba(0,0,0,0.7)";
+          ctx.strokeText(pt, last.x, last.y + 32);
+          ctx.fillStyle = pw < 0.35 ? "#fca5a5" : pw < 0.8 ? "#fde68a" : "#86efac";
+          ctx.fillText(pt, last.x, last.y + 32);
+        }
         if (Math.abs(live) >= 0.1) {
           const txt = (live > 0 ? "↷" : "↶") + " curva " + Math.round(Math.abs(live) * 100) + "%";
           ctx.font = "800 15px system-ui, sans-serif";
@@ -458,6 +535,22 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
           Deixar o time resolver
         </button>
       </div>
+      <div className="pointer-events-none absolute left-2 top-11 flex items-center gap-2 rounded-xl bg-black/65 p-1.5 pr-3 text-white">
+        <PlayerBust photo={who.photo} />
+        <span className="leading-tight">
+          <b className="block text-sm font-black">{who.name.trim().split(/\s+/).slice(-1)[0]}</b>
+          <span className="text-[10px] font-bold text-white/70">{who.pos} · {who.ovr}</span>
+        </span>
+      </div>
+      {scene.keeper ? (
+        <div className="pointer-events-none absolute right-2 top-11 flex items-center gap-2 rounded-xl bg-black/65 p-1.5 pl-3 text-white">
+          <span className="text-right leading-tight">
+            <b className="block text-sm font-black">{scene.keeper.name.trim().split(/\s+/).slice(-1)[0]}</b>
+            <span className="text-[10px] font-bold text-white/70">GOL · {scene.keeper.ovr}</span>
+          </span>
+          <PlayerBust photo={scene.keeper.photo} />
+        </div>
+      ) : null}
       <div className="pointer-events-none absolute inset-x-2 bottom-2 flex items-center gap-2 rounded-xl border-2 border-yellow-300/90 bg-black/70 p-2.5 text-white">
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-yellow-300 text-xl font-black text-black" aria-hidden>
           !

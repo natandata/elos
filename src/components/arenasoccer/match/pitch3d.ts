@@ -1,6 +1,7 @@
 // ArenaSoccer · campo em perspectiva (câmera inclinada, como nos jogos de lance a lance). Tudo desenhado em canvas, sem imagens.
 // Medidas em metros: x = lateral, y = para o gol (a linha de fundo é y = 0, o jogador fica em y negativo), z = altura.
 import type { Kit } from "@/lib/arenasoccer/teams";
+import { drawSprite, type Anim, type Look } from "./sprites";
 
 export type V3 = [number, number, number];
 export const GOAL_HALF = 3.66;
@@ -141,13 +142,21 @@ const hash = (s: string): number => {
 const SKIN = ["#f1c27d", "#e0a370", "#c68642", "#8d5524", "#5c3a21"];
 const HAIR = ["#1b1b1b", "#3b2a1a", "#6b4a2b", "#d8b45a", "#111"];
 
-export type Sprite = { x: number; y: number; z?: number; kit: Kit; name: string; role?: "player" | "keeper"; tilt?: number; lift?: number; run?: number; star?: boolean; arms?: "up" | "down"; id?: string };
+export type Sprite = { x: number; y: number; z?: number; kit: Kit; name: string; role?: "player" | "keeper"; tilt?: number; lift?: number; run?: number; star?: boolean; arms?: "up" | "down"; id?: string; /** nome em cima da cabeça */ label?: string; /** pixel art: animação, quadro e aparência (pele e cabelo) */ pix?: { anim: Anim; frame: number; look: Look; flip?: boolean } };
 
 /** Desenha um jogador em pé (ou voando, no caso do goleiro) com a escala da perspectiva. */
 export function drawPlayer(ctx: CanvasRenderingContext2D, cam: Cam, sp: Sprite): { x: number; y: number; s: number } | null {
   const base = cam.project([sp.x, sp.y, sp.z ?? 0]);
   if (!base) return null;
   const s = base.s;
+  if (sp.pix) {
+    try {
+      const d = drawSprite(ctx, base.x, base.y, s, sp.pix.anim, sp.pix.frame, sp.pix.look, sp.kit, sp.lift ?? 0, sp.pix.flip);
+      if (d) return d;
+    } catch {
+      /* se o pixel art falhar neste aparelho, cai no desenho vetorial: o jogador nunca some */
+    }
+  }
   const h = hash(sp.name);
   const skin = SKIN[h % SKIN.length];
   const hair = HAIR[(h >> 4) % HAIR.length];
@@ -228,6 +237,43 @@ export function drawPlayer(ctx: CanvasRenderingContext2D, cam: Cam, sp: Sprite):
   return { x: base.x, y: base.y - 1.95 * s, s };
 }
 
+export type LabelItem = { head: { x: number; y: number; s: number }; name: string; color?: string };
+
+/**
+ * Nomes em cima da cabeça (sobrenome). Quando dois nomes se encostariam, o de trás sobe um degrau, então nada fica embaralhado.
+ * Desenhe por último, depois de todos os jogadores.
+ */
+export function drawLabels(ctx: CanvasRenderingContext2D, items: LabelItem[]): void {
+  const placed: { x0: number; x1: number; y: number; h: number }[] = [];
+  const sorted = [...items].sort((a, b) => b.head.y - a.head.y); // mais perto da câmera (mais embaixo) primeiro
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
+  ctx.lineJoin = "round";
+  for (const it of sorted) {
+    const parts = it.name.trim().split(/\s+/);
+    const txt = (parts.length > 1 ? parts[parts.length - 1] : it.name).toUpperCase();
+    const size = Math.max(9, Math.min(14, it.head.s * 0.3));
+    ctx.font = `800 ${Math.round(size)}px system-ui, sans-serif`;
+    const w = ctx.measureText(txt).width + 4;
+    const x0 = it.head.x - w / 2;
+    const x1 = it.head.x + w / 2;
+    let y = it.head.y - it.head.s * 0.08;
+    for (let tries = 0; tries < 6; tries++) {
+      const clash = placed.find((p) => x0 < p.x1 && x1 > p.x0 && Math.abs(y - p.y) < p.h + 1);
+      if (!clash) break;
+      y = clash.y - clash.h - 1;
+    }
+    placed.push({ x0, x1, y, h: size + 1 });
+    ctx.lineWidth = Math.max(3, size * 0.32);
+    ctx.strokeStyle = "rgba(0,0,0,0.85)";
+    ctx.strokeText(txt, it.head.x, y);
+    ctx.fillStyle = it.color ?? "#fff";
+    ctx.fillText(txt, it.head.x, y);
+  }
+  ctx.restore();
+}
+
 export function drawStar(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, t = 0): void {
   ctx.save();
   ctx.translate(x, y + Math.sin(t * 5) * r * 0.12);
@@ -268,10 +314,61 @@ export function drawBall(ctx: CanvasRenderingContext2D, cam: Cam, p: V3): void {
   ctx.fill();
 }
 
+let standsImg: HTMLImageElement | null = null;
+let standsState: "idle" | "loading" | "ready" | "failed" = "idle";
+function loadStands(): void {
+  if (standsState !== "idle" || typeof window === "undefined") return;
+  standsState = "loading";
+  const img = new Image();
+  img.onload = () => {
+    standsImg = img;
+    standsState = "ready";
+  };
+  img.onerror = () => {
+    standsState = "failed";
+  };
+  img.src = "/arenasoccer/scene/stands.png";
+}
+
+/** Fundo: arquibancada em pixel art (ou, se ela não carregar, o céu e a torcida desenhados por código). Vem antes do gramado. */
+export function drawBackdrop(ctx: CanvasRenderingContext2D, cam: Cam, opts: { home: Kit; away: Kit; t: number }): void {
+  loadStands();
+  const { W } = cam;
+  const hy = Math.max(0, Math.min(cam.H, cam.horizonY()));
+  if (standsState === "ready" && standsImg) {
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.fillStyle = "#0b1530";
+    ctx.fillRect(0, 0, W, hy + 2);
+    // mostra as fileiras da torcida (corta um pouco do céu) e repete a imagem, espelhada, para cobrir a largura
+    const sc = Math.max(hy / (standsImg.height * 0.82), 0.3);
+    const w = standsImg.width * sc;
+    const h = standsImg.height * sc;
+    const n = Math.ceil(W / w) + 1;
+    const x0 = -(n * w - W) / 2;
+    for (let i = 0; i < n; i++) {
+      const x = x0 + i * w;
+      if (i % 2) {
+        ctx.save();
+        ctx.translate(x + w, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(standsImg, 0, hy - h + 2, w, h);
+        ctx.restore();
+      } else ctx.drawImage(standsImg, x, hy - h + 2, w, h);
+    }
+    ctx.restore();
+    return;
+  }
+  drawStadium(ctx, cam, { ...opts, backdrop: true, field: false });
+}
+
 /** Estádio, gramado, linhas e gol. */
-export function drawStadium(ctx: CanvasRenderingContext2D, cam: Cam, opts: { home: Kit; away: Kit; t: number }): void {
+export function drawStadium(ctx: CanvasRenderingContext2D, cam: Cam, opts: { home: Kit; away: Kit; t: number; /** céu e torcida desenhados por código */ backdrop?: boolean; /** gramado, linhas, placas e rede */ field?: boolean }): void {
   const { W, H } = cam;
   const hy = Math.max(0, Math.min(H, cam.horizonY()));
+  const withBackdrop = opts.backdrop ?? true;
+  const withField = opts.field ?? true;
+  if (withBackdrop) {
   // céu e arquibancada
   const sky = ctx.createLinearGradient(0, 0, 0, hy);
   sky.addColorStop(0, "#0b1530");
@@ -293,6 +390,8 @@ export function drawStadium(ctx: CanvasRenderingContext2D, cam: Cam, opts: { hom
     }
   }
   ctx.globalAlpha = 1;
+  }
+  if (!withField) return;
   // chão fora do campo
   ctx.fillStyle = "#14502a";
   ctx.fillRect(0, hy, W, H - hy);

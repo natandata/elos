@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { leagueDone, leagueGames, myFixture, newLeague, playRound, table, topOf, type LeagueSave, type Result } from "@/lib/arenasoccer/comp";
-import { loadLeague, type LeagueData } from "@/lib/arenasoccer/teams";
+import { kitOf, loadLeague, resolveKits, type LeagueData } from "@/lib/arenasoccer/teams";
 import type { MatchResult } from "./ArenaSoccerGame";
 import { KitChip, PlayFlow } from "./ArenaSoccerPlay";
+import { Cutscene, xiOf } from "./match/Cutscene";
 import { SaveBar, SaveSlots } from "./SaveSlots";
 import { slotKind, useSoccerSave, type Slot } from "./useSoccerSave";
 
@@ -19,6 +20,7 @@ export function LeagueMode({ color, onRecord, onBack }: { color: string; onRecor
   const [slot, setSlot] = useState<Slot | null>(null);
   const { data: save, loading, save: setSave, status, savedAt, flushNow } = useSoccerSave<LeagueSave>(slot ? slotKind("league:br", slot) : "league:br#none");
   const [playing, setPlaying] = useState(false);
+  const [celebrate, setCelebrate] = useState<string | null>(null);
   const [view, setView] = useState<"table" | "round" | "scorers">("table");
 
   useEffect(() => {
@@ -82,6 +84,12 @@ export function LeagueMode({ color, onRecord, onBack }: { color: string; onRecor
   const scorers = topOf(save.tally, "goals", 10);
   const assists = topOf(save.tally, "assists", 5);
 
+  if (celebrate && teams.get(celebrate)) {
+    const opp = teams.get(celebrate)!;
+    const [km, ko] = resolveKits(kitOf(mine), kitOf(opp));
+    return <Cutscene kind="trophy" title="Campeonato Brasileiro 2026" mineName={mine.name} oppName={opp.name} kits={[km, ko]} mineXI={xiOf(mine)} oppXI={xiOf(opp)} onEnd={() => setCelebrate(null)} />;
+  }
+
   if (playing && fx) {
     const iAmHome = fx.home === save.mine;
     const oppId = iAmHome ? fx.away : fx.home;
@@ -100,8 +108,10 @@ export function LeagueMode({ color, onRecord, onBack }: { color: string; onRecor
         }}
         onDone={(r) => {
           onRecord(r);
-          setSave(playRound(save, teams, toResult(r, iAmHome)));
+          const ns = playRound(save, teams, toResult(r, iAmHome));
+          setSave(ns);
           setPlaying(false);
+          if (leagueDone(ns) && table(ns.ids, leagueGames(ns), (id) => teams.get(id)?.str ?? 0)[0]?.id === save.mine) setCelebrate(oppId);
         }}
       />
     );
