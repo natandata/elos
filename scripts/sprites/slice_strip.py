@@ -78,6 +78,23 @@ def main():
     dst = os.path.join("public", "arenasoccer", "sprites", f"{name}.png")
     os.makedirs(os.path.dirname(dst), exist_ok=True)
     out.save(dst)
+    # caixa do cabelo em cada quadro (para o jogo desenhar coque, volume e cabelo comprido no lugar certo)
+    import json
+    meta_path = os.path.join("src", "lib", "arenasoccer", "data", "sprite-meta.json")
+    meta = json.load(open(meta_path)) if os.path.exists(meta_path) else {}
+    boxes_h = []
+    po = out.load()
+    for i in range(n):
+        xs, ys = [], []
+        for y in range(height + 2):
+            for x in range(cw):
+                px_ = po[i * cw + x, y]
+                if px_[3] and px_[0] == ROLES["hair"]:
+                    xs.append(x)
+                    ys.append(y)
+        boxes_h.append([min(xs), min(ys), max(xs) + 1, max(ys) + 1] if xs else [0, 0, 0, 0])
+    meta[name] = boxes_h
+    json.dump(meta, open(meta_path, "w"), separators=(",", ":"))
     # atlas de máscaras (uma faixa por papel, branco onde o papel existe): o jogo recolore com composição de canvas, sem ler pixels
     H = height + 2
     atlas = Image.new("RGBA", (cw * n, H * len(ROLES)), (0, 0, 0, 0))
