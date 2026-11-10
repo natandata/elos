@@ -325,38 +325,35 @@ export function resolveAuto(m: Match, c: Chance): Outcome {
 /** Mira no gol: x de −1 (trave esquerda) a +1 (trave direita); y de 0 (grama) a 1 (travessão). */
 export type Aim = { x: number; y: number };
 
-/** O chute que você mirou: erro de pontaria pela força do jogador, trave, bloqueio e goleiro. */
-export function shotOutcome(m: Match, c: Chance, aim: Aim, opts: { distance: number; header?: boolean; wall?: boolean; curve?: number }): Outcome {
+/** O chute que você mirou, como no Score Hero: a mira decide. Só erra se mirar mal ou se o goleiro estiver no caminho. */
+export function shotOutcome(m: Match, c: Chance, aim: Aim, opts: { distance: number; header?: boolean; wall?: boolean; curve?: number; keeperX?: number }): Outcome {
   const rng = m.rng;
   m.stats.shots[c.side]++;
   const op = ratings(m.lineups[1 - c.side]);
   const gk = m.lineups[1 - c.side].xi.find((p) => p.pos === "GK");
   const who = nameOf(c.shooter);
-  const base = 0.045 + (92 - c.shooter.ovr) * 0.0055 + (opts.header ? 0.07 : 0) + (opts.distance - 12) * 0.004;
   const curve = clamp(opts.curve ?? 0, 0, 1);
-  // curva: mais difícil de controlar, mas contorna a barreira e a zaga e engana o goleiro
-  const sigma = clamp(base, 0.04, 0.32) * (c.kind === "penalty" ? 0.6 : 1) * (1 + 0.55 * curve);
+  // pontaria: erro pequeno, menor para craques; cabeceio e distância pioram um pouco
+  const base = 0.02 + (92 - c.shooter.ovr) * 0.002 + (opts.header ? 0.03 : 0) + Math.max(0, opts.distance - 12) * 0.0015;
+  const sigma = clamp(base, 0.015, 0.13) * (c.kind === "penalty" ? 0.6 : 1) * (1 + 0.4 * curve);
   const x = aim.x + gauss(rng) * sigma;
   const y = aim.y + gauss(rng) * sigma * 0.8;
   const land = { x, y };
-  if (opts.wall && y < 0.4 && rng() < 0.72 - curve * 0.6) return { kind: "blocked", goal: false, text: `A barreira bloqueia a cobrança de ${who}.`, land: { x: x * 0.4, y: 0.15 } };
-  if (c.kind !== "penalty" && rng() < (0.06 + Math.max(0, op.def - 70) * 0.003) * (1 - curve * 0.7)) return { kind: "blocked", goal: false, text: `Um zagueiro se joga na frente e bloqueia o chute de ${who}!`, land: { x: x * 0.3, y: 0.1 } };
+  if (opts.wall && y < 0.4 && rng() < 0.7 - curve * 0.55) return { kind: "blocked", goal: false, text: `A barreira bloqueia a cobrança de ${who}.`, land: { x: x * 0.4, y: 0.15 } };
+  if (c.kind !== "penalty" && rng() < (0.02 + Math.max(0, op.def - 75) * 0.001) * (1 - curve * 0.7)) return { kind: "blocked", goal: false, text: `Um zagueiro se joga na frente e bloqueia o chute de ${who}!`, land: { x: x * 0.3, y: 0.1 } };
   if (Math.abs(x) > 1.06 || y > 1.06 || y < -0.02) return { kind: "miss", goal: false, text: `${who} chuta para fora.`, land };
   if (Math.abs(x) > 1 || y > 1) return { kind: Math.abs(x) > 1 ? "post" : "bar", goal: false, text: `${who} acerta ${Math.abs(x) > 1 ? "a trave" : "o travessão"}! Que susto!`, land };
   const gkOvr = gk?.ovr ?? 60;
-  const correct = rng() < clamp((c.kind === "penalty" ? 0.45 : 0.3) + (gkOvr - 60) * 0.006 - curve * 0.14, 0.12, 0.62);
-  const kx = correct ? Math.sign(x || 1) * (0.45 + rng() * 0.3) : (rng() < 0.5 ? -1 : 1) * (0.3 + rng() * 0.45);
-  const ky = 0.25 + rng() * 0.2;
+  // o goleiro parte de onde você o viu; só chega no chute no meio do gol ou bem colocado de um lado
+  const start = clamp(opts.keeperX ?? 0, -1, 1);
+  const guess = rng() < clamp(0.25 + (gkOvr - 60) * 0.004 - curve * 0.12, 0.08, 0.42);
+  const kx = guess ? clamp(Math.sign(x || 1) * (0.45 + rng() * 0.3), -1, 1) : clamp(start + (rng() < 0.5 ? -1 : 1) * (0.1 + rng() * 0.3), -1, 1);
+  const ky = 0.2 + rng() * 0.2;
   const keeper = { x: kx, y: ky };
   const corner = Math.abs(x) > 0.68 && y > 0.62;
-  const reach = (0.36 + (gkOvr - 60) * 0.004) * (corner ? 0.5 : 1) * (c.kind === "freekick" ? 0.9 : 1) * (1 - 0.3 * curve);
+  const reach = (0.3 + (gkOvr - 60) * 0.003) * (corner ? 0.45 : 1) * (c.kind === "freekick" ? 0.9 : 1) * (1 - 0.25 * curve);
   const dist = Math.hypot((x - kx) * 0.9, (y - ky) * 1.25);
   if (dist < reach) return { kind: "saved", goal: false, text: `${gk ? nameOf(gk) : "O goleiro"} voa e defende o chute de ${who}!`, land, keeper: { x: x * 0.85, y: Math.max(0.2, y * 0.8) } };
-  // mesmo no alvo e longe do goleiro, nem tudo entra: a conversão tem um teto realista (pênalti é a exceção)
-  const cap = c.kind === "penalty" ? 0.92 : clamp(autoGoalProb(m, c) * HUMAN_EDGE, 0.08, 0.38);
-  if (c.kind !== "penalty" && rng() > cap / 0.62) {
-    return { kind: "saved", goal: false, text: `${gk ? nameOf(gk) : "O goleiro"} se estica todo e espalma o chute de ${who}!`, land, keeper: { x: x * 0.9, y: Math.max(0.25, y * 0.85) } };
-  }
   return { kind: "goal", goal: true, text: `${who} ${corner ? "coloca no ângulo" : "manda para a rede"}! GOL!`, land, keeper };
 }
 

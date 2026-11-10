@@ -142,7 +142,7 @@ export function MomentView({ engine, score, chance, scene, kits, names, onDone }
       const dist = Math.hypot(carrier.x, carrier.y);
       shotCurve = curve;
       setBusy(true);
-      void engine.shot({ ...current, shooter }, aim, { distance: dist, header: kind === "header", wall: kind === "freekick", curve: Math.abs(curve) }).then((out) => playShot(out, aim));
+      void engine.shot({ ...current, shooter }, aim, { distance: dist, header: kind === "header", wall: kind === "freekick", curve: Math.abs(curve), keeperX: scene.keeperX / GOAL_HALF }).then((out) => playShot(out, aim));
     };
     const playShot = (out: Outcome, aim: { x: number; y: number }) => {
       if (!alive) return;

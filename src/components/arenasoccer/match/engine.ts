@@ -1,7 +1,7 @@
 import { applyOutcome, passOutcome, resolveAuto, shotOutcome, type Aim, type Chance, type Match, type Outcome } from "@/lib/arenasoccer/sim";
 
 export type PassLine = { length: number; blockers: number; aerial: boolean; /** curva do traço, de 0 a 1 */ curve?: number };
-export type ShotOpts = { distance: number; header?: boolean; wall?: boolean; curve?: number };
+export type ShotOpts = { distance: number; header?: boolean; wall?: boolean; curve?: number; /** onde o goleiro está, de -1 a 1 */ keeperX?: number };
 
 /**
  * Quem decide o resultado de um lance. No jogo local é o próprio aparelho; no online, quem joga o lance pede ao anfitrião
