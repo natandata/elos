@@ -73,6 +73,9 @@ export function PaymentAdmin({ rows }: { rows: PayRow[] }) {
       <a href="/app/admin/acampadentro/relatorio/pdf" download className="mr-2 mt-3 inline-block rounded-xl bg-[var(--ink)] px-3 py-2 text-sm font-extrabold text-[var(--bg)]">
         📄 Relatório
       </a>
+      <a href="/app/admin/acampadentro/relatorio/paginas" download className="mr-2 mt-3 inline-block rounded-xl border-2 border-[var(--line)] px-3 py-2 text-sm font-extrabold" title="PDF com uma pessoa por página: o nome no topo e o comprovante embaixo">
+        📑 Por página
+      </a>
       <button
         type="button"
         disabled={busy === "push"}
