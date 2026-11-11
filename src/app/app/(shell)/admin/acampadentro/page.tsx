@@ -1,14 +1,14 @@
 import { EventAdmin, type AdminMember, type AdminMission, type AdminPoint, type AdminTribe } from "@/components/event/EventAdmin";
 import { PaymentAdmin, type PayRow } from "@/components/event/PaymentAdmin";
 import { PageHeader } from "@/components/ui";
-import { requireRole } from "@/lib/auth";
+import { requireAcampadentroManager } from "@/lib/auth";
 import { isTribeKey, type EventState } from "@/lib/event/tribes";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata = { title: "Acampadentro · tribos" };
 
 export default async function AcampadentroAdminPage() {
-  await requireRole("admin");
+  await requireAcampadentroManager();
   const supabase = await createClient();
   const [settingsRes, stateRes, memRes, profRes, eloRes, misRes, ptsRes, rsvpRes, payRes] = await Promise.all([
     supabase.from("event_settings").select("active, drawn_at").eq("id", true).maybeSingle(),

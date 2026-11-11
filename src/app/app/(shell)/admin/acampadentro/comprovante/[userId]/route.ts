@@ -1,12 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { requireRole } from "@/lib/auth";
+import { requireAcampadentroManager } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
 /** Link estável do comprovante (usado no PDF do relatório): confere o admin e redireciona para um link temporário do arquivo. */
 export async function GET(_req: NextRequest, ctx: { params: Promise<{ userId: string }> }) {
-  await requireRole("admin");
+  await requireAcampadentroManager();
   const { userId } = await ctx.params;
   const supabase = await createClient();
   const { data } = await supabase.from("acampadentro_payment").select("file_path").eq("user_id", userId).maybeSingle();

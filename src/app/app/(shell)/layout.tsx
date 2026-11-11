@@ -266,7 +266,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ...(item.href === "/app/chat" ? { badge: chatUnread } : {}),
     ...(item.children ? { children: item.children.map(withChatBadge) } : {}),
   });
-  const navItems = (NAV[profile.role] ?? NAV.cria).map(withChatBadge);
+  // gestora do Acampadentro (ex.: uma líder): ganha só o item "Acampadentro · tribos" no menu
+  let baseNav = NAV[profile.role] ?? NAV.cria;
+  if (profile.role !== "admin" && !viewingAs) {
+    const { data: manager } = await supabase.from("acampadentro_managers").select("user_id").eq("user_id", profile.id).maybeSingle();
+    if (manager) baseNav = [baseNav[0], { href: "/app/admin/acampadentro", label: "Acampadentro · tribos", icon: "🏕️" }, ...baseNav.slice(1)];
+  }
+  const navItems = baseNav.map(withChatBadge);
 
   // líder homem tem cor própria (vermelho); líder mulher mantém o rosa,
   // igual às crias — só o líder homem sai do amarelo padrão masculino

@@ -73,6 +73,19 @@ export async function requireRole(
   return { profile, viewingAs };
 }
 
+/**
+ * Página "Acampadentro · tribos": o admin e as pessoas listadas em acampadentro_managers (ex.: uma líder) têm acesso total a ela, e só a ela.
+ * Quem não pode é mandado para a própria tela inicial. A mesma regra vale no banco (can_manage_acampadentro).
+ */
+export async function requireAcampadentroManager(): Promise<{ profile: Profile; viewingAs: ViewingAs | null }> {
+  const { profile, viewingAs } = await requireProfile();
+  if (profile.role === "admin") return { profile, viewingAs };
+  const supabase = await createClient();
+  const { data } = await supabase.from("acampadentro_managers").select("user_id").eq("user_id", profile.id).maybeSingle();
+  if (!data) redirect(homeFor(profile.role));
+  return { profile, viewingAs };
+}
+
 export function homeFor(role: Role): string {
   if (role === "admin") return "/app/admin";
   if (role === "leader") return "/app/lider";

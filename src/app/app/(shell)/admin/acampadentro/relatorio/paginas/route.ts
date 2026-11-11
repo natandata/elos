@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
-import { requireRole } from "@/lib/auth";
+import { requireAcampadentroManager } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -53,7 +53,7 @@ function header(page: PDFPage, bold: PDFFont, font: PDFFont, eventName: string, 
 
 /** PDF "Por página": uma pessoa por página, com o nome no topo e o comprovante embaixo. */
 export async function GET() {
-  await requireRole("admin");
+  await requireAcampadentroManager();
   const supabase = await createClient();
   const [payRes, profRes, setRes] = await Promise.all([
     supabase.from("acampadentro_payment").select("user_id, file_path, file_name, status, uploaded_at").in("status", ["pending", "approved", "rejected"]).limit(1000),

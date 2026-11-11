@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireRole } from "@/lib/auth";
+import { requireAcampadentroManager } from "@/lib/auth";
 import { drawTribes, type DrawPerson } from "@/lib/event/draw";
 import { isTribeKey, type TribeKey } from "@/lib/event/tribes";
 import { sendPushToUsers } from "@/lib/push-server";
@@ -18,7 +18,7 @@ const done = (message?: string): Res => {
 
 /** Push (com o app fechado) para quem marcou "Eu vou" e ainda não teve o pagamento aprovado. */
 export async function sendPaymentReminderPush(): Promise<Res> {
-  await requireRole("admin");
+  await requireAcampadentroManager();
   const supabase = await createClient();
   const [{ data: yes }, { data: paid }, { data: profs }] = await Promise.all([
     supabase.from("acampadentro_rsvp").select("user_id").eq("status", "yes").limit(1000),
@@ -33,7 +33,7 @@ export async function sendPaymentReminderPush(): Promise<Res> {
 
 /** O admin define a resposta de presença de uma pessoa: vai, talvez, não vai ou sem resposta ("none"). */
 export async function setUserRsvp(userId: string, status: string): Promise<Res> {
-  await requireRole("admin");
+  await requireAcampadentroManager();
   if (!["yes", "maybe", "no", "none"].includes(status)) return { error: "Resposta inválida." };
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("acampadentro_admin_set_rsvp", { p_user: userId, p_status: status });
@@ -43,7 +43,7 @@ export async function setUserRsvp(userId: string, status: string): Promise<Res> 
 
 /** Sorteia quem ainda não tem tribo (cria e líder aprovados, sem contas de teste), equilibrando por Elo. Quem já tem tribo não muda. */
 export async function runTribeDraw(): Promise<Res> {
-  const { profile } = await requireRole("admin");
+  const { profile } = await requireAcampadentroManager();
   const supabase = await createClient();
   const [{ data: people }, { data: members }, { data: neutralRows }] = await Promise.all([
     supabase.from("profiles").select("id, role, approved, elo_id, is_test_account").in("role", ["cria", "leader"]),
@@ -68,7 +68,7 @@ export async function runTribeDraw(): Promise<Res> {
 
 /** Liga ou desliga o evento (interruptor geral), e define o nome e o fim. */
 export async function setEventActive(active: boolean): Promise<Res> {
-  await requireRole("admin");
+  await requireAcampadentroManager();
   const supabase = await createClient();
   const patch: { active: boolean; updated_at: string; reveal_at?: string } = { active, updated_at: new Date().toISOString() };
   if (active) patch.reveal_at = new Date().toISOString();
@@ -79,7 +79,7 @@ export async function setEventActive(active: boolean): Promise<Res> {
 
 /** Move alguém para uma tribo, ou tira da tribo (`tribe` = "none": fica neutro e não é sorteado de novo). */
 export async function moveTribeMember(userId: string, tribe: string): Promise<Res> {
-  const { profile } = await requireRole("admin");
+  const { profile } = await requireAcampadentroManager();
   if (!/^[0-9a-f-]{36}$/i.test(userId)) return { error: "Dados inválidos." };
   const supabase = await createClient();
   if (tribe === "none") {
@@ -97,7 +97,7 @@ export async function moveTribeMember(userId: string, tribe: string): Promise<Re
 }
 
 export async function saveEventMission(title: string, description: string, points: number): Promise<Res> {
-  const { profile } = await requireRole("admin");
+  const { profile } = await requireAcampadentroManager();
   const t = title.trim();
   const p = Math.round(points);
   if (!t || t.length > 120) return { error: "Escreva o título (até 120 letras)." };
@@ -108,7 +108,7 @@ export async function saveEventMission(title: string, description: string, point
 }
 
 export async function setEventMissionActive(id: string, active: boolean): Promise<Res> {
-  await requireRole("admin");
+  await requireAcampadentroManager();
   if (!/^[0-9a-f-]{36}$/i.test(id)) return { error: "Missão inválida." };
   const { error } = await (await createClient()).from("event_missions").update({ active }).eq("id", id);
   if (error) return { error: "Não foi possível atualizar." };
@@ -117,7 +117,7 @@ export async function setEventMissionActive(id: string, active: boolean): Promis
 
 /** Lança pontos para uma tribo (de uma missão especial ou avulso; negativo desconta). */
 export async function awardTribePoints(tribe: string, points: number, reason: string, missionId?: string | null): Promise<Res> {
-  const { profile } = await requireRole("admin");
+  const { profile } = await requireAcampadentroManager();
   const p = Math.round(points);
   const r = reason.trim();
   if (!isTribeKey(tribe)) return { error: "Escolha a tribo." };
@@ -129,7 +129,7 @@ export async function awardTribePoints(tribe: string, points: number, reason: st
 }
 
 export async function undoTribePoints(id: string): Promise<Res> {
-  await requireRole("admin");
+  await requireAcampadentroManager();
   if (!/^[0-9a-f-]{36}$/i.test(id)) return { error: "Lançamento inválido." };
   const { error } = await (await createClient()).from("event_points").delete().eq("id", id);
   if (error) return { error: "Não foi possível desfazer." };

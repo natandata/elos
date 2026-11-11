@@ -1,0 +1,5 @@
+-- Gestores do Acampadentro (aplicada no banco como "acampadentro_managers"): quem esta em acampadentro_managers (alem do admin) usa a
+-- pagina "Acampadentro · tribos" inteira, e so ela. A regra no banco e public.can_manage_acampadentro() (admin OU gestor); no app,
+-- requireAcampadentroManager() em src/lib/auth.ts. Para dar ou tirar o acesso:
+--   insert into acampadentro_managers (user_id) values ('<id>');   /   delete from acampadentro_managers where user_id = '<id>';
+-- Gestora atual: Aline Pimenta (lider).

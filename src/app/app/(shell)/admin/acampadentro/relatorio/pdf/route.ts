@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { PDFArray, PDFDocument, PDFName, PDFString, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
-import { requireRole } from "@/lib/auth";
+import { requireAcampadentroManager } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +18,7 @@ function fit(text: string, font: PDFFont, size: number, max: number): string {
 
 /** Relatório de comprovantes do Acampadentro em PDF, gerado na hora (data/hora de emissão). Pode ser emitido quantas vezes quiser. */
 export async function GET(req: NextRequest) {
-  await requireRole("admin");
+  await requireAcampadentroManager();
   const supabase = await createClient();
   const [payRes, profRes, setRes] = await Promise.all([
     supabase.from("acampadentro_payment").select("user_id, file_name, status, uploaded_at, pay_date").in("status", ["pending", "approved", "waived", "later"]).limit(1000),
