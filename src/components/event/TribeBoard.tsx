@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { moveTribeMember } from "@/lib/actions/event";
+import { moveTribeMember, setUserRsvp } from "@/lib/actions/event";
 import { TRIBES, TRIBE_KEYS, type TribeKey } from "@/lib/event/tribes";
 
 export type BoardPerson = { id: string; name: string; leader: boolean; tribe: TribeKey | null; seenAt: string | null; views: number; rsvp: "yes" | "no" | "maybe" | null; proof?: boolean };
@@ -35,6 +35,23 @@ export function TribeBoard({ initial, tribes }: { initial: BoardPerson[]; tribes
       const r = await moveTribeMember(id, to);
       if (r.error) {
         setPeople((list) => list.map((p) => (p.id === id ? { ...p, tribe: before.tribe } : p)));
+        setMsg(r.error);
+      }
+    });
+  };
+
+  /** O admin muda a resposta de presença da pessoa (vai, talvez, não vai, sem resposta). */
+  const setRsvp = (id: string, value: string) => {
+    const before = people.find((p) => p.id === id);
+    if (!before) return;
+    const next = value === "none" ? null : (value as BoardPerson["rsvp"]);
+    if (before.rsvp === next) return;
+    setPeople((list) => list.map((p) => (p.id === id ? { ...p, rsvp: next } : p)));
+    setMsg(null);
+    start(async () => {
+      const r = await setUserRsvp(id, value);
+      if (r.error) {
+        setPeople((list) => list.map((p) => (p.id === id ? { ...p, rsvp: before.rsvp } : p)));
         setMsg(r.error);
       }
     });
@@ -83,7 +100,20 @@ export function TribeBoard({ initial, tribes }: { initial: BoardPerson[]; tribes
         {p.leader ? <span className="ml-1 rounded-full px-1.5 text-[10px] font-bold" style={{ background: soft ?? "var(--line)", color: dark ?? "inherit" }}>Líder</span> : null}
       </span>
       <span className="flex shrink-0 items-center gap-1.5">
-        <span className="text-sm leading-none" title={RSVP[p.rsvp ?? "none"].label} aria-label={RSVP[p.rsvp ?? "none"].label}>{RSVP[p.rsvp ?? "none"].emoji}</span>
+        <select
+          aria-label={`Presença de ${p.name}`}
+          title={`${RSVP[p.rsvp ?? "none"].label} (toque para mudar)`}
+          value={p.rsvp ?? "none"}
+          onChange={(e) => setRsvp(p.id, e.target.value)}
+          onMouseDown={(e) => e.stopPropagation()}
+          draggable={false}
+          className="w-9 cursor-pointer appearance-none rounded-md border border-transparent bg-transparent py-0.5 text-center text-sm leading-none hover:border-[var(--line)]"
+        >
+          <option value="yes">✅ Vai</option>
+          <option value="maybe">🤔 Talvez</option>
+          <option value="no">❌ Não vai</option>
+          <option value="none">⏳ Sem resposta</option>
+        </select>
         {p.tribe ? (
           <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${p.seenAt ? "bg-emerald-500/15 text-emerald-700" : "bg-amber-500/15 text-amber-700"}`} title={p.seenAt ? `Viu pela 1ª vez em ${when(p.seenAt)} · ${p.views}x` : undefined}>
             {p.seenAt ? `viu ${when(p.seenAt)}` : "ainda não viu"}

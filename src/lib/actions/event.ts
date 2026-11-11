@@ -31,6 +31,16 @@ export async function sendPaymentReminderPush(): Promise<Res> {
   return { ok: true, message: `Aviso enviado para ${ids.length} pessoa(s).` };
 }
 
+/** O admin define a resposta de presença de uma pessoa: vai, talvez, não vai ou sem resposta ("none"). */
+export async function setUserRsvp(userId: string, status: string): Promise<Res> {
+  await requireRole("admin");
+  if (!["yes", "maybe", "no", "none"].includes(status)) return { error: "Resposta inválida." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("acampadentro_admin_set_rsvp", { p_user: userId, p_status: status });
+  if (error || data !== true) return { error: "Não foi possível alterar a resposta." };
+  return done();
+}
+
 /** Sorteia quem ainda não tem tribo (cria e líder aprovados, sem contas de teste), equilibrando por Elo. Quem já tem tribo não muda. */
 export async function runTribeDraw(): Promise<Res> {
   const { profile } = await requireRole("admin");
