@@ -4,17 +4,13 @@ import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/config";
 import { isMaintenance } from "@/lib/maintenance";
 
 const PUBLIC_PATHS = ["/", "/auth/callback", "/admin-access", "/manutencao"];
+const MAINTENANCE_OPEN_PATHS = ["/manutencao", "/admin-access"];
 
 export async function proxy(request: NextRequest) {
-  // manutenção: a partir de 27/11 às 00h00 (Brasília) todo o aplicativo fecha. Vem antes de qualquer consulta ao Supabase,
-  // porque nesse momento o banco pode já estar fora do ar.
-  if (isMaintenance()) {
-    if (request.nextUrl.pathname === "/manutencao") return NextResponse.next();
-    const url = request.nextUrl.clone();
-    url.pathname = "/manutencao";
-    url.search = "";
-    return NextResponse.redirect(url);
-  }
+  // manutenção (a partir de 27/11): só o administrador entra. A tela de manutenção não consulta o banco.
+  const maintenance = isMaintenance();
+  if (maintenance && request.nextUrl.pathname === "/manutencao") return NextResponse.next();
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -37,6 +33,17 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
+
+  if (maintenance && !MAINTENANCE_OPEN_PATHS.includes(path)) {
+    const { data: me } = user ? await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle() : { data: null };
+    // se o banco estiver fora do ar, me vem vazio e todos ficam na tela de manutenção
+    if (me?.role !== "admin") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/manutencao";
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
+  }
   const isPublic = PUBLIC_PATHS.includes(path);
 
   if (!user && !isPublic) {

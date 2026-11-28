@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = { title: "ELOS em manutenção", robots: { index: false } };
 
-/** Tela de manutenção: no lugar do login a partir de 27/11. Não depende do banco. */
+/** Tela de manutenção: no lugar do login a partir de 27/11 (só o admin entra, por /admin-access). Não depende do banco. */
 export default function ManutencaoPage() {
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center bg-[var(--bg)] px-6 text-center">
@@ -12,6 +13,9 @@ export default function ManutencaoPage() {
         O aplicativo está fechado para manutenção e não há previsão de retorno. Por enquanto não é possível entrar. Obrigado pela compreensão e por fazer parte do ELOS.
       </p>
       <p className="mt-6 text-3xl" aria-hidden>🛠️</p>
+      <Link href="/admin-access" className="mt-10 text-xs font-medium text-[var(--muted)] underline underline-offset-4">
+        Acesso do administrador
+      </Link>
     </main>
   );
 }
